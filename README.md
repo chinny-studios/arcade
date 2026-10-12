@@ -15,6 +15,7 @@ Collection of experimental browser games made with Claude. **Play them at https:
 | [Calamity Bay](calamity-bay/) | Kaiju rampage: play a sea or mountain monster and topple a city of breakable towers while police, tanks, helicopters and jets fight back. | [`source/`](calamity-bay/source/) (three.js, vendored) |
 | [Mud & Iron](mud-and-iron/) | WWI real-time strategy: four nations, trenches, wire, gas, barrages and early tanks across procedural sectors. Skirmish, Frontline, Survival and a five-mission campaign vs. the AI. Plays with mouse and keyboard or touch. | [`source/`](mud-and-iron/source/) (three.js, vendored) |
 | [Studworks](studworks/) | Brick-building sandbox: snap bricks, plates, tiles and slopes onto a baseplate in 26 classic colors. Move, copy, paint, undo, save to file. | [`source/`](studworks/source/) (three.js, vendored) |
+| [Iron Saber](iron-saber/) | Mobile suit action at real scale: walk up to an 18 m suit, ride the winch into its cockpit and fight across a breakable city, desert, forest and mountains. Panoramic and classic cockpits, first or third person, four boardable suits, sorties vs. Dominion AI. | [`source/`](iron-saber/source/) (three.js, vendored) |
 
 ## Rebuilding
 
@@ -25,6 +26,7 @@ Collection of experimental browser games made with Claude. **Play them at https:
 - **Hollowmere:** `cd hollowmere/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` to get a `window.HM` test hook.
 - **Mud & Iron:** `cd mud-and-iron/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` for a `window.MI` test hook (`MI.sim(seconds)` fast-forwards, `MI.start({...})` launches a match).
 - **Studworks:** `cd studworks/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` for a `window.SW` test hook. New parts go in the catalog at the bottom of `src/01_core.js`.
+- **Iron Saber:** `cd iron-saber/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` for a `window.IS` test hook (`IS.sim(seconds)` fast-forwards, `IS.enter('valiant')` jumps into a suit).
 
 ## Running locally
 
