@@ -210,7 +210,7 @@ function nn_build() {
     f: (L) => [buff({ nano_pool: R(8 + 4.5 * L), nanoInit: R(2 + 1.2 * L), psy: R(1 + 0.4 * L) })], fl: 'Quiets the mind and deepens the nano pool.' });
   S({ p: 'psion', k: 'lash', n: 'Lash', t: 'enemy', lv: [1, 10, 20, 30, 40, 48], gl: '✦', ca: [1.5, 2.2], rc: [3, 6], rg: 28,
     ti: ['Lash', 'Mind Whip', 'Psychic Scourge', 'Mind Flay', 'Cerebral Storm', 'Mindfire'], f: (L) => [{ t: 'dmg', type: 'energy', amt: D(L, 2.2, 2.7) }], fl: 'A psychic whip-crack.' });
-  S({ p: 'psion', k: 'syntony', n: 'Shared Syntony', t: 'team', lv: [16, 28, 40, 48], gl: '❖', nw: 2.2,
+  S({ p: 'psion', k: 'syntony', n: 'Shared Syntony', t: 'team', lv: [16, 28, 40, 48], gl: '❖', nw: 1.4,
     ti: ['Shared Syntony', 'Chorus Syntony', 'Resonant Syntony', 'Grand Syntony'],
     f: (L) => { const v = R(3 + 1.5 * L); return [buff({ fab: v, trn: v, bio: v, psi: v, sen_sch: v, spt: v })]; }, fl: 'Tunes every ally\'s nano skills to your own.' });
 
