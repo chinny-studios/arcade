@@ -154,7 +154,6 @@ function wd_unitBox() { return wd_ub || (wd_ub = new THREE.BoxGeometry(1, 1, 1).
 function wdGeo(geo, m, col, mat = 'lit') {
   const g = geo.index ? geo.toNonIndexed() : geo;
   const P = g.attributes.position, C = wdC(col), VC = g.attributes.color;
-  const nm = new THREE.Matrix3().getNormalMatrix(m);
   const e = m.elements;
   const b = wd_bat(mat, e[12], e[14]);
   const a = [0, 0, 0], bb = [0, 0, 0], d = [0, 0, 0];
@@ -167,7 +166,6 @@ function wdGeo(geo, m, col, mat = 'lit') {
     const cc = VC ? [VC.getX(i) * C[0], VC.getY(i) * C[1], VC.getZ(i) * C[2]] : C;
     wd_tri(b, a.slice(), bb.slice(), d.slice(), cc, _v5.x, _v5.y, _v5.z);
   }
-  void nm;
 }
 function wdFinishBatches() {
   for (const b of WD.bat.values()) {
@@ -178,7 +176,7 @@ function wdFinishBatches() {
     g.setAttribute('color', new THREE.Float32BufferAttribute(b.c, 3));
     g.computeBoundingSphere();
     const m = new THREE.Mesh(g, b.mat === 'glow' ? WD_MAT.glow : WD_MAT.lit);
-    m.castShadow = b.mat === 'lit';
+    m.castShadow = b.mat === 'lit';   // 'flat' = lit but casts no shadow (paving, decals, floors)
     m.receiveShadow = b.mat !== 'glow';
     m.matrixAutoUpdate = false;
     zoneRoot.add(m);
@@ -349,7 +347,7 @@ function wdTerrainH(x, z) {
   const h00 = H[k], h10 = H[k + 1], h01 = H[k + W], h11 = H[k + W + 1];
   return u > v ? h00 + (h10 - h00) * u + (h11 - h10) * v : h00 + (h01 - h00) * v + (h11 - h01) * u;
 }
-function wdWater(y, color, size = 6000, x = 0, z = 0, opacity = 0.8) {
+function wdWater(y, color, size = 6000, x = 0, z = 0, opacity = 0.8, level = true) {
   const g = typeof size === 'number' ? new THREE.PlaneGeometry(size, size, 1, 1).rotateX(-Math.PI / 2) : size;
   const mat = WD_MAT.water.clone();
   mat.color.set(color); mat.opacity = opacity;
@@ -357,7 +355,7 @@ function wdWater(y, color, size = 6000, x = 0, z = 0, opacity = 0.8) {
   m.position.set(x, y, z); m.receiveShadow = true; m.renderOrder = 2;
   m.userData.ownMat = true;
   zoneRoot.add(m);
-  WD.waterY = Math.max(WD.waterY, y);
+  if (level) WD.waterY = Math.max(WD.waterY, y);
   WD.anims.push((t) => { m.position.y = y + Math.sin(t * 0.7) * 0.06; });
   return m;
 }
@@ -375,41 +373,49 @@ function wdProp(kind) {
   }
   return p;
 }
-// items: [{ x, z, y?, s, sy?, yaw?, tilt?, col? }]. Chunked so off-screen instances are culled.
+// items: [{ x, z, y?, s, sx?, sy?, sz?, yaw?, tilt?, tint?, glowTint?, col: 0 (no collider) }].
+// Chunked so off-screen instances are culled. Protos with `geoGlow` get a second, unlit instanced mesh.
 function wdScatter(kind, items, o = {}) {
   if (!items.length) return;
   const P = wdProp(kind), CH = 360;
   const groups = new Map();
   for (const it of items) {
+    it.gy = it.y ?? groundY(it.x, it.z);
     const k = Math.floor(it.x / CH) * 1000 + Math.floor(it.z / CH);
     let l = groups.get(k);
     if (!l) groups.set(k, l = []);
     l.push(it);
-    if (P.col && it.col !== 0 && (o.collide ?? true)) wdColCyl(it.x, it.z, P.col * it.s * (it.cs ?? 1), -2, (it.y ?? 0) + (P.colH ?? 3) * (it.sy ?? it.s));
+    const s = it.s || 1;
+    if (P.col && it.col !== 0 && (o.collide ?? true)) wdColCyl(it.x, it.z, P.col * s * (it.cs ?? 1), it.gy - 1, it.gy + (P.colH ?? P.h ?? 2) * (it.sy ?? s)).nomap = !P.map;
   }
   const c = new THREE.Color();
-  for (const list of groups.values()) {
+  const mk = (geo0, mat, list, glow) => {
     const geo = new THREE.BufferGeometry();
-    for (const a in P.geo.attributes) geo.setAttribute(a, P.geo.attributes[a]);
+    for (const a in geo0.attributes) geo.setAttribute(a, geo0.attributes[a]);
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9;
-    const m = new THREE.InstancedMesh(geo, P.glow ? WD_MAT.propGlow : WD_MAT.prop, list.length);
+    const m = new THREE.InstancedMesh(geo, mat, list.length);
     list.forEach((it, i) => {
       const s = it.s || 1, sy = it.sy ?? s;
-      const y = (it.y ?? groundY(it.x, it.z)) - (P.sink || 0) * sy;
+      const y = it.gy - (P.sink || 0) * sy;
       _e1.set(it.tilt ? (hash2(i, 3) - 0.5) * it.tilt : 0, it.yaw ?? hash2(it.x * 13 | 0, it.z * 7 | 0) * TAU, it.tilt ? (hash2(i, 5) - 0.5) * it.tilt : 0);
       _m4.compose(_v1.set(it.x, y, it.z), _q1.setFromEuler(_e1), _v2.set(it.sx ?? s, sy, it.sz ?? s));
       m.setMatrixAt(i, _m4);
-      const tc = it.tint ? wdC(it.tint) : null, j = it.j ?? (0.86 + hash2(i * 3 + 1, it.x | 0) * 0.28);
+      const tn = glow ? (it.glowTint ?? null) : (it.tint ?? null);
+      const tc = tn !== null ? wdC(tn) : null, j = glow ? 1 : it.j ?? (0.86 + hash2(i * 3 + 1, it.x | 0) * 0.28);
       m.setColorAt(i, tc ? c.setRGB(tc[0] * j, tc[1] * j, tc[2] * j) : c.setRGB(j, j, j));
-      x0 = Math.min(x0, it.x - s * 2); x1 = Math.max(x1, it.x + s * 2); z0 = Math.min(z0, it.z - s * 2); z1 = Math.max(z1, it.z + s * 2);
+      const ss = Math.max(s, it.sx || 0, it.sz || 0);
+      x0 = Math.min(x0, it.x - ss * 2); x1 = Math.max(x1, it.x + ss * 2); z0 = Math.min(z0, it.z - ss * 2); z1 = Math.max(z1, it.z + ss * 2);
       y0 = Math.min(y0, y); y1 = Math.max(y1, y + sy * (P.h || 2));
     });
     geo.boundingSphere = new THREE.Sphere(new V3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2 + 4);
     m.instanceMatrix.needsUpdate = true;
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
-    m.castShadow = o.cast ?? P.cast; m.receiveShadow = !P.glow;
-    m.userData.sharedAttr = true;
+    m.castShadow = !glow && (o.cast ?? P.cast); m.receiveShadow = !glow;
     zoneRoot.add(m);
+  };
+  for (const list of groups.values()) {
+    if (P.geo) mk(P.geo, P.glow ? WD_MAT.propGlow : WD_MAT.prop, list, P.glow);
+    if (P.geoGlow) mk(P.geoGlow, WD_MAT.propGlow, list, true);
   }
 }
 // Random scatter helper: n attempts in a rect (or circle), keeping off roads/clear zones; fn(x,z,rng) returns an item or null.
@@ -733,7 +739,7 @@ function zoneMapCanvas() {
     g.fillStyle = C.mapCol || 'rgba(26,30,34,0.78)';
     if (C.t === 0) g.fillRect(toP(C.x0), toP(C.z0), Math.max(1, toP(C.x1) - toP(C.x0)), Math.max(1, toP(C.z1) - toP(C.z0)));
     else if (C.t === 1) {
-      g.save(); g.translate(toP(C.cx), toP(C.cz)); g.rotate(Math.atan2(-C.s, C.c) * -1); const k = S / def.size;
+      g.save(); g.translate(toP(C.cx), toP(C.cz)); g.rotate(Math.atan2(-C.s, C.c)); const k = S / def.size;
       g.fillRect(-C.hx * k, -C.hz * k, C.hx * 2 * k, C.hz * 2 * k); g.restore();
     } else if (C.r > 2.5) { g.beginPath(); g.arc(toP(C.x), toP(C.z), (C.r / def.size) * S, 0, TAU); g.fill(); }
   }

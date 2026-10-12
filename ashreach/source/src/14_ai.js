@@ -86,18 +86,38 @@ function fightMove(e, foe, dt) {
 function mobAbilities(e, foe, dt) {
   const ab = e.tpl.abilities;
   if (!ab || !ab.length || e.cast) return;
-  e.ai.abT = (e.ai.abT ?? 3 + Math.random() * 4) - dt;
+  e.ai.abT = (e.ai.abT ?? 2 + Math.random() * 4) - dt;
   if (e.ai.abT > 0) return;
-  e.ai.abT = 5 + Math.random() * 7;
-  const opts = ab.filter((id) => { const n = nanoDef(id); return n && !(e.cds['n:' + id] > 0) && e.np >= nanoCostFor(e, n); });
-  if (!opts.length) return;
-  // prefer heals when hurt, otherwise anything offensive
-  const heals = opts.filter((id) => nanoDef(id).fx.some((f) => f.t === 'heal' || f.t === 'hot'));
-  let id;
-  if (e.hp / e.S.maxHp < 0.45 && heals.length) id = pick(heals);
-  else { const off = opts.filter((id) => !heals.includes(id)); if (!off.length) return; id = off[Math.floor(Math.random() * off.length)]; }
-  const n = nanoDef(id);
-  castNano(e, id, n.target === 'enemy' ? foe : e);
+  e.ai.abT = 2 + Math.random() * 3;
+  const used = e.ai.used || (e.ai.used = {});
+  const hpF = e.hp / e.S.maxHp;
+  const cands = [];
+  for (const id of ab) {
+    const n = nanoDef(id);
+    if (!n || e.cds['n:' + id] > 0 || e.np < nanoCostFor(e, n)) continue;
+    const H = n.ai || {};
+    if (H.once && used[id]) continue;
+    if (H.hpBelow !== undefined && hpF > H.hpBelow) continue;
+    let tgt = n.target === 'enemy' ? foe : e;
+    if (n.target === 'friend') {
+      // the most hurt ally in reach: camp mates for mobs, the master's team for pets
+      const pool = e.owner ? teamOf(e.owner) : entsNear(e.pos.x, e.pos.z, n.range || 25, (o) => o.kind === 'mob' && !o.dead);
+      tgt = pool.filter((o) => !o.dead && o.hp / o.S.maxHp < (H.allyHpBelow ?? 0.6)).sort((a, b) => a.hp / a.S.maxHp - b.hp / b.S.maxHp)[0];
+      if (!tgt) continue;
+    }
+    if (n.target === 'enemy' && reachDist(e, foe) > (n.range || 25)) continue;
+    if (n.aoe && n.target === 'self' && reachDist(e, foe) > n.aoe) continue;
+    cands.push([id, tgt, H.hpBelow !== undefined || H.allyHpBelow !== undefined ? 2 : (H.p ?? 0.5)]);
+  }
+  if (!cands.length) return;
+  // urgent ones (heals, enrage, adds) first, otherwise roll each by its weight
+  cands.sort((a, b) => b[2] - a[2]);
+  for (const [id, tgt, w] of cands) {
+    if (w < 2 && Math.random() > w) continue;
+    const r = castNano(e, id, tgt);
+    if (r.ok) { used[id] = true; e.ai.abT = 5 + Math.random() * 6; }
+    return;
+  }
 }
 
 // ---------- pets ----------

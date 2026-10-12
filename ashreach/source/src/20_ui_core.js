@@ -336,15 +336,8 @@ function ui_onKey(ev) {
     return;
   }
   const typing = uiIsTyping();
-  if (ev.code === 'Escape') {
-    if (typing) { document.activeElement.blur(); ev.preventDefault(); return; }
-    if (UI.modal) { UI.modal.close(); return; }
-    const w = ui_topWin();
-    if (w) { uiClose(w.id); return; }
-    if (PLAYER && PLAYER.target && ui_has(setTarget)) { setTarget(null); return; }
-    uiToggle('options');
-    return;
-  }
+  // Escape outside text fields is routed by the main loop through uiEscape() (then target clear, then options).
+  if (ev.code === 'Escape') { if (typing) { document.activeElement.blur(); ev.preventDefault(); } return; }
   if (typing) return;
   if (ev.code === 'Enter' || ev.code === 'NumpadEnter') { ev.preventDefault(); chat_focus(''); return; }
   if (ev.code === 'Slash') { ev.preventDefault(); chat_focus('/'); return; }
@@ -357,6 +350,15 @@ function ui_onKey(ev) {
     ev.preventDefault();
     if (ui_has(hud_useSlot)) hud_useSlot(i);
   }
+}
+
+// Esc: close a dialog or the topmost window. Returns true when it consumed the key.
+function uiEscape() {
+  if (UI.state !== 'play') return false;
+  if (UI.modal) { UI.modal.close(); return true; }
+  const w = ui_topWin();
+  if (w) { uiClose(w.id); return true; }
+  return false;
 }
 
 // ---------- public entry points ----------
@@ -474,11 +476,6 @@ function ui_events() {
   });
   EV.on('death', (e) => { if (e === PLAYER) uiMessage('You have died\nReturning to your clone bay', 'death'); });
   EV.on('zone', (id) => {
-    const d = typeof ZONE_DEFS !== 'undefined' && ZONE_DEFS[id];
-    const def = (typeof ZONE !== 'undefined' && ZONE && ZONE.def && ZONE.id === id) ? ZONE.def : d;
-    const name = def ? def.name : ui_zoneName(id);
-    const sub = def ? (def.safe ? 'Concord protected' : def.lvl ? 'Levels ' + def.lvl[0] + '–' + def.lvl[1] : '') : '';
-    if (UI.state === 'play') uiMessage(name + (sub ? '\n' + sub : ''), 'zone');
     for (const wid of UI_NPC_WINS) uiClose(wid);
     UI.npc = null;
     ui_dirty('map');

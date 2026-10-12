@@ -25,20 +25,20 @@ function attackStats(e) {
     if (w === FISTS || w.skill === 'martial_arts') {
       // martial arts damage grows with the skill itself, gloves add on top
       const ma = S.martial_arts || 0, pro = e.char.prof === 'martialist' ? 1 : 0.45;
-      dmg = [Math.round((2 + ma * 0.12) * pro + (w.dmg ? w.dmg[0] : 0)), Math.round((6 + ma * 0.42) * pro + (w.dmg ? w.dmg[1] : 0))];
+      dmg = [Math.round((2 + ma * 0.05) * pro + (w.dmg ? w.dmg[0] : 0)), Math.round((5 + ma * 0.18) * pro + (w.dmg ? w.dmg[1] : 0))];
     }
-    const cycle = Math.max(0.9, ((w.atk || 1.2) + (w.rech || 1.2)) * (1 - clamp(init / 900, 0, 0.45)));
+    const cycle = Math.max(0.8, ((w.atk || 1.2) + (w.rech || 1.2)) / 2 * (1 - clamp(init / 900, 0, 0.45)) / (1 + (S.atkPct || 0) / 100));
     return { ar: (S[w.skill] || 0) + (S.addAR || 0), dmg: dmg || [1, 3], cycle, range: w.range || (ranged ? 25 : 2.8), type: w.dmgType || (ranged ? 'proj' : 'melee'), ranged, w, specials: w.specials || [] };
   }
   const M = e.mob, T = e.tpl;
   const ranged = T.arch === 'ranged' || T.arch === 'caster';
-  return { ar: M.ar + (e.S.addAR || 0), dmg: M.dmg, cycle: M.atk || T.atk || 2, range: T.range || (ranged ? 20 : 2.6), type: T.dmgType || 'melee', ranged, w: null, specials: [] };
+  return { ar: M.ar + (e.S.addAR || 0), dmg: M.dmg, cycle: (M.atk || T.atk || 2) / (1 + (e.S.atkPct || 0) / 100), range: T.range || (ranged ? 20 : 2.6), type: T.dmgType || 'melee', ranged, w: null, specials: [] };
 }
 function defenseRating(e, kind) {
   if (e.char) {
     const S = e.S;
     const base = kind === 'nano' ? S.nano_resist : kind === 'ranged' ? (S.dodge_ranged || 0) + (S.duck_exp || 0) * 0.3 : (S.evade_close || 0) + (S.parry || 0) * 0.4;
-    return (base || 0) + e.level * 2 + (S.addDef || 0);
+    return (base || 0) + 4 + e.level * 3.6 + (S.addDef || 0);
   }
   return ((e.mob && e.mob.dr) || e.level * 5) * (kind === 'nano' ? 0.8 : 1) + (e.S.addDef || 0);
 }
@@ -49,8 +49,9 @@ function mitigate(tgt, amt, type, srcLevel) {
 }
 function rollWeaponDamage(src, A, mult = 1) {
   let d = frand(A.dmg[0], A.dmg[1]);
-  if (src.char) d *= 1 + Math.max(0, A.ar) / 900;
-  d = d * mult + (src.S.addDmg || 0);
+  // attack rating beyond the weapon's needs turns into damage, as in the classics
+  if (src.char) d *= 1.25 + Math.max(0, A.ar) / 250;
+  d = d * mult * (1 + (src.S.dmgPct || 0) / 100) + (src.S.addDmg || 0);
   return d;
 }
 
@@ -291,7 +292,7 @@ function nanoTargetOk(e, n, t) {
   switch (n.target) {
     case 'self': return true;
     case 'pet': return e.pets.length > 0;
-    case 'team': case 'friend': return !t || (!t.dead && !isHostile(e, t) && t.kind !== 'npc' && t.kind !== 'mob');
+    case 'team': case 'friend': return true;
     case 'enemy': return canAttack(e, t);
   }
   return true;
@@ -299,7 +300,8 @@ function nanoTargetOk(e, n, t) {
 function resolveNanoTarget(e, n, t) {
   if (n.target === 'self') return e;
   if (n.target === 'pet') return e.pets[0] || null;
-  if (n.target === 'team' || n.target === 'friend') return (t && !t.dead && !isHostile(e, t) && t.kind !== 'npc' && t.kind !== 'mob') ? t : e;
+  // friendly programs on an invalid target (a hostile, an NPC) land on the caster instead, as in the classics
+  if (n.target === 'team' || n.target === 'friend') return (t && !t.dead && !isHostile(e, t) && sideOf(t) === sideOf(e)) ? t : e;
   return t;
 }
 function castNano(e, id, target) {
@@ -356,9 +358,10 @@ function finishCast(e) {
       return;
     }
   }
-  const targets = n.target === 'team' ? teamOf(e).filter((m) => !m.dead && !m.removed && entDist(m, e) < (n.range || 30)) : [t];
+  let targets = n.target === 'team' ? teamOf(e).filter((m) => !m.dead && !m.removed && entDist(m, e) < (n.range || 30)) : [t];
   if (n.target === 'team') for (const m of targets.slice()) for (const p of m.pets) targets.push(p);
-  for (const tt of targets) applyNano(e, tt, n, C.nano);
+  if (n.aoe) { const c = n.target === 'self' ? e : t; targets = entsNear(c.pos.x, c.pos.z, n.aoe, (o) => !o.dead && isHostile(e, o)); }
+  for (const tt of targets) applyNano(e, tt, n.rel && e.mob ? Object.assign({}, n, { fx: mobAbilityFx(n, e.mob, tt.S.maxHp) }) : n, C.nano);
   EV.emit('castdone', e, n, t, true);
   if (typeof sfx === 'function' && (e === PLAYER || t === PLAYER)) sfx('cast_done', t.pos);
   nanoFx(e, t, n);
@@ -368,11 +371,11 @@ function applyNano(src, t, n, id) {
   for (const f of n.fx) {
     switch (f.t) {
       case 'dmg': {
-        const d = mitigate(t, frand(f.amt[0], f.amt[1]) * (1 + (src.S.nanoDmg || 0) / 100), f.type || 'energy', src.level * 0.5);
+        const d = mitigate(t, amtOf(f.amt) * (1 + (src.S.nanoDmg || 0) / 100), f.type || 'energy', src.level * 0.5);
         dealDamage(src, t, Math.max(1, Math.round(d)), f.type || 'energy', { nano: n.name });
         break;
       }
-      case 'heal': heal(src, t, frand(f.amt[0], f.amt[1]), { nano: n.name }); break;
+      case 'heal': heal(src, t, amtOf(f.amt), { nano: n.name }); break;
       case 'taunt': addHate(t, src, f.amt || 200); t.target = src; break;
       case 'pet': {
         for (const p of src.pets.slice()) if (p.petId === f.pet) removeEnt(p);
@@ -380,17 +383,29 @@ function applyNano(src, t, n, id) {
         if (src === PLAYER) EV.emit('log', 'You assemble ' + p.name.replace(src.name + "'s ", 'your ') + '.', 'nano');
         break;
       }
+      case 'summon': summonAdds(src, f.n || 2); break;
       case 'lattice': if (src === PLAYER) EV.emit('interact', { role: 'hopper', name: 'The Lattice', destinations: latticeDestinations(), lattice: true }); break;
       default: buffSpec = buffSpec || { mods: {}, fx: [] }; buffSpec.fx.push(f);
     }
   }
   if (buffSpec && (n.dur || 0) > 0) applyBuffRaw(src, t, { id, name: n.name, line: n.line || id, str: n.str || n.lvl || 1, dur: n.dur, ncu: n.target !== 'enemy' ? (n.ncu || 0) : 0, fx: buffSpec.fx, icon: n.icon, hostile: n.target === 'enemy' });
 }
+function summonAdds(src, n) {
+  const id = (src.tpl && src.tpl.adds) || src.tplId;
+  const foe = src.kind === 'mob' ? topHate(src) : null;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * TAU;
+    const m = spawnMob(id, Math.max(1, src.level - 2), src.pos.x + Math.sin(a) * 4, src.pos.z + Math.cos(a) * 4, { leash: 60 });
+    if (m && foe) addHate(m, foe, 5);
+  }
+  if (entDist(src, PLAYER) < 50) EV.emit('chat', 'vicinity', src.name, 'To me! Now!');
+}
 function latticeDestinations() {
   const out = [];
   for (const id in ZONE_DEFS) for (const p of ZONE_DEFS[id].pois || []) if (p.type === 'hopper' || p.type === 'clonebay') out.push({ zone: id, poi: p.id, name: ZONE_DEFS[id].name + ' · ' + (p.name || p.type), cost: 0 });
   return out;
 }
+const amtOf = (a) => Array.isArray(a) ? Math.round(frand(a[0], a[1])) : (a || 0);
 // Buffs: one per nanoline on a target; a stronger program replaces a weaker one.
 function applyBuffRaw(src, t, B) {
   const same = t.buffs.find((b) => b.line === B.line);
@@ -406,8 +421,8 @@ function applyBuffRaw(src, t, B) {
   for (const f of B.fx || []) {
     switch (f.t) {
       case 'buff': case 'debuff': sumMods(b.mods, f.mods); break;
-      case 'hot': b.ticks.push({ kind: 'heal', amt: f.amt, every: f.every || 2, t: f.every || 2 }); break;
-      case 'dot': b.ticks.push({ kind: 'dmg', type: f.type || 'poison', amt: f.amt, every: f.every || 2, t: f.every || 2 }); break;
+      case 'hot': b.ticks.push({ kind: 'heal', amt: amtOf(f.amt), every: f.every || 2, t: f.every || 2 }); break;
+      case 'dot': b.ticks.push({ kind: 'dmg', type: f.type || 'poison', amt: amtOf(f.amt), every: f.every || 2, t: f.every || 2 }); break;
       case 'root': b.root = true; break;
       case 'snare': b.snare = f.pct || 40; break;
       case 'stun': b.stun = true; break;
@@ -417,7 +432,7 @@ function applyBuffRaw(src, t, B) {
       case 'dmgshield': b.dmgshield = { type: f.type, amt: f.amt }; break;
       case 'speed': b.mods.runSpeedPct = (b.mods.runSpeedPct || 0) + (f.pct || 0); break;
       case 'stealth': b.stealth = true; break;
-      case 'morph': b.morph = f.model; if (f.mods) sumMods(b.mods, f.mods); break;
+      case 'morph': b.morph = f; if (f.mods) sumMods(b.mods, f.mods); break;
       case 'proc': if (f.drain) b.procDrain = f.drain; if (f.teamHeal) b.procTeamHeal = f.teamHeal; break;
       case 'drain': {
         sumMods(b.mods, { [f.stat]: -(f.amt || 10) });
@@ -445,11 +460,12 @@ function removeBuff(t, b, quiet) {
   if (!quiet && t === PLAYER) EV.emit('log', b.name + ' has worn off.', 'info');
 }
 function cancelBuff(e, nanoId) { const b = e.buffs.find((x) => x.nano === nanoId && !x.hostile); if (b) removeBuff(e, b); }
-function setMorph(e, model) {
-  e.morph = model;
-  if (model && typeof makeCreature === 'function') {
+function setMorph(e, f) {
+  e.morph = f;
+  if (f && typeof makeCreature === 'function') {
     if (e.rig) { e.rig.root.parent && e.rig.root.parent.remove(e.rig.root); e.rig.dispose && e.rig.dispose(); }
-    e.rig = makeCreature(model, { colors: [0x8a6a4a, 0x4a3a2a, 0xffd27a], scale: 1.1 });
+    e.rig = makeCreature(f.model || 'beast', { colors: f.colors || [0x8a6a4a, 0x4a3a2a, 0xffd27a], scale: f.scale || 1.1 });
+    e.rig.root.traverse((o) => { o.userData.ent = e; });
     e.rig.root.position.copy(e.pos); scene.add(e.rig.root);
   } else buildRig(e);
 }
