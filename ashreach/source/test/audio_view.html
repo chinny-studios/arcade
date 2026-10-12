@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ashreach audio bench</title>
+<style>
+  body { background: #0b0d10; color: #e6ecef; font: 14px system-ui, sans-serif; margin: 16px; }
+  h2 { font-size: 14px; color: #ffb347; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .08em; }
+  button { background: #1a232b; color: #e6ecef; border: 1px solid #34424d; border-radius: 4px; padding: 5px 9px; margin: 2px; cursor: pointer; }
+  button:hover { border-color: #5fe0d0; }
+  button.on { background: #1f4a45; border-color: #5fe0d0; }
+  label { margin-right: 14px; }
+  #log { font: 12px monospace; white-space: pre-wrap; color: #93a3ad; margin-top: 14px; max-height: 260px; overflow: auto; }
+</style>
+</head>
+<body>
+<h1 style="font-size:18px">Ashreach audio bench</h1>
+<div>
+  <button id="init">Start audio</button>
+  <button id="mute">Mute</button>
+  <label>master <input type="range" id="vm" min="0" max="1" step="0.01" value="0.8"></label>
+  <label>music <input type="range" id="vu" min="0" max="1" step="0.01" value="0.7"></label>
+  <label>sfx <input type="range" id="vs" min="0" max="1" step="0.01" value="0.85"></label>
+</div>
+<div>Positional test: listener at origin facing +Z; sound at
+  <label>x <input type="range" id="px" min="-60" max="60" step="1" value="0"></label>
+  <label>z <input type="range" id="pz" min="-60" max="60" step="1" value="0"></label>
+  <label><input type="checkbox" id="pon"> use position</label></div>
+<h2>Effects</h2><div id="sfx"></div>
+<h2>Music</h2><div id="mus"></div>
+<h2>Ambience</h2><div id="amb"></div>
+<div id="log"></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/01_core.js"></script>
+<script src="../src/18_audio.js"></script>
+<script>
+const logEl = document.getElementById('log');
+const log = (s) => { logEl.textContent += s + '\n'; logEl.scrollTop = 1e9; };
+window.addEventListener('error', (e) => log('ERROR ' + e.message));
+const pos = () => document.getElementById('pon').checked ? { x: +document.getElementById('px').value, y: 0, z: +document.getElementById('pz').value } : undefined;
+function mk(id, names, fn) {
+  const el = document.getElementById(id);
+  for (const n of names) {
+    const b = document.createElement('button'); b.textContent = n;
+    b.onclick = () => { audioInit(); fn(n); };
+    el.appendChild(b);
+  }
+}
+mk('sfx', Object.keys(AUD_SFX), (n) => sfx(n, pos()));
+// music/ambience buttons: click again to stop
+function toggler(id, names, set) {
+  const el = document.getElementById(id); let cur = null;
+  for (const n of names) {
+    const b = document.createElement('button'); b.textContent = n;
+    b.onclick = () => { audioInit(); cur = cur === n ? null : n; set(cur); for (const c of el.children) c.classList.toggle('on', c.textContent === cur); };
+    el.appendChild(b);
+  }
+}
+toggler('mus', Object.keys(AUD_MUSIC), setMusic);
+toggler('amb', Object.keys(AUD_AMB), setAmbience);
+document.getElementById('init').onclick = () => { audioInit(); log('AC state: ' + (AC && AC.state)); };
+document.getElementById('mute').onclick = (e) => { setMuted(!muted); e.target.textContent = muted ? 'Unmute' : 'Mute'; };
+const vol = () => setVolume(+document.getElementById('vm').value, +document.getElementById('vu').value, +document.getElementById('vs').value);
+for (const id of ['vm', 'vu', 'vs']) document.getElementById(id).oninput = vol;
+let last = performance.now();
+(function frame() { const n = performance.now(); audioUpdate((n - last) / 1000, { x: 0, y: 0, z: 0 }, 0); last = n; requestAnimationFrame(frame); })();
+
+// ---------- offline self test (driven by Playwright) ----------
+async function renderOffline(seconds, setup, sr = 44100) {
+  const ctx = new OfflineAudioContext(2, Math.ceil(sr * seconds), sr);
+  audioAttach(ctx);
+  setup();
+  const buf = await ctx.startRendering();
+  audioShutdown(); audWant.music = null; audWant.amb = null;
+  const L = buf.getChannelData(0), R = buf.getChannelData(1);
+  let peak = 0, sum = 0, pl = 0, pr = 0, nan = 0;
+  for (let i = 0; i < L.length; i++) {
+    const a = Math.abs(L[i]), b = Math.abs(R[i]);
+    if (a !== a || b !== b) nan++;
+    pl = Math.max(pl, a); pr = Math.max(pr, b); sum += L[i] * L[i] + R[i] * R[i];
+  }
+  peak = Math.max(pl, pr);
+  return { peak, rms: Math.sqrt(sum / (2 * L.length)), pl, pr, nan };
+}
+window.audioSelfTest = async function () {
+  const out = { sfx: {}, music: {}, amb: {}, pos: {} };
+  for (const n of Object.keys(AUD_SFX)) out.sfx[n] = await renderOffline(4, () => sfx(n));
+  for (const n of Object.keys(AUD_MUSIC)) out.music[n] = await renderOffline(40, () => { setMusic(n); audMusicTick(40); });
+  for (const n of Object.keys(AUD_AMB)) out.amb[n] = await renderOffline(8, () => { setAmbience(n); for (let i = 0; i < 40; i++) audioUpdate(0.5, { x: 0, y: 0, z: 0 }, 0); });
+  // positional: near right vs far vs left (listener faces +Z, so -X is on the right)
+  const P = (p, yaw) => renderOffline(2, () => { audioListener.x = 0; audioListener.y = 0; audioListener.z = 0; audioListener.yaw = yaw || 0; sfx('hit_melee', p); });
+  out.pos.center = await P(null);
+  out.pos.right = await P({ x: -6, y: 0, z: 0 });
+  out.pos.left = await P({ x: 6, y: 0, z: 0 });
+  out.pos.far = await P({ x: 0, y: 0, z: 25 });
+  out.pos.gone = await P({ x: 0, y: 0, z: 400 });
+  out.pos.yawLeft = await P({ x: -6, y: 0, z: 0 }, Math.PI);   // turned around: now on the left
+  // everything at once: worst-case limiter check
+  out.pile = await renderOffline(3, () => { for (const n of Object.keys(AUD_SFX)) for (let i = 0; i < 3; i++) sfx(n); setMusic('combat'); audMusicTick(3); setAmbience('city'); });
+  // rate limit: 50 identical calls should schedule at most 6
+  out.rate = await renderOffline(1, () => { let c = 0; const o = AC.createGain; AC.createGain = function () { c++; return o.apply(this, arguments); }; for (let i = 0; i < 50; i++) sfx('ui_click'); AC.createGain = o; out.rateGains = c; });
+  return out;
+};
+</script>
+</body>
+</html>
