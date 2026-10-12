@@ -33,3 +33,7 @@ Some games load their soundtrack via a relative path, so serve the folder rather
 ```sh
 python3 -m http.server 8000   # then open http://localhost:8000/<game>/
 ```
+
+## License
+
+The code is [MIT](LICENSE), © 2026 Jeffrey Chin. The music files are **not** covered by it, and three.js and the fonts have their own licenses: see [THIRD_PARTY.md](THIRD_PARTY.md).
