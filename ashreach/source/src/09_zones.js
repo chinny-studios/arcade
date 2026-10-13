@@ -646,9 +646,9 @@ function zn_ghBuild(def) {
   zn_doors(def, 'bunker');
   const bog = (x, z) => groundY(x, z) < WY + 0.2;
   const inSpore = (x, z) => Math.hypot(x - ZN_GH.spore.x, z - ZN_GH.spore.z) < ZN_GH.spore.r;
-  zn_fill(rng, def, 'fern', 1300, (x, z, r) => (!bog(x, z) && !inSpore(x, z) && zn_slope(x, z) < 0.7 ? { x, z, s: r.r(4, 9), tilt: 0.15 } : null), 4);
-  zn_fill(rng, def, 'bigtree', 520, (x, z, r) => (!bog(x, z) && !inSpore(x, z) && vnoise(x * 0.01, z * 0.01) > 0.42 ? { x, z, s: r.r(7, 14), tint: r.chance(0.5) ? 0xd0e0b0 : null } : null), 6);
-  zn_fill(rng, def, 'grass', 2200, (x, z, r) => (!bog(x, z) ? { x, z, s: r.r(1, 2), tint: 0xa8c070 } : null), 2);
+  zn_fill(rng, def, 'fern', 900, (x, z, r) => (!bog(x, z) && !inSpore(x, z) && zn_slope(x, z) < 0.7 ? { x, z, s: r.r(4, 9), tilt: 0.15 } : null), 4);
+  zn_fill(rng, def, 'bigtree', 380, (x, z, r) => (!bog(x, z) && !inSpore(x, z) && vnoise(x * 0.01, z * 0.01) > 0.42 ? { x, z, s: r.r(7, 14), tint: r.chance(0.5) ? 0xd0e0b0 : null } : null), 6);
+  zn_fill(rng, def, 'grass', 1500, (x, z, r) => (!bog(x, z) ? { x, z, s: r.r(1, 2), tint: 0xa8c070 } : null), 2);
   zn_fill(rng, def, 'reed', 1500, (x, z, r) => (zn_ghBog(x, z) < B.r * 1.05 && groundY(x, z) < WY + 0.9 ? { x, z, s: r.r(0.8, 1.6) } : null), 1);
   zn_fill(rng, def, 'deadtree', 200, (x, z, r) => (zn_ghBog(x, z) < B.r ? { x, z, s: r.r(4, 8), tint: 0x9a9a7a } : null), 4);
   wdScatter('mushroom', wdSpread(rng, 900, ZN_GH.spore, (x, z, r) => ({ x, z, s: r.r(1, 4), glowTint: r.chance(0.6) ? 0xe0f070 : 0xf0b060 }), 3));

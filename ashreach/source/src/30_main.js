@@ -150,6 +150,7 @@ function frame(now) {
     const el = $('#fps');
     if (DEBUG || showFps) { el.hidden = false; el.textContent = Math.round(fpsN / fpsAcc) + ' fps · ' + ENTS.length + ' ents · ' + renderer.info.render.calls + ' calls · ' + Math.round(renderer.info.render.triangles / 1000) + 'k tris'; }
     else el.hidden = true;
+    autoQuality(fpsN / fpsAcc);
     fpsAcc = 0; fpsN = 0;
   }
   if (MANUAL) return;
@@ -160,6 +161,18 @@ function frame(now) {
   pressed.clear();
 }
 let showFps = false, MANUAL = false;
+// If the machine can't keep up in play, step down once: native resolution and no shadows.
+const QUAL = { t: 0, slow: 0, low: false };
+function autoQuality(fps) {
+  if (QUAL.low || state !== 'play' || DEBUG) return;
+  QUAL.t += 0.5;
+  if (QUAL.t < 8) return;
+  QUAL.slow = fps < 30 ? QUAL.slow + 1 : 0;
+  if (QUAL.slow < 8) return;
+  QUAL.low = true;
+  setQuality('low');
+  EV.emit('log', 'Lowered graphics quality to keep the frame rate up (Options to change).', 'info');
+}
 function setQuality(q) {
   renderer.setPixelRatio(q === 'low' ? 1 : Math.min(devicePixelRatio || 1, 1.5));
   sun.castShadow = q !== 'low';
