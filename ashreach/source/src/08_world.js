@@ -637,7 +637,7 @@ function losClear(ax, ay, az, bx, by, bz) {
   if (WD.hf || WD.tiles) {
     const n = Math.max(1, Math.ceil(L / (WD.tiles ? 0.6 : 2.5)));
     const T = WD.tiles;
-    for (let i = 1; i < n; i++) {
+    for (let i = 1; i <= n; i++) {   // include the far end: a camera spot inside a wall must fail
       const t = i / n, x = ax + dx * t, z = az + dz * t, y = ay + dy * t;
       if (WD.hf && y < wdTerrainH(x, z) - 0.15) return false;
       if (T) {

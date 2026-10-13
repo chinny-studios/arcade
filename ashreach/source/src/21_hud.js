@@ -528,7 +528,7 @@ function hud_mapCanvas() {
   const zid = typeof ZONE !== 'undefined' && ZONE ? ZONE.id : null;
   if (HUD.mapZone !== zid) {
     HUD.mapZone = zid; HUD.map = null;
-    if (typeof zoneMapCanvas === 'function') { try { HUD.map = zoneMapCanvas(); } catch (e) { console.error(e); } }
+    if (typeof zoneMapCanvas === 'function') { try { HUD.map = zoneMapCanvas({ labels: false }); } catch (e) { console.error(e); } }
   }
   return HUD.map;
 }

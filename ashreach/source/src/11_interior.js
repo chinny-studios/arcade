@@ -84,7 +84,7 @@ function makeInteriorDef(o) {
   const ez = W(E.j + E.d / 2);
   const arriveId = o.arriveId || id + '_arrive';
   const pois = [
-    { id: arriveId, type: 'arrive', x: W(E.i) + 3.5, z: ez, yaw: Math.PI / 2, name: 'Entrance' },
+    { id: arriveId, type: 'arrive', x: W(E.i) + 7, z: ez, yaw: Math.PI / 2, name: 'Entrance' },
     { id: id + '_exit', type: 'door', x: W(E.i) + 0.9, z: ez, yaw: Math.PI / 2, name: 'Exit', data: o.back ? { to: o.back.zone, poi: o.back.poi } : {}, noProp: true, clear: 0 },
   ];
   const mobs = o.mobs && o.mobs.length ? o.mobs : ['merc'];

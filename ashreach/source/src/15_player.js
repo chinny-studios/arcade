@@ -223,7 +223,7 @@ function updateCamera(dt) {
   for (let i = 1; i <= 12; i++) {
     const t = d * i / 12;
     const x = _ct.x + _cb.x * t, y = _ct.y + _cb.y * t, z = _ct.z + _cb.z * t;
-    if (y < groundY(x, z) + 0.35 || !losClear(_ct.x, _ct.y, _ct.z, x, y, z)) { d = Math.max(0.8, t - d / 12); break; }
+    if (y < groundY(x, z) + 0.35 || !losClear(_ct.x, _ct.y, _ct.z, x, y, z)) { d = Math.max(0.8, t - d / 12 - 0.35); break; }
   }
   CAM.cur = CAM.cur === undefined || d < CAM.cur ? d : lerp(CAM.cur, d, 1 - Math.exp(-dt * 5));
   camera.position.copy(_ct).addScaledVector(_cb, CAM.cur);

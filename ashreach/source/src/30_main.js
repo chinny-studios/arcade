@@ -205,6 +205,7 @@ if (DEBUG) window.AR = {
   startGame, newCharacter, changeZone, spawnMob, castNano, useSpecial, startAttack, stopAttack, setTarget, interact, travel, giveXp, makeItem, addItem, equip, useItem, refreshStats, tabTarget, saveGame, listSaves, quitToTitle,
   get requestMissions() { return typeof requestMissions === 'function' ? requestMissions : null; }, get acceptMission() { return typeof acceptMission === 'function' ? acceptMission : null; }, get missionDoor() { return typeof missionDoor === 'function' ? missionDoor : null; },
   ipAtLevel, raiseSkill, raiseAbility, itemReqsMet, attackStats, specialsFor, mobStats, applyNano, heal, dealDamage,
+  groundY: (x, z) => groundY(x, z), losClear: (...a) => losClear(...a),
   manual(on) { MANUAL = on; }, tick, render,
   sim(sec, dt = 1 / 30) { const t0 = performance.now(); for (let t = 0; t < sec; t += dt) tick(dt); render(); if (typeof uiUpdate === 'function') uiUpdate(dt); return performance.now() - t0; },
   quick(prof = 'trooper', breed = 'baseline', faction = 'unaligned', name = 'Tester') { SAVE_SLOT = 7; startGame(newCharacter({ name, breed, prof, faction, sex: 'f' })); return PLAYER; },
