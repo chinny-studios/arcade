@@ -857,6 +857,10 @@ function sm_pteam(e, dt) {
   if (!P) { idleEnt(e, dt); return; }
   if (TEAM.leader === e && !sm_zone().def.safe) {
     if (A.mode !== 'fight' && A.mode !== 'rest' && A.mode !== 'loot') A.mode = 'hunt';
+    // a leader who wandered off comes back for the player first
+    const d = entDist(e, P);
+    if (d > 150 && !e.cast) { sm_place(e, sm_around(P.pos.x, P.pos.z, 3, 6)); return; }
+    if (d > 40 && A.mode !== 'fight') { sm_walk(e, P.pos.x, P.pos.z, dt, 6, 1.2); return; }
     sm_solo(e, dt);
     return;
   }
@@ -1091,7 +1095,7 @@ function simPylons() { return Object.values(SM.pylons).map((p) => ({ id: p.id, n
 function sm_flip(p, fac) {
   const old = p.owner;
   p.owner = fac; p.c = 0; p.by = null;
-  sm_sys('Lumen Scar: the ' + SM_FAC[fac] + ' have taken ' + p.name + (old && SM_FAC[old] ? ' from the ' + SM_FAC[old] : '') + '.');
+  sm_sys('Lumen Scar: the ' + SM_FAC[fac] + ' have taken ' + p.name + (old === 'meridian' || old === 'freehold' ? ' from the ' + SM_FAC[old] : '') + '.');
   const pf = PLAYER && PLAYER.faction;
   if (pf === fac || pf === old) {
     const r = sm_pickRec((x) => x.faction === pf && x.level >= 30);
@@ -1107,7 +1111,7 @@ function sm_pylonTick() {
     const near = entsNear(p.x, p.z, 22, (o) => !o.dead && (o.kind === 'sim' || o.kind === 'player'));
     let def = 0;
     const atk = { meridian: 0, freehold: 0 };
-    for (const o of near) { if (o.faction === p.owner) def++; else if (atk[o.faction] !== undefined) atk[o.faction]++; }
+    for (const o of near) { if (o.faction === p.owner && atk[o.faction] !== undefined) def++; else if (atk[o.faction] !== undefined) atk[o.faction]++; }
     const att = atk.meridian > atk.freehold ? 'meridian' : atk.freehold > 0 ? 'freehold' : null;
     if (!def && att && att !== p.owner) {
       if (p.by !== att) {
@@ -1199,7 +1203,7 @@ function sm_warTick() {
   }
   // the war goes on while the player is elsewhere
   const Z = sm_zone();
-  if (!(Z && Z.def.pvp) && sm_chance(0.4)) { const p = sm_pick(ps); sm_flip(p, p.owner === 'meridian' ? 'freehold' : 'meridian'); }
+  if (!(Z && Z.def.pvp) && sm_chance(0.4)) { const p = sm_pick(ps); sm_flip(p, p.owner === 'meridian' ? 'freehold' : p.owner === 'freehold' ? 'meridian' : sm_pick(['meridian', 'freehold'])); }
 }
 
 // ---------- death ----------
@@ -1406,7 +1410,7 @@ function sm_oocTick() {
     sm_say(rec, 'ooc', sm_fill(b[0], ctx));
     if (b[1] && sm_chance(0.75)) { const o = sm_pickRec((x) => x !== rec); if (o) sm_later(3 + sm_rnd() * 8, () => sm_say(o, 'ooc', sm_fill(sm_pick(b[1]), ctx))); }
   } else if (r < 0.92) {
-    const rec = sm_pickRec((x) => x.level > 1 && x.pers !== 'quiet');
+    const rec = sm_pickRec((x) => x.level >= 5 && x.pers !== 'quiet');
     if (rec) sm_ding(rec);
   } else {
     const rec = sm_pickRec(null);
@@ -1452,7 +1456,8 @@ function sm_tellTick() {
   const solo = TEAM.members.length <= 1;
   const near = SM.ents.filter((e) => !e.removed && !e.dead && !e.team && Math.abs(e.level - P.level) <= 4 && e.ai.mode !== 'pvp' && !e.ai.leaving && !isHostile(e, P));
   if (solo && near.length && !Z.def.safe && !SM.invite && sm_chance(0.55)) {
-    const e = sm_pick(near), ctx = sm_ctx(e.sim);
+    near.sort((a, b) => entDist(a, P) - entDist(b, P));
+    const e = near[Math.floor(sm_rnd() * Math.min(3, near.length))], ctx = sm_ctx(e.sim);
     if (e.sim.pers === 'quiet' || e.sim.pers === 'grumpy') return;
     sm_tell(e.sim, sm_fill(sm_pick(['hey, want to team up for {zone}?', 'you look like you could use a {role}. team?', 'lf duo partner, want in? sending inv', 'team? xp is better together']), ctx));
     sm_later(2.5 + sm_rnd() * 2, () => { if (!e.removed && !e.dead && TEAM.members.length <= 1) sm_simInvite(e); });
@@ -1604,7 +1609,8 @@ function sm_onPlayerChat(ch, text, to) {
       const Z = sm_zone();
       const cand = SM.ents.filter((e) => !e.removed && !e.dead && e.team !== TEAM && Math.abs(e.level - P.level) <= 5 && e.ai.mode !== 'pvp' && !isHostile(e, P) && !['quiet', 'grumpy'].includes(e.sim.pers));
       if (cand.length && TEAM.members.length <= 1 && !Z.def.generated) {
-        const e = sm_pick(cand);
+        cand.sort((a, b) => entDist(a, P) - entDist(b, P));
+        const e = cand[Math.floor(sm_rnd() * Math.min(3, cand.length))];
         sm_later(3 + sm_rnd() * 6, () => { sm_tell(e.sim, sm_fill(sm_pick(['{lvl} {prof} here, want to team?', 'I can join, {lvl} {prof}. sending inv', 'hey, looking too. inv sent']), sm_ctx(e.sim))); sm_later(2, () => { if (TEAM.members.length <= 1) sm_simInvite(e); }); });
       } else { const r = sm_pickRec((x) => Math.abs(x.level - P.level) <= 6 && x.pers !== 'quiet' && x.zone !== Z.id && !x.ent); if (r) sm_later(4 + sm_rnd() * 6, () => sm_tell(r, 'I would but I am in ' + sm_zname(r.zone) + '. /t me if you still need someone later')); }
       return;
@@ -1895,6 +1901,7 @@ function simZoneChanged(id) {
       }
     }
     here.sort(() => sm_rnd() - 0.5);
+    if (Z.def.pvp) here.sort((a, b) => (b.faction !== 'unaligned' && b.level >= 30) - (a.faction !== 'unaligned' && a.level >= 30));
     here = here.slice(0, SM.target);
     for (const r of here) {
       const mode = sm_modeFor(r);
