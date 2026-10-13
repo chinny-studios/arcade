@@ -353,7 +353,7 @@ function finishCast(e) {
     const hasDirect = n.fx.some((f) => f.t === 'dmg');
     if (!hasDirect && Math.random() > hitChance(ar * 1.1, defenseRating(t, 'nano'))) {
       EV.emit('castdone', e, n, t, false);
-      EV.emit('log', (e === PLAYER ? 'Your ' : e.name + "'s ") + n.name + ' was resisted by ' + (t === PLAYER ? 'you' : t.name) + '.', e === PLAYER ? 'warn' : 'info');
+      if (e === PLAYER || t === PLAYER || e.owner === PLAYER) EV.emit('log', (e === PLAYER ? 'Your ' : e.name + "'s ") + n.name + ' was resisted by ' + (t === PLAYER ? 'you' : t.name) + '.', e === PLAYER ? 'warn' : 'info');
       addHate(t, e, 20);
       return;
     }
@@ -473,6 +473,7 @@ function updateBuffs(e, dt) {
   e.rooted = 0; e.snared = 0; e.stunned = Math.max(0, e.stunned - dt); e.calmed = 0;
   for (let i = e.buffs.length - 1; i >= 0; i--) {
     const b = e.buffs[i];
+    if (!b) continue;   // a tick can kill and clear the list mid-loop
     if (b.root) e.rooted = 1;
     if (b.snare) e.snared = Math.max(e.snared, b.snare);
     if (b.stun) e.stunned = Math.max(e.stunned, 0.1);

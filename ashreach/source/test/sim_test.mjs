@@ -61,3 +61,13 @@ const lv = {}; for (const r of M.SM.pop) lv[Math.floor((r.level - 1) / 10) * 10 
 console.log('levels', JSON.stringify(lv), 'names', M.SM.pop.slice(0, 30).map((r) => r.name).join(', '));
 console.log('--- chat sample (' + chat.length + ') ---'); console.log(chat.slice(0, 40).join('\n')); console.log('...'); console.log(chat.slice(-60).join('\n'));
 console.log('warnings', errs.length);
+// save -> restore round trip
+const st = M.simSaveState();
+const before = M.SM.pop.map((r) => r.level + ':' + r.zone).join(',');
+st.t = Date.now();
+M.simStart(st);
+const after = M.SM.pop.map((r) => r.level + ':' + r.zone).join(',');
+console.log('save/restore levels+zones identical:', before === after);
+st.t = Date.now() - 4 * 3600 * 1000;
+M.simStart(st);
+console.log('after 4h away, avg level', (M.SM.pop.reduce((a, r) => a + r.level, 0) / M.SM.pop.length).toFixed(2));

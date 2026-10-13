@@ -303,20 +303,6 @@ function sm_sync(rec) {
 }
 
 // ---------- spawning ----------
-function sm_wrapRig(e) {
-  const r = e.rig;
-  if (!r || r.smWrapped) return;
-  const orig = r.anim;
-  r.smWrapped = true;
-  if (typeof orig !== 'function') return;
-  let acc = 0, n = 0;
-  // far-away sims animate every 4th frame with the accumulated time
-  r.anim = function (dt, st, sp) {
-    if (e.ai && e.ai.far) { acc += dt; if ((++n & 3) !== 0) return; dt = acc; }
-    acc = 0;
-    return orig.call(r, dt, st, sp);
-  };
-}
 function sm_modeFor(rec) {
   const Z = sm_zone();
   if (!Z || Z.def.safe) return 'social';
@@ -349,7 +335,6 @@ function sm_spawn(rec, p, mode) {
     addEnt(e);
     sm_prebuff(e);
     e.hp = Math.round(e.S.maxHp * frand(0.8, 1));
-    sm_wrapRig(e);
     SM.ents.push(e);
     return e;
   } catch (err) {
@@ -614,7 +599,6 @@ function sm_update(e, dt) {
   const A = e.ai;
   A.wantMove = false;
   A.think -= dt;
-  if (e.rig && !e.rig.smWrapped) sm_wrapRig(e);
   if (A.mode === 'pvp') A.pvp = true;
   if (e.team === TEAM && TEAM.members.includes(e)) sm_pteam(e, dt);
   else if (e.team && e.team.sim && e.team.leader !== e) sm_teamMember(e, dt, e.team, e.team.leader);
@@ -750,7 +734,7 @@ function sm_socialSpot(e, rec) {
     const o = sm_pick(SM.ents.filter((x) => x !== e && !x.removed && x.ai && x.ai.there));
     if (o) { const p = sm_around(o.pos.x, o.pos.z, 1.6, 2.6); p.face = Math.atan2(o.pos.x - p.x, o.pos.z - p.z); return p; }
   }
-  if (!pois.length) return null;
+  if (!pois.length && !(def.areas || []).length) return null;
   const opts = pois.map((p) => {
     let w = 1;
     const nm = (p.name || '').toLowerCase();
@@ -763,7 +747,10 @@ function sm_socialSpot(e, rec) {
     else if (p.type === 'npc') w = (p.data && p.data.faction) ? (rec && rec.faction === p.data.faction ? (pers === 'roleplayer' ? 4 : 1) : 0.1) : /bar|keep|lumen/.test(nm) ? (pers === 'chatty' ? 3 : 1.2) : 0.6;
     return [p, w];
   });
+  // named districts (plazas, the port, the bar) make good places to loiter too
+  for (const ar of def.areas || []) if (ar.r) opts.push([{ x: ar.x, z: ar.z, area: ar.r }, /lumen|bar/i.test(ar.name || '') && pers === 'chatty' ? 3 : 1.2]);
   const p = sm_wpick(opts);
+  if (p.area) { const s = sm_around(p.x, p.z, 0, p.area * 0.6); s.face = sm_rnd() * TAU; return s; }
   const s = sm_around(p.x, p.z, 2.5, 5.5);
   s.face = Math.atan2(p.x - s.x, p.z - s.z);
   return s;
@@ -941,7 +928,7 @@ function sm_wouldTeam(rec) {
   rec.lastAsk = SM.t;
   return { ok: false, why: sm_pick(SM_DECLINE) };
 }
-function sm_joinPlayerTeam(e) {
+function sm_joinPlayerTeam(e, rejoin) {
   if (!e || e.removed || e.dead || TEAM.members.includes(e) || TEAM.members.length >= 6 || !PLAYER) return false;
   sm_dropTeam(e);
   if (!TEAM.members.includes(PLAYER)) TEAM.members.unshift(PLAYER);
@@ -951,8 +938,8 @@ function sm_joinPlayerTeam(e) {
   const A = e.ai;
   A.mode = 'team'; A.foe = null; A.leaving = false; A.goal = null; A.teamUntil = SM.t + 900 + sm_rnd() * 2700;
   e.sim.pendingJoin = false;
-  sm_sys(e.name + ' has joined your team.');
-  sm_later(1 + sm_rnd() * 2, () => sm_say(e, 'team', sm_pick(['hi all', 'hey', 'o/', 'thanks for the inv', 'hello! ready when you are', 'hiya'])));
+  sm_sys(e.name + (rejoin ? ' has rejoined your team.' : ' has joined your team.'));
+  sm_later(1 + sm_rnd() * 2, () => sm_say(e, 'team', sm_pick(rejoin ? ['back', 're', 'made it, where are you?', 'back, sorry'] : ['hi all', 'hey', 'o/', 'thanks for the inv', 'hello! ready when you are', 'hiya'])));
   EV.emit('team', TEAM);
   return true;
 }
@@ -1872,7 +1859,7 @@ function simZoneChanged(id) {
       if (m.removed) {
         sm_unteam(m, true);
         const rec = m.sim;
-        if (!Z.def.generated) { rec.pendingJoin = true; rec.zone = id; sm_later(20 + sm_rnd() * 20, () => { if (!SM.on || !rec.pendingJoin || rec.ent || !sm_zone() || sm_zone().def.generated) { rec.pendingJoin = false; return; } const e = sm_arrive(rec, sm_city()); if (e) sm_joinPlayerTeam(e); }); }
+        if (!Z.def.generated) { rec.pendingJoin = true; rec.zone = id; sm_later(20 + sm_rnd() * 20, () => { if (!SM.on || !rec.pendingJoin || rec.ent || !sm_zone() || sm_zone().def.generated) { rec.pendingJoin = false; return; } const e = sm_arrive(rec, sm_city()); if (e) sm_joinPlayerTeam(e, true); }); }
         continue;
       }
       m.sim.zone = id;

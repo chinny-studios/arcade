@@ -125,7 +125,11 @@ function chat_send(v) {
     case 's': case 'shout': case 'y': return chat_say('shout', rest);
     case 'v': case 'say': case 'vicinity': return chat_say('vicinity', rest);
     case 't': case 'tell': case 'w': case 'msg': {
-      const to = parts[0], msg = rest.slice((to || '').length).trim();
+      // names can contain spaces ("Kaylen Voss"): prefer the longest known name the text starts with
+      let to = parts[0];
+      const known = typeof simList === 'function' ? simList(false).map((x) => x.name || x) : [];
+      for (const n of known) if (typeof n === 'string' && n.length > (to || '').length && rest.toLowerCase().startsWith(n.toLowerCase() + ' ')) to = rest.slice(0, n.length);
+      const msg = rest.slice((to || '').length).trim();
       if (!to || !msg) { chatPrint('Usage: /t name message', 'warn'); return; }
       EV.emit('chat', 'tell', PLAYER.name, msg, to);
       EV.emit('playerchat', 'tell', msg, to);

@@ -31,3 +31,4 @@ registerZone({ id: 'lumen_scar', name: 'Lumen Scar', kind: 'outdoor', lvl: [35, 
 const STUB_T = []; let stubNow = 0;
 function setTimeout(fn, ms) { STUB_T.push({ fn, t: stubNow + (ms || 0) / 1000 }); return STUB_T.length; }
 function stubTick(dt) { stubNow += dt; for (let i = STUB_T.length - 1; i >= 0; i--) if (STUB_T[i].t <= stubNow) { const f = STUB_T[i].fn; STUB_T.splice(i, 1); f(); } }
+const camera = new THREE.PerspectiveCamera(60, 1.6, 0.1, 1000);
