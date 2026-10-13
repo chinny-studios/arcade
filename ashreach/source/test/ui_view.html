@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Ashreach UI viewer: serve the source folder over http (node test/ui_shots.mjs does) and open /test/ui_view.html.
+     It pulls the real page.html (markup + CSS), the data/model/entity modules, a mock of the world and main loop, and the UI. -->
+</head>
+<body>
+<script>
+(async () => {
+  const page = await (await fetch('../src/page.html')).text();
+  const i = page.indexOf('<div id="app">');
+  document.head.insertAdjacentHTML('beforeend', page.slice(0, i));
+  document.body.insertAdjacentHTML('afterbegin', page.slice(i));
+  const files = ['../vendor/three.min.js', '../src/01_core.js', '../src/02_render.js', '../src/03_stats.js', '../src/04_nanos.js', '../src/05_items.js', '../src/06_mobs.js', '../src/07_models.js',
+    'ui_mock.js', '../src/12_entities.js', '../src/13_combat.js', '../src/15_player.js', '../src/17_missions.js',
+    '../src/20_ui_core.js', '../src/21_hud.js', '../src/22_chat.js', '../src/23_win_char.js', '../src/24_win_inv.js', '../src/25_win_nano.js', '../src/26_win_misc.js', '../src/27_chargen.js', '../src/28_title.js',
+    'ui_driver.js'];
+  for (const f of files) {
+    await new Promise((res) => { const s = document.createElement('script'); s.src = f; s.onload = res; s.onerror = () => { console.warn('missing ' + f); res(); }; document.body.appendChild(s); });
+  }
+})();
+</script>
+</body>
+</html>

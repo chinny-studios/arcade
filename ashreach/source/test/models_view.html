@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ashreach model lineup</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; overflow: hidden; font: 12px ui-monospace, monospace; color: #eee; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.55); padding: 6px 8px; white-space: pre; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/01_core.js"></script>
+<script src="../src/02_render.js"></script>
+<script src="../src/07_models.js"></script>
+<script>
+// Model lineup. URL params:
+//   state=idle|walk|run|combat|sit|dead   speed=<m/s>   act=<one-shot>   at=<s into the one-shot>
+//   t=<seconds of animation to pre-run>   cam=wide|humans|creatures|close|side|back|top   still=1 (no RAF loop)
+//   focus=<index> (close-up on one rig)   glow=1 (setGlow on every other rig)
+// Keys: 1-6 states, Q attack, W shoot, E cast, R hit, T special, Y emote, U jump, +/- speed, arrows orbit.
+const Q = new URLSearchParams(location.search);
+const qp = (k, d) => (Q.has(k) ? Q.get(k) : d);
+let STATE = qp('state', 'idle'), SPEED = Q.has('speed') ? +Q.get('speed') : null;
+setAtmosphere({});
+scene.add(new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: new THREE.Color(0xb8a684).convertSRGBToLinear() })));
+scene.children[scene.children.length - 1].receiveShadow = true;
+// grid lines every metre for scale / skating checks
+const grid = new THREE.GridHelper(60, 60, 0x7a6a50, 0x9a8a6a); grid.position.y = 0.005; scene.add(grid);
+placeSun(0, 0, 0);
+
+const RIGS = [];
+const humans = [
+  { breed: 'baseline', sex: 'm', armorTier: 0, hairStyle: 1, skin: 1, hair: 1, primary: 0x3d6e8a, secondary: 0x2a3036, accent: 0xf0b040, w: 'pistol' },
+  { breed: 'baseline', sex: 'f', armorTier: 1, hairStyle: 3, skin: 3, hair: 0, primary: 0x6a7a4a, secondary: 0x5a4a38, accent: 0xe05040, w: 'smg' },
+  { breed: 'bulwark', sex: 'm', armorTier: 3, hairStyle: 0, skin: 4, hair: 0, primary: 0x8a3a2a, secondary: 0x3a3a3e, accent: 0xff7a20, w: 'melee2h' },
+  { breed: 'bulwark', sex: 'f', armorTier: 2, hairStyle: 2, skin: 2, hair: 5, primary: 0x4a5a6a, secondary: 0x2e3238, accent: 0x50e0ff, w: 'heavy' },
+  { breed: 'kestrel', sex: 'm', armorTier: 2, hairStyle: 5, skin: 0, hair: 4, primary: 0xb09060, secondary: 0x5a4430, accent: 0x40d0a0, w: 'rifle' },
+  { breed: 'kestrel', sex: 'f', armorTier: 0, hairStyle: 4, skin: 6, hair: 8, primary: 0x5a3a6a, secondary: 0x2a2030, accent: 0xff60c0, w: 'melee1h' },
+  { breed: 'savant', sex: 'm', armorTier: 1, hairStyle: 0, skin: 7, hair: 6, primary: 0x3a4a8a, secondary: 0xc0c0d0, accent: 0x60c0ff, w: 'none' },
+  { breed: 'savant', sex: 'f', armorTier: 3, hairStyle: 1, skin: 1, hair: 2, primary: 0xd0d4d8, secondary: 0x30506a, accent: 0x40ffd0, w: 'shotgun', helmet: 'visor' },
+  { breed: 'baseline', sex: 'm', armorTier: 3, hairStyle: 1, skin: 2, hair: 1, primary: 0x2a3a2a, secondary: 0x1a1e1a, accent: 0x70ff50, w: 'rifle', helmet: true },
+  { breed: 'baseline', sex: 'f', armorTier: 2, hairStyle: 5, skin: 5, hair: 0, primary: 0xa03a3a, secondary: 0x2a2a2e, accent: 0xffd040, w: 'fists' },
+];
+humans.forEach((L, i) => {
+  const r = makeHumanoid(L); r.setWeapon(L.w);
+  r.root.position.set((i - (humans.length - 1) / 2) * 1.6, 0, 3);
+  scene.add(r.root); RIGS.push(r);
+});
+const crit = [['critter'], ['beast'], ['insect'], ['mutant'], ['drone'], ['worm'], ['golem'], ['wisp']];
+crit.forEach(([k], i) => {
+  const r = makeCreature(k, {});
+  r.root.position.set((i - 3.5) * 2.6, 0, -1.5);
+  scene.add(r.root); RIGS.push(r);
+});
+const ONLY = qp('only', '');
+RIGS.forEach((r, i) => { r.root.visible = !ONLY || (ONLY === 'h') === (i < humans.length); });
+if (Q.has('solo')) { const si = +Q.get('solo'); RIGS.forEach((r, i) => { r.root.visible = i === si; }); Q.set('focus', si); }
+if (qp('glow')) RIGS.forEach((r, i) => i % 2 && r.setGlow(0xffd040));
+
+const CAMS = {
+  wide: [[0, 7, 15], [0, 0.9, 0.5]], humans: [[0, 2.2, 10.5], [0, 1.0, 3]], creatures: [[0, 3.2, 8], [0, 0.9, -1.5]],
+  side: [[16, 2.5, 1], [0, 1, 1]], far: [[0, 5, 31], [0, 1, 1]], back: [[0, 3, -12], [0, 1, 1]], top: [[0, 25, 4], [0, 0, 1]],
+};
+let camName = qp('cam', 'wide');
+function setCam() {
+  const f = Q.has('focus') ? RIGS[+Q.get('focus')] : null;
+  if (f) {
+    const h = f.height, p = f.root.position, yaw = +qp('yaw', 0.5);
+    const d = (h * 1.25 + 0.9) * +qp('zoom', 1);
+    camera.position.set(p.x + Math.sin(yaw) * d, h * 0.62 + 0.3, p.z + Math.cos(yaw) * d);
+    camera.lookAt(p.x, h * 0.5, p.z);
+    return;
+  }
+  const c = CAMS[camName] || CAMS.wide;
+  camera.position.set(...c[0]); camera.lookAt(...c[1]);
+}
+resize(); setCam();
+
+let ACT = qp('act', null);
+const DT = 1 / 60;
+function step(dt) { for (const r of RIGS) r.anim(dt, STATE, SPEED); }
+// Pre-run: settle the state, then optionally start a one-shot and stop `at` seconds into it.
+const pre = +qp('t', 1.0);
+for (let t = 0; t < pre; t += DT) step(DT);
+if (ACT) { RIGS.forEach((r) => r.play(ACT)); const at = +qp('at', 0.25); for (let t = 0; t < at; t += DT) step(DT); }
+
+function hud() {
+  const s = RIGS.map((r) => r.stats());
+  const hum = s.slice(0, humans.length), cr = s.slice(humans.length);
+  const info = renderer.info.render;
+  document.getElementById('hud').textContent =
+    `state ${STATE}  speed ${SPEED == null ? 'auto' : SPEED}  calls ${info.calls}  tris ${info.triangles}\n` +
+    'humanoids: ' + hum.map((x) => `${x.calls}c/${x.tris}t`).join(' ') + '\n' +
+    'creatures: ' + crit.map(([k], i) => `${k} ${cr[i].calls}c/${cr[i].tris}t`).join(' ');
+}
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  step(dt); placeSun(0, 0, 0); renderer.render(scene, camera); hud();
+  requestAnimationFrame(frame);
+}
+if (qp('still')) { renderer.render(scene, camera); hud(); renderer.render(scene, camera); hud(); }
+else requestAnimationFrame(frame);
+
+const ST = ['idle', 'walk', 'run', 'combat', 'sit', 'dead'], AK = { KeyQ: 'attack', KeyW: 'shoot', KeyE: 'cast', KeyR: 'hit', KeyT: 'special', KeyY: 'emote', KeyU: 'jump' };
+addEventListener('keydown', (e) => {
+  if (/Digit[1-6]/.test(e.code)) STATE = ST[+e.code.slice(5) - 1];
+  if (AK[e.code]) RIGS.forEach((r) => r.play(AK[e.code]));
+  if (e.key === '+' || e.key === '=') SPEED = (SPEED || 0) + 1;
+  if (e.key === '-') SPEED = (SPEED || 0) - 1;
+  if (e.code === 'KeyC') { const k = Object.keys(CAMS); camName = k[(k.indexOf(camName) + 1) % k.length]; setCam(); }
+});
+addEventListener('resize', () => { resize(); setCam(); });
+window.MV = { RIGS, step, render: () => { renderer.render(scene, camera); hud(); }, setState: (s, v) => { STATE = s; SPEED = v; }, camera, setCam };
+window.MV_READY = true;
+</script>
+</body>
+</html>
