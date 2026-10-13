@@ -245,10 +245,10 @@ function ipAtLevel(level) { return level <= 1 ? 70 : [0, 40, 80, 160][titleLevel
 function totalIpAtLevel(level) { let s = 0; for (let l = 1; l <= level; l++) s += ipAtLevel(l); return s; }
 // XP a same-level mob gives.
 function mobXp(level) { return Math.round(8 + 4 * level + 0.22 * level * level); }
-// Kills of same-level mobs to clear a level: ~22 early to ~60 late.
+// Kills of same-level mobs to clear a level: 6 at level 1, ~20 by level 10, ~60 at the top.
 function xpToNext(level) {
   if (level >= MAX_LEVEL) return Infinity;
-  const kills = 22 + 38 * ((level - 1) / (MAX_LEVEL - 2));
+  const kills = level < 10 ? 6 + 1.6 * (level - 1) : 20 + 40 * ((level - 10) / (MAX_LEVEL - 11));
   return Math.round(kills * mobXp(level));
 }
 

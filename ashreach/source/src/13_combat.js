@@ -501,7 +501,7 @@ function updateRegen(e, dt) {
   const k = e.regenT; e.regenT = 0;
   const inC = e.combatT < 6;
   let m = inC ? 0.5 : 1.5;
-  if (e.sitting && !inC) m = 5;
+  if (e.sitting && !inC) m = 8;
   if (e.kind === 'mob' && !inC) m = 6;
   e.hp = Math.min(e.S.maxHp, e.hp + (e.S.hpRegen || 1) * m * k);
   e.np = Math.min(e.S.maxNp, e.np + (e.S.npRegen || 1) * m * k);

@@ -79,7 +79,7 @@ console.log('L1 trooper/baseline', JSON.stringify(SAMPLE['baseline/trooper']), '
   }
   console.log('total xp/kills to reach L2', at[2], 'L10', at[10], 'L30', at[30], 'L50', at[50]);
   const kpl = (l) => M.xpToNext(l) / M.mobXp(l);
-  ok(kpl(1) >= 20 && kpl(1) <= 25 && kpl(49) >= 55 && kpl(49) <= 65, 'kills per level range ' + kpl(1) + ' ' + kpl(49));
+  ok(kpl(1) >= 5 && kpl(1) <= 8 && kpl(10) >= 18 && kpl(10) <= 22 && kpl(49) >= 55 && kpl(49) <= 65, 'kills per level range ' + kpl(1) + ' ' + kpl(49));
   console.log('total IP at 14/49/50:', M.totalIpAtLevel(14), M.totalIpAtLevel(49), M.totalIpAtLevel(50));
   ok(M.titleLevel(14) === 1 && M.titleLevel(15) === 2 && M.titleLevel(49) === 2 && M.titleLevel(50) === 3, 'titles');
   const c = M.newCharacter({ prof: 'bruiser' });
