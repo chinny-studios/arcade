@@ -10,7 +10,7 @@
 const UI = {
   root: null, state: 'boot', wins: {}, z: 30, tips: {}, drags: {}, drops: {}, dropOk: {}, acts: {}, ctxs: {}, nowhere: {},
   drag: null, down: null, mdown: false, tipEl: null, tipSrc: null, tipT: 0, mx: 0, my: 0, npc: null, store: null, t: 0,
-  bannerT: 0, toasts: [], opts: { fps: false, rotMap: false, mmZoom: 1, names: true },
+  bannerT: 0, toasts: [], opts: { fps: false, rotMap: false, mmZoom: 0.7, names: true },
 };
 const UI_WIN_IDS = ['char', 'inv', 'nanos', 'map', 'team', 'missions', 'options', 'vendor', 'clonebay', 'hopper', 'terminal', 'bank', 'help', 'npc'];
 const UI_NPC_WINS = ['vendor', 'clonebay', 'hopper', 'terminal', 'bank', 'npc'];
@@ -165,7 +165,11 @@ function uiWin(id, o) {
 }
 function ui_raise(w) {
   if (w.el.style.zIndex == UI.z) return;
-  UI.z++;
+  if (++UI.z > 700) {   // renumber so windows never climb over banners, dialogs and tooltips
+    const open = Object.values(UI.wins).sort((a, b) => (+a.el.style.zIndex || 0) - (+b.el.style.zIndex || 0));
+    UI.z = 30; for (const o of open) o.el.style.zIndex = ++UI.z;
+    UI.z++;
+  }
   w.el.style.zIndex = UI.z;
   for (const k in UI.wins) UI.wins[k].el.classList.toggle('top', UI.wins[k] === w);
 }
@@ -484,6 +488,7 @@ function ui_events() {
   EV.on('interact', (npc) => {
     if (!npc) return;
     const role = npc.role;
+    if (role === 'npc' || role === 'door' || role === 'pylon') return;   // missions/world modules own those dialogs
     UI.npc = npc;
     const win = { vendor: 'vendor', terminal: 'terminal', clonebay: 'clonebay', hopper: 'hopper', shuttle: 'hopper', bank: 'bank' }[role] || 'npc';
     for (const id of UI_NPC_WINS) if (id !== win) uiClose(id);

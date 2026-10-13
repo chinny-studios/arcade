@@ -59,6 +59,18 @@ const wdMix = (a, b, t) => { a = wdC(a); b = wdC(b); return [lerp(a[0], b[0], t)
 const wdMul = (a, k) => { a = wdC(a); return [a[0] * k, a[1] * k, a[2] * k]; };
 const wdYaw = (dx, dz) => Math.atan2(dx, dz);   // yaw that faces direction (dx, dz)
 
+// (Shared by 09-11.) Local -> world helper for a structure at (cx, cz) facing yaw (its front is local +z).
+function ctFrame(cx, cz, yaw) {
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  return (lx, lz) => [cx + lx * c + lz * s, cz - lx * s + lz * c];
+}
+// Door record for a building whose front faces `frontYaw`, depth d: a point just outside the door, yaw pointing
+// away from the building (so x + sin(yaw) * k is further out in the street).
+function ctDoorRec(id, cx, cz, frontYaw, d = 10) {
+  const k = d / 2 + 1.2;
+  return { id, x: cx + Math.sin(frontYaw) * k, z: cz + Math.cos(frontYaw) * k, yaw: angWrap(frontYaw), bx: cx, bz: cz, by: frontYaw, bd: d };
+}
+
 // ---------- batched static geometry ----------
 // Everything static is merged into one mesh per (material, 200 m chunk): few draw calls, still culled.
 function wd_bat(mat, x, z) {
@@ -146,6 +158,13 @@ function wdBeam(a, b, t, col, mat = 'lit') {
   if (L < 1e-4) return;
   const m = new THREE.Matrix4(), q = new THREE.Quaternion().setFromUnitVectors(UP, _v1.set(dx / L, dy / L, dz / L));
   m.compose(_v2.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), q, _v3.set(t, L, t));
+  wdGeo(wd_unitBox(), m, col, mat);
+}
+// Rotated box about its centre (yaw, then pitch about local x, then roll about local z): wrecks, rubble, ribs.
+function wdTBox(cx, cy, cz, w, h, d, col, yaw = 0, pitch = 0, roll = 0, mat = 'lit') {
+  _e1.set(pitch, yaw, roll, 'YXZ');
+  const m = new THREE.Matrix4().compose(_v2.set(cx, cy, cz), _q1.setFromEuler(_e1), _v3.set(w, h, d));
+  _e1.order = 'XYZ';
   wdGeo(wd_unitBox(), m, col, mat);
 }
 let wd_ub = null;
@@ -489,7 +508,7 @@ function loadZone(id, at) {
   WD.bounds = def.bounds || { x0: -hs, z0: -hs, x1: hs, z1: hs };
   WD.roads = def.roads || [];
   for (const p of def.pois) if (p.clear !== 0) wdKeepClear(p.x, p.z, p.clear || 5);
-  for (const d of def.doors || []) wdKeepClear(d.x + Math.sin(d.yaw) * 6, d.z + Math.cos(d.yaw) * 6, 10);
+  for (const d of def.doors || []) { wdKeepClear(d.bx ?? d.x, d.bz ?? d.z, 10); wdKeepClear(d.x + Math.sin(d.yaw) * 3, d.z + Math.cos(d.yaw) * 3, 4); }
   for (const s of def.spawns) if (s.camp) wdKeepClear(s.x, s.z, Math.min(s.r, 22));
   setAtmosphere(def.atmos);
   if (def.build) def.build(def);

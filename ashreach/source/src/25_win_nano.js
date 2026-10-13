@@ -4,7 +4,7 @@ const NW_TARGET = { self: 'Self', team: 'Team', friend: 'Friendly target', enemy
 
 function nw_build() {
   uiWin('nanos', {
-    title: 'Nano Programs', key: 'N', w: 440, h: 560, x: (w) => innerWidth - w - 210, y: 60,
+    title: 'Nano Programs', key: 'N', w: 440, h: 540, x: (w) => innerWidth - w - 210, y: (w, h) => Math.max(10, Math.min(110, innerHeight - h - 150)),
     refresh: nw_refresh, live: 0.25,
   });
   UI.tips.nano = (id) => nw_tip(id);
@@ -58,7 +58,7 @@ function nw_refresh(w) {
       h += '<div class="nrow' + (ok ? '' : ' bad') + '" data-act="nano:' + esc(id) + '" data-tip="nano:' + esc(id) + '">' +
         '<div class="cell" data-drag="nano:' + esc(id) + '">' + ui_icon(hud_nanoIcon(n)) + (cd > 0 ? '<div class="cd" style="--cd:' + (cd / cdm).toFixed(2) + '">' + Math.ceil(cd) + '</div>' : '') + '</div>' +
         '<div style="min-width:0"><div class="nn">' + esc(n.name) + ' <span class="mono dim" style="font-size:10px">L' + n.lvl + '</span></div><div class="nd">' + esc(n.desc || '') + '</div></div>' +
-        '<div class="nm"><span class="' + (PLAYER.np >= cost ? '' : 'no') + '">' + cost + ' NP</span><br>' + ui_fmt(n.cast || 0) + 's / ' + ui_fmt(n.recharge || 0) + 's' + (n.ncu ? '<br>' + n.ncu + ' NM' : '') + '</div></div>';
+        '<div class="nm"><span class="' + (PLAYER.np >= cost ? '' : 'no') + '">' + cost + ' NP</span>' + (n.ncu ? ' · ' + n.ncu + ' NM' : '') + '<br>' + ui_fmt(n.cast || 0) + 's / ' + ui_fmt(n.recharge || 0) + 's</div></div>';
     }
   }
   h += '<div class="note" style="margin-top:8px">Click a program to execute it on your target. Drag its icon to a hotbar slot.</div>';
@@ -77,7 +77,7 @@ function nw_tip(id) {
   h += '<hr><div class="kv">' + rows.map(([a, b]) => '<span>' + a + '</span><span>' + b + '</span>').join('') + '</div>';
   const rq = n.reqs || {};
   if (Object.keys(rq).length) {
-    h += '<hr><div class="tr">' + Object.keys(rq).map((k) => { const have = Math.floor(S[k] || 0); return '<span class="' + (have >= rq[k] ? 'ok' : 'no') + '">' + esc(ui_sn(k)) + ' ' + rq[k] + (have < rq[k] ? ' <span class="dim">(' + have + ')</span>' : '') + '</span>'; }).join('<br>') + '</div>';
+    h += '<hr><div class="tr">' + Object.keys(rq).map((k) => { const have = PLAYER ? Math.floor(S[k] || 0) : 1e9; return '<span class="' + (!PLAYER ? 'tl' : have >= rq[k] ? 'ok' : 'no') + '">' + esc(ui_sn(k)) + ' ' + rq[k] + (have < rq[k] ? ' <span class="dim">(' + have + ')</span>' : '') + '</span>'; }).join('<br>') + '</div>';
   }
   if (n.prof && n.prof !== 'any') h += '<div class="dim">' + esc(ui_profName(n.prof)) + ' program</div>';
   return h;

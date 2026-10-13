@@ -61,7 +61,6 @@ function chat_build() {
     }
     ev.stopPropagation();
   });
-  CHAT.input.addEventListener('keyup', (ev) => ev.stopPropagation());
   CHAT.input.addEventListener('focus', () => el.classList.remove('idle'));
   CHAT.input.addEventListener('blur', () => el.classList.add('idle'));
   el.classList.add('idle');
@@ -94,7 +93,10 @@ function chat_setTab(id) {
 // Add a line. kind picks tabs (CHAT_ROUTE) and colour class.
 function chat_add(kind, html) {
   const tabs = CHAT_ROUTE[kind] || ['all'];
-  const m = { cls: kind, html, tabs };
+  // modules often send the same line to both the log and system chat: show it once
+  const prev = CHAT.msgs[CHAT.msgs.length - 1];
+  if (prev && prev.html === html && performance.now() - prev.t < 500) return;
+  const m = { cls: kind, html, tabs, t: performance.now() };
   CHAT.msgs.push(m);
   if (CHAT.msgs.length > 500) CHAT.msgs.splice(0, 100);
   if (!CHAT.log) return;

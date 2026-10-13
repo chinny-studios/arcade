@@ -31,7 +31,7 @@ function misc_build() {
   // ---- team ----
   uiWin('team', { title: 'Team', key: 'T', w: 340, foot: true, x: 210, y: 140, refresh: misc_team, live: 0.5 });
   // ---- missions ----
-  uiWin('missions', { title: 'Missions', key: 'J', w: 420, h: 520, refresh: misc_missions, live: 1 });
+  uiWin('missions', { title: 'Missions', key: 'J', w: 420, refresh: misc_missions, live: 1 });
   // ---- vendor ----
   uiWin('vendor', { title: 'Vendor', w: 400, h: 560, foot: true, x: (w) => Math.max(10, innerWidth / 2 - w - 20), y: 50, refresh: misc_vendor, live: 1 });
   // ---- clone bay ----
@@ -41,11 +41,11 @@ function misc_build() {
   // ---- bank ----
   uiWin('bank', { title: 'Bank', w: 384, foot: true, x: (w) => Math.max(10, innerWidth / 2 - w - 20), y: 60, refresh: misc_bank });
   // ---- mission terminal ----
-  uiWin('terminal', { title: 'Mission Terminal', w: 470, h: 600, x: (w) => Math.max(10, innerWidth / 2 - w / 2), y: 30, refresh: misc_terminal, onOpen: (w) => { if (w.npc !== UI.npc) { w.npc = UI.npc; UI.termOffers = null; } } });
+  uiWin('terminal', { title: 'Mission Terminal', w: 470, x: (w) => Math.max(10, innerWidth / 2 - w / 2), y: 30, refresh: misc_terminal, onOpen: (w) => { if (w.npc !== UI.npc) { w.npc = UI.npc; UI.termOffers = null; } } });
   // ---- options ----
   uiWin('options', { title: 'Options', key: 'Esc', w: 380, refresh: misc_options });
   // ---- help ----
-  uiWin('help', { title: 'Help', key: 'F1', w: 520, h: 560, refresh: misc_help });
+  uiWin('help', { title: 'Help', key: 'F1', w: 600, refresh: misc_help });
   // ---- generic NPC (trainers, faction officers, ...) ----
   uiWin('npc', { title: 'Conversation', w: 380, refresh: misc_npc });
 

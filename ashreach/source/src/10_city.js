@@ -6,17 +6,6 @@ const CT = {
   steel: 0x9aa2a8, rust: 0x8a4a2c, rust2: 0x6e3b26, teal: 0x5fe0d0, amber: 0xffb347, glass: 0x2c4a5e, glassL: 0x6f9fc0,
   wood: 0x7a5a3a, cloth: 0xb8865a, red: 0xa83a2a, blue: 0x2f5fa8, mblue: 0x3d7fd8, black: 0x16191c, roof: 0x6b6258,
 };
-// Local -> world helper for a structure at (cx, cz) facing yaw (its front is local +z).
-function ctFrame(cx, cz, yaw) {
-  const c = Math.cos(yaw), s = Math.sin(yaw);
-  return (lx, lz) => [cx + lx * c + lz * s, cz - lx * s + lz * c];
-}
-// Door record for a building whose front faces `frontYaw`, depth d: a point in front of the door, yaw facing the door.
-function ctDoorRec(id, cx, cz, frontYaw, d = 10) {
-  const k = d / 2 + 1.8;
-  return { id, x: cx + Math.sin(frontYaw) * k, z: cz + Math.cos(frontYaw) * k, yaw: angWrap(frontYaw + Math.PI), bx: cx, bz: cz, by: frontYaw, bd: d };
-}
-
 // ---------- building parts ----------
 // Facade windows on one face of a box (local frame f, face at lz = d/2 facing +z).
 function ctWindows(f, y0, w, h, d, yaw, o = {}) {

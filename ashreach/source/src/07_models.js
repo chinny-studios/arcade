@@ -15,19 +15,19 @@ function md_patch(m) {
     sh.vertexShader = 'attribute float glow;\nvarying float vGlow;\nvarying float vRim;\n' + sh.vertexShader.replace('#include <lights_lambert_vertex>',
       '#include <lights_lambert_vertex>\nvGlow = glow;\nvRim = 1.0 - abs(dot(normalize(transformedNormal), normalize(-mvPosition.xyz)));');
     sh.fragmentShader = 'varying float vGlow;\nvarying float vRim;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>',
-      'totalEmissiveRadiance = emissive * (0.12 + 1.3 * vRim * vRim) + diffuseColor.rgb * vGlow;');
+      'totalEmissiveRadiance = emissive * (0.05 + 1.1 * vRim * vRim * vRim) + diffuseColor.rgb * vGlow;');
   };
   m.customProgramCacheKey = () => 'md-rim-glow';
   return m;
 }
-const md_skinMat = md_patch(new THREE.MeshLambertMaterial({ vertexColors: true, skinning: true, flatShading: true }));
-const md_statMat = md_patch(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+const md_skinMat = md_patch(new THREE.MeshLambertMaterial({ vertexColors: true, skinning: true }));
+const md_statMat = md_patch(new THREE.MeshLambertMaterial({ vertexColors: true }));
 const md_tints = new Map();
 // Glow-tinted variants are shared per colour (a handful exist at once), never per rig.
 function md_tintMat(skin, col) {
   const c = new THREE.Color(col), key = (skin ? 's' : 'm') + c.getHex();
   let m = md_tints.get(key);
-  if (!m) { m = md_patch(new THREE.MeshLambertMaterial({ vertexColors: true, skinning: skin, flatShading: true, emissive: c })); md_tints.set(key, m); }
+  if (!m) { m = md_patch(new THREE.MeshLambertMaterial({ vertexColors: true, skinning: skin, emissive: c })); md_tints.set(key, m); }
   return m;
 }
 const md_adds = new Map();
@@ -182,9 +182,22 @@ function md_kf(t, T, V) {
   for (let i = 0; i < n; i++) if (t < T[i + 1]) return lerp(V[i], V[i + 1], ease((t - T[i]) / (T[i + 1] - T[i])));
   return V[n];
 }
-const md_amp = (a) => clamp(0.3 + 0.06 * a, 0, 0.95);           // thigh swing amplitude at speed a
+const md_amp = (a) => clamp(0.3 + 0.06 * a, 0, 0.62);           // stance thigh sweep amplitude at speed a
 // Metres travelled per gait cycle so the stance foot stays planted (stance sweep = 2 L sin A over duty).
-const md_cycle = (a, L) => 2 * L * Math.sin(md_amp(a)) / lerp(0.5, 0.36, smooth(3.2, 6.5, a));
+const md_duty = (a) => 0.58 - 0.22 * smooth(3.2, 6.5, a) - 0.1 * smooth(6.5, 11, a);   // stance fraction (walk has double support, sprint long flights)
+const md_cycle = (a, L) => 2 * L * Math.sin(md_amp(a)) / md_duty(a);
+// Shaped gait: returns the foot's fore-aft position u (1 front .. -1 back), moving at constant speed through
+// stance (so the planted foot doesn't slide) and easing through swing; md_gsw = swing progress hump (0 in stance).
+let md_gsw = 0;
+const md_lg = new Float32Array(8);
+function md_gait(f, duty) {
+  let c = (f / TAU) % 1;
+  if (c < 0) c += 1;
+  if (c < duty) { md_gsw = 0; return 1 - 2 * c / duty; }
+  const q = (c - duty) / (1 - duty);
+  md_gsw = Math.sin(Math.PI * q);
+  return -1 + 2 * ease(q);
+}
 function md_mix(o, a, b, w, keys) {
   if (keys) for (const k of keys) o[k] = a[k] + (b[k] - a[k]) * w;
   else for (let i = 0; i < o.length; i++) o[i] = a[i] + (b[i] - a[i]) * w;
@@ -222,7 +235,7 @@ function md_ik(ua, fa, hd, S, T, pole, Qh, a, b) {
 // ======================================================================================
 const MD_BREEDS = {
   baseline: { H: 1.8, leg: 1, tor: 1, wid: 1, th: 1, arm: 1, head: 1, neck: 1, hunch: 0 },
-  bulwark: { H: 2.1, leg: 0.9, tor: 1.1, wid: 1.42, th: 1.5, arm: 1.12, head: 0.84, neck: 0.45, hunch: 0.3 },
+  bulwark: { H: 2.1, leg: 0.9, tor: 1.06, wid: 1.42, th: 1.5, arm: 1.12, head: 0.98, neck: 0.8, hunch: 0.3 },
   kestrel: { H: 1.75, leg: 1.14, tor: 0.96, wid: 0.86, th: 0.76, arm: 1.12, head: 0.92, neck: 1.5, hunch: 0 },
   savant: { H: 1.6, leg: 0.88, tor: 0.9, wid: 0.84, th: 0.78, arm: 0.94, head: 1.42, neck: 0.9, hunch: 0.06 },
 };
@@ -378,7 +391,7 @@ function md_humanTpl(breed, sex, tier, hair, helm) {
     if (tier >= 2) {
       const hv = tier === 3 ? 1 : 0, ex = (hv ? 0.11 : 0.06) * k;
       sp(cb(cw + ex, D.ch * (hv ? 1.0 : 0.9), cd + ex * 1.1, 0.06 * k), 0, D.ch * 0.53, hv ? 0.01 * k : 0, MD_P);
-      sp(tb(cw * 0.7, cd * 0.7, cw * 0.9, cd * 0.8, 0.08 * k), 0, D.ch + 0.02 * k, 0, MD_S);           // gorget
+      sp(tb(cw * 0.75, cd * 0.8, cw * 0.55, cd * 0.6, 0.06 * k), 0, D.ch + 0.0 * k, -0.01 * k, MD_S);          // gorget
       p('spine', tb(ww + 0.04 * k, cd + 0.04 * k, cw * 0.8 + 0.04 * k, cd + 0.06 * k, D.sp1 * 0.85), 0, D.sp1 * 0.55, 0, MD_PD);
       for (const y of [0.25, 0.6]) p('spine', cb(cw * 0.6, 0.012 * k, 0.02 * k, 0.004 * k), 0, D.sp1 * y, cd / 2 + 0.035 * k, MD_S);
       for (const sd of ['R', 'L']) {
@@ -509,28 +522,45 @@ const md_legDrop = (D, t, kn, z) => (D.lt * Math.cos(t) + D.ls * Math.cos(t + kn
 
 function md_hLegs(rig, P, v, stance) {
   const D = rig.D, a = Math.abs(v), mv = smooth(0.05, 0.5, a), run = smooth(3.2, 6.5, a);
-  const A = md_amp(a) * mv, ph = rig.ph, sv = 1 - mv;
-  let hy = 0;
+  const A = md_amp(a) * mv, sA = Math.sin(md_amp(a)), duty = md_duty(a), ph = rig.ph, sv = 1 - mv, fw = v < 0 ? 0 : 1, k = D.k;
+  let hy = 0, hs = 0;
   for (let s = 0; s < 2; s++) {
-    const f = ph + s * Math.PI, sg = s ? -1 : 1;   // s=0 left, s=1 right
-    const t = -A * Math.sin(f) - 0.14 * run * mv + sv * stance * (s ? 0.1 : -0.22);
-    const kn = mv * ((0.45 + 1.15 * run) * Math.pow(Math.max(0, Math.cos(f - 0.55 * run)), 1.5) + 0.1 + 0.15 * run) + sv * (0.04 + stance * 0.2);
+    const u = md_gait(ph + s * Math.PI, duty), sw = md_gsw, sg = s ? -1 : 1;   // s=0 left, s=1 right
+    if (!s) rig.gu = u;
+    const t = -Math.asin(u * sA) * mv - 0.12 * run * mv - 0.55 * run * sw * (u > -0.2 ? 1 : 0.4) + sv * stance * (s ? 0.1 : -0.22);   // knee drive in swing
+    const kn = mv * ((0.55 + 1.3 * run) * sw + 0.06 + 0.22 * run * (1 - sw)) + sv * (0.04 + stance * 0.2);
     const z = sg * (0.025 + 0.02 * sv + stance * 0.07 * sv);
-    const fx = -(t + kn) * (0.85 + 0.15 * mv) + mv * 0.35 * Math.max(0, -Math.cos(f)) * Math.max(0, -Math.sin(f) * Math.sign(v || 1));
-    if (s) { P.tRx = t; P.tRy = 0; P.tRz = z; P.kR = kn; P.fR = fx; } else { P.tLx = t; P.tLy = 0; P.tLz = z; P.kL = kn; P.fL = fx; }
-    hy = Math.max(hy, md_legDrop(D, t, kn, z));
+    const toe = sw ? 0.25 * sw * (u < 0 ? 1 : -0.6) : 0.5 * smooth(0.55, 1, -u) * fw;
+    md_lg[s * 4] = t; md_lg[s * 4 + 1] = kn; md_lg[s * 4 + 2] = sw; md_lg[s * 4 + 3] = toe;
+    if (s) { P.tRx = t; P.tRy = 0; P.tRz = z; } else { P.tLx = t; P.tLy = 0; P.tLz = z; }
+    const dr = md_legDrop(D, t, kn, z);
+    hy = Math.max(hy, dr); if (!sw) hs = Math.max(hs, dr);
+  }
+  // Hip height follows the stance leg; while both feet are in the air (running) it holds, so feet lift off.
+  if (hs) { rig.hs = hs; if (mv > 0.5) hy = hs; }
+  else if (mv > 0.5) {
+    let c = (ph / TAU) % 0.5; if (c < 0) c += 0.5;
+    hy = (rig.hs || hy) + 0.09 * k * run * Math.sin(Math.PI * clamp((c - duty) / (0.5 - duty), 0, 1));
+  }
+  // Swing feet must clear the ground: bend the knee further where the hips sit low.
+  for (let s = 0; s < 2; s++) {
+    const t = md_lg[s * 4], sw = md_lg[s * 4 + 2], z = s ? P.tRz : P.tLz;
+    let kn = md_lg[s * 4 + 1];
+    if (sw > 0 && mv > 0.3) for (let i = 0; i < 24 && md_legDrop(D, t, kn, z) > hy - 0.04 * k * sw; i++) kn += 0.05;
+    const fx = -(t + kn) + mv * md_lg[s * 4 + 3];
+    if (s) { P.kR = kn; P.fR = fx; } else { P.kL = kn; P.fL = fx; }
   }
   P.hy = hy + D.hOff;
-  P.hr = -0.22 * A * Math.sin(ph); P.hz = 0.035 * mv * Math.sin(ph);
+  P.hr = -0.22 * A * rig.gu; P.hz = 0.035 * mv * rig.gu;
   P.sx = 0.16 * run * mv + D.hunch * 0.45; P.cx = D.hunch * 0.45 + 0.04 * run;
-  P.cy = 0.4 * A * Math.sin(ph); P.nx = -0.12 * run * mv - D.hunch * 0.75;
+  P.cy = 0.4 * A * rig.gu; P.nx = -0.12 * run * mv - D.hunch * 0.75;
   return { mv, run, A };
 }
 // Arm swing (also the idle hang) for both arms.
 function md_hSwing(rig, P, g) {
-  const D = rig.D, k = D.k, A = g.A * (0.75 + 0.35 * g.run), b = 0.2 + 1.25 * g.run;
+  const D = rig.D, k = D.k, A = g.A * (0.75 - 0.3 * g.run), b = 0.2 + 1.3 * g.run;
   for (let s = 0; s < 2; s++) {
-    const sg = s ? 1 : -1, sw = sg * A * Math.sin(rig.ph) + 0.05 + 0.3 * g.run;   // s=1 right arm (in phase with left leg)
+    const sg = s ? 1 : -1, sw = sg * A * rig.gu + 0.05 + 0.12 * g.run;   // s=1 right arm (in phase with left leg)
     const x = (s ? -1 : 1) * (0.035 + 0.02 * D.wid) * k - (s ? -1 : 1) * 0.05 * k * g.run;
     const y = -D.ua * Math.cos(sw) - D.fa * Math.cos(sw + b), z = D.ua * Math.sin(sw) + D.fa * Math.sin(sw + b);
     if (s) { P.rtx = x; P.rty = y; P.rtz = z; P.rqx = -(sw + b) - 0.1; P.rqy = 0; P.rqz = 0; P.rpx = -0.3; P.rpy = -0.1; P.rpz = -1; }
@@ -545,8 +575,8 @@ function md_hCarry(rig, P, g) {
   switch (rig.wc) {
     case 'pistol': case 'smg': P.rqx = 0.3; P.rqy = 0; break;
     case 'melee1h': P.rqx = 0.75 - 0.3 * g.run; break;
-    case 'long': md_r(P, 0.13 * k, -0.36 * k + bob, 0.17 * k, 0.45, 0.55, 0); P.lg = 1; break;
-    case 'heavy': md_r(P, 0.1 * k, -0.4 * k + bob, 0.14 * k, 0.2, 0.3, 0); P.lg = 1; break;
+    case 'long': md_r(P, 0.13 * k, -0.36 * k + bob, 0.17 * k, 0.45 - D.hunch, 0.55, 0); P.lg = 1; break;
+    case 'heavy': md_r(P, 0.1 * k, -0.4 * k + bob, 0.16 * k, 0.05 - D.hunch, 0.3, 0); P.lg = 1; break;
     case 'melee2h': md_r(P, 0.1 * k, -0.25 * k + bob, 0.17 * k, -2.25, 0, 0.25); break;
   }
 }
@@ -579,7 +609,7 @@ function md_hEval(rig, st, P) {
   if (st === 'dead') {
     P.hy = 0.12 * k * D.thr; P.hx = -1.52; P.hr = 0.25; P.sz = 0.05; P.cx = -0.05; P.nx = -0.15; P.ny = 0.7;
     P.tLx = -0.08; P.tLz = 0.22; P.kL = 0.1; P.tRx = -0.55; P.tRz = -0.12; P.kR = 0.95; P.fL = 0.4; P.fR = 0.2;
-    md_r(P, -0.42 * k, 0.12 * k, -0.08 * k, 0.4, 0, 0.6); md_l(P, 0.3 * k, -0.32 * k, -0.1 * k, 0.3, 0, -0.3);
+    md_r(P, -0.42 * k, 0.12 * k, -0.04 * k, 0.2, -1.5, 0); md_l(P, 0.3 * k, -0.32 * k, 0.04 * k, 0.2, 1.4, 0);
     P.rpx = 0; P.rpy = 0; P.rpz = -1; P.lpx = 0; P.lpy = 0; P.lpz = -1;
     return P;
   }
@@ -634,7 +664,8 @@ function md_hAct(rig, P, a, t) {
   }
   if (a === 'cast') {
     T = [0, 0.2, 0.8, 1.0];
-    K('rtx', 0.13 * k, 0.13 * k); K('rty', -0.1 * k, -0.08 * k); K('rtz', L * 0.78, L * 0.8); K('rqx', -1.3, -1.3); K('rqy', 0, 0); K('rqz', 0.5, 0.5);
+    K('rtx', 0.13 * k, 0.13 * k); K('rty', -0.1 * k, -0.08 * k); K('rtz', L * 0.78, L * 0.8);
+    if (wc === 'none' || wc === 'fists') { K('rqx', -1.3, -1.3); K('rqy', 0, 0); K('rqz', 0.5, 0.5); } else { K('rqx', 0.2, 0.2); K('rqy', 0.3, 0.3); K('rqz', 0, 0); }
     K('ltx', -0.13 * k, -0.13 * k); K('lty', -0.1 * k, -0.08 * k); K('ltz', L * 0.78, L * 0.8); K('lqx', -1.3, -1.3); K('lqy', 0, 0); K('lqz', -0.5, -0.5);
     K('rpx', -0.7, -0.7); K('rpy', -1, -1); K('lpx', 0.7, 0.7); K('lpy', -1, -1);
     K('lg', 0, 0); K('lock', 0, 0); K('cy', 0, 0); K('nx', 0.1, 0.12); K('ny', 0, 0); K('sx', -0.04, -0.06);
@@ -745,7 +776,7 @@ function md_drive(rig, dt, state, speed) {
     else rig.actFn(rig, rig.P, rig.act, rig.actT);
   }
   if (rig.flashT > 0) rig.flashT -= dt;
-  if (rig.burst && rig.act) for (const bt of rig.burst) if (rig.actT - dt < bt && rig.actT >= bt) rig.flashT = 0.06;
+  if (rig.burst && rig.act === 'special') for (const bt of rig.burst) if (rig.actT - dt < bt && rig.actT >= bt) rig.flashT = 0.06;
   if (rig.flash) rig.flash.visible = rig.flashT > 0;
   rig.apply(rig, rig.P);
 }
@@ -758,7 +789,7 @@ function makeHumanoid(look) {
   const rig = {
     root, kind: 'humanoid', look, height: 1.8, radius: 0.35, keys: MD_HK, states: ['idle', 'walk', 'run', 'combat', 'sit', 'dead'],
     P: md_hpose(), Pa: md_hpose(), Pf: md_hpose(), t: 0, v: 0, ph: 0, st: 'idle', fst: 'idle', fade: 1, fdur: 0.2, frozen: false,
-    act: null, actT: 0, actDur: 0, flashT: 0, seed: Math.random() * 10, jumpLift: false, wkind: 'none', wc: 'none', gun: false,
+    act: null, actT: 0, actDur: 0, flashT: 0, gu: 0, seed: Math.random() * 10, jumpLift: false, wkind: 'none', wc: 'none', gun: false,
     weapons: [], glowCol: null, castCol: 0x7fe6ff, eval: md_hEval, apply: md_hApply, actFn: md_hAct, SR: new V3(), SL: new V3(),
   };
   let tpl = null, body = null;
@@ -844,17 +875,41 @@ const md_e = (P, i, x, y, z) => { i *= 3; P[i] = x; P[i + 1] = y; P[i + 2] = z; 
 const md_ea = (P, i, x, y, z) => { i *= 3; P[i] += x; P[i + 1] += y; P[i + 2] += z; };
 const md_cbx = (w, h, d, b) => chamferBox(w, h, d, b);
 const MD_KINDS = {};
+// Shaped-gait legs for creatures. legs: [upperIdx, lowerIdx, footIdx|-1, phaseOffset, thighRest, kneeRest, upperLen, lowerLen, restDrop, zSplay]
+// Sets the joint Eulers and returns how far the body must move vertically (stance feet planted, flight held).
+function md_cLegs(rig, P, g, legs, kneeLift, drive, dut) {
+  const a = Math.abs(rig.v), sA = Math.sin(md_amp(a)), duty = dut || md_duty(a), mv = g.mv;
+  let hs = -1e9, hy = -1e9;
+  for (const L of legs) {
+    const u = md_gait(rig.ph + L[3], duty), sw = md_gsw;
+    const t = L[4] - Math.asin(u * sA) * mv - (drive || 0) * g.run * sw * (u > -0.2 ? 1 : 0.4);
+    let kn = L[5] + mv * (kneeLift + 0.6 * g.run) * sw;
+    L.t = t; L.kn = kn; L.sw = sw;
+    const d = L[6] * Math.cos(t) + L[7] * Math.cos(t + kn) - L[8];
+    hy = Math.max(hy, d); if (!sw) hs = Math.max(hs, d);
+  }
+  if (hs > -1e9) { rig.hs = hs; if (mv > 0.5) hy = hs; } else if (mv > 0.5) hy = rig.hs || 0;
+  for (const L of legs) {
+    let kn = L.kn;
+    if (L.sw > 0 && mv > 0.3) for (let i = 0; i < 24 && L[6] * Math.cos(L.t) + L[7] * Math.cos(L.t + kn) - L[8] > hy - 0.04 * L.sw; i++) kn += 0.05;
+    md_e(P, L[0], L.t, 0, L[9] || 0); md_e(P, L[1], kn, 0, 0);
+    if (L[2] >= 0) md_e(P, L[2], -(L.t + kn) * 0.9, 0, 0);
+  }
+  rig.gu = md_gait(rig.ph, duty);
+  return hy;
+}
 
 // ----- critter: the chitterling, a round chirpy biped with huge ears -----
 MD_KINDS.critter = {
   h: 0.82, r: 0.3, cols: [0xc08a52, 0xf0dcb0, 0x5ec8e8], L: 0.2,
-  cyc: (a) => 0.42 + 0.12 * a,
+  cyc: (a) => 2 * 0.2 * Math.sin(md_amp(a)) / 0.3,   // bunny hops: both feet together, long flights
   build(T) {
     const ico = (r, d = 1) => new THREE.IcosahedronGeometry(r, d), tb = taperBox;
     T.bone('base', null, 0, 0, 0); T.bone('body', 'base', 0, 0.34, 0); T.bone('head', 'body', 0, 0.15, 0.02);
     T.bone('earL', 'head', 0.09, 0.16, -0.03); T.bone('earR', 'head', -0.09, 0.16, -0.03);
     T.bone('armL', 'body', 0.16, 0.02, 0.05); T.bone('armR', 'body', -0.16, 0.02, 0.05);
     T.bone('legL', 'body', 0.09, -0.14, 0); T.bone('legR', 'body', -0.09, -0.14, 0); T.bone('tail', 'body', 0, -0.06, -0.17);
+    T.bone('footL', 'legL', 0, -0.1, 0); T.bone('footR', 'legR', 0, -0.1, 0);
     T.part('body', ico(0.2), [0, 0, 0], MD_P, 0, [1, 1, 0.95]);
     T.part('body', ico(0.15), [0, -0.03, 0.08], MD_S, 0, [1, 1.05, 0.6]);
     T.part('head', ico(0.19), [0, 0.1, 0.02], MD_P, 0, [1.18, 0.95, 1]);
@@ -872,7 +927,7 @@ MD_KINDS.critter = {
       T.part(a, tb(0.045, 0.045, 0.06, 0.06, 0.12), [0, -0.05, 0], MD_P, [0, 0, s * 0.3]);
       T.part(a, ico(0.035, 0), [s * 0.02, -0.11, 0.01], MD_S);
       T.part(l, tb(0.07, 0.07, 0.085, 0.085, 0.12), [0, -0.05, 0], MD_P);
-      T.part(l, md_cbx(0.09, 0.06, 0.15, 0.025), [0, -0.17, 0.035], MD_PD);
+      T.part(s > 0 ? 'footL' : 'footR', md_cbx(0.09, 0.06, 0.15, 0.025), [0, -0.07, 0.035], MD_PD);
     }
     T.part('head', tb(0.03, 0.03, 0.005, 0.005, 0.1), [0, 0.3, 0.0], MD_A, [-0.4, 0, 0]);
     T.part('tail', tb(0.06, 0.05, 0.02, 0.02, 0.2), [0, 0.07, -0.06], MD_P, [-0.8, 0, 0]);
@@ -887,7 +942,7 @@ MD_KINDS.critter = {
     md_e(P, I.armL, -0.2, 0, 0.2); md_e(P, I.armR, -0.2, 0, -0.2); md_e(P, I.tail, 0.1 * Math.sin(t * 3), 0.3 * Math.sin(t * 4.5), 0);
     P[n + 1] = 0.008 * Math.sin(t * 3.4);
     if (st === 'dead') {
-      md_e(P, 0, 0, 0, Math.PI / 2); P[n] = 0.12; P[n + 1] = 0.19;
+      md_e(P, 0, 0, 0, Math.PI / 2); P[n] = 0.12; P[n + 1] = 0.19; P[n + 2] = 0;
       md_e(P, I.head, 0.2, 0, 0.3); md_e(P, I.earL, 0.6, 0, 0.6); md_e(P, I.earR, 0.6, 0, -0.3); md_e(P, I.legL, -0.4, 0, 0); md_e(P, I.legR, 0.3, 0, 0);
       md_e(P, I.armL, -0.8, 0, 0.6); md_e(P, I.armR, -0.8, 0, -0.6); return;
     }
@@ -895,12 +950,13 @@ MD_KINDS.critter = {
       P[n + 1] = -0.11; md_e(P, I.legL, -1.3, 0, 0.3); md_e(P, I.legR, -1.3, 0, -0.3); md_e(P, I.body, -0.15, 0, 0);
       md_e(P, I.armL, -0.6, 0, 0.1); md_e(P, I.armR, -0.6, 0, -0.1); return;
     }
-    const A = 0.7 * g.mv;
-    md_e(P, I.legL, -A * Math.sin(ph), 0, 0); md_e(P, I.legR, A * Math.sin(ph), 0, 0);
-    md_e(P, I.body, 0.15 * g.mv + 0.08 * g.run, 0, 0.12 * g.mv * Math.sin(ph));
-    P[n + 1] += 0.05 * g.mv * Math.abs(Math.sin(ph)) - 0.02 * g.mv;
-    P[I.earL * 3] += -0.5 * g.mv * Math.abs(Math.cos(ph)) - 0.3 * g.run; P[I.earR * 3] += -0.5 * g.mv * Math.abs(Math.cos(ph)) - 0.3 * g.run;
-    md_ea(P, I.armL, -0.5 * g.mv * Math.sin(ph), 0, 0); md_ea(P, I.armR, 0.5 * g.mv * Math.sin(ph), 0, 0);
+    if (!rig.legs) rig.legs = [[I.legL, I.footL, -1, 0, 0, 0, 0.1, 0.1, 0.2, 0.05], [I.legR, I.footR, -1, 0.15, 0, 0, 0.1, 0.1, 0.2, -0.05]];
+    let c = (ph / TAU) % 1; if (c < 0) c += 1;
+    const hop = c > 0.3 ? Math.sin(Math.PI * (c - 0.3) / 0.7) : 0;
+    P[n + 1] += md_cLegs(rig, P, g, rig.legs, 1.2, 0, 0.3) + 0.13 * g.mv * hop;
+    md_e(P, I.body, 0.12 * g.mv + 0.08 * g.run - 0.25 * g.mv * (hop - 0.5), 0, 0.06 * g.mv * Math.sin(ph));
+    P[I.earL * 3] += -0.6 * g.mv * hop - 0.3 * g.run; P[I.earR * 3] += -0.6 * g.mv * hop - 0.3 * g.run;
+    md_ea(P, I.armL, -0.8 * g.mv * hop, 0, 0); md_ea(P, I.armR, -0.8 * g.mv * hop, 0, 0);
     if (st === 'combat') {
       P[n + 1] -= 0.04; md_ea(P, I.body, 0.25, 0, 0); md_ea(P, I.head, -0.2, 0, 0); md_ea(P, I.earL, 0.7, 0, 0.3); md_ea(P, I.earR, 0.7, 0, -0.3);
       md_ea(P, I.armL, -0.9, 0, 0); md_ea(P, I.armR, -0.9, 0, 0); P[n + 1] += 0.02 * Math.abs(Math.sin(t * 7));
@@ -924,7 +980,7 @@ MD_KINDS.critter = {
 
 // ----- beast: hyena-like quadruped with a sloped back and a bristling mane -----
 MD_KINDS.beast = {
-  h: 1.25, r: 0.55, cols: [0x9a6038, 0x3c2a1e, 0xffc040], L: 0.82,
+  h: 1.25, r: 0.55, cols: [0x9a6038, 0x3c2a1e, 0xffc040], L: 0.84,
   build(T) {
     const tb = taperBox, X = Math.PI / 2;
     T.bone('base', null, 0, 0, 0); T.bone('pelvis', 'base', 0, 0.84, -0.42); T.bone('chest', 'pelvis', 0, 0.12, 0.8);
@@ -970,7 +1026,7 @@ MD_KINDS.beast = {
     md_e(P, I.neck, -0.1 + 0.03 * br, 0.15 * Math.sin(t * 0.5 + rig.seed) * (1 - mv), 0); md_e(P, I.head, 0.25, 0, 0); md_e(P, I.jaw, 0.06, 0, 0);
     md_e(P, I.tail1, -0.5 + 0.1 * br, 0.35 * Math.sin(t * 3 + rig.seed) * (1 - mv), 0); md_e(P, I.tail2, -0.3, 0.2 * Math.sin(t * 3 - 1), 0);
     if (st === 'dead') {
-      md_e(P, 0, 0, 0, Math.PI / 2); P[n] = 0.22; P[n + 1] = -0.62;
+      md_e(P, 0, 0, 0, Math.PI / 2); P[n] = 0.75; P[n + 1] = 0.22;
       for (const sd of ['L', 'R']) { md_e(P, I['fu' + sd], -0.4, 0, 0); md_e(P, I['fl' + sd], 0.3, 0, 0); md_e(P, I['ru' + sd], 0.4, 0, 0); md_e(P, I['rl' + sd], 0.2, 0, 0); }
       md_e(P, I.neck, 0.6, 0, 0); md_e(P, I.head, 0.5, 0, 0); md_e(P, I.jaw, 0.35, 0, 0); md_e(P, I.tail1, 0.2, 0, 0); return;
     }
@@ -980,18 +1036,15 @@ MD_KINDS.beast = {
       for (const sd of ['L', 'R']) { md_e(P, I['fu' + sd], 0.62, 0, 0); md_e(P, I['fl' + sd], 0.08, 0, 0); md_e(P, I['ru' + sd], -1.5, 0, 0); md_e(P, I['rl' + sd], 2.6, 0, 0); }
       md_e(P, I.tail1, 0.3, 0.3, 0); return;
     }
-    const A = (0.32 + 0.05 * Math.abs(rig.v)) * mv, gal = run;
-    const off = { fuL: 0, ruR: 0, fuR: Math.PI - 0.9 * gal * 0.6, ruL: Math.PI };
-    off.ruR = gal * (Math.PI - 0.5); off.ruL = Math.PI + gal * 0.5 - gal * Math.PI;
-    for (const sd of ['L', 'R']) {
-      const ff = ph + off['fu' + sd], fr = ph + off['ru' + sd];
-      md_e(P, I['fu' + sd], -A * Math.sin(ff), 0, 0);
-      md_e(P, I['fl' + sd], (0.4 + 0.8 * run) * mv * Math.pow(Math.max(0, Math.cos(ff - 0.4)), 1.5), 0, 0);
-      md_e(P, I['ru' + sd], -0.35 - A * Math.sin(fr), 0, 0);
-      md_e(P, I['rl' + sd], 0.7 + (0.5 + 0.6 * run) * mv * Math.pow(Math.max(0, Math.cos(fr - 0.3)), 1.5), 0, 0);
-    }
-    md_e(P, I.pelvis, 0.06 * gal * mv * Math.sin(2 * ph), 0.05 * mv * Math.sin(ph), 0); md_e(P, I.chest, -0.08 * gal * mv * Math.sin(2 * ph + 1), 0, 0);
-    P[n + 1] = 0.03 * mv * Math.cos(2 * ph) * (1 + run) - 0.02 * mv;
+    const gal = run, PI = Math.PI;
+    if (!rig.legs) rig.legs = [['fuL', 'flL', 0, 0], ['fuR', 'flR', PI, 0.6], ['ruL', 'rlL', PI, PI], ['ruR', 'rlR', 0, PI + 0.6]].map(([u, l, tr, ga]) => {
+      const f = u[0] === 'f';
+      return Object.assign([I[u], I[l], -1, 0, f ? 0 : -0.4, f ? 0 : 0.85, f ? 0.42 : 0.4, f ? 0.43 : 0.49, f ? 0.85 : 0.81], { tr, ga });
+    });
+    for (const L of rig.legs) L[3] = lerp(L.tr, L.ga, gal);
+    const dy = md_cLegs(rig, P, g, rig.legs, 0.55, 0.3);
+    md_e(P, I.pelvis, 0, 0.04 * mv * rig.gu, 0);
+    P[n + 1] = dy;
     P[I.neck * 3] += 0.08 * mv * Math.sin(2 * ph) + 0.15 * run;
     if (st === 'combat') {
       md_ea(P, I.neck, 0.35, 0, 0); md_ea(P, I.head, -0.25, 0, 0); md_e(P, I.jaw, 0.22 + 0.05 * Math.sin(t * 9), 0, 0); md_e(P, I.tail1, -0.9, 0, 0);
@@ -1026,22 +1079,22 @@ MD_KINDS.insect = {
     T.bone('ab1', 'thorax', 0, 0.03, -0.17); T.bone('ab2', 'ab1', 0, 0.0, -0.24); T.bone('sting', 'ab2', 0, 0.02, -0.2);
     for (let i = 0; i < 3; i++) for (const [sd, s] of [['L', 1], ['R', -1]]) {
       T.bone('f' + i + sd, 'thorax', s * 0.12, -0.02, 0.12 - i * 0.12, 'YZX'); T.bone('t' + i + sd, 'f' + i + sd, 0, -0.3, 0);
-      T.part('f' + i + sd, tb(0.04, 0.04, 0.06, 0.06, 0.3), [0, -0.15, 0], MD_PD);
-      T.part('t' + i + sd, tb(0.012, 0.012, 0.045, 0.045, 0.42), [0, -0.21, 0], MD_S);
+      T.part('f' + i + sd, tb(0.055, 0.055, 0.085, 0.085, 0.3), [0, -0.15, 0], MD_PD);
+      T.part('t' + i + sd, tb(0.022, 0.022, 0.065, 0.065, 0.42), [0, -0.21, 0], MD_S);
     }
-    T.part('thorax', md_cbx(0.28, 0.18, 0.32, 0.06), [0, 0, 0], MD_P);
-    T.part('thorax', md_cbx(0.24, 0.06, 0.26, 0.03), [0, 0.1, 0], MD_PD);
-    T.part('head', md_cbx(0.2, 0.14, 0.17, 0.05), [0, 0, 0.05], MD_P);
+    T.part('thorax', md_cbx(0.36, 0.22, 0.36, 0.07), [0, 0, 0], MD_P);
+    T.part('thorax', md_cbx(0.3, 0.07, 0.3, 0.03), [0, 0.12, 0], MD_PD);
+    T.part('head', md_cbx(0.24, 0.17, 0.2, 0.06), [0, 0, 0.06], MD_P);
     for (const s of [-1, 1]) {
       T.part('head', new THREE.IcosahedronGeometry(0.035, 0), [s * 0.08, 0.035, 0.11], MD_A, 0, 0, 0.9);
       T.part('head', tb(0.014, 0.014, 0.006, 0.006, 0.3), [s * 0.05, 0.16, 0.18], MD_PD, [0.7, 0, -s * 0.35]);
       const m = s > 0 ? 'mandL' : 'mandR';
       T.part(m, tb(0.045, 0.03, 0.012, 0.012, 0.15), [0, 0, 0.06], MD_S, [X, -s * 0.5, 0]);
     }
-    T.part('ab1', md_cbx(0.32, 0.22, 0.28, 0.07), [0, 0.02, -0.1], MD_P);
-    T.part('ab1', md_cbx(0.33, 0.04, 0.12, 0.015), [0, 0.07, -0.1], MD_S);
-    T.part('ab2', md_cbx(0.26, 0.2, 0.24, 0.06), [0, 0.03, -0.1], MD_P);
-    T.part('ab2', md_cbx(0.27, 0.04, 0.1, 0.015), [0, 0.08, -0.1], MD_S);
+    T.part('ab1', md_cbx(0.4, 0.28, 0.3, 0.08), [0, 0.02, -0.1], MD_P);
+    T.part('ab1', md_cbx(0.41, 0.05, 0.12, 0.015), [0, 0.1, -0.1], MD_S);
+    T.part('ab2', md_cbx(0.32, 0.24, 0.26, 0.07), [0, 0.03, -0.1], MD_P);
+    T.part('ab2', md_cbx(0.33, 0.05, 0.1, 0.015), [0, 0.1, -0.1], MD_S);
     T.part('sting', tb(0.13, 0.13, 0.06, 0.06, 0.16), [0, 0, -0.06], MD_PD, [-X, 0, 0]);
     T.part('sting', tb(0.05, 0.05, 0.005, 0.005, 0.18), [0, 0.04, -0.2], MD_A, [-X - 0.6, 0, 0], 0, 0.7);
     return { h: 0.75 };
@@ -1083,7 +1136,7 @@ MD_KINDS.insect = {
 
 // ----- mutant: hulking hunched biped with knuckle-dragging arms -----
 MD_KINDS.mutant = {
-  h: 2.05, r: 0.6, cols: [0x8a9a6a, 0x5a4a3a, 0xd8ff50], L: 0.82,
+  h: 2.05, r: 0.6, cols: [0x8a9a6a, 0x5a4a3a, 0xd8ff50], L: 0.75,
   build(T) {
     const tb = taperBox, ico = (r) => new THREE.IcosahedronGeometry(r, 0);
     T.bone('base', null, 0, 0, 0); T.bone('hips', 'base', 0, 0.86, 0); T.bone('spine', 'hips', 0, 0.14, 0); T.bone('chest', 'spine', 0, 0.24, 0);
@@ -1123,7 +1176,7 @@ MD_KINDS.mutant = {
   },
   pose(rig, st, P, g) {
     const I = rig.I, t = rig.t, ph = rig.ph, n = rig.nb * 3, mv = g.mv, br = Math.sin(t * 1.4 + rig.seed);
-    md_e(P, I.spine, 0.28, 0, 0); md_e(P, I.chest, 0.22 + 0.03 * br, 0, 0); md_e(P, I.head, -0.55, 0.2 * Math.sin(t * 0.4 + rig.seed) * (1 - mv), 0);
+    md_e(P, I.spine, 0.38, 0, 0); md_e(P, I.chest, 0.3 + 0.03 * br, 0, 0); md_e(P, I.head, -0.75, 0.2 * Math.sin(t * 0.4 + rig.seed) * (1 - mv), 0);
     if (st === 'dead') {
       md_e(P, I.hips, 1.45, 0.3, 0); P[n + 1] = -0.62; md_e(P, I.spine, 0.05, 0, 0.1); md_e(P, I.chest, 0, 0, 0); md_e(P, I.head, 0.3, 0.6, 0);
       md_e(P, I.uaL, -0.4, 0, 1.2); md_e(P, I.uaR, 0.1, 0, -1.3); md_e(P, I.faL, -0.3, 0, 0); md_e(P, I.faR, -0.5, 0, 0);
@@ -1133,18 +1186,14 @@ MD_KINDS.mutant = {
       P[n + 1] = -0.45; for (const sd of ['L', 'R']) { const s = sd === 'L' ? 1 : -1; md_e(P, I['th' + sd], -1.45, 0, s * 0.35); md_e(P, I['sh' + sd], 1.9, 0, 0); md_e(P, I['ft' + sd], -0.4, 0, 0); md_e(P, I['ua' + sd], -0.5, 0, s * 0.3); md_e(P, I['fa' + sd], -0.7, 0, 0); }
       md_e(P, I.spine, 0.35, 0, 0); return;
     }
-    const A = 0.5 * mv * (0.8 + 0.3 * g.run), D = rig.dims;
-    let hy = 0;
-    for (const [sd, s, o] of [['L', 1, 0], ['R', -1, Math.PI]]) {
-      const f = ph + o, th = -A * Math.sin(f) - 0.15, kn = 0.25 + mv * (0.6 + 0.6 * g.run) * Math.pow(Math.max(0, Math.cos(f)), 1.5);
-      md_e(P, I['th' + sd], th, 0, s * 0.08); md_e(P, I['sh' + sd], kn, 0, 0); md_e(P, I['ft' + sd], -(th + kn) * 0.8, 0, 0);
-      hy = Math.max(hy, 0.4 * Math.cos(th) + 0.35 * Math.cos(th + kn));
-      const sw = -s * A * 0.9 * Math.sin(ph);
-      md_e(P, I['ua' + sd], sw - 0.25 * (1 - mv) + 0.03 * br, 0, s * 0.18); md_e(P, I['fa' + sd], -0.35 - 0.3 * g.run, 0, 0);
+    if (!rig.legs) rig.legs = [[I.thL, I.shL, I.ftL, 0, -0.15, 0.25, 0.4, 0.35, 0.75, 0.08], [I.thR, I.shR, I.ftR, Math.PI, -0.15, 0.25, 0.4, 0.35, 0.75, -0.08]];
+    P[n + 1] = md_cLegs(rig, P, g, rig.legs, 0.6, 0.3);
+    const A = md_amp(Math.abs(rig.v)) * mv;
+    for (const [sd, s] of [['L', 1], ['R', -1]]) {
+      md_e(P, I['ua' + sd], -s * A * 0.9 * rig.gu - 0.25 * (1 - mv) + 0.03 * br, 0, s * 0.18); md_e(P, I['fa' + sd], -0.35 - 0.3 * g.run, 0, 0);
     }
-    P[n + 1] = hy + 0.05 + 0.12 - D;
-    md_e(P, I.hips, 0, 0.12 * mv * Math.sin(ph), 0.08 * mv * Math.sin(ph));
-    md_ea(P, I.chest, 0, -0.15 * mv * Math.sin(ph), -0.06 * mv * Math.sin(ph));
+    md_e(P, I.hips, 0, 0.12 * mv * rig.gu, 0.08 * mv * rig.gu);
+    md_ea(P, I.chest, 0, -0.15 * mv * rig.gu, -0.06 * mv * rig.gu);
     if (st === 'combat') {
       for (const sd of ['L', 'R']) { const s = sd === 'L' ? 1 : -1; md_e(P, I['ua' + sd], -0.9 + 0.08 * Math.sin(t * 4 + s), 0, s * 0.55); md_e(P, I['fa' + sd], -1.0, 0, 0); }
       md_ea(P, I.chest, -0.12, 0, 0); md_ea(P, I.head, 0.15, 0, 0);
@@ -1256,9 +1305,9 @@ MD_KINDS.worm = {
     for (let j = 0; j < 3; j++) { const a = j * TAU / 3; md_e(P, I['j' + j], Math.cos(a) * jo, 0, -Math.sin(a) * jo); }
     P[n + 1] = -0.12 * mv;
     if (st === 'dead') {
-      const c = [0.9, 0.5, 0.3, 0.25, 0.2, 0.15, 0.1, 0.1];
-      for (let i = 0; i < 8; i++) md_e(P, I['s' + i], c[i], 0, 0.05 * i);
-      P[n + 1] = -0.55; md_e(P, I.head, 0.3, 0, 0); return;
+      const c = [0.25, 1.15, 0.12, 0.02, -0.04, 0.0, 0.08, 0.1];   // keels over and sprawls along the ground
+      for (let i = 0; i < 8; i++) md_e(P, I['s' + i], c[i], 0.04 * Math.sin(i), 0.06 * Math.sin(i * 1.7));
+      P[n + 1] = 0.02; md_e(P, I.head, 0.25, 0, 0); return;
     }
     if (st === 'sit') { P[n + 1] = -1.6; return; }
     if (st === 'combat') {
@@ -1279,7 +1328,7 @@ MD_KINDS.worm = {
 
 // ----- golem: blocky stone giant with glowing lumen veins -----
 MD_KINDS.golem = {
-  h: 2.75, r: 0.85, cols: [0x7c746a, 0x4e5a62, 0x50e0ff], L: 0.97,
+  h: 2.75, r: 0.85, cols: [0x7c746a, 0x4e5a62, 0x50e0ff], L: 0.87,
   build(T) {
     const ico = (r) => new THREE.IcosahedronGeometry(r, 0);
     T.bone('base', null, 0, 0, 0); T.bone('hips', 'base', 0, 1.05, 0); T.bone('chest', 'hips', 0, 0.32, 0); T.bone('head', 'chest', 0, 0.82, 0.18);
@@ -1323,17 +1372,12 @@ MD_KINDS.golem = {
       P[n + 1] = -0.62; for (const sd of ['L', 'R']) { const s = sd === 'L' ? 1 : -1; md_e(P, I['th' + sd], -1.45, 0, s * 0.25); md_e(P, I['sh' + sd], 1.55, 0, 0); md_e(P, I['ua' + sd], -0.5, 0, s * 0.15); md_e(P, I['fa' + sd], -0.6, 0, 0); }
       md_e(P, I.chest, 0.3, 0, 0); md_e(P, I.head, 0.2, 0, 0); return;
     }
-    const A = 0.36 * mv;
-    let hy = 0;
-    for (const [sd, s, o] of [['L', 1, 0], ['R', -1, Math.PI]]) {
-      const f = ph + o, th = -A * Math.sin(f), kn = 0.08 + mv * 0.55 * Math.pow(Math.max(0, Math.cos(f)), 1.5);
-      md_e(P, I['th' + sd], th, 0, s * 0.06); md_e(P, I['sh' + sd], kn, 0, 0); md_e(P, I['ft' + sd], -(th + kn) * 0.9, 0, 0);
-      hy = Math.max(hy, 0.45 * Math.cos(th) + 0.42 * Math.cos(th + kn));
-      md_e(P, I['ua' + sd], -s * 0.5 * A * Math.sin(ph) * -1 * s * s - 0.05, 0, s * 0.12); md_e(P, I['fa' + sd], -0.25, 0, 0);
-    }
-    P[I.uaL * 3] = 0.5 * A * Math.sin(ph) - 0.05; P[I.uaR * 3] = -0.5 * A * Math.sin(ph) - 0.05;
-    P[n + 1] = hy - 0.87;
-    md_e(P, I.hips, 0, 0.1 * mv * Math.sin(ph), 0.1 * mv * Math.sin(ph)); md_ea(P, I.chest, 0, -0.12 * mv * Math.sin(ph), -0.08 * mv * Math.sin(ph));
+    if (!rig.legs) rig.legs = [[I.thL, I.shL, I.ftL, 0, 0, 0.08, 0.45, 0.42, 0.87, 0.06], [I.thR, I.shR, I.ftR, Math.PI, 0, 0.08, 0.45, 0.42, 0.87, -0.06]];
+    P[n + 1] = md_cLegs(rig, P, g, rig.legs, 0.5, 0.2);
+    const A = md_amp(Math.abs(rig.v)) * mv;
+    for (const [sd, s] of [['L', 1], ['R', -1]]) md_e(P, I['ua' + sd], -s * 0.5 * A * rig.gu - 0.05, 0, s * 0.12);
+    md_e(P, I.faL, -0.25, 0, 0); md_e(P, I.faR, -0.25, 0, 0);
+    md_e(P, I.hips, 0, 0.1 * mv * rig.gu, 0.1 * mv * rig.gu); md_ea(P, I.chest, 0, -0.12 * mv * rig.gu, -0.08 * mv * rig.gu);
     if (st === 'combat') {
       for (const sd of ['L', 'R']) { const s = sd === 'L' ? 1 : -1; md_e(P, I['ua' + sd], -0.8, 0, s * 0.35); md_e(P, I['fa' + sd], -1.1, 0, 0); }
       md_ea(P, I.chest, 0.1, 0, 0);
@@ -1360,7 +1404,7 @@ MD_KINDS.wisp = {
   build(T) {
     const oc = (r) => new THREE.OctahedronGeometry(r, 0);
     T.bone('base', null, 0, 0, 0); T.bone('core', 'base', 0, 1.4, 0); T.bone('ring', 'core', 0, 0, 0);
-    T.part('core', oc(0.24), [0, 0, 0], MD_P, 0, [0.75, 1.7, 0.75], 0.85);
+    T.part('core', oc(0.3), [0, 0, 0], MD_P, 0, [0.75, 1.7, 0.75], 0.85);
     T.part('core', oc(0.16), [0.06, 0.05, 0.03], MD_A, [0.4, 0.3, 0.5], [0.8, 1.4, 0.8], 1);
     T.part('core', oc(0.12), [-0.1, -0.12, -0.04], MD_S, [0.2, 0.9, -0.6], [0.7, 1.6, 0.7], 0.8);
     for (let i = 0; i < 5; i++) {
@@ -1411,7 +1455,7 @@ function md_cApply(rig, P) {
   const fx = P[n * 3 + 3];
   if (rig.halo) {
     const v = clamp(0.55 + 0.35 * fx, 0, 1.5);
-    rig.halo.visible = v > 0.05; rig.halo.material.opacity = 0.28 * v; rig.halo.scale.setScalar(0.85 + 0.35 * v);
+    rig.halo.visible = v > 0.05; rig.halo.material.opacity = 0.09 * v; rig.halo.scale.setScalar(0.8 + 0.3 * v);
     rig.B.ring.scale.setScalar(1 + 0.35 * Math.max(0, fx - 0.5));
   }
   if (rig.glowM) { rig.glowM.visible = fx > 0.05 && !rig.halo; rig.glowM.scale.setScalar(Math.max(0.01, fx) * 1.6); }
@@ -1436,7 +1480,6 @@ function makeCreature(kind, opts) {
     act: null, actT: 0, actDur: 0, flashT: 0, seed: Math.random() * 10, dims: 0.87, glowCol: null, weapons: [],
     eval: md_cEval, apply: md_cApply, actFn: md_cAct, cyc: K.cyc || ((a) => md_cycle(a, K.L)),
   };
-  if (kind === 'mutant') rig.dims = 0.4 + 0.35 + 0.05;
   if (K.mover == null) rig.mi = 0;
   if (tpl.halo) {
     rig.haloMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(cols[0]), transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });

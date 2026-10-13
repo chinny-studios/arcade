@@ -171,7 +171,7 @@ function cw_stats() {
     ['Nano Memory', used + ' / ' + fmtInt(S.ncu)], ['Run speed', ui_fmt(S.runSpeed) + ' m/s'],
   ]) + '<div class="hd">Offence</div>' + kv([
     ['Critical chance', ui_fmt(S.critPct) + '%'], ['Added damage', '+' + ui_fmt(S.addDmg || 0)],
-    ['Nano cost', '−' + ui_fmt(S.nanoCost || 0) + '%'], ['Nano init', ui_fmt(S.nanoInit || 0)],
+    ['Nano cost', (S.nanoCost ? '−' : '') + ui_fmt(S.nanoCost || 0) + '%'], ['Nano init', ui_fmt(S.nanoInit || 0)],
   ]);
   if (typeof defenseRating === 'function') h += '<div class="hd">Defence</div>' + kv([['vs ranged', Math.round(defenseRating(PLAYER, 'ranged'))], ['vs melee', Math.round(defenseRating(PLAYER, 'melee'))], ['vs nanos', Math.round(defenseRating(PLAYER, 'nano'))]]);
   h += '</div><div><div class="hd">Armour class</div>' + kv(['melee', 'proj', 'energy', 'chem', 'rad', 'cold', 'fire', 'poison'].map((t) => [cap1(CHAT_TYPE[t] || t), fmtInt(S['ac_' + t] || 0)]));

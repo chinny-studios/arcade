@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ashreach world viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0d10; overflow: hidden; font: 12px system-ui, sans-serif; color: #e6ecef; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #ui { position: absolute; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 4px; max-width: 70vw; }
+  #ui button { background: rgba(10,14,18,.8); color: #e6ecef; border: 1px solid rgba(95,224,208,.4); padding: 3px 7px; cursor: pointer; font: inherit; }
+  #ui button.on { border-color: #ffb347; color: #ffb347; }
+  #info { position: absolute; left: 8px; bottom: 8px; background: rgba(10,14,18,.8); padding: 6px 8px; white-space: pre; font-family: monospace; }
+  #map { position: absolute; right: 8px; top: 8px; width: 256px; height: 256px; border: 1px solid rgba(95,224,208,.4); display: none; }
+  body.hideui #ui, body.hideui #info, body.hideui #map { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui"></div>
+<canvas id="map" width="512" height="512"></canvas>
+<div id="info"></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/01_core.js"></script>
+<script src="../src/02_render.js"></script>
+<script src="../src/08_world.js"></script>
+<script src="../src/09_zones.js"></script>
+<script src="../src/10_city.js"></script>
+<script src="../src/11_interior.js"></script>
+<script>
+// Free-fly viewer: drag to look, WASD/QE to move (shift = fast), M toggles the map, H hides the UI.
+const V = { x: 0, y: 60, z: 200, yaw: Math.PI, pitch: -0.3, markers: null, last: '' };
+const ui = $('#ui'), info = $('#info'), mapC = $('#map');
+const THEMES = ['office', 'warehouse', 'lab', 'bunker', 'cave', 'foundry'];
+function btn(label, fn) { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { for (const o of ui.children) o.classList.remove('on'); b.classList.add('on'); fn(); }; ui.appendChild(b); return b; }
+function stats() {
+  renderer.info.autoReset = false; renderer.info.reset();
+  renderer.render(scene, camera);
+  const r = { calls: renderer.info.render.calls, tris: renderer.info.render.triangles };
+  renderer.info.autoReset = true;
+  return r;
+}
+function load(id, at) {
+  const t0 = performance.now();
+  const spot = loadZone(id, at);
+  const ms = performance.now() - t0;
+  V.x = spot.x; V.z = spot.z; V.y = spot.y + 1.8; V.yaw = spot.yaw + Math.PI; V.pitch = -0.05;
+  if (V.markers) { scene.remove(V.markers); V.markers = null; }
+  mapC.getContext('2d').drawImage(zoneMapCanvas(), 0, 0);
+  V.last = id + '  build ' + ms.toFixed(0) + ' ms';
+  return { id, ms, pois: ZONE.def.pois.length, exits: ZONE.def.exits.length };
+}
+function mission(theme, size = 'm', seed = 77) {
+  const def = makeInteriorDef({ id: 'mission', seed, theme, size, lvl: 20, mobs: ['merc', 'security_bot'], boss: 'merc', name: 'Test ' + theme });
+  def.generated = true;
+  registerZone(def);
+  return load('mission');
+}
+// Capsules at POIs (white), spawn centres (red), exits (amber), mission doors (green) for scale/debugging.
+function markers(on = true) {
+  if (V.markers) { scene.remove(V.markers); V.markers = null; }
+  if (!on) return;
+  const g = new THREE.Group(), cap = new THREE.CylinderGeometry(0.35, 0.35, 1.8, 8);
+  const add = (x, z, c) => { const m = new THREE.Mesh(cap, new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, groundY(x, z) + 0.9, z); g.add(m); };
+  for (const p of ZONE.def.pois) add(p.x, p.z, 0xffffff);
+  for (const s of ZONE.def.spawns) add(s.x, s.z, 0xff3030);
+  for (const e of ZONE.def.exits) add(e.x, e.z, 0xffb347);
+  for (const d of ZONE.def.doors || []) add(d.x, d.z, 0x40ff60);
+  scene.add(g); V.markers = g;
+}
+function view(x, y, z, yaw, pitch) { Object.assign(V, { x, y, z, yaw, pitch }); }
+function eye(x, z, yaw, pitch = -0.04) { view(x, groundY(x, z) + 1.8, z, yaw, pitch); }
+function lookAt(x, y, z, tx, ty, tz) { const dx = tx - x, dy = ty - y, dz = tz - z; view(x, y, z, Math.atan2(-dx, -dz), Math.atan2(dy, Math.hypot(dx, dz))); }
+for (const id of Object.keys(ZONE_DEFS)) btn(id, () => load(id));
+for (const t of THEMES) btn('mission:' + t, () => mission(t));
+let drag = false, px = 0, py = 0;
+$('#c').addEventListener('mousedown', (e) => { drag = true; px = e.clientX; py = e.clientY; });
+addEventListener('mouseup', () => (drag = false));
+addEventListener('mousemove', (e) => { if (!drag) return; V.yaw -= (e.clientX - px) * 0.004; V.pitch = clamp(V.pitch - (e.clientY - py) * 0.004, -1.5, 1.5); px = e.clientX; py = e.clientY; });
+addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'KeyM') mapC.style.display = mapC.style.display === 'block' ? 'none' : 'block'; if (e.code === 'KeyH') document.body.classList.toggle('hideui'); });
+addEventListener('keyup', (e) => (keys[e.code] = false));
+addEventListener('resize', resize); resize();
+let last = performance.now(), fps = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; fps = lerp(fps, 1 / Math.max(dt, 1e-3), 0.05);
+  const sp = (keys.ShiftLeft ? 60 : 12) * dt, f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  V.x += (-Math.sin(V.yaw) * f + Math.cos(V.yaw) * s) * sp; V.z += (-Math.cos(V.yaw) * f - Math.sin(V.yaw) * s) * sp;
+  V.y += ((keys.KeyE ? 1 : 0) - (keys.KeyQ ? 1 : 0)) * sp;
+  tick(dt);
+  info.textContent = V.last + `\npos ${V.x.toFixed(0)} ${V.y.toFixed(0)} ${V.z.toFixed(0)}  ground ${groundY(V.x, V.z).toFixed(1)}  ${zoneAreaName(V.x, V.z)}\ncalls ${renderer.info.render.calls}  tris ${renderer.info.render.triangles}  fps ${fps.toFixed(0)}`;
+  requestAnimationFrame(frame);
+}
+function tick(dt) {
+  camera.position.set(V.x, V.y, V.z); camera.rotation.set(V.pitch, V.yaw, 0);
+  sky.position.copy(camera.position);
+  skyMat.uniforms.uTime.value += dt;
+  placeSun(V.x, groundY(V.x, V.z), V.z);
+  updateZone(dt);
+  renderer.render(scene, camera);
+}
+window.WV = { load, mission, view, eye, lookAt, stats, markers, tick, V, ZONE_DEFS, groundY, collideMove, losClear, randomDoorIn, get ZONE() { return ZONE; } };
+load('landfall');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

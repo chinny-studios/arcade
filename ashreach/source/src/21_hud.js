@@ -670,7 +670,8 @@ function hud_plates() {
     }
     const team = e.team && e.team === PLAYER.team && e.kind !== 'mob';
     const hpBar = show === 2 || team;
-    const sub = e.kind === 'npc' ? hud_npcTitle(e) : '';
+    let sub = e.kind === 'npc' ? hud_npcTitle(e) : '';
+    if (sub && sub.toLowerCase() === String(e.name).toLowerCase()) sub = '';
     const sig = e.name + '|' + e.level + '|' + show + '|' + hpBar + '|' + hud_entColor(e) + '|' + sub;
     if (sig !== p.sig) {
       p.sig = sig;

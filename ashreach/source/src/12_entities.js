@@ -236,7 +236,13 @@ function syncRig(e, dt) {
   else if (e.sitting) st = 'sit';
   else if (Math.abs(e.speedNow) > 0.3) st = Math.abs(e.speedNow) > 5.6 ? 'run' : 'walk';
   else if (e.attacking || e.combatT < 4) st = 'combat';
-  if (r.anim) r.anim(dt, st, e.speedNow);
+  // far-off rigs animate at a lower rate; ones behind the fog not at all
+  e.animAcc = (e.animAcc || 0) + dt;
+  const d2 = e === PLAYER ? 0 : r.root.position.distanceToSquared(camera.position);
+  if (d2 > 160 * 160) { e.animAcc = 0; return; }
+  if (d2 > 60 * 60 && e.animAcc < 0.1) return;
+  if (r.anim) r.anim(e.animAcc, st, e.speedNow);
+  e.animAcc = 0;
 }
 
 // ---------- inventory & equipment ----------
