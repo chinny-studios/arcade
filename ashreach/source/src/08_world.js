@@ -220,7 +220,7 @@ function wdSolid(x, y, z, w, h, d, col, yaw = 0, topCol, mat = 'lit') {
 // Raised walkable rectangle (pads, decks): groundY returns at least y inside it.
 function wdFloor(x0, z0, x1, z1, y) { WD.floors.push({ x0: Math.min(x0, x1), z0: Math.min(z0, z1), x1: Math.max(x0, x1), z1: Math.max(z0, z1), y }); }
 // Point light spot (the shared pool picks the nearest few each frame).
-function wdLight(x, y, z, color = 0xffd8a0, int = 1.2, dist = 18) { WD.spots.push({ x, y, z, color: new THREE.Color(color), int, dist }); }
+function wdLight(x, y, z, color = 0xffd8a0, int = 1.2, dist = 18) { const s = { x, y, z, color: new THREE.Color(color), int, dist }; WD.spots.push(s); return s; }
 // Keep props off a circle (roads and POIs are cleared automatically).
 function wdKeepClear(x, z, r) { WD.clear.push({ x, z, r }); }
 function wdIsClear(x, z, pad = 0) {

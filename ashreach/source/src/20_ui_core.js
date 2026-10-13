@@ -306,14 +306,14 @@ function ui_toast(text, cls) {
   UI.toasts.push({ el, t: 2.6 });
   if (UI.toasts.length > 3) { const o = UI.toasts.shift(); o.el.remove(); }
 }
-function ui_confirm(html, yes, yesLabel) {
-  const m = ui_h('div', 'modal', '<div class="pnl"><p>' + html + '</p><div class="row"><button class="btn pri">' + esc(yesLabel || 'Yes') + '</button><button class="btn">Cancel</button></div></div>', UI.root);
+function ui_confirm(html, yes, yesLabel, no, noLabel) {
+  const m = ui_h('div', 'modal', '<div class="pnl"><p>' + html + '</p><div class="row"><button class="btn pri">' + esc(yesLabel || 'Yes') + '</button><button class="btn">' + esc(noLabel || 'Cancel') + '</button></div></div>', UI.root);
   const [a, b] = m.querySelectorAll('button');
   const done = () => { m.remove(); UI.modal = null; };
   a.onclick = () => { done(); yes(); };
-  b.onclick = done;
-  m.onmousedown = (e) => { if (e.target === m) done(); };
-  UI.modal = { el: m, close: done };
+  b.onclick = () => { done(); if (no) no(); };
+  m.onmousedown = (e) => { if (e.target === m) b.onclick(); };
+  UI.modal = { el: m, close: () => b.onclick() };
   a.focus();
 }
 
