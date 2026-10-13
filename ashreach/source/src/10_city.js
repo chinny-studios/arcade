@@ -332,8 +332,10 @@ function ctPylon(x, z, faction) {
     wdBeam([x + Math.cos(a) * 4.5, g + 14, z + Math.sin(a) * 4.5], [x + Math.cos(a + TAU / 3) * 4.5, g + 14, z + Math.sin(a + TAU / 3) * 4.5], 0.4, CT.greyD);
     wdBeam([x + Math.cos(a) * 2.8, g + 26, z + Math.sin(a) * 2.8], [x + Math.cos(a + TAU / 3) * 2.8, g + 26, z + Math.sin(a + TAU / 3) * 2.8], 0.35, CT.greyD);
   }
-  wdPrism(x, g + 1, z, 1.6, 1.0, 34, 6, 0x9a80ff, 0, 'glow');
-  wdPrism(x, g + 35, z, 1.0, 0, 9, 6, 0xe0d0ff, 0, 'glow');
+  wdPrism(x, g + 1, z, 2.6, 1.4, 34, 6, 0x9a80ff, 0, 'glow');
+  wdPrism(x, g + 35, z, 1.4, 0, 10, 6, 0xe0d0ff, 0, 'glow');
+  for (let k = 0; k < 4; k++) wdPrism(x, g + 6 + k * 8, z, 4.2 - k * 0.5, 4.2 - k * 0.5, 0.8, 6, CT.greyD, 0.5);
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU; wdPrism(x + Math.cos(a) * 12, g, z + Math.sin(a) * 12, 0.9, 0, 5 + (i % 3) * 2, 6, 0xb080ff, a, 'glow'); }
   wdPrism(x, g + 20, z, 3.2, 3.2, 0.6, 12, fc, 0, 'glow');
   wdLight(x, g + 6, z, 0xa080ff, 2.2, 40);
   wdColCyl(x, z, 8.5, g, g + 40);
@@ -366,7 +368,9 @@ function ctHalden(def) {
     roadCol: 0xa89478,
   });
   const PAVE = 0xcfc6b4, PAVE2 = 0xb8ae9c, CURB = 0x9a9488;
-  // avenues, sidewalks, plaza
+  // paving, avenues, sidewalks, plaza
+  wdBox(0, 0, 0, 2 * CT_HW, 0.03, 2 * CT_HW, 0xc4b89e, 0, 'flat');
+  for (let k = -CT_HW + 15.5; k < CT_HW; k += 31) { wdBox(k, 0, 0, 0.5, 0.035, 2 * CT_HW, 0xb0a48a, 0, 'flat'); wdBox(0, 0, k, 2 * CT_HW, 0.035, 0.5, 0xb0a48a, 0, 'flat'); }
   wdBox(0, 0, 0, 2 * CT_HW, 0.05, 22, 0x6e6a64, 0, 'flat');
   wdBox(0, 0, 0, 22, 0.05, 2 * CT_HW, 0x6e6a64, 0, 'flat');
   for (const s of [-1, 1]) {
@@ -579,8 +583,11 @@ function ctHalden(def) {
     [150, -46, 205, -14]];
   const free = (x0, z0, x1, z1) => !RES.some((r) => x0 < r[2] && x1 > r[0] && z0 < r[3] && z1 > r[1]);
   const doors = def.doors.slice();
-  for (let gz = -200; gz < 200; gz += 34) for (let gx = -200; gx < 200; gx += 34) {
-    const lx0 = gx + 3, lz0 = gz + 3, lx1 = gx + 31, lz1 = gz + 31;
+  // lots line the avenues: 26 m lots on a 31 m pitch, mirrored about both avenues
+  const LOT = [20, 51, 82, 113, 144, 175].flatMap((a) => [a, -a - 26]);
+  for (const gz0 of LOT) for (const gx0 of LOT) {
+    const gx = gx0 - 4, gz = gz0 - 4;   // so gx + 17 is the lot centre
+    const lx0 = gx0, lz0 = gz0, lx1 = gx0 + 26, lz1 = gz0 + 26;
     if (!free(lx0, lz0, lx1, lz1)) continue;
     const rec = doors.find((q) => Math.abs(q.bx - gx - 17) < 1 && Math.abs(q.bz - gz - 17) < 1);
     if (rec) { ctCityBlock(rec.bx, rec.bz, 22, rec.bd, rng.r(10, 22), rec.by, rng, true); continue; }
@@ -591,7 +598,7 @@ function ctHalden(def) {
       wdScatter('palm', [{ x: cx + 6, z: cz - 6, s: 1.1 }, { x: cx + 7, z: cz + 6, s: 1 }, { x: cx - 8, z: cz + 8, s: 1.2 }]);
       continue;
     }
-    const w = rng.r(18, 27), d = rng.r(18, 27), cx = gx + 17 + rng.r(-1.5, 1.5), cz = gz + 17 + rng.r(-1.5, 1.5);
+    const w = rng.r(17, 24), d = rng.r(17, 24), cx = gx + 17 + rng.r(-1, 1), cz = gz + 17 + rng.r(-1, 1);
     // face the nearest avenue
     const yaw = Math.abs(cx) < Math.abs(cz) ? (cx > 0 ? -Math.PI / 2 : Math.PI / 2) : (cz > 0 ? Math.PI : 0);
     ctCityBlock(cx, cz, w, d, rng.r(9, 26), yaw, rng, false);
@@ -666,8 +673,8 @@ function ctCityBlock(cx, cz, w, d, h, yaw, rng, door) {
 
 // Halden Crossing definition. Mission buildings are city blocks whose door faces a street.
 const CT_HALDEN_DOORS = [
-  ctDoorRec('halden_md1', 89, -115, -Math.PI / 2, 22), ctDoorRec('halden_md2', -149, -149, 0, 22), ctDoorRec('halden_md3', 157, 89, Math.PI, 22),
-  ctDoorRec('halden_md4', -183, 157, Math.PI / 2, 22), ctDoorRec('halden_md5', 123, -183, 0, 22), ctDoorRec('halden_md6', -81, -149, 0, 22),
+  ctDoorRec('halden_md1', 95, -126, 0, 22), ctDoorRec('halden_md2', -157, -157, 0, 22), ctDoorRec('halden_md3', 157, 95, Math.PI, 22),
+  ctDoorRec('halden_md4', -188, 157, Math.PI / 2, 22), ctDoorRec('halden_md5', 126, -188, 0, 22), ctDoorRec('halden_md6', -64, -157, 0, 22),
 ];
 registerZone({
   id: 'halden', name: 'Halden Crossing', kind: 'city', lvl: [1, 50], size: 640, safe: true, music: 'city', entry: 'halden_shuttle_arrive',

@@ -15,7 +15,7 @@ const args = process.argv.slice(2);
 const want = args.filter((a) => !a.startsWith('--'));
 const VIEWS = {
   landfall: [['over', 'lookAt', 0, 300, 520, 0, 0, -60], ['start', 'eye', 0, 280, Math.PI], ['port', 'lookAt', -40, 12, 240, 30, 5, 330], ['wreck', 'lookAt', 230, 6, -200, 300, 6, -285], ['den', 'lookAt', -345, 4, -40, -390, 3, -60]],
-  halden: [['over', 'lookAt', 260, 180, 330, 0, 0, 0], ['plaza', 'eye', 0, 70, Math.PI], ['shops', 'lookAt', 30, 2, 5, 120, 4, -25], ['port', 'lookAt', 0, 6, 110, 0, 5, 170], ['gate', 'lookAt', 150, 2, 0, 240, 8, 0], ['embassy', 'lookAt', -90, 3, 8, -176, 30, 0]],
+  halden: [['over', 'lookAt', 260, 180, 330, 0, 0, 0], ['plaza', 'lookAt', 36, 2, 52, 0, 5, 0], ['shops', 'lookAt', 30, 2, 5, 120, 4, -25], ['port', 'lookAt', 0, 6, 110, 0, 5, 170], ['gate', 'lookAt', 150, 2, 0, 240, 8, 0], ['embassy', 'lookAt', -90, 3, 8, -176, 30, 0]],
   dustbowl: [['over', 'lookAt', -900, 300, 500, 0, 0, 0], ['outpost', 'lookAt', -360, 5, 70, -425, 3, 40], ['camp', 'lookAt', 360, 8, -380, 440, 3, -430], ['river', 'eye', 140, 120, Math.PI], ['bucket', 'lookAt', -10, 8, 380, -80, 12, 440]],
   greenhollow: [['over', 'lookAt', -800, 260, 400, 0, 0, 0], ['bog', 'lookAt', -330, 5, 120, -230, 2, 250], ['spore', 'eye', 30, -200, Math.PI * 0.85], ['cult', 'lookAt', 360, 8, 80, 430, 5, 140], ['proc', 'lookAt', -250, 10, -250, -330, 30, -320]],
   broken_mesa: [['over', 'lookAt', -700, 320, 500, 0, 0, 0], ['outpost', 'lookAt', -40, 6, -40, -100, 4, 30], ['canyon', 'eye', 100, -80, -2.1], ['foundry', 'lookAt', 200, 8, 380, 240, 8, 490], ['arch', 'lookAt', -500, 6, 0, -410, 20, -10]],
@@ -51,8 +51,12 @@ for (const z of zones) {
       else if (v[1] === 'arrive') { const p = d.pois.find((q) => q.type === 'arrive'); WV.eye(p.x, p.z, p.yaw + Math.PI, -0.08); }
       else if (v[1] === 'eye') WV.eye(v[2], v[3], v[4]);
       else { const [x, y, z, tx, ty, tz] = v.slice(2); WV.lookAt(x, WV.groundY(x, z) + y, z, tx, WV.groundY(tx, tz) + ty, tz); }
+      const fog = [scene.fog.near, scene.fog.far];
+      if (v[0] === 'over') { scene.fog.near = 400; scene.fog.far = 2600; }
       WV.tick(0.016); WV.tick(0.3);
-      return WV.stats();
+      const st = WV.stats();
+      scene.fog.near = fog[0]; scene.fog.far = fog[1];
+      return st;
     }, v);
     await page.screenshot({ path: path.join(outDir, 'world_' + z.replace(':', '_') + '_' + v[0] + '.png') });
     res.views[v[0]] = st;

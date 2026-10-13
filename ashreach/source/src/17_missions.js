@@ -329,8 +329,8 @@ function ms_complete(m) {
 function ms_checkClear(m) {
   if (!m || MS.cur !== m.id || m.progress.bonus || !MS.mobs.length) return;
   if (!MS.mobs.every((e) => e.dead || e.removed)) return;
+  if (m.state !== 'done') { if (!m.progress.cleared) ms_say('The place is quiet. Finish the job.', 'info'); m.progress.cleared = true; return; }
   m.progress.cleared = true;
-  if (m.state !== 'done') { ms_say('The place is quiet. Finish the job.', 'info'); return; }
   m.progress.bonus = true;
   const x = Math.round(mobXp(m.lvl) * (1 + 0.15 * MS.mobs.length));
   ms_say('Instance cleared: bonus experience.', 'xp');

@@ -51,13 +51,13 @@ wdDefProp('palm', () => {
 });
 wdDefProp('fern', () => {
   const P = [{ geo: new THREE.CylinderGeometry(0.04, 0.08, 0.55, 6), p: [0, 0.27, 0], c: zn_c(0x4a5a2a) }];
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * TAU + (i % 2) * 0.2, t1 = 0.55 + (i % 3) * 0.12, t2 = 1.45;
+  for (let i = 0; i < 11; i++) {
+    const a = (i / 11) * TAU + (i % 2) * 0.2, t1 = 0.5 + (i % 3) * 0.14, t2 = 1.5;
     const d1 = [Math.sin(a) * Math.sin(t1), Math.cos(t1), Math.cos(a) * Math.sin(t1)], L1 = 0.62;
     const m1 = [d1[0] * L1 / 2, 0.5 + d1[1] * L1 / 2, d1[2] * L1 / 2], e1 = [d1[0] * L1, 0.5 + d1[1] * L1, d1[2] * L1];
     const d2 = [Math.sin(a) * Math.sin(t2), Math.cos(t2), Math.cos(a) * Math.sin(t2)], L2 = 0.55;
-    P.push({ geo: taperBox(0.24, 0.025, 0.2, 0.025, L1), p: m1, r: zn_YXZ(t1, a), c: zn_c(0x4a7a2e) });
-    P.push({ geo: taperBox(0.2, 0.025, 0.02, 0.02, L2), p: [e1[0] + d2[0] * L2 / 2, e1[1] + d2[1] * L2 / 2, e1[2] + d2[2] * L2 / 2], r: zn_YXZ(t2, a), c: zn_c(0x6a9a3a) });
+    P.push({ geo: taperBox(0.07, 0.02, 0.16, 0.02, L1), p: m1, r: zn_YXZ(t1, a), c: zn_c(i % 2 ? 0x4a7a2e : 0x3f6e28) });
+    P.push({ geo: taperBox(0.16, 0.02, 0.02, 0.02, L2), p: [e1[0] + d2[0] * L2 / 2, e1[1] + d2[1] * L2 / 2, e1[2] + d2[2] * L2 / 2], r: zn_YXZ(t2, a), c: zn_c(0x6a9a3a) });
   }
   return { geo: mergeParts(P), col: 0.06, h: 1.1 };
 });
@@ -180,38 +180,49 @@ function zn_fill(rng, def, kind, n, fn, pad = 3) {
 }
 const zn_slope = (x, z) => { const h = groundY(x, z); return (Math.abs(groundY(x + 3, z) - h) + Math.abs(groundY(x, z + 3) - h)) / 3; };
 
+// Extruded hull section: convex ship profile, tapered toward the bow, posed by a matrix (centre, YXZ angles).
+function zn_hull(cx, cy, cz, len, w, h, yaw, pitch, roll, taper = 1, endCol = 0x1e1a18) {
+  _e1.set(pitch, yaw, roll, 'YXZ');
+  const M = new THREE.Matrix4().compose(_v2.set(cx, cy, cz), _q1.setFromEuler(_e1), _v3.set(1, 1, 1));
+  _e1.order = 'XYZ';
+  const PR = [[-1, 0.3], [-0.9, 1], [0.9, 1], [1, 0.3], [0.5, 0], [-0.5, 0]];
+  const ring = (lz, k) => PR.map(([px, py]) => { const v = new V3(px * w / 2 * k, (py - 0.5) * h + (k < 1 ? (1 - k) * h * 0.25 : 0), lz).applyMatrix4(M); return [v.x, v.y, v.z]; });
+  const A = ring(-len / 2, 1), B = ring(len / 2, taper), ctr = [cx, cy, cz];
+  const COL = [0x7a6a5c, 0x5a4e46, 0x7a6a5c, 0x8a3a2a, 0x8a3a2a, 0x8a3a2a];
+  for (let i = 0; i < 6; i++) { const j = (i + 1) % 6; wdPoly('lit', [A[i], A[j], B[j], B[i]], i === 1 ? 0x5a5048 : i === 0 || i === 2 ? 0x7a6a5c : i === 3 || i === 5 ? 0x84604a : 0x8a3a2a, ctr); }
+  wdPoly('lit', A, endCol, ctr); wdPoly('lit', B, taper < 0.3 ? 0x7a6a5c : endCol, ctr);
+  // a rust-gold stripe along both flanks
+  for (const s of [-1, 1]) {
+    const p = (lz, k) => { const v = new V3(s * (w / 2 * k + 0.08), h * 0.2, lz).applyMatrix4(M); return [v.x, v.y, v.z]; };
+    const q = (lz, k) => { const v = new V3(s * (w / 2 * k + 0.08), h * 0.28, lz).applyMatrix4(M); return [v.x, v.y, v.z]; };
+    wdPoly('flat', [p(-len / 2, 1), p(len / 2, lerp(1, taper, 0.98)), q(len / 2, lerp(1, taper, 0.98)), q(-len / 2, 1)], 0xc8a040, [cx, cy, cz]);
+  }
+  wdColObb(cx, cz, w * 0.95, len * Math.cos(pitch) * 0.95, yaw, cy - h / 2, cy + h / 2);
+}
 // Wrecked ore freighter, broken in three, half buried in sand.
 function zn_freighter(x, z, yaw) {
   const f = ctFrame(x, z, yaw), g = groundY(x, z);
-  const HULL = 0x7a6a5c, RED = 0x8a3a2a, STR = 0xc8a040;
-  const seg = (lz, len, w, h, pitch, roll, sink, col) => {
-    const [cx, cz] = f(0, lz), y = groundY(cx, cz) + h / 2 - sink;
-    wdTBox(cx, y, cz, w, h, len, col, yaw, pitch, roll);
-    wdTBox(cx, y - h * 0.32, cz, w + 0.3, h * 0.28, len + 0.2, RED, yaw, pitch, roll);
-    wdTBox(cx, y + h * 0.05, cz, w + 0.25, 0.8, len + 0.15, STR, yaw, pitch, roll);
-    wdColObb(cx, cz, w * 0.95, len * 0.95, yaw, y - h / 2, y + h / 2);
-    return y;
-  };
-  // bow (tilted up, nose in the air)
-  const by = seg(30, 26, 17, 13, -0.16, 0.22, 4, HULL);
-  const [nx, nz] = f(0, 46);
-  wdTBox(nx, by + 3, nz, 12, 9, 8, HULL, yaw, -0.5, 0.22);
-  // midships: shattered frames
-  for (let i = 0; i < 5; i++) {
-    const [rx, rz] = f((i % 2 ? 1 : -1) * 6.5, 8 - i * 4);
-    wdTBox(rx, g + 3, rz, 1, 9 - i % 3 * 2, 1.2, 0x5a4a3e, yaw, 0, (i % 2 ? -1 : 1) * 0.35);
+  // bow, nose in the air
+  const [bx, bz] = f(0, 30); zn_hull(bx, g + 4, bz, 24, 17, 13, yaw, -0.14, 0.2);
+  const [nx, nz] = f(0, 50); zn_hull(nx, g + 7.2, nz, 16, 17, 13, yaw, -0.2, 0.2, 0.08);
+  // midships: shattered frames and keel
+  for (let i = 0; i < 6; i++) {
+    const [rx, rz] = f((i % 2 ? 1 : -1) * 6.8, 12 - i * 4);
+    wdTBox(rx, g + 3, rz, 0.9, 9 - (i % 3) * 2, 1.0, 0x5a4a3e, yaw, 0, (i % 2 ? -1 : 1) * 0.3);
   }
-  const [kx, kz] = f(0, 0); wdTBox(kx, g + 0.8, kz, 14, 2.2, 26, 0x5a4a3e, yaw, 0.02, 0.1);
-  // stern with the bridge tower
-  const sy = seg(-26, 30, 18, 15, 0.05, -0.12, 3, HULL);
-  const [tx, tz] = f(0, -32);
-  wdTBox(tx, sy + 12, tz, 12, 10, 10, 0xb8b0a0, yaw, 0.05, -0.12);
-  wdTBox(tx, sy + 14, tz + 0, 12.2, 1.8, 10.2, 0x2a3a44, yaw, 0.05, -0.12);
-  wdTBox(...f(-3, -33).slice(0, 1), sy + 20, f(-3, -33)[1], 0.6, 8, 0.6, 0x5a5a58, yaw, 0, -0.2);
-  for (const s of [-1, 1]) { const [ex, ez] = f(s * 4.5, -42); wdPrism(ex, sy - 6, ez, 2.6, 2.2, 3, 8, 0x4a4440, yaw); }
+  const [kx, kz] = f(0, -2); wdTBox(kx, g + 0.6, kz, 13, 2, 26, 0x5a4a3e, yaw, 0.02, 0.1);
+  // stern with the bridge tower and engines
+  const [sx, sz] = f(0, -28); zn_hull(sx, g + 5, sz, 30, 18, 15, yaw, 0.05, -0.12);
+  const [tx, tz] = f(0, -34), ty = g + 17;
+  wdTBox(tx, ty, tz, 12, 9, 10, 0xb8b0a0, yaw, 0.05, -0.12);
+  wdTBox(tx, ty + 1.6, tz, 12.3, 1.8, 10.3, 0x2a3a44, yaw, 0.05, -0.12);
+  wdTBox(tx, ty + 5.2, tz, 14, 0.6, 11, 0x8a8478, yaw, 0.05, -0.12);
+  const [mx, mz] = f(-2.5, -36); wdTBox(mx, ty + 9, mz, 0.6, 8, 0.6, 0x5a5a58, yaw, 0, -0.2);
+  const [fx, fz] = f(3, -38); wdTBox(fx, ty + 6, fz, 2.4, 6, 2.4, 0x8a3a2a, yaw, 0.1, -0.15);
+  for (const s of [-1, 1]) { const [ex, ez] = f(s * 4.5, -44); wdTBox(ex, g + 4, ez, 4.4, 4.4, 3, 0x3e3834, yaw, 0.05, -0.12); }
   // spilled ore containers
   for (let i = 0; i < 9; i++) {
-    const a = i * 1.7, r = 14 + (i * 7) % 18, [cx, cz] = f(Math.sin(a) * r + 14, Math.cos(a) * r);
+    const a = i * 1.7, r = 14 + (i * 7) % 18, [cx, cz] = f(Math.sin(a) * r + 16, Math.cos(a) * r);
     const cg = groundY(cx, cz);
     wdTBox(cx, cg + 1, cz, 2.5, 2.6, 6, [0x8a5a3a, 0x3a6a7a, 0x9a8a3a, 0x6a6a6a][i % 4], yaw + a, 0, (i % 3 - 1) * 0.3);
     wdColObb(cx, cz, 2.5, 6, yaw + a, cg, cg + 2.6);
@@ -243,6 +254,10 @@ function zn_bunkerGate(x, z, yaw, glow = 0xff8a3a) {
   const f = ctFrame(x, z, yaw), g = groundY(x, z);
   const [bx, bz] = f(0, -7);
   wdSolid(bx, g - 2, bz, 26, 16, 14, 0x5a5650, yaw, 0x4a4640);
+  const [ux, uz] = f(0, -12); wdBox(ux, g + 14, uz, 40, 12, 16, 0x4e4a44, yaw, 'lit', 0x3a3632);
+  for (let i = 0; i < 4; i++) { const [px, pz] = f(-18 + i * 12, -4.2); wdBox(px, g + 14.5, pz, 1.5, 11, 1.5, 0x6a665e, yaw); }
+  const [sx2, sz2] = f(0, -3.9); wdBox(sx2, g + 20, sz2, 22, 2.2, 0.2, 0x2a2826, yaw); wdBox(sx2, g + 20.5, sz2, 18, 1.2, 0.3, glow, yaw, 'glow');
+  for (const s of [-1, 1]) { const [qx, qz] = f(s * 15, 0); ctPipeline([[qx, qz], [qx + Math.sin(yaw) * 30, qz + Math.cos(yaw) * 30]], 1.2, 0.8, 0x6a5040); }
   for (const s of [-1, 1]) { const [px, pz] = f(s * 8, -0.2); wdSolid(px, g - 1, pz, 4, 13, 2, 0x6a665e, yaw, 0x7a766e); }
   const [dx, dz] = f(0, -0.1);
   wdBox(dx, g, dz, 10, 8, 0.3, 0x2a2826, yaw);
@@ -278,7 +293,8 @@ function zn_excavator(x, z, yaw) {
   // the wheel
   const [wx, wz] = f(0, 47);
   const m = new THREE.Matrix4().compose(_v1.set(wx, g + 19, wz), _q1.setFromEuler(_e1.set(0, yaw + Math.PI / 2, Math.PI / 2)), _v2.set(1, 1, 1));
-  wdGeo(new THREE.CylinderGeometry(10, 10, 2.4, 14, 1, true).toNonIndexed(), m, R);
+  wdGeo(new THREE.CylinderGeometry(10, 10, 2.4, 14).toNonIndexed(), m, R);
+  wdGeo(new THREE.CylinderGeometry(3, 3, 3.2, 8).toNonIndexed(), m, D);
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * TAU, [ex, ez] = f(0, 47 + Math.cos(a) * 11);
     wdTBox(ex, g + 19 + Math.sin(a) * 11, ez, 3.4, 2, 2.6, R, yaw, a, 0);
@@ -303,10 +319,11 @@ function zn_processor(x, z) {
 function zn_arch(ax, az, bx, bz, h, col = 0xa86040) {
   const ga = groundY(ax, az), gb = groundY(bx, bz), yaw = Math.atan2(bz - az, bx - ax) * -1;
   for (const [x, z, g] of [[ax, az, ga], [bx, bz, gb]]) { wdSolid(x, g - 2, z, 12, h + 4, 10, col, yaw, 0x8a4a32); }
-  const n = 8;
+  const n = 14, L = Math.hypot(bx - ax, bz - az);
   for (let i = 0; i <= n; i++) {
-    const t = i / n, x = lerp(ax, bx, t), z = lerp(az, bz, t), y = lerp(ga, gb, t) + h + Math.sin(t * Math.PI) * 8;
-    wdTBox(x, y, z, Math.hypot(bx - ax, bz - az) / n + 3, 6 - Math.sin(t * Math.PI) * 2, 9, i % 2 ? col : 0x9a5838, yaw, 0, (t - 0.5) * -0.7);
+    const t = i / n, x = lerp(ax, bx, t), z = lerp(az, bz, t), y = lerp(ga, gb, t) + h + Math.sin(t * Math.PI) * 10;
+    const slope = (Math.cos(t * Math.PI) * Math.PI * 10 + (gb - ga)) / L;
+    wdTBox(x, y, z, L / n * 1.5, 7 - Math.sin(t * Math.PI) * 2.5, 9 - Math.sin(t * Math.PI) * 2, i % 3 ? col : 0x9a5838, yaw, 0, Math.atan(slope));
   }
 }
 
@@ -326,9 +343,9 @@ function zn_lfHeight(x, z) {
   const d = zn_lfCoast(x, z);
   let h;
   if (d < 0) h = lerp(0.6, -14, smooth(0, 110, -d));
-  else h = 0.6 + smooth(0, 50, d) * 2.4 + smooth(25, 200, d) * (5 + 30 * fbm(x * 0.0045 + 3, z * 0.0045, 4)) + smooth(60, 260, d) * 22 * Math.pow(ridged(x * 0.003, z * 0.003, 3), 2);
-  const db = Math.hypot(x + 450, z + 60);
-  h += 30 * (1 - smooth(25, 95, db)) * smooth(-30, 10, d);
+  else h = 0.6 + smooth(0, 50, d) * 2.4 + smooth(25, 200, d) * (6 + 44 * fbm(x * 0.0045 + 3, z * 0.0045, 4)) + smooth(60, 260, d) * 34 * Math.pow(ridged(x * 0.003, z * 0.003, 3), 2);
+  const db = Math.hypot(x + 432, z + 60) + (vnoise(x * 0.05, z * 0.05) - 0.5) * 6;
+  h += 30 * (1 - smooth(28, 50, db)) * smooth(-30, 10, d);
   return h;
 }
 function zn_lfBuild(def) {
@@ -337,14 +354,19 @@ function zn_lfBuild(def) {
   wdTerrain({
     cell: 6, margin: 260,
     height: (x, z) => { const h = zn_lfHeight(x, z), k = zn_near(low, x, z) * smooth(-5, 20, zn_lfCoast(x, z)); return lerp(h, Math.min(h, 4 + h * 0.4), k * 0.6); },
-    flats: [{ x: 0, z: 310, r: 72, fall: 45 }, { x: -386, z: -60, r: 7, fall: 14 }, { x: 300, z: -280, r: 40, fall: 30 }, ...def.doors.map((d) => ({ x: d.bx, z: d.bz, r: 10, fall: 14 }))],
+    flats: [{ x: 0, z: 310, r: 72, fall: 45 }, { x: -384, z: -60, r: 6, fall: 10 }, { x: 300, z: -280, r: 40, fall: 30 }, ...def.doors.map((d) => ({ x: d.bx, z: d.bz, r: 10, fall: 14 }))],
     color: (x, y, z, ny, out) => {
       const n = vnoise(x * 0.03, z * 0.03);
       let c;
       if (y < -0.6) c = wdMix(0x9a9a80, 0x5a7a78, smooth(-0.6, -8, y));
       else if (y < 1.6) c = wdMix(0xc8b890, 0xe0d0a8, smooth(-0.6, 1.6, y));
       else if (y < 3.2) c = wdMix(0xe0d0a8, 0xb8b078, smooth(1.6, 3.2, y));
-      else c = wdMix(0x8f9a54, 0xa89a62, smooth(0.35, 0.7, n + fbm(x * 0.01, z * 0.01, 2) * 0.4 - 0.2));
+      else {
+        const m = fbm(x * 0.008, z * 0.008, 3);
+        c = wdMix(0x8f9a54, 0xa89a62, smooth(0.35, 0.7, n + m * 0.4 - 0.2));
+        c = wdMix(c, 0x6a7a3c, smooth(0.55, 0.7, vnoise(x * 0.012 + 9, z * 0.012)) * 0.7);
+        c = wdMix(c, 0xa08a62, smooth(0.6, 0.75, vnoise(x * 0.02 - 4, z * 0.02)) * 0.6);
+      }
       if (ny < 0.82 && y > 1) c = wdMix(c, 0x8a7a66, smooth(0.82, 0.66, ny));
       zn_set(c, out);
     },
@@ -370,7 +392,7 @@ function zn_lfBuild(def) {
   for (let i = 0; i < 6; i++) ctCrate(68 + (i % 3) * 1.6, 330 + Math.floor(i / 3) * 1.6, 1.4, 0x6a7a8a, 0.1);
   // set pieces
   zn_freighter(300, -280, 0.6);
-  zn_caveMouth(-386, -60, Math.PI / 2, rng, 0x8a8070);
+  zn_caveMouth(-385, -60, Math.PI / 2, rng, 0x8a8070);
   zn_beacon(-40, -405, 24);
   ctDerrick(220, 70, 0.3, 20); ctDerrick(262, 118, 0.9, 16);
   ctPipeline([[220, 82], [180, 140], [110, 190], [60, 240]]);
@@ -379,12 +401,13 @@ function zn_lfBuild(def) {
   for (let i = 0; i < 5; i++) ctCrate(-360 + i * 2, -30 + (i % 2) * 2, 1.2, 0x5a6a50, i);
   // vegetation and rocks
   const land = (x, z, minD = 8) => zn_lfCoast(x, z) > minD;
-  zn_fill(rng, def, 'shrub', 2400, (x, z, r) => (land(x, z, 12) && zn_slope(x, z) < 0.6 ? { x, z, s: r.r(0.8, 2.0) } : null));
-  zn_fill(rng, def, 'grass', 2600, (x, z, r) => (land(x, z, 6) ? { x, z, s: r.r(0.8, 1.6) } : null), 2);
+  zn_fill(rng, def, 'shrub', 4200, (x, z, r) => (land(x, z, 12) && zn_slope(x, z) < 0.6 ? { x, z, s: r.r(0.8, 2.0) } : null));
+  zn_fill(rng, def, 'grass', 7000, (x, z, r) => (land(x, z, 6) ? { x, z, s: r.r(0.8, 1.6) } : null), 2);
   zn_fill(rng, def, 'scrubtree', 520, (x, z, r) => (land(x, z, 40) && vnoise(x * 0.008, z * 0.008) > 0.45 && zn_slope(x, z) < 0.5 ? { x, z, s: r.r(3, 6) } : null), 5);
   zn_fill(rng, def, 'palm', 140, (x, z, r) => { const d = zn_lfCoast(x, z); return d > 6 && d < 40 ? { x, z, s: r.r(2.2, 3.4), yaw: r.r(0, 6) } : null; }, 5);
   zn_fill(rng, def, 'deadtree', 90, (x, z, r) => (land(x, z, 50) ? { x, z, s: r.r(3, 5) } : null), 5);
   zn_fill(rng, def, 'rock', 900, (x, z, r) => (zn_lfCoast(x, z) > -10 ? { x, z, s: r.r(0.5, 2.2) * (r.chance(0.08) ? 3 : 1), tint: r.chance(0.5) ? 0x9a8c78 : 0x8a8478 } : null), 3);
+  zn_fill(rng, def, 'slab', 260, (x, z, r) => (land(x, z, 30) && zn_slope(x, z) > 0.35 ? { x, z, s: r.r(2, 6), tint: 0x9a9080 } : null), 4);
   zn_fill(rng, def, 'lumen', 50, (x, z, r) => (Math.hypot(x + 400, z + 60) < 160 && land(x, z, 10) ? { x, z, s: r.r(0.8, 1.6), glowTint: 0x5fe0d0 } : null));
   wdMotes({ color: 0xffffff, n: 200, size: 0.12, r: 50, h: 15, opacity: 0.35 });
 }
@@ -457,7 +480,7 @@ function zn_dbBuild(def) {
       let mesa = smooth(0.585, 0.6, m) * 34 + smooth(0.655, 0.67, m) * 20;
       mesa *= smooth(20, 70, road) * smooth(40, 90, rd) * (1 - zn_near(low, x, z));
       h += mesa;
-      h -= 7.5 * (1 - smooth(12, 32, rd)) * (1 - 0.6 * (1 - smooth(4, 18, road)));
+      h -= 9 * (1 - smooth(14, 30, rd)) * (1 - 0.7 * (1 - smooth(4, 18, road)));
       return h;
     },
     flats: [{ x: -420, z: 40, r: 62, fall: 40 }, { x: 440, z: -430, r: 40, fall: 30 }, ...def.doors.map((d) => ({ x: d.bx, z: d.bz, r: 10, fall: 14 }))],
@@ -465,7 +488,9 @@ function zn_dbBuild(def) {
     color: (x, y, z, ny, out) => {
       const n = vnoise(x * 0.02, z * 0.02), rd = Math.abs(x - zn_dbRiver(z));
       let c = wdMix(0xd9b98a, 0xc8a070, n);
-      if (rd < 30) c = wdMix(wdMix(0xa89880, 0xb8a888, vnoise(x * 0.2, z * 0.2)), c, smooth(10, 30, rd));
+      c = wdMix(c, 0xa88e6a, smooth(0.62, 0.75, vnoise(x * 0.015 + 3, z * 0.015)) * 0.7);
+      c = wdMix(c, 0xe4c898, smooth(0.6, 0.72, vnoise(x * 0.04 - 7, z * 0.04)) * 0.5);
+      if (rd < 32) c = wdMix(wdMix(0x8a7e6c, 0x9c8e78, vnoise(x * 0.25, z * 0.25)), c, smooth(14, 32, rd));
       if (ny < 0.8) c = wdMix(c, Math.sin(y * 0.6) > 0 ? 0xb06a48 : 0xc88a60, smooth(0.8, 0.62, ny));
       else if (y > 22) c = wdMix(c, 0xb8946a, 0.5);
       zn_set(c, out);
@@ -495,8 +520,10 @@ function zn_dbBuild(def) {
   ctDerrick(-560, 320, 0.2, 24); ctDerrick(-250, 360, 1.1, 20); ctDerrick(40, 300, 0.4, 22); ctDerrick(560, 300, 0.7, 18);
   ctPipeline([[-560, 332], [-420, 360], [-250, 372], [-100, 340], [40, 312], [260, 330], [560, 312]], 1.8, 0.7);
   zn_doors(def, 'sand');
-  zn_fill(rng, def, 'rock', 1100, (x, z, r) => ({ x, z, s: r.r(0.5, 2.2) * (r.chance(0.07) ? 3.5 : 1), tint: r.chance(0.6) ? 0xb88a64 : 0x9a7a5a }), 3);
-  zn_fill(rng, def, 'shrub', 1500, (x, z, r) => (zn_slope(x, z) < 0.4 ? { x, z, s: r.r(0.6, 1.4), tint: 0xb8a070 } : null), 3);
+  zn_fill(rng, def, 'rock', 1800, (x, z, r) => ({ x, z, s: r.r(0.5, 2.2) * (r.chance(0.07) ? 3.5 : 1), tint: r.chance(0.6) ? 0xb88a64 : 0x9a7a5a }), 3);
+  zn_fill(rng, def, 'rock', 900, (x, z, r) => (Math.abs(x - zn_dbRiver(z)) < 26 ? { x, z, s: r.r(0.3, 0.9), tint: 0x8a8070 } : null), 1);
+  zn_fill(rng, def, 'grass', 3000, (x, z, r) => ({ x, z, s: r.r(0.8, 1.5), tint: 0xd8c088 }), 2);
+  zn_fill(rng, def, 'shrub', 3000, (x, z, r) => (zn_slope(x, z) < 0.4 ? { x, z, s: r.r(0.6, 1.4), tint: 0xb8a070 } : null), 3);
   zn_fill(rng, def, 'deadtree', 260, (x, z, r) => (Math.abs(x - zn_dbRiver(z)) < 60 || r.chance(0.3) ? { x, z, s: r.r(2.5, 5) } : null), 4);
   zn_fill(rng, def, 'lcactus', 500, (x, z, r) => (zn_slope(x, z) < 0.5 ? { x, z, s: r.r(1.2, 2.6), glowTint: r.chance(0.7) ? 0x5fe0d0 : 0x9ff0a0 } : null), 4);
   zn_fill(rng, def, 'ribs', 18, (x, z, r) => ({ x, z, s: r.r(5, 9) }), 10);
@@ -583,7 +610,8 @@ function zn_ghBuild(def) {
       const n = vnoise(x * 0.025, z * 0.025);
       let c = wdMix(0x5a7a32, 0x7a8a3a, n);
       const ds = Math.hypot(x - ZN_GH.spore.x, z - ZN_GH.spore.z);
-      if (ds < ZN_GH.spore.r * 1.2) c = wdMix(wdMix(0xa8a840, 0xc8b84a, vnoise(x * 0.08, z * 0.08)), c, smooth(ZN_GH.spore.r * 0.7, ZN_GH.spore.r * 1.2, ds));
+      if (ds < ZN_GH.spore.r * 1.2) c = wdMix(wdMix(0x8a8a3a, 0xa09640, vnoise(x * 0.08, z * 0.08)), c, smooth(ZN_GH.spore.r * 0.7, ZN_GH.spore.r * 1.2, ds));
+      c = wdMix(c, 0x46602a, smooth(0.6, 0.75, vnoise(x * 0.013 + 2, z * 0.013)) * 0.6);
       if (y < WY + 0.6) c = wdMix(0x4a4a2a, 0x5a6030, smooth(WY - 1, WY + 0.6, y));
       if (ny < 0.8) c = wdMix(c, 0x5a5444, smooth(0.8, 0.62, ny));
       let g = 0;
@@ -594,7 +622,7 @@ function zn_ghBuild(def) {
   });
   WD.deepY = WY - 1.6;
   const B = ZN_GH.bog;
-  wdWater(WY, 0x4a5a38, new THREE.CircleGeometry(B.r * 1.25, 40).rotateX(-Math.PI / 2), B.x, B.z, 0.85);
+  wdWater(WY, 0x3a4a2e, new THREE.CircleGeometry(B.r * 1.25, 40).rotateX(-Math.PI / 2), B.x, B.z, 0.85);
   zn_processor(ZN_GH.proc.x, ZN_GH.proc.z);
   // cultist shrine: a ring of totems around a lumen monolith
   const C = ZN_GH.cult, cg = groundY(C.x, C.z);
@@ -618,7 +646,7 @@ function zn_ghBuild(def) {
   zn_doors(def, 'bunker');
   const bog = (x, z) => groundY(x, z) < WY + 0.2;
   const inSpore = (x, z) => Math.hypot(x - ZN_GH.spore.x, z - ZN_GH.spore.z) < ZN_GH.spore.r;
-  zn_fill(rng, def, 'fern', 1700, (x, z, r) => (!bog(x, z) && !inSpore(x, z) && zn_slope(x, z) < 0.7 ? { x, z, s: r.r(4, 9), tilt: 0.15 } : null), 4);
+  zn_fill(rng, def, 'fern', 1300, (x, z, r) => (!bog(x, z) && !inSpore(x, z) && zn_slope(x, z) < 0.7 ? { x, z, s: r.r(4, 9), tilt: 0.15 } : null), 4);
   zn_fill(rng, def, 'bigtree', 520, (x, z, r) => (!bog(x, z) && !inSpore(x, z) && vnoise(x * 0.01, z * 0.01) > 0.42 ? { x, z, s: r.r(7, 14), tint: r.chance(0.5) ? 0xd0e0b0 : null } : null), 6);
   zn_fill(rng, def, 'grass', 2200, (x, z, r) => (!bog(x, z) ? { x, z, s: r.r(1, 2), tint: 0xa8c070 } : null), 2);
   zn_fill(rng, def, 'reed', 1500, (x, z, r) => (zn_ghBog(x, z) < B.r * 1.05 && groundY(x, z) < WY + 0.9 ? { x, z, s: r.r(0.8, 1.6) } : null), 1);
@@ -722,7 +750,7 @@ function zn_bmBuild(def) {
   wdBox(mx, mg, mz, 0.7, 30, 0.7, 0x55595e); wdBox(mx, mg + 30, mz, 1, 1, 1, 0xff5040, 0, 'glow');
   // Sunken Foundry gate in the south cliff
   zn_bunkerGate(240, 490, Math.PI, 0xff8a3a);
-  zn_arch(-420, -45, -400, 30, 18);
+  zn_arch(-424, -52, -396, 36, 16);
   zn_doors(def, 'scrap');
   // canyon raider stockade
   for (let i = 0; i < 14; i++) { const a = (i / 14) * TAU; if (Math.abs(angWrap(a + Math.PI / 2)) < 0.35) continue; const x = -170 + Math.cos(a) * 48, z = -460 + Math.sin(a) * 48, g = groundY(x, z); if (g > 25) continue; wdSolid(x, g - 0.5, z, 20, 3.4, 0.9, i % 2 ? 0x8a4a2c : 0x6a5040, -a + Math.PI / 2, 0x5a3a28); }
@@ -809,7 +837,8 @@ function zn_lsBuild(def) {
       const n = vnoise(x * 0.02, z * 0.02);
       let c = wdMix(0x3a3440, 0x4a4250, n);
       if (ny < 0.85) c = wdMix(c, 0x2a2630, 0.6);
-      const v = ridged(x * 0.011 + 3, z * 0.011, 2), vg = smooth(0.9, 0.97, v);
+      const v = ridged(x * 0.009 + 3, z * 0.009, 2), vg = smooth(0.84, 0.94, v);
+      c = wdMix(c, 0x5e5866, smooth(0.62, 0.78, vnoise(x * 0.01 + 5, z * 0.01)) * 0.7);
       let g = 0;
       if (vg > 0) { c = wdMix(c, (vnoise(x * 0.004, z * 0.004) > 0.5 ? 0x7ff0e0 : 0xb080ff), vg); g = vg * 0.8; }
       const cr = ZN_LS.craters[0], dc = Math.hypot(x - cr.x, z - cr.z);

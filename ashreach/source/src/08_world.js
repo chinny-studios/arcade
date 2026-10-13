@@ -44,7 +44,7 @@ const WD = {
   bounds: { x0: -100, z0: -100, x1: 100, z1: 100 }, waterY: -1e9, deepY: -1e9, roads: [], clear: [], motes: null, stamp: 0,
   mapCache: {}, lightT: 0, maxSlope: 1.25,
 };
-const WD_CELL = 16, WD_CH = 200;
+const WD_CELL = 16, WD_CH = 320;
 
 // ---------- colours ----------
 const wd_cc = new Map();
@@ -396,7 +396,7 @@ function wdProp(kind) {
 // Chunked so off-screen instances are culled. Protos with `geoGlow` get a second, unlit instanced mesh.
 function wdScatter(kind, items, o = {}) {
   if (!items.length) return;
-  const P = wdProp(kind), CH = 360;
+  const P = wdProp(kind), CH = 640;
   const groups = new Map();
   for (const it of items) {
     it.gy = it.y ?? groundY(it.x, it.z);
@@ -452,13 +452,22 @@ function wdSpread(rng, n, area, fn, pad = 2) {
 }
 
 // ---------- ambient motes (dust, spores, embers) ----------
+let wd_dot = null;
+function wd_dotTex() {
+  if (wd_dot) return wd_dot;
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+  return (wd_dot = new THREE.CanvasTexture(c));
+}
 function wdMotes(o) {
   const n = o.n || 400, R = o.r || 60;
   const pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { pos[i * 3] = (Math.random() - 0.5) * R * 2; pos[i * 3 + 1] = Math.random() * (o.h || 20); pos[i * 3 + 2] = (Math.random() - 0.5) * R * 2; }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.PointsMaterial({ color: o.color || 0xffffff, size: o.size || 0.25, transparent: true, opacity: o.opacity ?? 0.6, depthWrite: false, sizeAttenuation: true, fog: true });
+  const mat = new THREE.PointsMaterial({ color: o.color || 0xffffff, size: o.size || 0.25, map: wd_dotTex(), alphaTest: 0.01, transparent: true, opacity: o.opacity ?? 0.6, depthWrite: false, sizeAttenuation: true, fog: true });
   if (o.glow) mat.blending = THREE.AdditiveBlending;
   const pts = new THREE.Points(g, mat);
   pts.frustumCulled = false; pts.userData.ownMat = true;
@@ -481,7 +490,7 @@ function wd_updMotes(t) {
 function registerZone(def) {
   def.pois = def.pois || []; def.spawns = def.spawns || []; def.exits = def.exits || [];
   ZONE_DEFS[def.id] = def;
-  delete WD.mapCache[def.id];
+  delete WD.mapCache[def.id]; delete WD.mapCache[def.id + ':nolabel'];
   return def;
 }
 function wdClearZone() {
@@ -516,7 +525,6 @@ function loadZone(id, at) {
   for (const p of def.pois) if (!p.noProp && typeof ctPoiProp === 'function') ctPoiProp(p, def);
   if (def.kind !== 'interior' && typeof ctCamp === 'function') def.spawns.forEach((s, i) => { if (s.camp) ctCamp(s, def, i); });
   wdFinishBatches();
-  WD.mapCache[id] = WD.mapCache[id] || null;
   ZONE = { id, def, root: zoneRoot, buildMs: 0 };
   let pos = null;
   if (typeof at === 'string') { const p = def.pois.find((q) => q.id === at); if (p) pos = { x: p.x, z: p.z, yaw: p.yaw || 0 }; }
@@ -709,10 +717,12 @@ function updateZone(dt) {
 
 // ---------- map ----------
 const WD_POICOL = { start: '#7dff9a', arrive: '#9fb0bb', clonebay: '#5fe0d0', terminal: '#ffb347', vendor: '#ffd27a', hopper: '#8fc8ff', shuttle: '#8fc8ff', npc: '#e6ecef', door: '#ff7a5a', pylon: '#c080ff', bank: '#ffe08a', trainer: '#e6ecef' };
-function zoneMapCanvas() {
+// opts.labels === false returns a cached variant without area names (for the zoomed minimap).
+function zoneMapCanvas(opts) {
   const def = WD.def;
   if (!def) return null;
-  if (WD.mapCache[def.id]) return WD.mapCache[def.id];
+  const labels = !(opts && opts.labels === false), key = def.id + (labels ? '' : ':nolabel');
+  if (WD.mapCache[key]) return WD.mapCache[key];
   const S = 512, cv = document.createElement('canvas');
   cv.width = cv.height = S;
   const g = cv.getContext('2d');
@@ -778,12 +788,12 @@ function zoneMapCanvas() {
   }
   // labels
   g.font = '600 11px "Exo 2", sans-serif'; g.textAlign = 'center';
-  for (const a of def.areas || []) {
+  for (const a of labels ? def.areas || [] : []) {
     if (!a.label) continue;
     g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillText(a.name, toP(a.x) + 1, toP(a.z) + 1);
     g.fillStyle = 'rgba(240,236,220,0.9)'; g.fillText(a.name, toP(a.x), toP(a.z));
   }
-  WD.mapCache[def.id] = cv;
+  WD.mapCache[key] = cv;
   return cv;
 }
 // World <-> map pixel helpers for the UI overlay.

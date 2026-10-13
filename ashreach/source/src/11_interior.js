@@ -126,7 +126,7 @@ function in_build(def) {
       const za = x0 + j * C, zb = za + C;
       for (let k = i; k < e; k++) {
         const xa = x0 + k * C, xb = xa + C, inRoom = L.room[j * n + k] >= 0;
-        const c = inRoom ? fl[(k + j) & 1] : wdC(T.hall);
+        const c = cave ? fl[0] : inRoom ? fl[(k + j) & 1] : wdC(T.hall);
         const jt = cave ? 0.85 + hash2(k, j) * 0.3 : 1;
         wdPoly('flat', [[xa, 0, za], [xa, 0, zb], [xb, 0, zb], [xb, 0, za]], [c[0] * jt, c[1] * jt, c[2] * jt]);
       }
@@ -150,7 +150,7 @@ function in_build(def) {
         if (T.trim) wdBox(xa + w / 2, H * 0.72, zc, w + 0.1, 0.09, C + 0.1, T.trim, 0, def.theme === 'office' || def.theme === 'lab' ? 'glow' : 'flat');
         if (def.theme === 'warehouse' || def.theme === 'foundry') for (let k = i; k < e; k += 2) wdBox(x0 + k * C + C / 2, 0, zc, 0.5, H, C + 0.3, T.base, 0, 'lit');
       } else for (let k = i; k < e; k++) {
-        if (rng.chance(0.75)) rocks.push({ x: x0 + k * C + C / 2 + rng.r(-0.4, 0.4), z: zc + rng.r(-0.4, 0.4), y: rng.r(0.2, H * 0.6), s: rng.r(1.5, 2.3), tint: rng.chance(0.5) ? 0x8a7460 : 0x6e5e4e, col: 0 });
+        for (let y = 0.3; y < H; y += 2.1) if (rng.chance(0.85)) rocks.push({ x: x0 + k * C + C / 2 + rng.r(-0.3, 0.3), z: zc + rng.r(-0.3, 0.3), y: y + rng.r(-0.4, 0.4), s: rng.r(1.6, 2.2), tint: rng.chance(0.5) ? 0x8a7460 : 0x6e5e4e, col: 0 });
       }
       i = e;
     }
