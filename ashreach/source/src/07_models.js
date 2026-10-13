@@ -714,6 +714,8 @@ function md_hApply(rig, P) {
   }
 }
 
+// Entities tag every descendant with userData (e.g. .ent for picking); keep meshes added later tagged too.
+function md_tag(root) { const u = root.userData; if (u && Object.keys(u).length) root.traverse((o) => { if (o !== root) Object.assign(o.userData, u); }); }
 // Shared state-machine driver for humanoids and creatures: cross-fades states, runs one-shots, applies.
 function md_drive(rig, dt, state, speed) {
   dt = Math.min(dt || 0, 0.1);
@@ -756,7 +758,7 @@ function makeHumanoid(look) {
   const rig = {
     root, kind: 'humanoid', look, height: 1.8, radius: 0.35, keys: MD_HK, states: ['idle', 'walk', 'run', 'combat', 'sit', 'dead'],
     P: md_hpose(), Pa: md_hpose(), Pf: md_hpose(), t: 0, v: 0, ph: 0, st: 'idle', fst: 'idle', fade: 1, fdur: 0.2, frozen: false,
-    act: null, actT: 0, actDur: 0, flashT: 0, seed: Math.random() * 10, jumpLift: true, wkind: 'none', wc: 'none', gun: false,
+    act: null, actT: 0, actDur: 0, flashT: 0, seed: Math.random() * 10, jumpLift: false, wkind: 'none', wc: 'none', gun: false,
     weapons: [], glowCol: null, castCol: 0x7fe6ff, eval: md_hEval, apply: md_hApply, actFn: md_hAct, SR: new V3(), SL: new V3(),
   };
   let tpl = null, body = null;
@@ -782,6 +784,7 @@ function makeHumanoid(look) {
     body.B.chest.add(rig.glowM);
     rig.setWeapon(rig.wkind, rig.wvar);
     rig.setGlow(rig.glowCol);
+    md_tag(root);
   };
   rig.setWeapon = (kind, variant) => {
     kind = MD_WPN[kind] ? kind : 'none';
@@ -806,6 +809,7 @@ function makeHumanoid(look) {
       f.position.set(...W.muzzle); f.visible = false; f.scale.setScalar(kind === 'heavy' ? 1.8 : kind === 'pistol' ? 0.8 : 1.2);
       rig.weapons[0].add(f); rig.flash = f;
     }
+    md_tag(root);
   };
   rig.setLook = (l) => { Object.assign(look, l || {}); build(); };
   rig.setGlow = (col) => {
@@ -838,7 +842,7 @@ function makeHumanoid(look) {
 // bone, then one effect channel (pulse/glow).
 const md_e = (P, i, x, y, z) => { i *= 3; P[i] = x; P[i + 1] = y; P[i + 2] = z; };
 const md_ea = (P, i, x, y, z) => { i *= 3; P[i] += x; P[i + 1] += y; P[i + 2] += z; };
-const cbx = (w, h, d, b) => chamferBox(w, h, d, b);
+const md_cbx = (w, h, d, b) => chamferBox(w, h, d, b);
 const MD_KINDS = {};
 
 // ----- critter: the chitterling, a round chirpy biped with huge ears -----
@@ -868,7 +872,7 @@ MD_KINDS.critter = {
       T.part(a, tb(0.045, 0.045, 0.06, 0.06, 0.12), [0, -0.05, 0], MD_P, [0, 0, s * 0.3]);
       T.part(a, ico(0.035, 0), [s * 0.02, -0.11, 0.01], MD_S);
       T.part(l, tb(0.07, 0.07, 0.085, 0.085, 0.12), [0, -0.05, 0], MD_P);
-      T.part(l, cbx(0.09, 0.06, 0.15, 0.025), [0, -0.17, 0.035], MD_PD);
+      T.part(l, md_cbx(0.09, 0.06, 0.15, 0.025), [0, -0.17, 0.035], MD_PD);
     }
     T.part('head', tb(0.03, 0.03, 0.005, 0.005, 0.1), [0, 0.3, 0.0], MD_A, [-0.4, 0, 0]);
     T.part('tail', tb(0.06, 0.05, 0.02, 0.02, 0.2), [0, 0.07, -0.06], MD_P, [-0.8, 0, 0]);
@@ -930,31 +934,31 @@ MD_KINDS.beast = {
       T.bone('fu' + sd, 'chest', s * 0.16, -0.12, 0.08); T.bone('fl' + sd, 'fu' + sd, 0, -0.42, 0);
       T.bone('ru' + sd, 'pelvis', s * 0.15, -0.04, 0); T.bone('rl' + sd, 'ru' + sd, 0, -0.4, 0);
     }
-    T.part('pelvis', cbx(0.34, 0.36, 0.42, 0.08), [0, 0, -0.02], MD_P);
+    T.part('pelvis', md_cbx(0.34, 0.36, 0.42, 0.08), [0, 0, -0.02], MD_P);
     T.part('pelvis', tb(0.32, 0.34, 0.4, 0.44, 0.48), [0, 0.04, 0.38], MD_P, [X, 0, 0]);
-    T.part('pelvis', cbx(0.22, 0.12, 0.4, 0.04), [0, -0.17, 0.35], MD_SK);
-    T.part('chest', cbx(0.44, 0.54, 0.56, 0.1), [0, -0.02, 0.0], MD_P);
-    T.part('chest', cbx(0.3, 0.16, 0.42, 0.05), [0, -0.25, 0.02], MD_SK);
+    T.part('pelvis', md_cbx(0.22, 0.12, 0.4, 0.04), [0, -0.17, 0.35], MD_SK);
+    T.part('chest', md_cbx(0.44, 0.54, 0.56, 0.1), [0, -0.02, 0.0], MD_P);
+    T.part('chest', md_cbx(0.3, 0.16, 0.42, 0.05), [0, -0.25, 0.02], MD_SK);
     for (let i = 0; i < 6; i++) T.part('chest', tb(0.07, 0.12, 0.01, 0.02, 0.16 - i * 0.012), [0, 0.3 - i * 0.015, 0.2 - i * 0.13], MD_S, [-0.6, 0, 0]);
     for (let i = 0; i < 3; i++) T.part('pelvis', tb(0.06, 0.1, 0.01, 0.02, 0.09), [0, 0.24 - i * 0.01, 0.5 - i * 0.14], MD_S, [-0.7, 0, 0]);
     T.part('neck', tb(0.22, 0.26, 0.17, 0.2, 0.34), [0, 0.06, 0.04], MD_P, [0.7, 0, 0]);
     for (let i = 0; i < 3; i++) T.part('neck', tb(0.06, 0.1, 0.01, 0.02, 0.15), [0, 0.18 - i * 0.07, -0.06 - i * 0.04], MD_S, [-0.5, 0, 0]);
-    T.part('head', cbx(0.25, 0.21, 0.24, 0.06), [0, 0.02, 0.03], MD_P);
+    T.part('head', md_cbx(0.25, 0.21, 0.24, 0.06), [0, 0.02, 0.03], MD_P);
     T.part('head', tb(0.17, 0.12, 0.13, 0.1, 0.22), [0, -0.0, 0.22], MD_P, [X, 0, 0]);
-    T.part('head', cbx(0.08, 0.055, 0.05, 0.015), [0, 0.03, 0.335], MD_DK);
+    T.part('head', md_cbx(0.08, 0.055, 0.05, 0.015), [0, 0.03, 0.335], MD_DK);
     for (const s of [-1, 1]) {
       T.part('head', tb(0.09, 0.05, 0.012, 0.012, 0.17), [s * 0.08, 0.17, -0.02], MD_PD, [-0.2, 0, -s * 0.25]);
-      T.part('head', cbx(0.045, 0.025, 0.02, 0.006), [s * 0.075, 0.07, 0.145], MD_A, [0, -s * 0.3, s * 0.2], 0, 0.9);
+      T.part('head', md_cbx(0.045, 0.025, 0.02, 0.006), [s * 0.075, 0.07, 0.145], MD_A, [0, -s * 0.3, s * 0.2], 0, 0.9);
     }
-    T.part('jaw', cbx(0.12, 0.05, 0.22, 0.02), [0, -0.025, 0.12], MD_PD);
+    T.part('jaw', md_cbx(0.12, 0.05, 0.22, 0.02), [0, -0.025, 0.12], MD_PD);
     for (const s of [-1, 1]) T.part('jaw', tb(0.02, 0.02, 0.004, 0.004, 0.04), [s * 0.045, 0.02, 0.21], MD_EY);
     for (const sd of ['L', 'R']) {
       T.part('fu' + sd, tb(0.09, 0.11, 0.13, 0.15, 0.44), [0, -0.2, 0], MD_P);
       T.part('fl' + sd, tb(0.065, 0.075, 0.08, 0.09, 0.4), [0, -0.2, 0], MD_PD);
-      T.part('fl' + sd, cbx(0.1, 0.06, 0.15, 0.02), [0, -0.4, 0.03], MD_DK);
+      T.part('fl' + sd, md_cbx(0.1, 0.06, 0.15, 0.02), [0, -0.4, 0.03], MD_DK);
       T.part('ru' + sd, tb(0.1, 0.12, 0.17, 0.24, 0.42), [0, -0.19, 0.02], MD_P);
       T.part('rl' + sd, tb(0.06, 0.07, 0.08, 0.1, 0.46), [0, -0.22, 0], MD_PD);
-      T.part('rl' + sd, cbx(0.1, 0.06, 0.15, 0.02), [0, -0.46, 0.04], MD_DK);
+      T.part('rl' + sd, md_cbx(0.1, 0.06, 0.15, 0.02), [0, -0.46, 0.04], MD_DK);
     }
     T.part('tail1', tb(0.08, 0.08, 0.05, 0.05, 0.26), [0, 0, -0.12], MD_P, [-X, 0, 0]);
     T.part('tail2', tb(0.07, 0.07, 0.02, 0.02, 0.26), [0, 0, -0.12], MD_S, [-X, 0, 0]);
@@ -1025,19 +1029,19 @@ MD_KINDS.insect = {
       T.part('f' + i + sd, tb(0.04, 0.04, 0.06, 0.06, 0.3), [0, -0.15, 0], MD_PD);
       T.part('t' + i + sd, tb(0.012, 0.012, 0.045, 0.045, 0.42), [0, -0.21, 0], MD_S);
     }
-    T.part('thorax', cbx(0.28, 0.18, 0.32, 0.06), [0, 0, 0], MD_P);
-    T.part('thorax', cbx(0.24, 0.06, 0.26, 0.03), [0, 0.1, 0], MD_PD);
-    T.part('head', cbx(0.2, 0.14, 0.17, 0.05), [0, 0, 0.05], MD_P);
+    T.part('thorax', md_cbx(0.28, 0.18, 0.32, 0.06), [0, 0, 0], MD_P);
+    T.part('thorax', md_cbx(0.24, 0.06, 0.26, 0.03), [0, 0.1, 0], MD_PD);
+    T.part('head', md_cbx(0.2, 0.14, 0.17, 0.05), [0, 0, 0.05], MD_P);
     for (const s of [-1, 1]) {
       T.part('head', new THREE.IcosahedronGeometry(0.035, 0), [s * 0.08, 0.035, 0.11], MD_A, 0, 0, 0.9);
       T.part('head', tb(0.014, 0.014, 0.006, 0.006, 0.3), [s * 0.05, 0.16, 0.18], MD_PD, [0.7, 0, -s * 0.35]);
       const m = s > 0 ? 'mandL' : 'mandR';
       T.part(m, tb(0.045, 0.03, 0.012, 0.012, 0.15), [0, 0, 0.06], MD_S, [X, -s * 0.5, 0]);
     }
-    T.part('ab1', cbx(0.32, 0.22, 0.28, 0.07), [0, 0.02, -0.1], MD_P);
-    T.part('ab1', cbx(0.33, 0.04, 0.12, 0.015), [0, 0.07, -0.1], MD_S);
-    T.part('ab2', cbx(0.26, 0.2, 0.24, 0.06), [0, 0.03, -0.1], MD_P);
-    T.part('ab2', cbx(0.27, 0.04, 0.1, 0.015), [0, 0.08, -0.1], MD_S);
+    T.part('ab1', md_cbx(0.32, 0.22, 0.28, 0.07), [0, 0.02, -0.1], MD_P);
+    T.part('ab1', md_cbx(0.33, 0.04, 0.12, 0.015), [0, 0.07, -0.1], MD_S);
+    T.part('ab2', md_cbx(0.26, 0.2, 0.24, 0.06), [0, 0.03, -0.1], MD_P);
+    T.part('ab2', md_cbx(0.27, 0.04, 0.1, 0.015), [0, 0.08, -0.1], MD_S);
     T.part('sting', tb(0.13, 0.13, 0.06, 0.06, 0.16), [0, 0, -0.06], MD_PD, [-X, 0, 0]);
     T.part('sting', tb(0.05, 0.05, 0.005, 0.005, 0.18), [0, 0.04, -0.2], MD_A, [-X - 0.6, 0, 0], 0, 0.7);
     return { h: 0.75 };
@@ -1090,30 +1094,30 @@ MD_KINDS.mutant = {
     }
     T.part('hips', tb(0.44, 0.32, 0.5, 0.36, 0.24), [0, -0.02, 0], MD_S);
     T.part('spine', tb(0.48, 0.4, 0.62, 0.48, 0.28), [0, 0.12, 0.02], MD_P);
-    T.part('chest', cbx(0.86, 0.55, 0.56, 0.14), [0, 0.26, 0], MD_P);
-    T.part('chest', cbx(0.5, 0.42, 0.3, 0.1), [0, 0.18, 0.18], MD_SK);
-    T.part('chest', cbx(0.62, 0.36, 0.4, 0.12), [0, 0.46, -0.12], MD_P);
+    T.part('chest', md_cbx(0.86, 0.55, 0.56, 0.14), [0, 0.26, 0], MD_P);
+    T.part('chest', md_cbx(0.5, 0.42, 0.3, 0.1), [0, 0.18, 0.18], MD_SK);
+    T.part('chest', md_cbx(0.62, 0.36, 0.4, 0.12), [0, 0.46, -0.12], MD_P);
     for (let i = 0; i < 4; i++) T.part('chest', tb(0.08, 0.08, 0.01, 0.01, 0.18), [0.06 * (i % 2 ? 1 : -1), 0.56 - i * 0.12, -0.3 + i * 0.01], MD_EY, [-0.9, 0, 0]);
     T.part('chest', ico(0.2), [0.38, 0.52, -0.02], MD_S); T.part('chest', ico(0.07), [0.4, 0.66, 0.06], MD_A, 0, 0, 0.8); T.part('chest', ico(0.05), [0.28, 0.6, 0.14], MD_A, 0, 0, 0.8);
-    T.part('head', cbx(0.24, 0.24, 0.25, 0.07), [0, 0.1, 0.04], MD_P);
-    T.part('head', cbx(0.22, 0.1, 0.18, 0.04), [0, 0.0, 0.1], MD_PD);
+    T.part('head', md_cbx(0.24, 0.24, 0.25, 0.07), [0, 0.1, 0.04], MD_P);
+    T.part('head', md_cbx(0.22, 0.1, 0.18, 0.04), [0, 0.0, 0.1], MD_PD);
     for (const s of [-1, 1]) {
-      T.part('head', cbx(0.05, 0.03, 0.02, 0.008), [s * 0.055, 0.14, 0.16], MD_A, 0, 0, 0.9);
+      T.part('head', md_cbx(0.05, 0.03, 0.02, 0.008), [s * 0.055, 0.14, 0.16], MD_A, 0, 0, 0.9);
       T.part('head', tb(0.03, 0.03, 0.006, 0.006, 0.07), [s * 0.06, 0.07, 0.19], MD_EY, [0, 0, 0]);
     }
-    T.part('head', cbx(0.22, 0.04, 0.05, 0.015), [0, 0.17, 0.14], MD_PD);
+    T.part('head', md_cbx(0.22, 0.04, 0.05, 0.015), [0, 0.17, 0.14], MD_PD);
     for (const sd of ['L', 'R']) {
       const s = sd === 'L' ? 1 : -1;
       T.part('ua' + sd, ico(0.2), [0, 0, 0], MD_P, 0, [1.1, 1, 1]);
       T.part('ua' + sd, tb(0.17, 0.17, 0.22, 0.22, 0.46), [0, -0.23, 0], MD_P);
       T.part('fa' + sd, tb(0.2, 0.2, 0.17, 0.17, 0.42), [0, -0.21, 0], MD_P);
-      T.part('fa' + sd, cbx(0.22, 0.08, 0.22, 0.02), [0, -0.08, 0], MD_S);
-      T.part('hd' + sd, cbx(0.24, 0.22, 0.26, 0.06), [0, -0.1, 0.02], MD_PD);
+      T.part('fa' + sd, md_cbx(0.22, 0.08, 0.22, 0.02), [0, -0.08, 0], MD_S);
+      T.part('hd' + sd, md_cbx(0.24, 0.22, 0.26, 0.06), [0, -0.1, 0.02], MD_PD);
       for (let i = 0; i < 3; i++) T.part('hd' + sd, tb(0.03, 0.03, 0.005, 0.005, 0.09), [s * 0.0 + (i - 1) * 0.07, -0.22, 0.09], MD_EY, [0.5, 0, 0]);
       T.part('th' + sd, tb(0.17, 0.18, 0.22, 0.24, 0.42), [0, -0.2, 0], MD_P);
-      T.part('th' + sd, cbx(0.24, 0.12, 0.26, 0.03), [0, -0.05, 0], MD_S);
+      T.part('th' + sd, md_cbx(0.24, 0.12, 0.26, 0.03), [0, -0.05, 0], MD_S);
       T.part('sh' + sd, tb(0.13, 0.14, 0.17, 0.18, 0.38), [0, -0.18, 0], MD_P);
-      T.part('ft' + sd, cbx(0.2, 0.12, 0.3, 0.04), [0, -0.0, 0.06], MD_DK);
+      T.part('ft' + sd, md_cbx(0.2, 0.12, 0.3, 0.04), [0, -0.0, 0.06], MD_DK);
     }
     return { h: 2.05 };
   },
@@ -1183,10 +1187,10 @@ MD_KINDS.drone = {
     for (const s of [-1, 1]) {
       const f = s > 0 ? 'finL' : 'finR';
       T.part(f, tb(0.34, 0.035, 0.12, 0.02, 0.36), [s * 0.16, 0, -0.04], MD_S, [0, 0, -s * X]);
-      T.part(f, cbx(0.06, 0.03, 0.04, 0.01), [s * 0.34, 0, 0.0], MD_A, 0, 0, 0.9);
+      T.part(f, md_cbx(0.06, 0.03, 0.04, 0.01), [s * 0.34, 0, 0.0], MD_A, 0, 0, 0.9);
       T.part(f, tb(0.12, 0.02, 0.04, 0.015, 0.16), [s * 0.14, 0.08, -0.12], MD_PD, [-0.4, 0, -s * 0.3]);
     }
-    T.part('gun', cbx(0.1, 0.08, 0.16, 0.02), [0, 0, 0], MD_DK);
+    T.part('gun', md_cbx(0.1, 0.08, 0.16, 0.02), [0, 0, 0], MD_DK);
     T.part('gun', cy(0.025, 0.025, 0.24, 6), [0, 0, 0.16], MD_GN, [X, 0, 0]);
     T.part('gun', cy(0.032, 0.032, 0.03, 6), [0, 0, 0.27], MD_A, [X, 0, 0], 0, 0.8);
     return { h: 1.75, muzzle: ['gun', 0, 0, 0.3] };
@@ -1229,7 +1233,7 @@ MD_KINDS.worm = {
       const r = 0.34 - i * 0.017, b = 's' + i;
       T.part(b, cy(r * 0.94, r, 0.42), [0, 0.2, 0], MD_P);
       T.part(b, cy(r * 1.06, r * 1.06, 0.07), [0, 0.04, 0], MD_PD);
-      T.part(b, cbx(r * 1.0, 0.3, 0.06, 0.02), [0, 0.22, r * 0.86], MD_SK);
+      T.part(b, md_cbx(r * 1.0, 0.3, 0.06, 0.02), [0, 0.22, r * 0.86], MD_SK);
       T.part(b, tb(0.08, 0.08, 0.01, 0.01, 0.16), [0, 0.24, -r * 0.92], MD_S, [-1.0, 0, 0]);
     }
     T.part('head', cy(0.22, 0.25, 0.3), [0, 0.12, 0], MD_P);
@@ -1283,27 +1287,27 @@ MD_KINDS.golem = {
       T.bone('ua' + sd, 'chest', s * 0.72, 0.6, 0); T.bone('fa' + sd, 'ua' + sd, 0, -0.55, 0); T.bone('hd' + sd, 'fa' + sd, 0, -0.5, 0);
       T.bone('th' + sd, 'hips', s * 0.3, -0.1, 0); T.bone('sh' + sd, 'th' + sd, 0, -0.45, 0); T.bone('ft' + sd, 'sh' + sd, 0, -0.42, 0);
     }
-    T.part('hips', cbx(0.72, 0.36, 0.52, 0.1), [0, 0, 0], MD_PD);
-    T.part('chest', cbx(1.15, 0.86, 0.78, 0.18), [0, 0.42, 0], MD_P, [0.05, 0, 0]);
-    T.part('chest', cbx(0.7, 0.4, 0.5, 0.1), [0, 0.06, 0.02], MD_PD);
+    T.part('hips', md_cbx(0.72, 0.36, 0.52, 0.1), [0, 0, 0], MD_PD);
+    T.part('chest', md_cbx(1.15, 0.86, 0.78, 0.18), [0, 0.42, 0], MD_P, [0.05, 0, 0]);
+    T.part('chest', md_cbx(0.7, 0.4, 0.5, 0.1), [0, 0.06, 0.02], MD_PD);
     T.part('chest', ico(0.34), [-0.25, 0.78, -0.25], MD_PD); T.part('chest', ico(0.28), [0.32, 0.82, -0.2], MD_P); T.part('chest', ico(0.25), [0.05, 0.55, -0.42], MD_PD);
-    T.part('chest', cbx(0.5, 0.14, 0.4, 0.04), [0.45, 0.88, 0], MD_S, [0, 0, -0.3]);
+    T.part('chest', md_cbx(0.5, 0.14, 0.4, 0.04), [0.45, 0.88, 0], MD_S, [0, 0, -0.3]);
     T.part('chest', new THREE.OctahedronGeometry(0.13, 0), [0, 0.45, 0.4], MD_A, 0, [1, 1.3, 0.6], 1);
-    for (const [x, y, r] of [[-0.2, 0.62, 0.7], [0.22, 0.3, -0.6], [0.3, 0.6, 0.3], [-0.28, 0.25, -0.2]]) T.part('chest', cbx(0.34, 0.035, 0.02, 0.006), [x, y, 0.395], MD_A, [0, 0, r], 0, 0.9);
-    T.part('head', cbx(0.34, 0.3, 0.34, 0.08), [0, 0.1, 0.0], MD_P);
-    T.part('head', cbx(0.38, 0.07, 0.12, 0.02), [0, 0.2, 0.13], MD_PD);
-    for (const s of [-1, 1]) T.part('head', cbx(0.08, 0.035, 0.02, 0.008), [s * 0.08, 0.13, 0.172], MD_A, 0, 0, 1);
+    for (const [x, y, r] of [[-0.2, 0.62, 0.7], [0.22, 0.3, -0.6], [0.3, 0.6, 0.3], [-0.28, 0.25, -0.2]]) T.part('chest', md_cbx(0.34, 0.035, 0.02, 0.006), [x, y, 0.395], MD_A, [0, 0, r], 0, 0.9);
+    T.part('head', md_cbx(0.34, 0.3, 0.34, 0.08), [0, 0.1, 0.0], MD_P);
+    T.part('head', md_cbx(0.38, 0.07, 0.12, 0.02), [0, 0.2, 0.13], MD_PD);
+    for (const s of [-1, 1]) T.part('head', md_cbx(0.08, 0.035, 0.02, 0.008), [s * 0.08, 0.13, 0.172], MD_A, 0, 0, 1);
     for (const sd of ['L', 'R']) {
       const s = sd === 'L' ? 1 : -1;
       T.part('ua' + sd, ico(0.36), [s * 0.04, 0.02, 0], MD_P, [0.3, 0.2, 0]);
-      T.part('ua' + sd, cbx(0.34, 0.5, 0.34, 0.08), [0, -0.3, 0], MD_PD);
-      T.part('fa' + sd, cbx(0.42, 0.48, 0.42, 0.1), [0, -0.25, 0], MD_P);
-      T.part('fa' + sd, cbx(0.45, 0.08, 0.45, 0.02), [0, -0.1, 0], MD_S);
-      T.part('fa' + sd, cbx(0.03, 0.3, 0.02, 0.006), [s * 0.1, -0.27, 0.215], MD_A, [0, 0, 0.3], 0, 0.9);
-      T.part('hd' + sd, cbx(0.5, 0.42, 0.5, 0.12), [0, -0.18, 0.02], MD_PD);
-      T.part('th' + sd, cbx(0.4, 0.46, 0.4, 0.1), [0, -0.22, 0], MD_PD);
-      T.part('sh' + sd, cbx(0.44, 0.42, 0.44, 0.1), [0, -0.2, 0], MD_P);
-      T.part('ft' + sd, cbx(0.5, 0.2, 0.6, 0.06), [0, -0.0, 0.08], MD_PD);
+      T.part('ua' + sd, md_cbx(0.34, 0.5, 0.34, 0.08), [0, -0.3, 0], MD_PD);
+      T.part('fa' + sd, md_cbx(0.42, 0.48, 0.42, 0.1), [0, -0.25, 0], MD_P);
+      T.part('fa' + sd, md_cbx(0.45, 0.08, 0.45, 0.02), [0, -0.1, 0], MD_S);
+      T.part('fa' + sd, md_cbx(0.03, 0.3, 0.02, 0.006), [s * 0.1, -0.27, 0.215], MD_A, [0, 0, 0.3], 0, 0.9);
+      T.part('hd' + sd, md_cbx(0.5, 0.42, 0.5, 0.12), [0, -0.18, 0.02], MD_PD);
+      T.part('th' + sd, md_cbx(0.4, 0.46, 0.4, 0.1), [0, -0.22, 0], MD_PD);
+      T.part('sh' + sd, md_cbx(0.44, 0.42, 0.44, 0.1), [0, -0.2, 0], MD_P);
+      T.part('ft' + sd, md_cbx(0.5, 0.2, 0.6, 0.06), [0, -0.0, 0.08], MD_PD);
     }
     return { h: 2.75 };
   },

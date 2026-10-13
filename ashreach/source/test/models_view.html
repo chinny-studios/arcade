@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ashreach model lineup</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; overflow: hidden; font: 12px ui-monospace, monospace; color: #eee; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.55); padding: 6px 8px; white-space: pre; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<script src="../vendor/three.min.js"></script>
+<script>
+// Load the modules into one shared scope, as build.py does.
+(async () => {
+  const files = ['01_core.js', '02_render.js', '07_models.js'];
+  const src = [];
+  for (const f of files) src.push(await (await fetch('../src/' + f)).text());
+  const app = await (await fetch('models_view_app.js')).text();
+  const s = document.createElement('script');
+  s.textContent = "(function(){'use strict';\n" + src.join('\n') + '\n' + app + '\n})();';
+  document.body.appendChild(s);
+})();
+</script>
+</body>
+</html>

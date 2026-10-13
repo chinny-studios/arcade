@@ -131,7 +131,7 @@ for (const t of ['assassinate', 'retrieve', 'retrieve', 'repair', 'find', 'deliv
 P.char.missions.length = 0;
 const os = M.requestMissions(null, sl({}));
 assert(M.acceptMission(null, os[0]) && M.acceptMission(null, os[1]) && M.acceptMission(null, os[2]));
-assert(!M.acceptMission(null, os[3]), 'max 3');
+assert(M.acceptMission(null, os[3]).ok === false, 'max 3');
 M.abandonMission(P.char.missions[0]);
 assert.strictEqual(P.char.missions.length, 2);
 

@@ -1,6 +1,6 @@
 // Ashreach — missions: terminal offers, instanced interiors, objectives, rewards, plus the Landfall starter quests and NPC dialog
 
-// Public: requestMissions(npc, sliders) -> 5 offers; acceptMission(npc, offer) -> mission|null; abandonMission(m);
+// Public: requestMissions(npc, sliders) -> 5 offers; acceptMission(npc, offer) -> mission | { ok: false, msg }; abandonMission(m);
 //         missionZoneChanged(zoneId, prevZoneId); missionDoor(doorEnt); missionTick(dt);
 //         missionMarkers() -> [{ id, title, zone, x, z, type, done }]; questList() -> starter quests with state;
 //         questDialog(npc) opens the NPC dialog.
@@ -261,10 +261,10 @@ function requestMissions(npc, sliders) {
 
 // ---------- accept / abandon ----------
 function acceptMission(npc, offer) {
-  if (!PLAYER || !offer) return null;
+  if (!PLAYER || !offer) return { ok: false, msg: 'No mission selected.' };
   const list = ms_list();
-  if (ms_active().length >= MS_MAX) { EV.emit('log', 'You can only carry ' + MS_MAX + ' missions at a time.', 'warn'); return null; }
-  if (list.some((m) => m.id === offer.id)) { EV.emit('log', 'You already have that mission.', 'warn'); return null; }
+  if (ms_active().length >= MS_MAX) return { ok: false, msg: 'You can only carry ' + MS_MAX + ' missions at a time.' };
+  if (list.some((m) => m.id === offer.id)) return { ok: false, msg: 'You already have that mission.' };
   const m = JSON.parse(JSON.stringify(offer));
   m.state = 'active'; m.acceptedAt = Date.now(); m.progress = { kills: 0, cleared: false, bonus: false };
   const T = m.target;
