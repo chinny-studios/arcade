@@ -443,7 +443,7 @@ registerZone({
     { x: 20, z: 285, r: 4, mobs: ['guard'], n: 2, lvl: [60, 60], respawn: 60 },
   ],
   pois: [
-    zn_poi('landfall_start', 'start', 0, 278, Math.PI, 'Landfall Shuttleport'),
+    zn_poi('landfall_start', 'start', 0, 278, 0, 'Landfall Shuttleport'),
     zn_poi('landfall_clonebay', 'clonebay', -36, 322, Math.PI, 'Landfall Clone Bay'),
     zn_poi('landfall_terminal', 'terminal', -22, 296, Math.PI, 'Mission Terminal'),
     zn_poi('landfall_vendor_general', 'vendor', -16, 330.5, Math.PI, 'Supply Clerk Hollis Bray', { role: 'general' }),

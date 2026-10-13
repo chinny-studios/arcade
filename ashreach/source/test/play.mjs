@@ -25,10 +25,12 @@ await page.waitForTimeout(3000);
 await page.screenshot({ path: out('3_world') });
 const st = await page.evaluate(() => ({ state: AR.state, name: AR.PLAYER && AR.PLAYER.name, prof: AR.PLAYER && AR.PLAYER.char.prof, zone: AR.ZONE.id }));
 console.log('after chargen', JSON.stringify(st));
+console.log('focus', await page.evaluate(() => document.activeElement && (document.activeElement.id || document.activeElement.tagName)));
+const p0 = await page.evaluate(() => [AR.PLAYER.pos.x, AR.PLAYER.pos.z]);
 // walk forward 2 s, then tab-target the nearest mob and attack with backquote
 await page.keyboard.down('KeyW'); await page.waitForTimeout(2000); await page.keyboard.up('KeyW');
 const moved = await page.evaluate(() => [AR.PLAYER.pos.x.toFixed(1), AR.PLAYER.pos.z.toFixed(1)]);
-console.log('moved to', moved);
+console.log('moved from', p0, 'to', moved);
 // teleport near chitterlings to save walking
 await page.evaluate(() => { const m = AR.ENTS.filter(e => e.kind === 'mob' && e.tplId === 'chitterling' && !e.dead).sort((a, b) => a.pos.distanceTo(AR.PLAYER.pos) - b.pos.distanceTo(AR.PLAYER.pos))[0]; AR.tp(m.pos.x + 10, m.pos.z); AR.PLAYER.yaw = -Math.PI / 2; AR.CAM.yaw = AR.PLAYER.yaw; });
 await page.waitForTimeout(500);
@@ -44,5 +46,29 @@ const fight = await page.evaluate(() => ({ target: AR.PLAYER.target && AR.PLAYER
 console.log('fight', JSON.stringify(fight));
 for (const k of ['KeyC', 'KeyI', 'KeyN']) { await page.keyboard.press(k); await page.waitForTimeout(300); }
 await page.screenshot({ path: out('6_windows') });
+// close windows, click-target a mob on screen with the mouse
+await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+await page.evaluate(() => AR.setTarget(null));
+const spot = await page.evaluate(() => {
+  const m = AR.ENTS.filter(e => e.kind === 'mob' && !e.dead).sort((a, b) => a.pos.distanceTo(AR.PLAYER.pos) - b.pos.distanceTo(AR.PLAYER.pos))[0];
+  AR.PLAYER.yaw = Math.atan2(m.pos.x - AR.PLAYER.pos.x, m.pos.z - AR.PLAYER.pos.z); AR.CAM.yaw = AR.PLAYER.yaw; AR.tick(0.05); AR.render();
+  const v = m.pos.clone(); v.y += m.rig.height * 0.5; v.project(AR.camera);
+  return { name: m.name, x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };
+});
+await page.mouse.click(spot.x, spot.y);
+await page.waitForTimeout(400);
+console.log('clicked', spot.name, '-> target', await page.evaluate(() => AR.PLAYER.target && AR.PLAYER.target.name));
+// travel: shuttle on Landfall to Halden, Halden hopper list
+const trav = await page.evaluate(() => {
+  const sh = AR.ENTS.find(e => e.role === 'shuttle');
+  const r = { shuttleDest: sh && sh.destinations.map(d => d.zone) };
+  AR.travel(sh.destinations[0]);
+  r.zone = AR.ZONE.id;
+  const hop = AR.ENTS.find(e => e.role === 'hopper');
+  r.hopperDest = hop && hop.destinations.map(d => d.zone + ':' + d.cost);
+  r.exits = AR.ZONE.def.exits.map(x => x.to);
+  return r;
+});
+console.log('travel', JSON.stringify(trav));
 await browser.close();
 console.log(errors.length ? 'ERRORS:\n' + errors.join('\n') : 'OK, no errors');
