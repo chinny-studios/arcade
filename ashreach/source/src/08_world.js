@@ -709,10 +709,10 @@ function updateZone(dt) {
       const L = WD_LIGHTS[i], s = S[i];
       if (!s) { L.intensity = 0; continue; }
       L.position.set(s.x, s.y, s.z); L.color.copy(s.color); L.distance = s.dist; L.userData.base = s.int; L.userData.flick = s.flicker;
-      L.intensity = s.int;
+      L.intensity = s.int * DN.lampMul;
     }
   }
-  for (const L of WD_LIGHTS) if (L.userData.flick && L.intensity > 0) L.intensity = L.userData.base * (0.8 + 0.2 * Math.sin(t * 13 + L.position.x) * Math.sin(t * 7.3));
+  for (const L of WD_LIGHTS) if (L.userData.flick && L.intensity > 0) L.intensity = L.userData.base * DN.lampMul * (0.8 + 0.2 * Math.sin(t * 13 + L.position.x) * Math.sin(t * 7.3));
 }
 
 // ---------- map ----------

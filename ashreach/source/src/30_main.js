@@ -51,6 +51,7 @@ function startGame(char, save) {
   TEAM.members = [P]; TEAM.leader = P; P.team = TEAM;
   if (typeof hideTitle === 'function') hideTitle();
   setState('play');
+  setTimeOfDay(save && save.tod !== undefined ? save.tod : 0.3);
   if (typeof simStart === 'function') simStart(save && save.sim);
   if (save && save.zone && ZONE_DEFS[save.zone]) changeZone(save.zone, save.pos ? { x: save.pos.x, z: save.pos.z, yaw: save.pos.yaw } : save.poi);
   else changeZone('landfall', startPoi('landfall'));
@@ -83,6 +84,11 @@ function quitToTitle() {
 
 // ---------- death ----------
 EV.on('death', (e) => { if (e === PLAYER) respawnT = 6; });
+EV.on('daynight', (ph) => {
+  if (state !== 'play' || !ZONE || ZONE.def.kind === 'interior') return;
+  const msg = { dusk: 'The sun sinks behind the ridges. Night is coming to ' + ZONE.def.name + '.', night: 'Night has fallen. Creatures roam more boldly in the dark.', dawn: 'Dawn breaks over ' + ZONE.def.name + '.' }[ph];
+  if (msg) EV.emit('chat', 'system', '', msg);
+});
 function respawnPlayer() {
   const P = PLAYER, cl = P.char.flags.clone || { zone: 'landfall' };
   P.dead = false; P.deadT = 0; P.buffs = []; P.attacking = false; P.cast = null; P.sitting = false;
@@ -105,6 +111,7 @@ function chatCommand(cmd, args) {
     case 'stuck': { const s = startPoi(ZONE.id) || clonePoi(ZONE.id); changeZone(ZONE.id, s); return true; }
     case 'save': saveGame(); return true;
     case 'loc': EV.emit('chat', 'system', '', ZONE.def.name + ' ' + PLAYER.pos.x.toFixed(0) + ', ' + PLAYER.pos.z.toFixed(0)); return true;
+    case 'time': EV.emit('chat', 'system', '', 'Ashreach local time ' + clockText() + ' (' + dnPhase(DN.t) + ').'); return true;
   }
   return false;
 }
@@ -121,7 +128,7 @@ function titleCamera(dt) {
 }
 function tick(dt) {
   clock += dt;
-  if (state === 'title' || state === 'boot') { titleCamera(dt); if (typeof updateZone === 'function') updateZone(dt); return; }
+  if (state === 'title' || state === 'boot') { if (DN.t !== 0.72) setTimeOfDay(0.72); titleCamera(dt); if (typeof updateZone === 'function') updateZone(dt); return; }
   if (!PLAYER) return;
   updatePlayer(dt);
   updateEnts(dt);
@@ -129,6 +136,7 @@ function tick(dt) {
   if (typeof simTick === 'function') simTick(dt);
   if (typeof missionTick === 'function') missionTick(dt);
   updateFx(dt);
+  updateDayNight(dt);
   if (typeof updateZone === 'function') updateZone(dt);
   updateCamera(dt);
   placeSun(PLAYER.pos.x, PLAYER.pos.y, PLAYER.pos.z);
@@ -219,6 +227,7 @@ if (DEBUG) window.AR = {
   get requestMissions() { return typeof requestMissions === 'function' ? requestMissions : null; }, get acceptMission() { return typeof acceptMission === 'function' ? acceptMission : null; }, get missionDoor() { return typeof missionDoor === 'function' ? missionDoor : null; },
   ipAtLevel, raiseSkill, raiseAbility, itemReqsMet, attackStats, specialsFor, mobStats, applyNano, heal, dealDamage,
   groundY: (x, z) => groundY(x, z), losClear: (...a) => losClear(...a),
+  DN, setTimeOfDay, clockText,
   manual(on) { MANUAL = on; }, tick, render,
   sim(sec, dt = 1 / 30) { const t0 = performance.now(); for (let t = 0; t < sec; t += dt) tick(dt); render(); if (typeof uiUpdate === 'function') uiUpdate(dt); return performance.now() - t0; },
   quick(prof = 'trooper', breed = 'baseline', faction = 'unaligned', name = 'Tester') { SAVE_SLOT = 7; startGame(newCharacter({ name, breed, prof, faction, sex: 'f' })); return PLAYER; },

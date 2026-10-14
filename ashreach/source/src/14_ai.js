@@ -18,7 +18,9 @@ function aggroRange(mob, p) {
   const diff = mob.level - p.level;
   if (conXpMul(p.level, mob.level) === 0) return 0;
   let r = clamp(13 + diff * 1.2, 6, 22);
-  if (p.stealth) r *= 0.25;
+  const night = typeof DN !== 'undefined' ? DN.night : 0;
+  r *= 1 + 0.2 * night;   // the wilds are jumpier after dark
+  if (p.stealth) r *= 0.25 * (1 - 0.3 * night);   // but shadows hide the sneaky
   return r;
 }
 function topHate(mob) {

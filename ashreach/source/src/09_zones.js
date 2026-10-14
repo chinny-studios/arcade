@@ -867,7 +867,7 @@ function zn_lsBuild(def) {
 }
 registerZone({
   id: 'lumen_scar', name: 'Lumen Scar', kind: 'outdoor', lvl: [35, 50], size: 1600, safe: false, pvp: true, music: 'tense', entry: 'scar_arrive_w',
-  atmos: { fog: 0x2c2444, near: 70, far: 620, horizon: 0x4e3e70, zenith: 0x100c24, sunColor: 0xb8a8ff, sunInt: 0.62, hemiSky: 0x7a70b0, hemiGround: 0x241c34, hemiInt: 0.7, sunDir: [-0.3, 0.6, -0.5], clouds: 0.4 },
+  atmos: { fog: 0x2c2444, near: 70, far: 620, horizon: 0x4e3e70, zenith: 0x100c24, sunColor: 0xb8a8ff, sunInt: 0.62, hemiSky: 0x7a70b0, hemiGround: 0x241c34, hemiInt: 0.7, sunDir: [-0.3, 0.6, -0.5], clouds: 0.4, dayCycle: 0.55 },
   campStyle: 'deserter',
   roads: [
     { pts: [[-790, 300], [-640, 330], [-560, 380]], w: 8 }, { pts: [[-560, 380], [-300, 200], [-260, -330]], w: 8 },

@@ -26,7 +26,7 @@ function saveGame(quiet) {
     zone: zone ? zone.zone : ZONE.id, pos: zone ? null : { x: PLAYER.pos.x, z: PLAYER.pos.z, yaw: PLAYER.yaw }, poi: zone ? zone.poi : null,
     hp: PLAYER.hp / PLAYER.S.maxHp, np: PLAYER.np / PLAYER.S.maxNp,
     buffs: PLAYER.buffs.filter((b) => !b.hostile && NANOS[b.nano]).map((b) => ({ nano: b.nano, t: b.t })),
-    sim: typeof simSaveState === 'function' ? simSaveState() : null,
+    sim: typeof simSaveState === 'function' ? simSaveState() : null, tod: DN.t,
   };
   // generated mission zones can't be restored; fall back to the zone outside
   if (ZONE.def.generated && !zone) { d.zone = PLAYER.char.flags.clone ? PLAYER.char.flags.clone.zone : 'halden'; d.pos = null; d.poi = PLAYER.char.flags.clone ? PLAYER.char.flags.clone.poi : null; }

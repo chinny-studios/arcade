@@ -622,7 +622,7 @@ function hud_minimap() {
   const E = HUD.el, cv = E.mmCv, ctx = E.mmCx, P = PLAYER;
   const def = typeof ZONE !== 'undefined' && ZONE && ZONE.def;
   hud_txt(E.mmName, def ? def.name + (def.lvl ? '  ' + def.lvl[0] + '–' + def.lvl[1] : def.safe ? '  safe' : '') : '—');
-  hud_txt(E.mmCoord, Math.round(P.pos.x) + ', ' + Math.round(P.pos.z));
+  hud_txt(E.mmCoord, Math.round(P.pos.x) + ', ' + Math.round(P.pos.z) + (ZONE && ZONE.def && ZONE.def.atmos && ZONE.def.atmos.sky === false ? '' : '  ' + (DN.phase === 'night' ? '☾ ' : '☀ ') + clockText()));
   const W = cv.width, H = cv.height, dpr = W / 184;
   const radius = 75 / (UI.opts.mmZoom || 1);
   const rot = UI.opts.rotMap ? -Math.PI / 2 - Math.atan2(Math.cos(P.yaw), Math.sin(P.yaw)) : 0;

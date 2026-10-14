@@ -110,6 +110,15 @@ TL1 1–14 · TL2 15–49 · TL3 50–99 (slice caps at **level 50**).
 | `lumen_scar` | Lumen Scar | outdoor contested | 35–50 | Glowing crystal wastes, Scar Outpost (hopper, clone bay), three lumen pylon fields fought over by Meridian and Freehold, the Scar Colossus (world boss, 55) |
 | `mission` | (generated) | interior | any | Built per mission from the mission's seed: office, warehouse, lab, bunker or cave |
 
+## Day and night
+
+A day lasts 40 real minutes (`DAY_LEN` in `02_render.js`); new characters wake at about 07:00 and the time is saved.
+Each zone's `atmos` is its noon look and night colours are derived from it. The sun arcs through the zone's
+own noon direction and the moon lights the night. Stars come out, lamps brighten and lit windows stand out.
+`atmos.dayCycle` (0–1) softens the cycle; the Lumen Scar uses 0.55 to keep its violet dusk. Interiors have none.
+Mobs notice you from 20% further away at night, but stealth works better. A system line announces dusk, night
+and dawn, and simulated players remark on it. `/time` prints the clock, which also shows under the minimap.
+
 ## Mob roster
 
 `model` is a `makeCreature` kind (or `humanoid`). `arch`: melee / ranged / caster.
