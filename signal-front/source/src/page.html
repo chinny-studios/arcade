@@ -1,0 +1,284 @@
+<title>Signal Front</title>
+<meta name="description" content="A turn-based tactics game in the classic handheld style: command an all-autonomous force against a drone-and-armor army.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #eef3ff; --dim: #93a0bd; --bg: #0e1220; --panel: #18203a; --panel2: #222c4c; --line: #3b4a78; --edge: #0a0d18;
+    --blue: #4a9be8; --blue2: #2860b0; --red: #e0503c; --red2: #a42c28; --gold: #ffd23a; --cyan: #6ff3ff; --good: #7dde6a; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; color: var(--ink);
+    font-family: 'VT323', ui-monospace, monospace; font-size: 20px; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; touch-action: none; }
+  [hidden] { display: none !important; }
+  .px { font-family: 'Press Start 2P', ui-monospace, monospace; font-weight: 400; letter-spacing: 0; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  canvas.pix { image-rendering: pixelated; image-rendering: crisp-edges; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .btn { font-family: 'Press Start 2P', monospace; font-size: 11px; line-height: 1; padding: 11px 14px; background: var(--panel2); color: var(--ink);
+    border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px var(--line), 0 3px 0 var(--edge); border-radius: 2px; text-transform: uppercase; }
+  .btn:hover:not(:disabled) { background: #2c3962; }
+  .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 0 0 2px var(--line), 0 1px 0 var(--edge); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: #2f6fd0; box-shadow: inset 0 0 0 2px #7cc0ff, 0 3px 0 var(--edge); }
+  .btn.primary:hover:not(:disabled) { background: #3a80e6; }
+  .btn.warn { background: #8a2a24; box-shadow: inset 0 0 0 2px #e0705c, 0 3px 0 var(--edge); }
+  .box { background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px var(--line); border-radius: 3px; }
+
+  /* ---------------- HUD ---------------- */
+  #hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] #hud { display: block; }
+  #hud > * { pointer-events: auto; }
+  #topbar { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: stretch; gap: 8px; padding: 4px 8px; box-sizing: border-box;
+    background: linear-gradient(#0b0f1c, #121a30); border-bottom: 2px solid var(--edge); box-shadow: 0 2px 0 var(--line); }
+  .sidecard { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 0; border-radius: 3px; position: relative; cursor: pointer;
+    background: rgba(255,255,255,.03); border: 2px solid transparent; }
+  .sidecard.s1 { flex-direction: row-reverse; padding: 0 0 0 8px; text-align: right; }
+  .sidecard.active.s0 { border-color: var(--blue); background: rgba(74,155,232,.14); }
+  .sidecard.active.s1 { border-color: var(--red); background: rgba(224,80,60,.14); }
+  .sidecard canvas { width: 40px; height: 40px; flex: none; border: 2px solid var(--edge); }
+  .sidecard .meta { min-width: 0; flex: 1; }
+  .sidecard .nm { font-family: 'Press Start 2P', monospace; font-size: 9px; line-height: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidecard .funds { font-size: 20px; line-height: 1; color: var(--gold); margin-top: 3px; }
+  .meter { display: flex; gap: 2px; margin-top: 2px; height: 6px; }
+  .sidecard.s1 .meter { justify-content: flex-end; }
+  .meter i { display: block; width: 12px; height: 6px; background: #0a0d18; border: 1px solid #2a3558; box-sizing: border-box; position: relative; overflow: hidden; }
+  .meter i.big { width: 16px; }
+  .meter i b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold); }
+  .meter.ready i b { animation: glow .6s steps(2) infinite; }
+  @keyframes glow { 50% { background: #fff6c0; } }
+  .pwtag { position: absolute; top: -2px; font-family: 'Press Start 2P', monospace; font-size: 7px; color: #10131f; background: var(--gold); padding: 2px 3px; border-radius: 2px; }
+  .sidecard.s0 .pwtag { right: 4px; } .sidecard.s1 .pwtag { left: 4px; }
+  #daybox { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 64px; }
+  #daybox .d { font-family: 'Press Start 2P', monospace; font-size: 11px; }
+  #daybox .w { font-size: 17px; color: var(--dim); margin-top: 3px; }
+  #menuBtn { flex: none; width: 44px; padding: 0; font-size: 14px; }
+
+  #info { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; align-items: flex-end; max-width: calc(100vw - 170px); }
+  .card { padding: 6px 8px; display: flex; gap: 8px; align-items: center; min-height: 44px; box-sizing: border-box; }
+  .card canvas { width: 32px; height: 32px; flex: none; }
+  .card .t { font-family: 'Press Start 2P', monospace; font-size: 9px; white-space: nowrap; }
+  .card .l { font-size: 18px; line-height: 1.05; color: var(--dim); white-space: nowrap; }
+  .card .l b { color: var(--ink); font-weight: 400; }
+  .stars { color: var(--gold); letter-spacing: -2px; }
+  #unitCard { cursor: pointer; }
+  #unitCard .q { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--dim); border: 1px solid var(--line); padding: 2px 4px; border-radius: 2px; align-self: flex-start; }
+
+  #rbtns { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  #zoomBtns { display: flex; gap: 6px; }
+  #zoomBtns .btn { width: 40px; padding: 9px 0; font-size: 14px; }
+  #powerBtn { background: #6a5410; box-shadow: inset 0 0 0 2px var(--gold), 0 3px 0 var(--edge); color: #fff6d0; animation: pulse 1s steps(2) infinite; }
+  @keyframes pulse { 50% { background: #8c7016; } }
+  #endBtn { min-width: 128px; }
+
+  #actionMenu { position: absolute; display: flex; flex-direction: column; padding: 4px; gap: 3px; z-index: 5; min-width: 120px; }
+  #actionMenu button { text-align: left; font-family: 'Press Start 2P', monospace; font-size: 11px; padding: 11px 12px; background: transparent; border: 0; color: var(--ink); border-radius: 2px; }
+  #actionMenu button:hover, #actionMenu button:focus-visible { background: #34437a; outline: none; }
+  #actionMenu button::before { content: '▸ '; color: transparent; }
+  #actionMenu button:hover::before { color: var(--gold); }
+
+  #forecast { position: absolute; padding: 8px 10px; z-index: 6; min-width: 150px; pointer-events: none; }
+  #forecast .row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  #forecast .k { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--dim); }
+  #forecast .v { font-size: 26px; line-height: 1; }
+  #forecast .v.hit { color: #ffcf6a; } #forecast .v.ctr { color: #ff8c7a; }
+  #forecast .hint { font-size: 15px; color: var(--dim); margin-top: 4px; }
+
+  #banner { position: absolute; left: 0; right: 0; top: 38%; height: 0; pointer-events: none; z-index: 8; }
+  #banner .strip { position: absolute; left: 0; right: 0; top: -44px; height: 88px; display: flex; align-items: center; justify-content: center; gap: 16px;
+    transform: translateX(-110%); transition: transform .35s cubic-bezier(.2,.8,.2,1); border-top: 3px solid var(--edge); border-bottom: 3px solid var(--edge); }
+  #banner.on .strip { transform: none; }
+  #banner.out .strip { transform: translateX(110%); }
+  #banner canvas { width: 64px; height: 64px; border: 3px solid var(--edge); }
+  #banner .big { font-family: 'Press Start 2P', monospace; font-size: clamp(16px, 4vw, 28px); text-shadow: 3px 3px 0 #000; }
+  #banner .sub { font-size: 22px; color: #e8ecff; text-shadow: 2px 2px 0 #000; }
+  #banner.power .strip { height: 120px; top: -60px; }
+  #banner.power .big { color: var(--gold); }
+
+  #toast { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); padding: 6px 12px; z-index: 9; pointer-events: none; font-size: 20px; max-width: 86vw; text-align: center;
+    transition: opacity .3s; }
+  #toast.off { opacity: 0; }
+
+  /* ---------------- modals ---------------- */
+  .modal { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,7,14,.62); z-index: 20; padding: 12px; box-sizing: border-box; }
+  .modal > .box { max-width: min(760px, 100%); max-height: 100%; overflow: auto; padding: 14px; box-sizing: border-box; }
+  .modal h2 { font-family: 'Press Start 2P', monospace; font-size: 13px; margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .x { font-family: 'Press Start 2P', monospace; background: none; border: 0; font-size: 14px; color: var(--dim); padding: 4px 6px; }
+  #buildBox { width: 720px; }
+  #buildGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  #buildList { display: flex; flex-direction: column; gap: 3px; }
+  .bu { display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: rgba(255,255,255,.03); border: 2px solid transparent; border-radius: 2px; text-align: left; }
+  .bu canvas { width: 32px; height: 32px; }
+  .bu .n { flex: 1; font-size: 21px; }
+  .bu .c { font-size: 21px; color: var(--gold); }
+  .bu.sel { border-color: var(--gold); background: rgba(255,210,58,.08); }
+  .bu.no { opacity: .4; }
+  .bu:hover { background: rgba(255,255,255,.07); }
+  #buildDetail { display: flex; flex-direction: column; gap: 8px; }
+  #buildDetail .hero { display: flex; gap: 10px; align-items: center; }
+  #buildDetail .hero canvas { width: 64px; height: 64px; background: #2c5a2a; border: 2px solid var(--edge); }
+  .stat { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; font-size: 19px; line-height: 1.1; }
+  .stat span:nth-child(odd) { color: var(--dim); }
+  .desc { font-size: 19px; line-height: 1.15; color: #d6ddf2; }
+  .vs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .vs span { font-size: 16px; padding: 1px 5px; border-radius: 2px; background: #10162a; border: 1px solid #2a3558; }
+  .vs span.hi { color: var(--good); } .vs span.mid { color: var(--gold); } .vs span.lo { color: #c98a80; }
+  #funds2 { color: var(--gold); font-size: 22px; }
+
+  #coBox { width: 560px; }
+  .cohead { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .cohead canvas { width: 96px; height: 96px; border: 3px solid var(--edge); flex: none; }
+  .cohead .t { font-family: 'Press Start 2P', monospace; font-size: 12px; }
+  .cohead .s { color: var(--dim); font-size: 19px; }
+  .pw { border: 2px solid var(--line); border-radius: 3px; padding: 8px; margin-top: 8px; display: flex; gap: 10px; align-items: center; }
+  .pw .tx { flex: 1; }
+  .pw .tx b { font-family: 'Press Start 2P', monospace; font-size: 10px; font-weight: 400; color: var(--gold); display: block; margin-bottom: 4px; }
+
+  .menuList { display: flex; flex-direction: column; gap: 8px; min-width: 260px; }
+
+  /* ---------------- screens ---------------- */
+  .screen { position: absolute; inset: 0; display: none; overflow: auto; z-index: 30; }
+  body[data-state="title"] #title, body[data-state="setup"] #setup, body[data-state="howto"] #howto, body[data-state="result"] #result { display: flex; }
+  #title { flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: radial-gradient(ellipse at center, rgba(8,12,24,.55), rgba(8,12,24,.9)); padding: 16px; box-sizing: border-box; }
+  .logo { font-family: 'Press Start 2P', monospace; font-size: clamp(28px, 7vw, 64px); line-height: 1.25; text-align: center; color: #fff;
+    text-shadow: 4px 4px 0 var(--blue2), 8px 8px 0 #000; letter-spacing: 2px; }
+  .logo small { display: block; font-size: clamp(9px, 1.6vw, 13px); color: var(--cyan); text-shadow: 2px 2px 0 #000; margin-top: 18px; letter-spacing: 3px; }
+  .titleBtns { display: flex; flex-direction: column; gap: 12px; min-width: 260px; }
+  .titleBtns .btn { padding: 15px; font-size: 13px; }
+  .foot { font-size: 20px; color: #c6cfe6; text-align: center; max-width: 560px; background: rgba(8,12,24,.8); padding: 6px 12px; border-radius: 3px; }
+  .foot a { color: var(--cyan); }
+
+  #setup, #howto, #result { background: rgba(10,13,26,.94); justify-content: center; align-items: flex-start; padding: 16px; box-sizing: border-box; }
+  .wrap { width: min(980px, 100%); display: flex; flex-direction: column; gap: 14px; padding-bottom: 30px; }
+  .wrap h1 { font-family: 'Press Start 2P', monospace; font-size: 18px; margin: 4px 0; }
+  .wrap h3 { font-family: 'Press Start 2P', monospace; font-size: 11px; margin: 6px 0 0; color: var(--dim); font-weight: 400; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .pick { padding: 10px; display: flex; flex-direction: column; gap: 6px; text-align: left; background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px var(--line); border-radius: 3px; }
+  .pick:hover { background: #1e2848; }
+  .pick.sel { box-shadow: inset 0 0 0 2px var(--gold); background: #262f52; }
+  .pick .n { font-family: 'Press Start 2P', monospace; font-size: 10px; }
+  .pick .b { font-size: 18px; color: var(--dim); line-height: 1.1; }
+  .pick canvas.mini { width: 100%; height: auto; background: #000; border: 2px solid var(--edge); }
+  .pick .row { display: flex; gap: 10px; align-items: center; }
+  .pick .row canvas { width: 56px; height: 56px; border: 2px solid var(--edge); flex: none; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .opt { padding: 10px; }
+  .opt .k { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--dim); margin-bottom: 8px; }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  .seg button { font-size: 19px; padding: 4px 10px; background: #10162a; border: 2px solid #2a3558; border-radius: 2px; }
+  .seg button.on { border-color: var(--gold); color: var(--gold); }
+  .bar { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; position: sticky; bottom: 0; padding: 10px 0; background: linear-gradient(transparent, rgba(10,13,26,.96) 30%); }
+  .howto p, .howto li { font-size: 21px; line-height: 1.2; color: #d6ddf2; }
+  .howto b { color: var(--gold); font-weight: 400; }
+  .howto table { border-collapse: collapse; font-size: 19px; }
+  .howto td { padding: 2px 10px 2px 0; vertical-align: top; }
+  .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
+  .roster .r { display: flex; gap: 8px; align-items: flex-start; padding: 6px; }
+  .roster canvas { width: 40px; height: 40px; flex: none; background: #2c5a2a; border: 2px solid var(--edge); }
+  .roster .r .n { font-family: 'Press Start 2P', monospace; font-size: 9px; }
+  .roster .r .d { font-size: 17px; color: var(--dim); line-height: 1.05; margin-top: 3px; }
+  #result .wrap { align-items: center; text-align: center; margin-top: 6vh; }
+  .verdict { font-family: 'Press Start 2P', monospace; font-size: clamp(26px, 6vw, 48px); text-shadow: 4px 4px 0 #000; }
+  .verdict.win { color: var(--gold); } .verdict.lose { color: #ff7a6a; }
+  .stats { display: grid; grid-template-columns: auto auto auto; gap: 6px 24px; font-size: 22px; margin: 10px auto; align-items: center; }
+  .stats .h { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--dim); }
+
+  @media (max-width: 640px) {
+    #topbar { height: 52px; gap: 4px; padding: 4px; }
+    .sidecard canvas { width: 34px; height: 34px; }
+    .sidecard .nm { font-size: 7px; }
+    .sidecard .funds { font-size: 19px; }
+    .meter i { width: 8px; } .meter i.big { width: 10px; }
+    #daybox { min-width: 46px; } #daybox .d { font-size: 9px; }
+    #menuBtn { width: 36px; }
+    #info { max-width: calc(100vw - 130px); flex-direction: column; align-items: flex-start; gap: 4px; }
+    .card { min-height: 38px; padding: 4px 6px; }
+    .card canvas { width: 26px; height: 26px; }
+    .card .t { font-size: 8px; } .card .l { font-size: 16px; }
+    #endBtn { min-width: 0; padding: 12px 10px; font-size: 10px; }
+    #buildGrid { grid-template-columns: 1fr; }
+    #buildDetail { order: -1; }
+    .bu .n, .bu .c { font-size: 19px; }
+  }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div id="topbar">
+      <div class="sidecard s0" id="side0"><canvas class="pix" width="32" height="32"></canvas><div class="meta"><div class="nm"></div><div class="funds"></div><div class="meter"></div></div></div>
+      <div id="daybox"><div class="d" id="dayTxt">DAY 1</div><div class="w" id="turnTxt"></div></div>
+      <div class="sidecard s1" id="side1"><canvas class="pix" width="32" height="32"></canvas><div class="meta"><div class="nm"></div><div class="funds"></div><div class="meter"></div></div></div>
+      <button class="btn" id="menuBtn" aria-label="Menu">≡</button>
+    </div>
+    <div id="info">
+      <div class="card box" id="terrCard" hidden><canvas class="pix" width="16" height="20"></canvas><div><div class="t" id="terrName"></div><div class="l" id="terrLine"></div></div></div>
+      <div class="card box" id="unitCard" hidden><canvas class="pix" width="16" height="16"></canvas><div><div class="t" id="unitName"></div><div class="l" id="unitLine"></div></div><span class="q">?</span></div>
+    </div>
+    <div id="rbtns">
+      <div id="zoomBtns"><button class="btn" id="zoomOut" aria-label="Zoom out">−</button><button class="btn" id="zoomIn" aria-label="Zoom in">+</button></div>
+      <button class="btn" id="powerBtn" hidden>Power!</button>
+      <button class="btn primary" id="endBtn">End Turn</button>
+    </div>
+    <div id="actionMenu" class="box" hidden></div>
+    <div id="forecast" class="box" hidden></div>
+    <div id="banner"><div class="strip"></div></div>
+    <div id="toast" class="box off"></div>
+  </div>
+
+  <div class="modal" id="buildModal" hidden>
+    <div class="box" id="buildBox">
+      <h2><span id="buildTitle">Factory</span><span id="funds2"></span><button class="x" data-close>✕</button></h2>
+      <div id="buildGrid"><div id="buildList"></div><div id="buildDetail"></div></div>
+    </div>
+  </div>
+  <div class="modal" id="coModal" hidden><div class="box" id="coBox"></div></div>
+  <div class="modal" id="intelModal" hidden><div class="box" id="intelBox" style="width:520px"></div></div>
+  <div class="modal" id="menuModal" hidden>
+    <div class="box">
+      <h2>Menu <button class="x" data-close>✕</button></h2>
+      <div class="menuList">
+        <button class="btn" data-close>Resume</button>
+        <button class="btn" id="mMusic">Music: On</button>
+        <button class="btn" id="mSfx">Sound FX: On</button>
+        <button class="btn" id="mSpeed">Enemy speed: Normal</button>
+        <button class="btn" id="mHelp">How to play</button>
+        <button class="btn" id="mQuit">Save &amp; quit</button>
+        <button class="btn warn" id="mYield">Concede</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="title">
+    <div class="logo">SIGNAL FRONT<small>AUTONOMOUS TACTICS</small></div>
+    <div class="titleBtns">
+      <button class="btn primary" id="tContinue" hidden>Continue</button>
+      <button class="btn primary" id="tNew">New Skirmish</button>
+      <button class="btn" id="tHelp">How to play</button>
+      <button class="btn" id="tSound">Sound: On</button>
+    </div>
+    <div class="foot">Command Meridian's all-autonomous fleet against the Drovic Federation's drones and armor.<br><a href="../">← Back to the arcade</a></div>
+  </div>
+
+  <div class="screen" id="setup">
+    <div class="wrap">
+      <h1>New Skirmish</h1>
+      <h3>Battlefield</h3>
+      <div class="cards" id="mapCards"></div>
+      <h3>Your commander — Meridian Autonomy Command</h3>
+      <div class="cards" id="coCards0"></div>
+      <h3>Enemy commander — Drovic Federation</h3>
+      <div class="cards" id="coCards1"></div>
+      <h3>Rules</h3>
+      <div class="opts" id="optBox"></div>
+      <div class="bar"><button class="btn" id="setupBack">Back</button><button class="btn primary" id="setupGo">Deploy</button></div>
+    </div>
+  </div>
+
+  <div class="screen" id="howto">
+    <div class="wrap howto" id="howtoBody"></div>
+  </div>
+
+  <div class="screen" id="result">
+    <div class="wrap" id="resultBody"></div>
+  </div>
+</div>

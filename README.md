@@ -17,6 +17,7 @@ Collection of experimental browser games made with Claude. **Play them at https:
 | [Studworks](studworks/) | Brick-building sandbox: snap bricks, plates, tiles and slopes onto a baseplate in 26 classic colors. Move, copy, paint, undo, save to file. | [`source/`](studworks/source/) (three.js, vendored) |
 | [Iron Saber](iron-saber/) | Mobile suit action at real scale: walk up to an 18 m suit, ride the winch into its cockpit and fight across a breakable city, desert, forest and mountains. Panoramic and classic cockpits, first or third person, four boardable suits, sorties vs. Dominion AI. | [`source/`](iron-saber/source/) (three.js, vendored) |
 | [Ashreach](ashreach/) | Offline sci-fi MMO homage: 4 breeds, 14 professions, nano programs, implants and clusters, tab-target combat, mission terminals with sliders and instanced interiors, six zones and two dungeons to level 50, and a world full of simulated players who hunt, team up, chat in OOC and fight over lumen pylons. | [`source/`](ashreach/source/) (three.js, vendored) |
+| [Signal Front](signal-front/) | Turn-based tactics in the classic handheld style: an all-autonomous army (ground robots, recon and strike drones, loitering munitions, jammers, an XL-AUV) against drone swarms, tanks and artillery. Four skirmish maps, six commanders with Power and Super Power, fog of war, and an AI opponent. Plays with mouse or touch. | [`source/`](signal-front/source/) |
 
 ## Rebuilding
 
@@ -28,6 +29,7 @@ Collection of experimental browser games made with Claude. **Play them at https:
 - **Mud & Iron:** `cd mud-and-iron/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` for a `window.MI` test hook (`MI.sim(seconds)` fast-forwards, `MI.start({...})` launches a match).
 - **Studworks:** `cd studworks/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` for a `window.SW` test hook. New parts go in the catalog at the bottom of `src/01_core.js`.
 - **Iron Saber:** `cd iron-saber/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` for a `window.IS` test hook (`IS.sim(seconds)` fast-forwards, `IS.enter('valiant')` jumps into a suit).
+- **Signal Front:** `cd signal-front/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` for a `window.SF` test hook (`SF.sim({map}, days)` plays AI vs AI, `SF.place(type, side, x, y)` drops a unit); `node test/smoke.mjs` runs the rules checks and four AI-vs-AI games headless.
 - **Ashreach:** `cd ashreach/source && python3 build.py` → writes `../index.html` directly. Open with `#debug` for a `window.AR` test hook (`AR.quick('medic')` starts a character, `AR.sim(seconds)` fast-forwards); `node test/smoke.mjs` runs a headless check. Design notes in `DESIGN.md`, module contracts in `API.md`.
 
 ## Running locally
