@@ -1708,6 +1708,19 @@ EV.on('dmg', (src, tgt) => {
     }
   }
 });
+// Dusk and dawn get a few remarks from whoever is around (and from the OOC crowd).
+const SM_DUSK = ['getting dark out here', 'night already? lost track of time', 'mobs get twitchy after dark, careful', 'love the stars over the Flats', 'can barely see the hounds lol', 'night shift, who is with me', 'lamps are on in Halden, heading back'];
+const SM_DAWN = ['morning all', 'sun is up, finally', 'pulled an all-nighter grinding, worth it', 'gm', 'dawn already? one more mission', 'coffee and missions, the breakfast of champions'];
+EV.on('daynight', (ph) => {
+  if (!SM.on || !PLAYER || (ph !== 'dusk' && ph !== 'dawn')) return;
+  try {
+    const lines = ph === 'dusk' ? SM_DUSK : SM_DAWN;
+    const near = SM.ents.filter((e) => !e.removed && !e.dead && entDist(e, PLAYER) < 40);
+    if (near.length && sm_chance(0.7)) { const e = sm_pick(near); sm_later(2 + sm_rnd() * 6, () => sm_say(e, 'vicinity', sm_pick(lines))); }
+    const far = SM.pop.filter((r) => !r.ent || r.ent.removed);
+    if (far.length && sm_chance(0.6)) { const r = sm_pick(far); sm_later(5 + sm_rnd() * 10, () => sm_say(r, 'ooc', sm_pick(lines))); }
+  } catch (err) { console.error(err); }
+});
 EV.on('levelup', (ent, lvl) => {
   if (!SM.on || !PLAYER || !ent) return;
   try {

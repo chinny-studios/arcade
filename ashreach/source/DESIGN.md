@@ -110,6 +110,33 @@ TL1 1–14 · TL2 15–49 · TL3 50–99 (slice caps at **level 50**).
 | `lumen_scar` | Lumen Scar | outdoor contested | 35–50 | Glowing crystal wastes, Scar Outpost (hopper, clone bay), three lumen pylon fields fought over by Meridian and Freehold, the Scar Colossus (world boss, 55) |
 | `mission` | (generated) | interior | any | Built per mission from the mission's seed: office, warehouse, lab, bunker or cave |
 
+## Day and night
+
+A day lasts 40 real minutes (`DAY_LEN` in `02_render.js`); new characters wake at about 07:00 and the time is saved.
+Each zone's `atmos` is its noon look and night colours are derived from it. The sun arcs through the zone's
+own noon direction and the moon lights the night. Stars come out, lamps brighten and lit windows stand out.
+`atmos.dayCycle` (0–1) softens the cycle; the Lumen Scar uses 0.55 to keep its violet dusk. Interiors have none.
+Mobs notice you from 20% further away at night, but stealth works better. A system line announces dusk, night
+and dawn, and simulated players remark on it. `/time` prints the clock, which also shows under the minimap.
+
+## Personal lights
+
+Light sources go in the utility slots or the back slot and follow their wearer (`29_lights.js`). They matter at
+night and in dungeons and barely show at noon. The brightest one equipped is used.
+
+| id | Name | Slot | Look |
+| :-- | :-- | :-- | :-- |
+| `util_lantern_spark` | Spark Lantern | utility | small orb at the shoulder (every new character is issued one) |
+| `util_lantern_hover` | Hover Lantern | utility | brighter orb, many tints |
+| `util_seraph` | Glimmer Seraph | utility | winged glimmer at the shoulder |
+| `util_halostrip` | Halo Strip | utility | bright ring above the head, the strongest light |
+| `back_glowpack` | Glowpack | back | glowing pack on the back |
+| `back_lumenweave` | Lumenweave Cloak | back | soft aura around the body |
+
+They are sold at general stores and drop as loot, in colour tints (Ember, Frost, Violet, Verdant…). About half
+the simulated players carry one; the two nearest cast real light and the rest show as glowing motes. A light at
+night makes mobs notice you slightly further away and badly undermines stealth.
+
 ## Mob roster
 
 `model` is a `makeCreature` kind (or `humanoid`). `arch`: melee / ranged / caster.
