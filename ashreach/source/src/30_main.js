@@ -62,7 +62,11 @@ function startGame(char, save) {
     EV.emit('chat', 'system', '', 'Welcome back to Ashreach, ' + char.name + '.');
   } else {
     char.flags.clone = { zone: 'landfall', poi: clonePoi('landfall') };
+    // every new arrival gets a little lantern for the nights (and the Smuggler's Den)
+    const lamp = makeItem('util_lantern_spark', 1);
+    if (lamp && !char.equip.util1) { char.equip.util1 = lamp; refreshStats(P); }
     EV.emit('chat', 'system', '', 'Welcome to Ashreach, ' + char.name + '. The Concord shuttle has set you down on Landfall Isle.');
+    EV.emit('chat', 'system', '', 'The Concord issued you a Spark Lantern (utility slot). It lights your way at night and underground; better lanterns are sold at general stores.');
     EV.emit('chat', 'system', '', 'Press F1 for help. Talk to people with F or right-click. Tab targets enemies, ` (backquote) toggles your attack.');
     saveGame(true);
   }
@@ -128,7 +132,7 @@ function titleCamera(dt) {
 }
 function tick(dt) {
   clock += dt;
-  if (state === 'title' || state === 'boot') { if (DN.t !== 0.72) setTimeOfDay(0.72); titleCamera(dt); if (typeof updateZone === 'function') updateZone(dt); return; }
+  if (state === 'title' || state === 'boot') { if (LT_VIS.size) lightsOff(); if (DN.t !== 0.72) setTimeOfDay(0.72); titleCamera(dt); if (typeof updateZone === 'function') updateZone(dt); return; }
   if (!PLAYER) return;
   updatePlayer(dt);
   updateEnts(dt);
@@ -137,6 +141,7 @@ function tick(dt) {
   if (typeof missionTick === 'function') missionTick(dt);
   updateFx(dt);
   updateDayNight(dt);
+  updateLights(dt);
   if (typeof updateZone === 'function') updateZone(dt);
   updateCamera(dt);
   placeSun(PLAYER.pos.x, PLAYER.pos.y, PLAYER.pos.z);
@@ -227,7 +232,7 @@ if (DEBUG) window.AR = {
   get requestMissions() { return typeof requestMissions === 'function' ? requestMissions : null; }, get acceptMission() { return typeof acceptMission === 'function' ? acceptMission : null; }, get missionDoor() { return typeof missionDoor === 'function' ? missionDoor : null; },
   ipAtLevel, raiseSkill, raiseAbility, itemReqsMet, attackStats, specialsFor, mobStats, applyNano, heal, dealDamage,
   groundY: (x, z) => groundY(x, z), losClear: (...a) => losClear(...a),
-  DN, setTimeOfDay, clockText,
+  DN, setTimeOfDay, clockText, lightOf, LT_VIS, itemDesc,
   manual(on) { MANUAL = on; }, tick, render,
   sim(sec, dt = 1 / 30) { const t0 = performance.now(); for (let t = 0; t < sec; t += dt) tick(dt); render(); if (typeof uiUpdate === 'function') uiUpdate(dt); return performance.now() - t0; },
   quick(prof = 'trooper', breed = 'baseline', faction = 'unaligned', name = 'Tester') { SAVE_SLOT = 7; startGame(newCharacter({ name, breed, prof, faction, sex: 'f' })); return PLAYER; },

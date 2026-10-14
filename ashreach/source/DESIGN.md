@@ -119,6 +119,24 @@ own noon direction and the moon lights the night. Stars come out, lamps brighten
 Mobs notice you from 20% further away at night, but stealth works better. A system line announces dusk, night
 and dawn, and simulated players remark on it. `/time` prints the clock, which also shows under the minimap.
 
+## Personal lights
+
+Light sources go in the utility slots or the back slot and follow their wearer (`29_lights.js`). They matter at
+night and in dungeons and barely show at noon. The brightest one equipped is used.
+
+| id | Name | Slot | Look |
+| :-- | :-- | :-- | :-- |
+| `util_lantern_spark` | Spark Lantern | utility | small orb at the shoulder (every new character is issued one) |
+| `util_lantern_hover` | Hover Lantern | utility | brighter orb, many tints |
+| `util_seraph` | Glimmer Seraph | utility | winged glimmer at the shoulder |
+| `util_halostrip` | Halo Strip | utility | bright ring above the head, the strongest light |
+| `back_glowpack` | Glowpack | back | glowing pack on the back |
+| `back_lumenweave` | Lumenweave Cloak | back | soft aura around the body |
+
+They are sold at general stores and drop as loot, in colour tints (Ember, Frost, Violet, Verdant…). About half
+the simulated players carry one; the two nearest cast real light and the rest show as glowing motes. A light at
+night makes mobs notice you slightly further away and badly undermines stealth.
+
 ## Mob roster
 
 `model` is a `makeCreature` kind (or `humanoid`). `arch`: melee / ranged / caster.

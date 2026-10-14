@@ -165,6 +165,9 @@ function it_bArmor(it, t, ql) {
 }
 
 // ---------- utility / decks ----------
+const IT_TINT_WARM = [['', 0xffc070], ['Ember', 0xff9050], ['Candle', 0xffe0a0]];
+const IT_TINT_COOL = [['', 0x9ff0ff], ['Violet', 0xc8a0ff], ['Frost', 0xd8f0ff]];
+const IT_TINT_ALL = IT_TINT_WARM.concat(IT_TINT_COOL, [['Verdant', 0x9dffa0], ['Rose', 0xff9ab8]]);
 // [id, name, slots, qlMin, qlMax, { base: {stat: const}, k: {stat: perQL}, rq: {stat: [perQL, const]}, glyph }]
 const IT_UTIL = [
   ['deck_mnemo', 'Mnemo Chip', ['deck'], 1, 60, { base: { ncu: 6 }, k: { ncu: 0.3 }, rq: { int: [0.5, 3] }, glyph: '◘' }],
@@ -178,12 +181,27 @@ const IT_UTIL = [
   ['util_cell', 'Lumen Cell Pack', ['util1', 'util2', 'util3'], 5, 200, { k: { maxNp: 1.0, npRegen: 0.01 }, rq: { int: [0.4, 3] }, glyph: '¤' }],
   ['util_filter', 'Rebreather Filter', ['util1', 'util2', 'util3'], 5, 200, { k: { ac_chem: 0.4, ac_poison: 0.4, ac_rad: 0.4 }, rq: { sta: [0.4, 3] }, glyph: '¤' }],
   ['util_damper', 'Kinetic Dampener', ['util1', 'util2', 'util3'], 5, 200, { k: { ac_melee: 0.5, ac_proj: 0.5 }, rq: { sta: [0.4, 3] }, glyph: '¤' }],
+  // light sources: a glow that follows you through the night and dark interiors (see 29_lights.js).
+  // lt: { style, int, dist (m at qlMin), distK (m per QL), tints }
+  ['util_lantern_spark', 'Spark Lantern', ['util1', 'util2', 'util3'], 1, 60, { lt: { style: 'orb', int: 0.9, dist: 9, distK: 0.08, tints: IT_TINT_WARM }, rq: { int: [0.2, 2] }, glyph: '✧', color: '#ffd27a' }],
+  ['util_lantern_hover', 'Hover Lantern', ['util1', 'util2', 'util3'], 20, 150, { lt: { style: 'orb', int: 1.1, dist: 12, distK: 0.09, tints: IT_TINT_ALL }, k: { perception: 0.08 }, rq: { int: [0.25, 3] }, glyph: '✧', color: '#ffe8b0' }],
+  ['util_seraph', 'Glimmer Seraph', ['util1', 'util2', 'util3'], 60, 200, { lt: { style: 'seraph', int: 1.3, dist: 16, distK: 0.08, tints: IT_TINT_COOL }, k: { perception: 0.1, sen: 0.04 }, rq: { psy: [0.3, 5] }, glyph: '✦', color: '#9ff0ff' }],
+  ['util_halostrip', 'Halo Strip', ['util1', 'util2', 'util3'], 80, 200, { lt: { style: 'halo', int: 1.6, dist: 20, distK: 0.1, tints: [['', 0xf0f4ff]] }, rq: { int: [0.3, 5] }, glyph: '◯', color: '#f0f4ff' }],
+  ['back_glowpack', 'Glowpack', ['back'], 1, 80, { lt: { style: 'pack', int: 0.8, dist: 8, distK: 0.07, tints: IT_TINT_ALL }, k: { maxNp: 0.4 }, rq: { sta: [0.2, 2] }, glyph: '▤', color: '#7dffb0' }],
+  ['back_lumenweave', 'Lumenweave Cloak', ['back'], 40, 200, { lt: { style: 'aura', int: 1.0, dist: 11, distK: 0.06, tints: IT_TINT_COOL }, k: { ac_energy: 0.3, nano_resist: 0.1 }, rq: { psy: [0.25, 4] }, glyph: '▤', color: '#c8a0ff' }],
 ];
 function it_bUtil(it, t, ql) {
   for (const s in (t.base || {})) it.mods[s] = t.base[s];
   for (const s in (t.k || {})) { const v = it_num(ql * t.k[s]); it.mods[s] = it_num((it.mods[s] || 0) + v); }
   for (const s in (t.rq || {})) it.reqs[s] = Math.round(ql * t.rq[s][0] + t.rq[s][1]);
   it.value = Math.round(it_base(ql) * (t.slots[0] === 'deck' ? 3 : 2.5));
+  if (t.lt) {
+    // tints vary from piece to piece; the plain one is the most common
+    const tints = t.lt.tints, k = it.uid % (tints.length + 2), tint = tints[k < tints.length ? k : 0];
+    it.light = { style: t.lt.style, int: t.lt.int, dist: Math.round(t.lt.dist + (ql - t.qlMin) * t.lt.distK), color: tint[1] };
+    if (tint[0]) it.name = tint[0] + ' ' + it.name;
+    it.icon.color = '#' + tint[1].toString(16).padStart(6, '0');
+  }
 }
 
 // ---------- consumables ----------
@@ -406,12 +424,13 @@ function itemDesc(item, S) {
   let label = '';
   if (item.kind === 'weapon') label = IT_SK[item.skill].n + (item.twoHand ? ' (two-handed)' : '') + (item.fist ? ' fist weapon' : '');
   else if (item.kind === 'armor') label = item.shield ? 'Shield' : 'Armour - ' + (item.slots.length > 1 ? IT_SLOT_NAME[item.slots[0]].replace(/^Left /, '') : IT_SLOT_NAME[item.slots[0]]);
-  else if (item.kind === 'util') label = item.slots[0] === 'deck' ? 'Nano Memory bank' : 'Utility';
+  else if (item.kind === 'util') label = item.light ? 'Light source' : item.slots[0] === 'deck' ? 'Nano Memory bank' : 'Utility';
   else if (item.kind === 'implant') label = IT_IMP_NAME[item.slot] + ' implant';
   else if (item.kind === 'cluster') label = cap1(item.socket) + ' cluster';
   else if (item.kind === 'nanocrystal') label = 'Nanocrystal';
   else label = cap1(item.kind);
   L.push(item.kind === 'nanocrystal' ? label + ' - level ' + (item.reqs.level || 1) : 'QL ' + item.ql + ' ' + label);
+  if (item.light) L.push('Casts light ' + item.light.dist + ' m around you' + ({ orb: ', floating at your shoulder', seraph: ', a winged glimmer at your shoulder', halo: ', a bright halo above your head', pack: ', glowing on your back', aura: ', a soft aura around you' }[item.light.style] || ''));
   if (item.kind === 'weapon') {
     L.push('Damage ' + item.dmg[0] + '-' + item.dmg[1] + ' ' + IT_TYPE_NAME[item.dmgType] + (item.fist ? ' (added to unarmed damage)' : ''));
     L.push('Attack ' + item.atk.toFixed(2) + 's, recharge ' + item.rech.toFixed(2) + 's, range ' + item.range + ' m');
