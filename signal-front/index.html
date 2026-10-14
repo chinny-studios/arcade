@@ -1,0 +1,3857 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Signal Front</title>
+<meta name="description" content="A turn-based tactics game in the classic handheld style: command an all-autonomous force against a drone-and-armor army.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #eef3ff; --dim: #93a0bd; --bg: #0e1220; --panel: #18203a; --panel2: #222c4c; --line: #3b4a78; --edge: #0a0d18;
+    --blue: #4a9be8; --blue2: #2860b0; --red: #e0503c; --red2: #a42c28; --gold: #ffd23a; --cyan: #6ff3ff; --good: #7dde6a; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; color: var(--ink);
+    font-family: 'VT323', ui-monospace, monospace; font-size: 20px; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; touch-action: none; }
+  [hidden] { display: none !important; }
+  .px { font-family: 'Press Start 2P', ui-monospace, monospace; font-weight: 400; letter-spacing: 0; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  canvas.pix { image-rendering: pixelated; image-rendering: crisp-edges; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .btn { font-family: 'Press Start 2P', monospace; font-size: 11px; line-height: 1; padding: 11px 14px; background: var(--panel2); color: var(--ink);
+    border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px var(--line), 0 3px 0 var(--edge); border-radius: 2px; text-transform: uppercase; }
+  .btn:hover:not(:disabled) { background: #2c3962; }
+  .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 0 0 2px var(--line), 0 1px 0 var(--edge); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: #2f6fd0; box-shadow: inset 0 0 0 2px #7cc0ff, 0 3px 0 var(--edge); }
+  .btn.primary:hover:not(:disabled) { background: #3a80e6; }
+  .btn.warn { background: #8a2a24; box-shadow: inset 0 0 0 2px #e0705c, 0 3px 0 var(--edge); }
+  .box { background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px var(--line); border-radius: 3px; }
+
+  /* ---------------- HUD ---------------- */
+  #hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] #hud { display: block; }
+  #hud > * { pointer-events: auto; }
+  #topbar { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: stretch; gap: 8px; padding: 4px 8px; box-sizing: border-box;
+    background: linear-gradient(#0b0f1c, #121a30); border-bottom: 2px solid var(--edge); box-shadow: 0 2px 0 var(--line); }
+  .sidecard { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 0; border-radius: 3px; position: relative; cursor: pointer;
+    background: rgba(255,255,255,.03); border: 2px solid transparent; }
+  .sidecard.s1 { flex-direction: row-reverse; padding: 0 0 0 8px; text-align: right; }
+  .sidecard.active.s0 { border-color: var(--blue); background: rgba(74,155,232,.14); }
+  .sidecard.active.s1 { border-color: var(--red); background: rgba(224,80,60,.14); }
+  .sidecard canvas { width: 40px; height: 40px; flex: none; border: 2px solid var(--edge); }
+  .sidecard .meta { min-width: 0; flex: 1; }
+  .sidecard .nm { font-family: 'Press Start 2P', monospace; font-size: 9px; line-height: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidecard .funds { font-size: 20px; line-height: 1; color: var(--gold); margin-top: 3px; }
+  .meter { display: flex; gap: 2px; margin-top: 2px; height: 6px; }
+  .sidecard.s1 .meter { justify-content: flex-end; }
+  .meter i { display: block; width: 12px; height: 6px; background: #0a0d18; border: 1px solid #2a3558; box-sizing: border-box; position: relative; overflow: hidden; }
+  .meter i.big { width: 16px; }
+  .meter i b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold); }
+  .meter.ready i b { animation: glow .6s steps(2) infinite; }
+  @keyframes glow { 50% { background: #fff6c0; } }
+  .pwtag { position: absolute; top: -2px; font-family: 'Press Start 2P', monospace; font-size: 7px; color: #10131f; background: var(--gold); padding: 2px 3px; border-radius: 2px; }
+  .sidecard.s0 .pwtag { right: 4px; } .sidecard.s1 .pwtag { left: 4px; }
+  #daybox { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 64px; }
+  #daybox .d { font-family: 'Press Start 2P', monospace; font-size: 11px; }
+  #daybox .w { font-size: 17px; color: var(--dim); margin-top: 3px; }
+  #menuBtn { flex: none; width: 44px; padding: 0; font-size: 14px; }
+
+  #info { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; align-items: flex-end; max-width: calc(100vw - 170px); }
+  .card { padding: 6px 8px; display: flex; gap: 8px; align-items: center; min-height: 44px; box-sizing: border-box; }
+  .card canvas { width: 32px; height: 32px; flex: none; }
+  .card .t { font-family: 'Press Start 2P', monospace; font-size: 9px; white-space: nowrap; }
+  .card .l { font-size: 18px; line-height: 1.05; color: var(--dim); white-space: nowrap; }
+  .card .l b { color: var(--ink); font-weight: 400; }
+  .stars { color: var(--gold); letter-spacing: -2px; }
+  #unitCard { cursor: pointer; }
+  #unitCard .q { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--dim); border: 1px solid var(--line); padding: 2px 4px; border-radius: 2px; align-self: flex-start; }
+
+  #rbtns { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  #zoomBtns { display: flex; gap: 6px; }
+  #zoomBtns .btn { width: 40px; padding: 9px 0; font-size: 14px; }
+  #powerBtn { background: #6a5410; box-shadow: inset 0 0 0 2px var(--gold), 0 3px 0 var(--edge); color: #fff6d0; animation: pulse 1s steps(2) infinite; }
+  @keyframes pulse { 50% { background: #8c7016; } }
+  #endBtn { min-width: 128px; }
+
+  #actionMenu { position: absolute; display: flex; flex-direction: column; padding: 4px; gap: 3px; z-index: 5; min-width: 120px; }
+  #actionMenu button { text-align: left; font-family: 'Press Start 2P', monospace; font-size: 11px; padding: 11px 12px; background: transparent; border: 0; color: var(--ink); border-radius: 2px; }
+  #actionMenu button:hover, #actionMenu button:focus-visible { background: #34437a; outline: none; }
+  #actionMenu button::before { content: '▸ '; color: transparent; }
+  #actionMenu button:hover::before { color: var(--gold); }
+
+  #forecast { position: absolute; padding: 8px 10px; z-index: 6; min-width: 150px; pointer-events: none; }
+  #forecast .row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  #forecast .k { font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--dim); }
+  #forecast .v { font-size: 26px; line-height: 1; }
+  #forecast .v.hit { color: #ffcf6a; } #forecast .v.ctr { color: #ff8c7a; }
+  #forecast .hint { font-size: 15px; color: var(--dim); margin-top: 4px; }
+
+  #banner { position: absolute; left: 0; right: 0; top: 38%; height: 0; pointer-events: none; z-index: 8; }
+  #banner .strip { position: absolute; left: 0; right: 0; top: -44px; height: 88px; display: flex; align-items: center; justify-content: center; gap: 16px;
+    transform: translateX(-110%); transition: transform .35s cubic-bezier(.2,.8,.2,1); border-top: 3px solid var(--edge); border-bottom: 3px solid var(--edge); }
+  #banner.on .strip { transform: none; }
+  #banner.out .strip { transform: translateX(110%); }
+  #banner canvas { width: 64px; height: 64px; border: 3px solid var(--edge); }
+  #banner .big { font-family: 'Press Start 2P', monospace; font-size: clamp(16px, 4vw, 28px); text-shadow: 3px 3px 0 #000; }
+  #banner .sub { font-size: 22px; color: #e8ecff; text-shadow: 2px 2px 0 #000; }
+  #banner.power .strip { height: 120px; top: -60px; }
+  #banner.power .big { color: var(--gold); }
+
+  #toast { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); padding: 6px 12px; z-index: 9; pointer-events: none; font-size: 20px; max-width: 86vw; text-align: center;
+    transition: opacity .3s; }
+  #toast.off { opacity: 0; }
+
+  /* ---------------- modals ---------------- */
+  .modal { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,7,14,.62); z-index: 20; padding: 12px; box-sizing: border-box; }
+  .modal > .box { max-width: min(760px, 100%); max-height: 100%; overflow: auto; padding: 14px; box-sizing: border-box; }
+  .modal h2 { font-family: 'Press Start 2P', monospace; font-size: 13px; margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .x { font-family: 'Press Start 2P', monospace; background: none; border: 0; font-size: 14px; color: var(--dim); padding: 4px 6px; }
+  #buildBox { width: 720px; }
+  #buildGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  #buildList { display: flex; flex-direction: column; gap: 3px; }
+  .bu { display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: rgba(255,255,255,.03); border: 2px solid transparent; border-radius: 2px; text-align: left; }
+  .bu canvas { width: 32px; height: 32px; }
+  .bu .n { flex: 1; font-size: 21px; }
+  .bu .c { font-size: 21px; color: var(--gold); }
+  .bu.sel { border-color: var(--gold); background: rgba(255,210,58,.08); }
+  .bu.no { opacity: .4; }
+  .bu:hover { background: rgba(255,255,255,.07); }
+  #buildDetail { display: flex; flex-direction: column; gap: 8px; }
+  #buildDetail .hero { display: flex; gap: 10px; align-items: center; }
+  #buildDetail .hero canvas { width: 64px; height: 64px; background: #2c5a2a; border: 2px solid var(--edge); }
+  .stat { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; font-size: 19px; line-height: 1.1; }
+  .stat span:nth-child(odd) { color: var(--dim); }
+  .desc { font-size: 19px; line-height: 1.15; color: #d6ddf2; }
+  .vs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .vs span { font-size: 16px; padding: 1px 5px; border-radius: 2px; background: #10162a; border: 1px solid #2a3558; }
+  .vs span.hi { color: var(--good); } .vs span.mid { color: var(--gold); } .vs span.lo { color: #c98a80; }
+  #funds2 { color: var(--gold); font-size: 22px; }
+
+  #coBox { width: 560px; }
+  .cohead { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .cohead canvas { width: 96px; height: 96px; border: 3px solid var(--edge); flex: none; }
+  .cohead .t { font-family: 'Press Start 2P', monospace; font-size: 12px; }
+  .cohead .s { color: var(--dim); font-size: 19px; }
+  .pw { border: 2px solid var(--line); border-radius: 3px; padding: 8px; margin-top: 8px; display: flex; gap: 10px; align-items: center; }
+  .pw .tx { flex: 1; }
+  .pw .tx b { font-family: 'Press Start 2P', monospace; font-size: 10px; font-weight: 400; color: var(--gold); display: block; margin-bottom: 4px; }
+
+  .menuList { display: flex; flex-direction: column; gap: 8px; min-width: 260px; }
+
+  /* ---------------- screens ---------------- */
+  .screen { position: absolute; inset: 0; display: none; overflow: auto; z-index: 30; }
+  body[data-state="title"] #title, body[data-state="setup"] #setup, body[data-state="howto"] #howto, body[data-state="result"] #result { display: flex; }
+  #title { flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: radial-gradient(ellipse at center, rgba(8,12,24,.55), rgba(8,12,24,.9)); padding: 16px; box-sizing: border-box; }
+  .logo { font-family: 'Press Start 2P', monospace; font-size: clamp(28px, 7vw, 64px); line-height: 1.25; text-align: center; color: #fff;
+    text-shadow: 4px 4px 0 var(--blue2), 8px 8px 0 #000; letter-spacing: 2px; }
+  .logo small { display: block; font-size: clamp(9px, 1.6vw, 13px); color: var(--cyan); text-shadow: 2px 2px 0 #000; margin-top: 18px; letter-spacing: 3px; }
+  .titleBtns { display: flex; flex-direction: column; gap: 12px; min-width: 260px; }
+  .titleBtns .btn { padding: 15px; font-size: 13px; }
+  .foot { font-size: 20px; color: #c6cfe6; text-align: center; max-width: 560px; background: rgba(8,12,24,.8); padding: 6px 12px; border-radius: 3px; }
+  .foot a { color: var(--cyan); }
+
+  #setup, #howto, #result { background: rgba(10,13,26,.94); justify-content: center; align-items: flex-start; padding: 16px; box-sizing: border-box; }
+  .wrap { width: min(980px, 100%); display: flex; flex-direction: column; gap: 14px; padding-bottom: 30px; }
+  .wrap h1 { font-family: 'Press Start 2P', monospace; font-size: 18px; margin: 4px 0; }
+  .wrap h3 { font-family: 'Press Start 2P', monospace; font-size: 11px; margin: 6px 0 0; color: var(--dim); font-weight: 400; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .pick { padding: 10px; display: flex; flex-direction: column; gap: 6px; text-align: left; background: var(--panel); border: 2px solid var(--edge); box-shadow: inset 0 0 0 2px var(--line); border-radius: 3px; }
+  .pick:hover { background: #1e2848; }
+  .pick.sel { box-shadow: inset 0 0 0 2px var(--gold); background: #262f52; }
+  .pick .n { font-family: 'Press Start 2P', monospace; font-size: 10px; }
+  .pick .b { font-size: 18px; color: var(--dim); line-height: 1.1; }
+  .pick canvas.mini { width: 100%; height: auto; background: #000; border: 2px solid var(--edge); }
+  .pick .row { display: flex; gap: 10px; align-items: center; }
+  .pick .row canvas { width: 56px; height: 56px; border: 2px solid var(--edge); flex: none; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .opt { padding: 10px; }
+  .opt .k { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--dim); margin-bottom: 8px; }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  .seg button { font-size: 19px; padding: 4px 10px; background: #10162a; border: 2px solid #2a3558; border-radius: 2px; }
+  .seg button.on { border-color: var(--gold); color: var(--gold); }
+  .bar { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; position: sticky; bottom: 0; padding: 10px 0; background: linear-gradient(transparent, rgba(10,13,26,.96) 30%); }
+  .howto p, .howto li { font-size: 21px; line-height: 1.2; color: #d6ddf2; }
+  .howto b { color: var(--gold); font-weight: 400; }
+  .howto table { border-collapse: collapse; font-size: 19px; }
+  .howto td { padding: 2px 10px 2px 0; vertical-align: top; }
+  .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
+  .roster .r { display: flex; gap: 8px; align-items: flex-start; padding: 6px; }
+  .roster canvas { width: 40px; height: 40px; flex: none; background: #2c5a2a; border: 2px solid var(--edge); }
+  .roster .r .n { font-family: 'Press Start 2P', monospace; font-size: 9px; }
+  .roster .r .d { font-size: 17px; color: var(--dim); line-height: 1.05; margin-top: 3px; }
+  #result .wrap { align-items: center; text-align: center; margin-top: 6vh; }
+  .verdict { font-family: 'Press Start 2P', monospace; font-size: clamp(26px, 6vw, 48px); text-shadow: 4px 4px 0 #000; }
+  .verdict.win { color: var(--gold); } .verdict.lose { color: #ff7a6a; }
+  .stats { display: grid; grid-template-columns: auto auto auto; gap: 6px 24px; font-size: 22px; margin: 10px auto; align-items: center; }
+  .stats .h { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--dim); }
+
+  @media (max-width: 640px) {
+    #topbar { height: 52px; gap: 4px; padding: 4px; }
+    .sidecard canvas { width: 34px; height: 34px; }
+    .sidecard .nm { font-size: 7px; }
+    .sidecard .funds { font-size: 19px; }
+    .meter i { width: 8px; } .meter i.big { width: 10px; }
+    #daybox { min-width: 46px; } #daybox .d { font-size: 9px; }
+    #menuBtn { width: 36px; }
+    #info { max-width: calc(100vw - 130px); flex-direction: column; align-items: flex-start; gap: 4px; }
+    .card { min-height: 38px; padding: 4px 6px; }
+    .card canvas { width: 26px; height: 26px; }
+    .card .t { font-size: 8px; } .card .l { font-size: 16px; }
+    #endBtn { min-width: 0; padding: 12px 10px; font-size: 10px; }
+    #buildGrid { grid-template-columns: 1fr; }
+    #buildDetail { order: -1; }
+    .bu .n, .bu .c { font-size: 19px; }
+  }
+</style>
+</head>
+<body data-state="title">
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div id="topbar">
+      <div class="sidecard s0" id="side0"><canvas class="pix" width="32" height="32"></canvas><div class="meta"><div class="nm"></div><div class="funds"></div><div class="meter"></div></div></div>
+      <div id="daybox"><div class="d" id="dayTxt">DAY 1</div><div class="w" id="turnTxt"></div></div>
+      <div class="sidecard s1" id="side1"><canvas class="pix" width="32" height="32"></canvas><div class="meta"><div class="nm"></div><div class="funds"></div><div class="meter"></div></div></div>
+      <button class="btn" id="menuBtn" aria-label="Menu">≡</button>
+    </div>
+    <div id="info">
+      <div class="card box" id="terrCard" hidden><canvas class="pix" width="16" height="20"></canvas><div><div class="t" id="terrName"></div><div class="l" id="terrLine"></div></div></div>
+      <div class="card box" id="unitCard" hidden><canvas class="pix" width="16" height="16"></canvas><div><div class="t" id="unitName"></div><div class="l" id="unitLine"></div></div><span class="q">?</span></div>
+    </div>
+    <div id="rbtns">
+      <div id="zoomBtns"><button class="btn" id="zoomOut" aria-label="Zoom out">−</button><button class="btn" id="zoomIn" aria-label="Zoom in">+</button></div>
+      <button class="btn" id="powerBtn" hidden>Power!</button>
+      <button class="btn primary" id="endBtn">End Turn</button>
+    </div>
+    <div id="actionMenu" class="box" hidden></div>
+    <div id="forecast" class="box" hidden></div>
+    <div id="banner"><div class="strip"></div></div>
+    <div id="toast" class="box off"></div>
+  </div>
+
+  <div class="modal" id="buildModal" hidden>
+    <div class="box" id="buildBox">
+      <h2><span id="buildTitle">Factory</span><span id="funds2"></span><button class="x" data-close>✕</button></h2>
+      <div id="buildGrid"><div id="buildList"></div><div id="buildDetail"></div></div>
+    </div>
+  </div>
+  <div class="modal" id="coModal" hidden><div class="box" id="coBox"></div></div>
+  <div class="modal" id="intelModal" hidden><div class="box" id="intelBox" style="width:520px"></div></div>
+  <div class="modal" id="menuModal" hidden>
+    <div class="box">
+      <h2>Menu <button class="x" data-close>✕</button></h2>
+      <div class="menuList">
+        <button class="btn" data-close>Resume</button>
+        <button class="btn" id="mMusic">Music: On</button>
+        <button class="btn" id="mSfx">Sound FX: On</button>
+        <button class="btn" id="mSpeed">Enemy speed: Normal</button>
+        <button class="btn" id="mHelp">How to play</button>
+        <button class="btn" id="mQuit">Save &amp; quit</button>
+        <button class="btn warn" id="mYield">Concede</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="title">
+    <div class="logo">SIGNAL FRONT<small>AUTONOMOUS TACTICS</small></div>
+    <div class="titleBtns">
+      <button class="btn primary" id="tContinue" hidden>Continue</button>
+      <button class="btn primary" id="tNew">New Skirmish</button>
+      <button class="btn" id="tHelp">How to play</button>
+      <button class="btn" id="tSound">Sound: On</button>
+    </div>
+    <div class="foot">Command Meridian's all-autonomous fleet against the Drovic Federation's drones and armor.<br><a href="../">← Back to the arcade</a></div>
+  </div>
+
+  <div class="screen" id="setup">
+    <div class="wrap">
+      <h1>New Skirmish</h1>
+      <h3>Battlefield</h3>
+      <div class="cards" id="mapCards"></div>
+      <h3>Your commander — Meridian Autonomy Command</h3>
+      <div class="cards" id="coCards0"></div>
+      <h3>Enemy commander — Drovic Federation</h3>
+      <div class="cards" id="coCards1"></div>
+      <h3>Rules</h3>
+      <div class="opts" id="optBox"></div>
+      <div class="bar"><button class="btn" id="setupBack">Back</button><button class="btn primary" id="setupGo">Deploy</button></div>
+    </div>
+  </div>
+
+  <div class="screen" id="howto">
+    <div class="wrap howto" id="howtoBody"></div>
+  </div>
+
+  <div class="screen" id="result">
+    <div class="wrap" id="resultBody"></div>
+  </div>
+</div>
+
+<script>
+(function(){'use strict';
+// Signal Front — shared helpers: math, noise, DOM, timing
+
+const DEBUG = location.hash === '#debug';
+const T = 16; // art tile size in pixels; everything is drawn on this grid and scaled up
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = (t) => t * t * (3 - 2 * t);
+const frand = (a, b) => a + (b - a) * Math.random();
+const irand = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const mdist = (ax, ay, bx, by) => Math.abs(ax - bx) + Math.abs(ay - by);
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+const isTouch = matchMedia('(pointer: coarse)').matches;
+
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  return e;
+}
+
+// deterministic per-tile noise for terrain dressing
+function hash2(x, y, s = 0) {
+  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+// Animation timing. In fast mode (headless tests, "instant" AI speed) waits resolve immediately.
+const TIME = { fast: false, speed: 1 };
+function wait(ms) {
+  if (TIME.fast || ms <= 0) return Promise.resolve();
+  return new Promise((r) => setTimeout(r, ms / TIME.speed));
+}
+
+function storeGet(k, d) {
+  try { const v = localStorage.getItem('signalfront.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; }
+}
+function storeSet(k, v) {
+  try { localStorage.setItem('signalfront.' + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ }
+}
+function storeDel(k) {
+  try { localStorage.removeItem('signalfront.' + k); } catch (e) { /* storage unavailable */ }
+}
+
+// Signal Front — rules data: terrain, movement, units, damage tables, factions and commanders
+
+// def = defence stars. Properties have an income and repair a class of unit.
+const TER = {
+  plain:  { name: 'Plains', def: 1 },
+  forest: { name: 'Forest', def: 2, cover: true },
+  mount:  { name: 'Mountain', def: 4 },
+  road:   { name: 'Road', def: 0 },
+  bridge: { name: 'Bridge', def: 0 },
+  river:  { name: 'River', def: 0 },
+  sea:    { name: 'Sea', def: 0 },
+  shoal:  { name: 'Shoal', def: 0 },
+  reef:   { name: 'Reef', def: 1, cover: true },
+  city:   { name: 'City', def: 3, prop: true, income: true, repair: 'ground' },
+  base:   { name: 'Factory', def: 3, prop: true, income: true, repair: 'ground', build: 'ground' },
+  airport:{ name: 'Airfield', def: 3, prop: true, income: true, repair: 'air', build: 'air' },
+  port:   { name: 'Port', def: 3, prop: true, income: true, repair: 'sea', build: 'sea' },
+  hq:     { name: 'HQ', def: 4, prop: true, income: true, repair: 'ground' },
+  tower:  { name: 'Relay Tower', def: 3, prop: true, income: false },
+};
+const PROP_INFO = {
+  city: 'Earns funds each turn. Repairs and resupplies ground units.',
+  base: 'Builds ground units. Earns funds, repairs ground units.',
+  airport: 'Builds aircraft and drones. Earns funds, repairs air units.',
+  port: 'Builds naval units. Earns funds, repairs naval units.',
+  hq: 'Lose it and you lose the war. Earns funds, repairs ground units.',
+  tower: 'Each Relay Tower you hold gives all your units +10% firepower.',
+};
+
+// Movement cost per movement type; missing = impassable.
+const P1 = { city: 1, base: 1, airport: 1, port: 1, hq: 1, tower: 1 };
+const MOVE = {
+  foot:   { plain: 1, forest: 1, mount: 2, road: 1, bridge: 1, river: 2, shoal: 1, ...P1 },
+  boot:   { plain: 1, forest: 1, mount: 1, road: 1, bridge: 1, river: 1, shoal: 1, ...P1 },
+  treads: { plain: 1, forest: 2, road: 1, bridge: 1, shoal: 1, ...P1 },
+  tires:  { plain: 2, forest: 3, road: 1, bridge: 1, shoal: 1, ...P1 },
+  air:    { plain: 1, forest: 1, mount: 1, road: 1, bridge: 1, river: 1, sea: 1, shoal: 1, reef: 1, ...P1 },
+  sea:    { sea: 1, reef: 2, port: 1 },
+};
+const MT_NAME = { foot: 'Legs', boot: 'All-terrain', treads: 'Treads', tires: 'Wheels', air: 'Air', sea: 'Naval' };
+const CLS_NAME = { inf: 'Infantry', veh: 'Light vehicle', tank: 'Armor', heavy: 'Heavy armor', drone: 'Drone', heli: 'Rotorcraft', jet: 'Jet', ship: 'Ship', sub: 'Submersible' };
+
+// Unit classes used by the damage tables: inf veh tank heavy drone heli jet ship sub
+// w1 = primary weapon (uses ammo), w2 = secondary (unlimited). dmg = base damage % vs class.
+const MG = { inf: 55, veh: 12, tank: 5, heavy: 1, drone: 20, heli: 7 };
+const ATGM = { veh: 85, tank: 55, heavy: 15, ship: 15 };
+const MG2 = { inf: 65, veh: 18, tank: 6, heavy: 1, drone: 22, heli: 9 };
+const ARTY = { inf: 90, veh: 80, tank: 70, heavy: 45, ship: 55, sub: 55 };
+const ROCKET = { inf: 95, veh: 85, tank: 80, heavy: 55, ship: 65, sub: 85 };
+const AA = { inf: 105, veh: 50, tank: 25, heavy: 10, drone: 120, heli: 105, jet: 65 };
+
+const UNITS = {
+  // ---------------- Meridian Autonomy Command (player): uncrewed systems only ----------------
+  crawler: { name: 'Crawler', side: 0, cost: 1000, move: 3, mt: 'foot', vis: 2, fuel: 99, cls: 'inf', cap: true,
+    w2: { name: 'Coil gun', dmg: MG },
+    desc: 'Quadruped ground robot. Cheap and tireless, and it can network (capture) property.' },
+  strider: { name: 'Strider', side: 0, cost: 3000, move: 2, mt: 'boot', vis: 2, fuel: 70, cls: 'inf', cap: true,
+    w1: { name: 'Lance ATGM', ammo: 3, dmg: ATGM }, w2: { name: 'Coil gun', dmg: MG2 },
+    desc: 'Tracked UGV with an anti-armor missile pod. Climbs anything and captures property.' },
+  wraith: { name: 'Wraith', side: 0, cost: 3500, move: 7, mt: 'air', vis: 5, fuel: 60, burn: 2, cls: 'drone',
+    w2: { name: 'Chin gun', dmg: { inf: 55, veh: 28, tank: 5, heavy: 1, drone: 30, heli: 12 } },
+    desc: 'Small autonomous recon helicopter. Wide sensor view, light gun.' },
+  watchpost: { name: 'Watchpost', side: 0, cost: 4500, move: 4, mt: 'tires', vis: 5, fuel: 50, cls: 'veh', mesh: true,
+    desc: 'Mobile sensor tower. Sees into forests nearby, and allies within 2 tiles get +10% firepower and defence (mesh link).' },
+  nexus: { name: 'Nexus', side: 0, cost: 5000, move: 6, mt: 'treads', vis: 1, fuel: 70, cls: 'veh', supply: true,
+    carry: ['crawler', 'strider'],
+    desc: 'Expeditionary command node. Carries one ground robot and resupplies adjacent units.' },
+  static: { name: 'Static', side: 0, cost: 6000, move: 5, mt: 'tires', vis: 3, fuel: 50, cls: 'veh', jam: true,
+    desc: 'Electronic-warfare jammer. Enemy drones within 2 tiles lose 30% firepower and take 1 HP of damage each turn.' },
+  spark: { name: 'Spark', side: 0, cost: 6000, move: 5, mt: 'treads', vis: 1, fuel: 50, cls: 'veh',
+    w1: { name: 'Loitering munitions', ammo: 9, range: [2, 3], dmg: ARTY },
+    desc: 'Tracked launcher for loitering munitions. Indirect fire, range 2-3. Cannot move and fire.' },
+  moray: { name: 'Moray', side: 0, cost: 15000, move: 5, mt: 'tires', vis: 1, fuel: 50, cls: 'veh',
+    w1: { name: 'Cruise missiles', ammo: 6, range: [3, 5], dmg: ROCKET },
+    desc: 'Low-cost cruise-missile launcher. Long-range indirect fire, range 3-5.' },
+  mallet: { name: 'Mallet', side: 0, cost: 8000, move: 6, mt: 'treads', vis: 2, fuel: 60, cls: 'veh',
+    w1: { name: 'Interceptor quads', ammo: 9, dmg: AA },
+    desc: 'Counter-drone battery that launches ramming interceptor quadcopters. Shreds drones and rotorcraft.' },
+  streak: { name: 'Streak', side: 0, cost: 16000, move: 9, mt: 'air', vis: 2, fuel: 99, burn: 5, cls: 'jet',
+    w1: { name: 'Interceptor', ammo: 9, dmg: { drone: 115, heli: 100, jet: 55 } },
+    desc: 'Reusable twin-turbojet interceptor. Air-to-air only.' },
+  razorwing: { name: 'Razorwing', side: 0, cost: 22000, move: 7, mt: 'air', vis: 2, fuel: 99, burn: 5, cls: 'jet',
+    w1: { name: 'Strike munitions', ammo: 9, dmg: { inf: 110, veh: 105, tank: 95, heavy: 80, ship: 85, sub: 95 } },
+    w2: { name: 'Cannon', dmg: { drone: 70, heli: 60, jet: 35 } },
+    desc: 'Collaborative combat aircraft. Devastating ground strikes; can defend itself in the air.' },
+  deepfin: { name: 'Deepfin', side: 0, cost: 18000, move: 5, mt: 'sea', vis: 4, fuel: 60, burn: 1, cls: 'sub', stealth: true,
+    w1: { name: 'Torpedoes', ammo: 6, dmg: { ship: 95, sub: 55 } },
+    desc: 'Extra-large autonomous submersible. Invisible to the enemy unless they are adjacent.' },
+
+  // ---------------- Drovic Federation (AI): drones and conventional forces ----------------
+  rifle: { name: 'Rifle Squad', side: 1, cost: 1000, move: 3, mt: 'foot', vis: 2, fuel: 99, cls: 'inf', cap: true,
+    w2: { name: 'Rifles', dmg: MG }, desc: 'Line infantry. Captures property.' },
+  atgm: { name: 'ATGM Team', side: 1, cost: 3000, move: 2, mt: 'boot', vis: 2, fuel: 70, cls: 'inf', cap: true,
+    w1: { name: 'Guided missile', ammo: 3, dmg: ATGM }, w2: { name: 'Rifles', dmg: MG2 },
+    desc: 'Anti-tank missile team. Crosses mountains and rivers, captures property.' },
+  buggy: { name: 'Recon Buggy', side: 1, cost: 4000, move: 8, mt: 'tires', vis: 5, fuel: 80, cls: 'veh',
+    w2: { name: 'Heavy MG', dmg: { inf: 70, veh: 35, tank: 6, heavy: 1, drone: 35, heli: 12 } },
+    desc: 'Fast scout car with a heavy machine gun.' },
+  truck: { name: 'Supply Carrier', side: 1, cost: 5000, move: 6, mt: 'treads', vis: 1, fuel: 70, cls: 'veh', supply: true,
+    carry: ['rifle', 'atgm'], desc: 'Tracked carrier. Transports one squad and resupplies adjacent units.' },
+  tank: { name: 'Battle Tank', side: 1, cost: 7000, move: 6, mt: 'treads', vis: 3, fuel: 70, cls: 'tank',
+    w1: { name: 'Cannon', ammo: 9, dmg: { veh: 85, tank: 55, heavy: 15, ship: 10 } },
+    w2: { name: 'Coax MG', dmg: { inf: 75, veh: 40, tank: 6, heavy: 1, drone: 20, heli: 10 } },
+    desc: 'Main battle tank. Solid all-rounder.' },
+  heavy: { name: 'Heavy Tank', side: 1, cost: 16000, move: 5, mt: 'treads', vis: 1, fuel: 50, cls: 'heavy',
+    w1: { name: 'Heavy cannon', ammo: 8, dmg: { veh: 105, tank: 85, heavy: 55, ship: 35 } },
+    w2: { name: 'Coax MG', dmg: { inf: 105, veh: 45, tank: 10, heavy: 1, drone: 25, heli: 12 } },
+    desc: 'Slow, thick-skinned breakthrough tank.' },
+  howitzer: { name: 'Howitzer', side: 1, cost: 6000, move: 5, mt: 'treads', vis: 1, fuel: 50, cls: 'veh',
+    w1: { name: 'Howitzer', ammo: 9, range: [2, 3], dmg: ARTY },
+    desc: 'Self-propelled gun. Indirect fire, range 2-3. Cannot move and fire.' },
+  mlrs: { name: 'MLRS', side: 1, cost: 15000, move: 5, mt: 'tires', vis: 1, fuel: 50, cls: 'veh',
+    w1: { name: 'Rocket salvo', ammo: 6, range: [3, 5], dmg: ROCKET },
+    desc: 'Multiple rocket launcher. Long-range indirect fire, range 3-5.' },
+  spaa: { name: 'Flak Track', side: 1, cost: 8000, move: 6, mt: 'treads', vis: 2, fuel: 60, cls: 'veh',
+    w1: { name: 'Twin autocannon', ammo: 9, dmg: { ...AA, drone: 115 } },
+    desc: 'Self-propelled anti-aircraft guns.' },
+  fpv: { name: 'FPV Swarm', side: 1, cost: 4000, move: 6, mt: 'air', vis: 2, fuel: 40, burn: 2, cls: 'drone',
+    w1: { name: 'Shaped charges', ammo: 3, dmg: { inf: 70, veh: 55, tank: 45, heavy: 20, ship: 20 } },
+    desc: 'A cloud of cheap first-person-view attack drones. Hits ground targets only.' },
+  kite: { name: 'Kite OWA', side: 1, cost: 5000, move: 8, mt: 'air', vis: 1, fuel: 30, burn: 3, cls: 'drone', kamikaze: true,
+    w1: { name: 'Warhead', ammo: 1, dmg: { inf: 85, veh: 90, tank: 75, heavy: 55, ship: 70 } },
+    desc: 'One-way attack drone. Destroyed when it strikes.' },
+  gunship: { name: 'Gunship', side: 1, cost: 9000, move: 6, mt: 'air', vis: 3, fuel: 99, burn: 2, cls: 'heli',
+    w1: { name: 'Rockets', ammo: 6, dmg: { veh: 55, tank: 55, heavy: 25, ship: 25 } },
+    w2: { name: 'Chain gun', dmg: { inf: 75, veh: 30, tank: 6, heavy: 1, drone: 65, heli: 65 } },
+    desc: 'Crewed attack helicopter.' },
+  corvette: { name: 'Corvette', side: 1, cost: 14000, move: 6, mt: 'sea', vis: 3, fuel: 99, burn: 1, cls: 'ship',
+    w1: { name: 'Deck gun', ammo: 9, dmg: { inf: 65, veh: 55, tank: 45, heavy: 30, ship: 45 } },
+    w2: { name: 'CIWS / depth charges', dmg: { sub: 85, drone: 110, heli: 90, jet: 55 } },
+    desc: 'Coastal warship. Shells the shore and hunts submersibles.' },
+};
+for (const id in UNITS) UNITS[id].id = id;
+const isAir = (t) => UNITS[t].mt === 'air';
+const isNaval = (t) => UNITS[t].mt === 'sea';
+const isIndirect = (t) => { const w = UNITS[t].w1; return !!(w && w.range && w.range[0] > 1); };
+const isDrone = (t) => UNITS[t].cls === 'drone';
+const repairKind = (t) => (isAir(t) ? 'air' : isNaval(t) ? 'sea' : 'ground');
+const buildKind = repairKind;
+
+const FACTIONS = [
+  { id: 'meridian', name: 'Meridian', long: 'Meridian Autonomy Command', color: '#3d8fe0',
+    ramp: ['#9fd8ff', '#4a9be8', '#2860b0', '#163266'],
+    roster: ['crawler', 'strider', 'wraith', 'watchpost', 'nexus', 'static', 'spark', 'mallet', 'moray', 'streak', 'razorwing', 'deepfin'] },
+  { id: 'drovic', name: 'Drovic', long: 'Drovic Federation', color: '#e04a3a',
+    ramp: ['#ffa48a', '#e0503c', '#a42c28', '#5a1618'],
+    roster: ['rifle', 'atgm', 'buggy', 'truck', 'tank', 'howitzer', 'spaa', 'mlrs', 'heavy', 'fpv', 'kite', 'gunship', 'corvette'] },
+];
+const NEUTRAL_RAMP = ['#f2efe6', '#c9c4b8', '#8d887e', '#4c4a46'];
+
+// ---------------- Commanders ----------------
+// Hooks get (S, unit[, target]) and return additive % modifiers. pw = 0 none, 1 Power, 2 Super Power.
+const air = (u) => isAir(u.t);
+const indirect = (u) => isIndirect(u.t);
+const armor = (u) => UNITS[u.t].cls === 'tank' || UNITS[u.t].cls === 'heavy';
+const treads = (u) => UNITS[u.t].mt === 'treads';
+const drone = (u) => isDrone(u.t);
+
+const COS = {
+  kade: { side: 0, name: 'Ines Kade', title: 'Autonomy Lead',
+    bio: 'Wrote half of the swarm-coordination stack herself. Trusts her machines more than most people.',
+    d2d: 'Air units +15% firepower.', look: { skin: '#e9b48e', hair: '#2a1d1a', style: 'bob', acc: 'headset', uni: 0 },
+    power: { name: 'Overwatch', stars: 3, desc: 'Air units +1 move and +15% more firepower.' },
+    super: { name: 'Full Autonomy', stars: 6, desc: 'All units +1 move. Air units +35% more firepower.' },
+    atk(S, u, pw) { return air(u) ? 15 + (pw === 1 ? 15 : pw === 2 ? 35 : 0) : 0; },
+    move(S, u, pw) { return (pw === 1 && air(u)) || pw === 2 ? 1 : 0; } },
+  halden: { side: 0, name: 'Rook Halden', title: 'Sensor Fusion',
+    bio: 'Former range officer who now runs the sensor mesh. Sees the shot before you take it.',
+    d2d: 'All units +1 vision. Indirect units +10% firepower.', look: { skin: '#8d5a3c', hair: '#151515', style: 'crop', acc: 'visor', uni: 0 },
+    power: { name: 'Sensor Net', stars: 3, desc: 'Reveals the whole map. Indirect units +1 range.' },
+    super: { name: 'Kill Chain', stars: 6, desc: 'Reveals the whole map. Indirect units +2 range and +30% firepower.' },
+    atk(S, u, pw) { return indirect(u) ? 10 + (pw === 2 ? 30 : 0) : 0; },
+    vision() { return 1; }, reveal(S, pw) { return pw > 0; },
+    range(S, u, pw) { return indirect(u) ? pw : 0; } },
+  okafor: { side: 0, name: 'Juno Okafor', title: 'Field Maintenance',
+    bio: 'Keeps the fleet running on spare parts and stubbornness. Nothing she fields stays broken for long.',
+    d2d: 'Units on friendly property repair 3 HP instead of 2.', look: { skin: '#5b3a28', hair: '#0f0d0c', style: 'puffs', acc: 'goggles', uni: 0 },
+    power: { name: 'Hot Swap', stars: 3, desc: 'All units repair 2 HP and are fully resupplied.' },
+    super: { name: 'Rapid Reboot', stars: 6, desc: 'All units repair 4 HP, are fully resupplied and get +20% defence.' },
+    repair: 3, def(S, u, pw) { return pw === 2 ? 20 : 0; },
+    onPower(S, side, pw) { healAll(S, side, pw === 2 ? 40 : 20); } },
+
+  volsk: { side: 1, name: 'Arkady Volsk', title: 'General of Artillery',
+    bio: 'Believes any problem can be solved with enough shells. Has rarely been proven wrong.',
+    d2d: 'Indirect units +20% firepower. Direct units -10%.', look: { skin: '#e2b190', hair: '#bdb7ad', style: 'bald', acc: 'moustache', uni: 1 },
+    power: { name: 'Barrage', stars: 3, desc: 'Indirect units +1 range and +10% firepower.' },
+    super: { name: 'Firestorm', stars: 6, desc: 'Shells the densest enemy cluster for 3 HP. Indirect units +1 range.' },
+    atk(S, u, pw) { return indirect(u) ? 20 + (pw === 1 ? 10 : 0) : -10; },
+    range(S, u, pw) { return indirect(u) && pw ? 1 : 0; },
+    onPower(S, side, pw) { if (pw === 2) return clusterStrike(S, side, 30, 2); } },
+  strann: { side: 1, name: 'Yeva Strann', title: 'Colonel of Drone Forces',
+    bio: 'Built the Federation drone corps out of hobby parts and fear. Buys them by the thousand.',
+    d2d: 'Drones +15% firepower and cost 20% less. Other units -5%.', look: { skin: '#f0c6a6', hair: '#d8d1c8', style: 'tied', acc: 'scar', uni: 1 },
+    power: { name: 'Swarm Tide', stars: 3, desc: 'Drones +2 move and +15% more firepower.' },
+    super: { name: 'Saturation', stars: 6, desc: 'Every enemy unit loses 1 HP. Drones +3 move and +35% firepower.' },
+    atk(S, u, pw) { return drone(u) ? 15 + (pw === 1 ? 15 : pw === 2 ? 35 : 0) : -5; },
+    move(S, u, pw) { return drone(u) ? (pw === 1 ? 2 : pw === 2 ? 3 : 0) : 0; },
+    cost(t) { return isDrone(t) ? 0.8 : 1; },
+    onPower(S, side, pw) { if (pw === 2) return damageAll(S, 1 - side, 10); } },
+  grosz: { side: 1, name: 'Dmitri Grosz', title: 'Major of Armor',
+    bio: 'Leads from the turret hatch. Considers infantry a polite word for speed bumps.',
+    d2d: 'Tanks +20% firepower and +10% defence. Infantry -10%.', look: { skin: '#c99068', hair: '#3a2a20', style: 'beret', acc: 'beard', uni: 1 },
+    power: { name: 'Breakthrough', stars: 3, desc: 'Treaded units +1 move. Tanks +10% more firepower.' },
+    super: { name: 'Steel Avalanche', stars: 6, desc: 'Treaded units +2 move. Tanks +30% firepower, all units +20% defence.' },
+    atk(S, u, pw) { return armor(u) ? 20 + (pw === 1 ? 10 : pw === 2 ? 30 : 0) : UNITS[u.t].cls === 'inf' ? -10 : 0; },
+    def(S, u, pw) { return (armor(u) ? 10 : 0) + (pw === 2 ? 20 : 0); },
+    move(S, u, pw) { return treads(u) ? pw : 0; } },
+};
+const STAR = 9000; // funds of damage per power star
+
+// Signal Front — skirmish maps
+// Each map is authored as its left half; the right half is the same half rotated 180°, with
+// ownership swapped, so both sides start on equal ground. Width is twice the half width.
+//   .  plains     %  forest     ^  mountain   =  road      #  bridge
+//   -  river      ~  sea        :  shoal      *  reef
+//   c  city   k  factory   a  airfield   p  port   t  relay tower   h  HQ
+//   lowercase = neutral, UPPERCASE = Meridian-owned (mirrored copy goes to Drovic)
+
+const MAPS = [
+  { id: 'crossfire', name: 'Crossfire Flats', blurb: 'A small, open plain. Fast and brutal.',
+    half: [
+      '%%..c...',
+      '%H===...',
+      '.KA.=.%.',
+      '..c.=..c',
+      '.%..=...',
+      '.C.%===k',
+      '....%.=.',
+      '.%c...=.',
+      '..^...=.',
+      'c.^^.%==',
+      '...c....',
+    ] },
+  { id: 'twinrivers', name: 'Twin Rivers', blurb: 'Two rivers, a handful of bridges and relay towers on the high ground.',
+    half: [
+      '%..c...-..',
+      '.H===..-.c',
+      '.K..=..-..',
+      '.KC.=..#==',
+      '..%.=..-.=',
+      'c...=c.-.=',
+      '..t.=..-%=',
+      '.%.%=..-.=',
+      '..c.===#==',
+      '.%^^...-.k',
+      'A...c..-..',
+      '..%....-.t',
+      'c..%..c-..',
+    ] },
+  { id: 'saltmarsh', name: 'Saltmarsh Coast', blurb: 'A salt lake splits the front. Fight around it, or take the lake ports.',
+    half: [
+      '~~:..%...c.',
+      '~:.H====...',
+      '~:.K...=.%.',
+      '~:.CA..====',
+      '~~:..%..:~~',
+      '~~:c....:~~',
+      '~*:..k..:~~',
+      '~~:.c...:~*',
+      '~~:.....:~~',
+      '~:..t...:~~',
+      '~:.%..c.:~p',
+      '~:..c..====',
+      '~~:....=...',
+      '~~:.%.c=.c.',
+      '~~~::..%...',
+    ] },
+  { id: 'highland', name: 'Highland Relay', blurb: 'A long front across mountain passes. Everything is in play.',
+    half: [
+      '^^^%...c...%.',
+      '^H====....c..',
+      '^K..A=..%....',
+      '.KC..=...c..t',
+      '..%..====....',
+      'c.%...%.=..^^',
+      '..^^..c.=..^.',
+      '.%^...%.=....',
+      '..t...==#=k..',
+      '.%..c.=.-...%',
+      '..%...=.-..c.',
+      '~:.c..=.-....',
+      '~:...%=.-.%..',
+      '~~:a..=.-....',
+      '~~~:.c==#===.',
+      '~p~:....-..c.',
+      '~~~~:..%-....',
+    ] },
+];
+
+const MAP_CHARS = { '.': 'plain', '%': 'forest', '^': 'mount', '=': 'road', '#': 'bridge', '-': 'river',
+  '~': 'sea', ':': 'shoal', '*': 'reef', c: 'city', k: 'base', a: 'airport', p: 'port', t: 'tower', h: 'hq' };
+
+function buildMap(def) {
+  const H = def.half.length, hw = def.half[0].length, W = hw * 2;
+  const tiles = new Array(W * H);
+  for (let y = 0; y < H; y++) {
+    if (def.half[y].length !== hw) console.warn('map row width', def.id, y);
+    for (let x = 0; x < hw; x++) {
+      const ch = def.half[y][x];
+      const k = MAP_CHARS[ch.toLowerCase()] || 'plain';
+      const owned = ch !== ch.toLowerCase();
+      tiles[y * W + x] = { k, o: owned ? 0 : -1, cp: 20 };
+      tiles[(H - 1 - y) * W + (W - 1 - x)] = { k, o: owned ? 1 : -1, cp: 20 };
+    }
+  }
+  return { id: def.id, name: def.name, w: W, h: H, tiles };
+}
+
+// Signal Front — pixel art: unit sprites, property sprites, terrain tiles, commander portraits
+// Sprites are authored as 16-wide character grids facing right and get an automatic dark outline.
+// a b c d = team colour ramp (light to dark). R/Q = rotor or glow pixels shown on alternate frames.
+// e/E = track links that swap shade on alternate frames so treads appear to roll.
+
+const PAL = {
+  w: '#f4f2ea', g: '#c4c8cf', G: '#8b919b', h: '#565c67', H: '#343840', x: '#18222e',
+  y: '#6ff3ff', Y: '#ffd23a', r: '#ff5040', o: '#ff9a30', s: '#ecb58c', S: '#b37a56', n: '#5d6236', N: '#3b3f22',
+  e: '#26292f', E: '#50555e', R: '#dfe4ea', Q: '#dfe4ea', P: '#6ff3ff', p: '#6ff3ff', k: '#0c0d12',
+};
+const OUTLINE = '#0c0d12';
+
+const UNIT_ART = {
+  crawler: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '.....g..........',
+    '.....h..........',
+    '.....h..........',
+    '....aaaaaaa.....',
+    '...abbbbbbbaaa..',
+    '...bbbbbbbbbbyy.',
+    '...ccccccccbbbh.',
+    '....hG.....hG...',
+    '...hG.G...hG.G..',
+    '...h..G...h..G..',
+    '..HH..GG.HH..GG.',
+    '................',
+  ],
+  strider: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '.......GGGGGGw..',
+    '......hGgggggw..',
+    '......hGGGGGG...',
+    '.......hhh......',
+    '....aaaaaaaaa...',
+    '...abbbbbbbbbby.',
+    '...bbbbbbbbbbbb.',
+    '...cccccccccccc.',
+    '..eEeEeEeEeEeEe.',
+    '..HeEeEeEeEeEeH.',
+    '...HHHHHHHHHHH..',
+    '................',
+  ],
+  wraith: [
+    '................',
+    '..RRRRRRQQQQQQ..',
+    '.......hh.......',
+    '.......hh.......',
+    '......aaaa......',
+    '.....abbbbaa....',
+    'Q.hhhabbbbbbby..',
+    'R...hbbbbbbbyy..',
+    '.....cbbbbbbb...',
+    '......ccccc.....',
+    '.......h.h......',
+    '......hhhhhh....',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  watchpost: [
+    '................',
+    '.....ggggg......',
+    '.....gyPyg......',
+    '.....ggggg......',
+    '.......h........',
+    '.......h........',
+    '......hhh.......',
+    '......h.h.......',
+    '...aaaaaaaaa....',
+    '...bbbbbbbbbaa..',
+    '...bbbbbbbbbbxa.',
+    '...cccccccccccc.',
+    '...cdddcccccddd.',
+    '....HgH....HgH..',
+    '.....H......H...',
+    '................',
+  ],
+  nexus: [
+    '................',
+    '................',
+    '................',
+    '....G...........',
+    '...GgG..h.......',
+    '....h...h.......',
+    '...aaaaaaaaaa...',
+    '..abbbbbbbbbbba.',
+    '..bbyybbbbbbbxx.',
+    '..bbbbbbbbbbbbb.',
+    '..ccccccccccccc.',
+    '.eEeEeEeEeEeEeE.',
+    '.HeEeEeEeEeEeEH.',
+    '..HHHHHHHHHHHH..',
+    '................',
+    '................',
+  ],
+  static: [
+    '................',
+    '..P.......p.....',
+    '.P..ggggg..p....',
+    '...gGhGhGg......',
+    '...gGhGhGg......',
+    '....ggggg.......',
+    '......h.........',
+    '...aaaaaaaaaa...',
+    '...bbbbbbbbbbaa.',
+    '...bbbbbbbbbbbxa',
+    '...cccccccccccc.',
+    '...cdddcccccddd.',
+    '....HgH....HgH..',
+    '.....H......H...',
+    '................',
+    '................',
+  ],
+  spark: [
+    '................',
+    '................',
+    '....GGGGGGG.....',
+    '....GxGxGxG.....',
+    '....GGGGGGG.....',
+    '....GxGxGxG.....',
+    '....GGGGGGG.....',
+    '.....hh.hh......',
+    '...aaaaaaaaaa...',
+    '..abbbbbbbbbbbb.',
+    '..bbbbbbbbbbbbxa',
+    '..ccccccccccccc.',
+    '.eEeEeEeEeEeEeE.',
+    '.HeEeEeEeEeEeEH.',
+    '..HHHHHHHHHHHH..',
+    '................',
+  ],
+  moray: [
+    '................',
+    '..........ww....',
+    '........GGgw....',
+    '......GGgGG.....',
+    '....GGgGG.......',
+    '...GgGh.........',
+    '....hhh.........',
+    '..aaaaaaaaaaa...',
+    '.abbbbbbbbbbbaa.',
+    '.bbbbbbbbbbbbbxa',
+    '.ccccccccccccccc',
+    '.cdddcccdddcddd.',
+    '..HgH...HgH.HgH.',
+    '...H.....H...H..',
+    '................',
+    '................',
+  ],
+  mallet: [
+    '................',
+    '..RQRQ..........',
+    '...hh......g....',
+    '...hh.....gyg...',
+    '..GGGGGG...g....',
+    '..GhGhGG...h....',
+    '..GGGGGG...h....',
+    '...aaaaaaaaaa...',
+    '..abbbbbbbbbbbb.',
+    '..bbbbbbbbbbbbxa',
+    '..ccccccccccccc.',
+    '.eEeEeEeEeEeEeE.',
+    '.HeEeEeEeEeEeEH.',
+    '..HHHHHHHHHHHH..',
+    '................',
+    '................',
+  ],
+  streak: [
+    '................',
+    '................',
+    '................',
+    '..aa............',
+    '..abb...........',
+    '..abbb..........',
+    '.ohbbbbbbbbbaa..',
+    'oohbbbbbbbbbbbbw',
+    '.ohccccccccccbb.',
+    '..hcc...........',
+    '..cc............',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  razorwing: [
+    '................',
+    '................',
+    '................',
+    '...aa...........',
+    '...abb..........',
+    '...abbb.........',
+    '.o.hbbbbbbbbb...',
+    'oohhbbbbbbbbbbbw',
+    '.o.hccbbbbbbbbb.',
+    '...ccccccccc....',
+    '...ccc..........',
+    '...cc...........',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  deepfin: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '..........h.....',
+    '.........hhh....',
+    '...aaaaaaaaaaa..',
+    '..abbbbbbbbbbbby',
+    '.hcccccccccccccc',
+    'hh.cccccccccccc.',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+
+  rifle: [
+    '................',
+    '................',
+    '................',
+    '......ccc.......',
+    '.....cbbbc......',
+    '.....csSS.......',
+    '......ss........',
+    '.....bbbb.......',
+    '....bbbbbGGGGGG.',
+    '....bbsbb.......',
+    '....bbbb........',
+    '.....cccc.......',
+    '.....cc.cc......',
+    '.....cc..cc.....',
+    '....hhh..hhh....',
+    '................',
+  ],
+  atgm: [
+    '................',
+    '................',
+    '................',
+    '..GGGGGGGGGGGh..',
+    '..hhhcccGhhh....',
+    '.....cbbbc......',
+    '.....csSS.......',
+    '......ss........',
+    '....bbbbb.......',
+    '...bbbbbbb......',
+    '...bbsbbb.......',
+    '....bbbb........',
+    '....ccccc.......',
+    '...ccc.cc.......',
+    '...cc...cc......',
+    '..hhh...hhh.....',
+  ],
+  buggy: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '......hGGGGG....',
+    '......h.........',
+    '.....hhh.....x..',
+    '...aaaaaaaaaax..',
+    '..abbbbbbbbbbba.',
+    '..bbbbbbbbbbbbbb',
+    '..cccccccccccccc',
+    '...HHH.....HHH..',
+    '..HgggH...HgggH.',
+    '...HHH.....HHH..',
+    '................',
+    '................',
+  ],
+  truck: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '..aaaaaaaaa.....',
+    '..abbbbbbbbaa...',
+    '..bbbbbbbbbbxa..',
+    '..bbbbbbbbbbbba.',
+    '..ccccccccccccc.',
+    '.eEeEeEeEeEeEeE.',
+    '.HeEeEeEeEeEeEH.',
+    '..HHHHHHHHHHHH..',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  tank: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '.....aaaaa......',
+    '....abbbbbbGGGGG',
+    '....bbbbbbb.....',
+    '..aaaaaaaaaaaa..',
+    '.abbbbbbbbbbbbb.',
+    '.ccccccccccccccc',
+    '.eEeEeEeEeEeEeE.',
+    '.HeEeEeEeEeEeEH.',
+    '..HHHHHHHHHHHH..',
+    '................',
+    '................',
+  ],
+  heavy: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '....aaaaaaa.....',
+    '...abbbbbbbbGGGG',
+    '...bbbbbbbbbGGGG',
+    '...cbbbbbbbc....',
+    '.aaaaaaaaaaaaaa.',
+    'abbbbbbbbbbbbbbb',
+    'bccccccccccccccc',
+    'eEeEeEeEeEeEeEeE',
+    'HeEeEeEeEeEeEeEH',
+    '.HHHHHHHHHHHHHH.',
+    '................',
+    '................',
+  ],
+  howitzer: [
+    '................',
+    '................',
+    '..............G.',
+    '............GG..',
+    '..........GG....',
+    '........GG......',
+    '.....aaaGaa.....',
+    '....abbbbbbb....',
+    '..aaaaaaaaaaa...',
+    '.abbbbbbbbbbbb..',
+    '.cccccccccccccc.',
+    '.eEeEeEeEeEeEeE.',
+    '.HeEeEeEeEeEeEH.',
+    '..HHHHHHHHHHHH..',
+    '................',
+    '................',
+  ],
+  mlrs: [
+    '................',
+    '................',
+    '................',
+    '........GGGGGG..',
+    '......GGhGhGhG..',
+    '.....GhGhGhGG...',
+    '.....GGGGGG.....',
+    '......hh.....x..',
+    '..aaaaaaaaaaax..',
+    '.abbbbbbbbbbbba.',
+    '.bbbbbbbbbbbbbbb',
+    '.ccccccccccccccc',
+    '..HgH...HgH.HgH.',
+    '...H.....H...H..',
+    '................',
+    '................',
+  ],
+  spaa: [
+    '................',
+    '................',
+    '....G...........',
+    '...GgG...GGGGG..',
+    '....h...GGGGG...',
+    '....h..GG.......',
+    '...aaaaaa.......',
+    '...bbbbbbbb.....',
+    '..aaaaaaaaaaaa..',
+    '.abbbbbbbbbbbbb.',
+    '.ccccccccccccccc',
+    '.eEeEeEeEeEeEeE.',
+    '.HeEeEeEeEeEeEH.',
+    '..HHHHHHHHHHHH..',
+    '................',
+    '................',
+  ],
+  fpv: [
+    '................',
+    '.RQRQ...........',
+    '..hbbh..........',
+    '..hcch..........',
+    '.h....h..RQRQ...',
+    '..........hbbh..',
+    '..........hcch..',
+    '.........h....h.',
+    '....RQRQ........',
+    '.....hbbh.......',
+    '.....hcch.......',
+    '....h....h......',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  kite: [
+    '................',
+    '................',
+    '................',
+    '....a...........',
+    '....ab..........',
+    '....abb.........',
+    'P.hhbbbbbbbbbbw.',
+    'p..hccccccccbw..',
+    '....cc..........',
+    '....c...........',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  gunship: [
+    '................',
+    'RRRRRRRRQQQQQQQ.',
+    '.......hh.......',
+    '.......hh.......',
+    '......aaaaa.....',
+    'Q....abbbbbbx...',
+    'Rhhhhabbbbbbxx..',
+    'R...hbbbbbbbbbb.',
+    '.....ccccccccc..',
+    '......GG..GG.G..',
+    '.....hhhhhhhhh..',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+  corvette: [
+    '................',
+    '................',
+    '................',
+    '.......h........',
+    '......hhh.......',
+    '......GgG.......',
+    '.....GGGGG......',
+    '....gggggggGGG..',
+    '..h.ggxgxggg....',
+    '.aaaaaaaaaaaaaaa',
+    '.bbbbbbbbbbbbbb.',
+    '..cccccccccccc..',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+};
+
+// Properties are 16 x 20: the top 4 rows rise into the tile above.
+const PROP_ART = {
+  city: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '.......aaa......',
+    '......abbba.....',
+    '..aaaaabbbbb....',
+    '..abbbbbYbYb....',
+    '..bbYbYbbbbb.aa.',
+    '..bbbbbbYbYbabba',
+    '..bbYbYbbbbbbYbb',
+    '..bbbbbbbbbbbbbb',
+    '..bbYbYbYbYbbYbb',
+    '..cccccccccccccc',
+    '..ccHHcccHHcccHc',
+    '..cccccccccccccc',
+    '................',
+    '................',
+    '................',
+  ],
+  base: [
+    '................',
+    '................',
+    '................',
+    '..hh............',
+    '..hh............',
+    '..gg............',
+    '..bb............',
+    '..bbaaaaaaaaaa..',
+    '..babbbbbbbbbbb.',
+    '..bbbbbbbbbbbbb.',
+    '..bbbbbbbbbbbbb.',
+    '..bcchhhhhhhccb.',
+    '..bchGhGhGhGhcb.',
+    '..bchhhhhhhhhcb.',
+    '..bchGhGhGhGhcb.',
+    '..cccccccccccccc',
+    '..cccccccccccccc',
+    '................',
+    '................',
+    '................',
+  ],
+  airport: [
+    '................',
+    '................',
+    '................',
+    '...g............',
+    '..yyy...........',
+    '..ggg...........',
+    '...h............',
+    '...h............',
+    '..aaa...........',
+    '..bbb.aaaaaaaa..',
+    '..bbbabbbbbbbba.',
+    '..bbbbbbbbbbbbbb',
+    '..bbbbhhhhhhhhbb',
+    '..bbbbhGGGGGGhbb',
+    '..ccccHhhhhhhHcc',
+    '..ccccHhhhhhhHcc',
+    '..cccccccccccccc',
+    '................',
+    '................',
+    '................',
+  ],
+  port: [
+    '................',
+    '................',
+    '....hhhhhhhhh...',
+    '....h......hh...',
+    '....h.......Y...',
+    '....h.......h...',
+    '....h...........',
+    '....h...........',
+    '...hhh..........',
+    '..aaaaaaaaaa....',
+    '..abbbbbbbbbba..',
+    '..bbbbbbbbbbbbb.',
+    '..bbbbcccccbbbb.',
+    '..bbbbcHHHcbbbb.',
+    '..ccccHHHHHcccc.',
+    '..ccccHHHHHcccc.',
+    '..cccccccccccccc',
+    '................',
+    '................',
+    '................',
+  ],
+  hq: [
+    '........h.......',
+    '........hbbb....',
+    '........hbbbb...',
+    '........h.......',
+    '......ggggg.....',
+    '.....gyyyyyg....',
+    '......ggggg.....',
+    '..aaaaaaaaaaaaa.',
+    '.abbbbbbbbbbbbba',
+    '.bbYbYbbbbbYbYbb',
+    '.bbbbbbaaabbbbbb',
+    '.bbYbYbabbbbYbYb',
+    '.bbbbbbabbbbbbbb',
+    '.cccccccccccccc.',
+    '.ccHHcccHHHccHHc',
+    '.ccHHcccHHHccHHc',
+    '.ccccccccccccccc',
+    '................',
+    '................',
+    '................',
+  ],
+  tower: [
+    '.......g........',
+    '......gyg.......',
+    '.......h........',
+    '......hGh.......',
+    '......h.h..gg...',
+    '.....hGhGh.ggg..',
+    '.....h...h.hgg..',
+    '.....hGhGhh.....',
+    '....h.....h.....',
+    '....hGhGhGh.....',
+    '....h.....h.....',
+    '...hGhGhGhGh....',
+    '...h.......h....',
+    '..aaaaaaaaaaa...',
+    '..bbbbbbbbbbbb..',
+    '..cccccccccccc..',
+    '................',
+    '................',
+    '................',
+    '................',
+  ],
+};
+
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function mixHex(a, b, t) {
+  const A = hexToRgb(a), B = hexToRgb(b);
+  return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')';
+}
+
+function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+
+// Rasterise a char grid with a team ramp into a canvas (with automatic 1px outline).
+function rasterize(grid, ramp, frame, opts = {}) {
+  const H = grid.length, W = 16;
+  const c = mkCanvas(W, H), x = c.getContext('2d');
+  const img = x.createImageData(W, H);
+  const solid = new Uint8Array(W * H);
+  for (let j = 0; j < H; j++) {
+    const row = grid[j];
+    for (let i = 0; i < W; i++) {
+      let ch = row[i] || '.';
+      if (ch === '.') continue;
+      if ((ch === 'R' || ch === 'P') && frame === 1) continue;
+      if ((ch === 'Q' || ch === 'p') && frame === 0) continue;
+      if (frame === 1 && ch === 'e') ch = 'E'; else if (frame === 1 && ch === 'E') ch = 'e';
+      let col = 'abcd'.includes(ch) ? ramp['abcd'.indexOf(ch)] : PAL[ch];
+      if (!col) continue;
+      if (opts.grey) { const [r, g, b] = hexToRgb(col); const l = (r * 0.3 + g * 0.55 + b * 0.15) * 0.62; col = '#' + [l, l, l].map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''); }
+      const [r, g, b] = hexToRgb(col);
+      const o = (j * W + i) * 4;
+      img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
+      solid[j * W + i] = (ch === 'R' || ch === 'Q') ? 2 : 1;
+    }
+  }
+  if (!opts.noOutline) {
+    const [r, g, b] = hexToRgb(OUTLINE);
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+      if (solid[j * W + i]) continue;
+      let near = false;
+      for (const [dx, dy] of DIRS) { const a = i + dx, bb = j + dy; if (a >= 0 && a < W && bb >= 0 && bb < H && solid[bb * W + a] === 1) near = true; }
+      if (near) { const o = (j * W + i) * 4; img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255; }
+    }
+  }
+  x.putImageData(img, 0, 0);
+  return c;
+}
+
+function flipCanvas(src) {
+  const c = mkCanvas(src.width, src.height), x = c.getContext('2d');
+  x.translate(src.width, 0); x.scale(-1, 1); x.drawImage(src, 0, 0);
+  return c;
+}
+
+const SPR = { unit: {}, prop: {}, tile: {}, portrait: {} };
+// unit sprite: SPR.unit[type][side][frame] ; greyed variant at [frame + 2]
+function unitSprite(t, side, frame, grey) {
+  const key = t + side;
+  if (!SPR.unit[key]) {
+    const ramp = FACTIONS[side].ramp, arr = [];
+    for (let f = 0; f < 2; f++) arr[f] = rasterize(UNIT_ART[t], ramp, f);
+    for (let f = 0; f < 2; f++) arr[f + 2] = rasterize(UNIT_ART[t], ramp, f, { grey: true });
+    if (side === 1) for (let i = 0; i < 4; i++) arr[i] = flipCanvas(arr[i]);
+    SPR.unit[key] = arr;
+  }
+  return SPR.unit[key][frame + (grey ? 2 : 0)];
+}
+function propSprite(k, owner) {
+  const key = k + owner;
+  if (!SPR.prop[key]) SPR.prop[key] = rasterize(PROP_ART[k], owner < 0 ? NEUTRAL_RAMP : FACTIONS[owner].ramp, 0);
+  return SPR.prop[key];
+}
+
+// ---------------- terrain tiles (procedural pixel art) ----------------
+const TC = {
+  grass: '#7cc858', grass2: '#68b048', grass3: '#94d86c', dirt: '#c8b078',
+  tree: '#2f7a3a', tree2: '#235e2c', tree3: '#4a9a48', trunk: '#5a3e22',
+  rock: '#a89070', rock2: '#7c6650', rock3: '#d6c4a2', snow: '#f2f2ec',
+  road: '#b9b2a2', road2: '#9a9384', roadEdge: '#827b6c',
+  water: '#3a7ce0', water2: '#5a9cf0', water3: '#2a5cb8', foam: '#d8ecff',
+  sand: '#ecd898', sand2: '#d4bc78', river: '#4a90e8', bridge: '#a87c4c', bridge2: '#7a5630',
+};
+
+function tileCanvas() { const c = mkCanvas(T, T); return [c, c.getContext('2d')]; }
+function px(x, X, Y, col, w = 1, h = 1) { x.fillStyle = col; x.fillRect(X, Y, w, h); }
+
+function drawGrass(x, gx, gy) {
+  px(x, 0, 0, TC.grass, T, T);
+  for (let i = 0; i < 7; i++) {
+    const a = hash2(gx, gy, i * 3), b = hash2(gx, gy, i * 3 + 1), c = hash2(gx, gy, i * 3 + 2);
+    const X = Math.floor(a * 15), Y = Math.floor(b * 15);
+    if (c < 0.5) { px(x, X, Y, TC.grass2); px(x, X + 1, Y - 1, TC.grass2); }
+    else if (c < 0.8) px(x, X, Y, TC.grass3);
+    else px(x, X, Y, TC.grass2, 2, 1);
+  }
+}
+
+function drawWater(x, gx, gy, frame) {
+  px(x, 0, 0, TC.water, T, T);
+  for (let i = 0; i < 4; i++) {
+    const a = hash2(gx, gy, 40 + i), b = hash2(gx, gy, 50 + i);
+    const X = (Math.floor(a * 14) + frame * 2 + i) % 14, Y = Math.floor(b * 14);
+    px(x, X, Y, TC.water2, 3, 1);
+    px(x, X + 1, Y + 1, TC.water3, 2, 1);
+  }
+}
+
+function drawShore(x, mask, frame) {
+  // mask bits: 1 E, 2 W, 4 S, 8 N are land neighbours
+  const f = frame % 2;
+  if (mask & 8) { px(x, 0, 0, TC.sand, T, 2); px(x, 0, 2, TC.foam, T, 1); if (f) px(x, 3, 3, TC.foam, 4, 1); }
+  if (mask & 4) { px(x, 0, 14, TC.sand, T, 2); px(x, 0, 13, TC.foam, T, 1); if (f) px(x, 9, 12, TC.foam, 4, 1); }
+  if (mask & 2) { px(x, 0, 0, TC.sand, 2, T); px(x, 2, 0, TC.foam, 1, T); if (f) px(x, 3, 9, TC.foam, 1, 3); }
+  if (mask & 1) { px(x, 14, 0, TC.sand, 2, T); px(x, 13, 0, TC.foam, 1, T); if (f) px(x, 12, 4, TC.foam, 1, 3); }
+}
+
+function drawTree(x, X, Y) {
+  px(x, X + 2, Y + 6, TC.trunk, 1, 2);
+  px(x, X + 1, Y + 1, TC.tree2, 4, 5);
+  px(x, X, Y + 2, TC.tree2, 6, 3);
+  px(x, X + 1, Y + 1, TC.tree, 3, 4);
+  px(x, X + 2, Y, TC.tree, 2, 1);
+  px(x, X + 1, Y + 2, TC.tree3, 2, 1);
+  px(x, X + 2, Y + 1, TC.tree3, 1, 1);
+}
+
+function drawRoad(x, mask, kind) {
+  // mask bits 1 E 2 W 4 S 8 N connect
+  const c = kind === 'bridge' ? TC.bridge : TC.road, e = kind === 'bridge' ? TC.bridge2 : TC.roadEdge;
+  const horiz = (mask & 3) || !(mask & 12);
+  const vert = mask & 12;
+  px(x, 4, 4, c, 8, 8);
+  if ((mask & 1) || (horiz && !vert)) px(x, 8, 4, c, 8, 8);
+  if ((mask & 2) || (horiz && !vert)) px(x, 0, 4, c, 8, 8);
+  if (mask & 4) px(x, 4, 8, c, 8, 8);
+  if (mask & 8) px(x, 4, 0, c, 8, 8);
+  if (kind === 'bridge') {
+    for (let i = 0; i < T; i += 3) {
+      if (vert && !(mask & 3)) px(x, 4, i, e, 8, 1); else px(x, i, 4, e, 1, 8);
+    }
+    if (vert && !(mask & 3)) { px(x, 3, 0, e, 1, T); px(x, 12, 0, e, 1, T); }
+    else { px(x, 0, 3, e, T, 1); px(x, 0, 12, e, T, 1); }
+  } else {
+    if (!(mask & 8)) px(x, 4, 4, e, 8, 1);
+    if (!(mask & 4)) px(x, 4, 11, e, 8, 1);
+    if (!(mask & 2) && !(horiz && !vert)) px(x, 4, 4, e, 1, 8);
+    if (!(mask & 1) && !(horiz && !vert)) px(x, 11, 4, e, 1, 8);
+    if ((mask & 1) || (horiz && !vert)) { px(x, 11, 4, e, 5, 1); px(x, 11, 11, e, 5, 1); }
+    if ((mask & 2) || (horiz && !vert)) { px(x, 0, 4, e, 5, 1); px(x, 0, 11, e, 5, 1); }
+    if (mask & 4) { px(x, 4, 11, e, 1, 5); px(x, 11, 11, e, 1, 5); }
+    if (mask & 8) { px(x, 4, 0, e, 1, 5); px(x, 11, 0, e, 1, 5); }
+    px(x, 7, 7, TC.road2, 2, 2);
+  }
+}
+
+function drawRiver(x, mask, frame) {
+  const c = TC.river;
+  const horiz = (mask & 3) || !(mask & 12);
+  const vert = mask & 12;
+  px(x, 4, 4, c, 8, 8);
+  if ((mask & 1) || (horiz && !vert)) px(x, 8, 4, c, 8, 8);
+  if ((mask & 2) || (horiz && !vert)) px(x, 0, 4, c, 8, 8);
+  if (mask & 4) px(x, 4, 8, c, 8, 8);
+  if (mask & 8) px(x, 4, 0, c, 8, 8);
+  const f = frame % 2;
+  if (vert) { px(x, 6, (f * 6 + 2) % 16, TC.water2, 1, 3); px(x, 9, (f * 6 + 9) % 16, TC.water2, 1, 3); }
+  else { px(x, (f * 6 + 2) % 16, 6, TC.water2, 3, 1); px(x, (f * 6 + 9) % 16, 9, TC.water2, 3, 1); }
+}
+
+// Tile cache: key -> canvas. Tall layers (mountain/forest/property) are separate sprites.
+function terrainTile(k, gx, gy, mask, frame) {
+  const key = k + ':' + mask + ':' + frame + ':' + ((k === 'plain' || k === 'forest' || k === 'sea') ? (gx * 7 + gy * 13) % 5 : 0);
+  let c = SPR.tile[key];
+  if (c) return c;
+  const [cv, x] = tileCanvas();
+  const vx = (gx * 7 + gy * 13) % 5, vy = 3;
+  switch (k) {
+    case 'sea': case 'reef':
+      drawWater(x, vx, vy, frame); drawShore(x, mask, frame);
+      if (k === 'reef') { px(x, 3, 5, TC.rock2, 3, 2); px(x, 4, 4, TC.rock, 2, 1); px(x, 9, 9, TC.rock2, 4, 2); px(x, 10, 8, TC.rock, 2, 1); px(x, 6, 12, TC.rock2, 2, 1); }
+      break;
+    case 'shoal':
+      px(x, 0, 0, TC.sand, T, T);
+      for (let i = 0; i < 6; i++) px(x, Math.floor(hash2(vx, i, 9) * 15), Math.floor(hash2(i, vx, 11) * 15), TC.sand2);
+      if (mask & 1) { px(x, 13, 0, TC.foam, 1, T); px(x, 14, 0, TC.water, 2, T); }
+      if (mask & 2) { px(x, 2, 0, TC.foam, 1, T); px(x, 0, 0, TC.water, 2, T); }
+      if (mask & 4) { px(x, 0, 13, TC.foam, T, 1); px(x, 0, 14, TC.water, T, 2); }
+      if (mask & 8) { px(x, 0, 2, TC.foam, T, 1); px(x, 0, 0, TC.water, T, 2); }
+      break;
+    case 'river': drawGrass(x, vx, vy); drawRiver(x, mask, frame); break;
+    case 'road': drawGrass(x, vx, vy); drawRoad(x, mask, 'road'); break;
+    case 'bridge': drawGrass(x, vx, vy); drawRiver(x, mask >> 4, frame); drawRoad(x, mask & 15, 'bridge'); break;
+    default: drawGrass(x, vx, vy);
+  }
+  SPR.tile[key] = cv;
+  return cv;
+}
+
+// Tall overlays 16 x 20 (forest, mountain)
+function tallTile(k, gx, gy) {
+  const v = (gx * 5 + gy * 11) % 4;
+  const key = 'tall:' + k + v;
+  if (SPR.tile[key]) return SPR.tile[key];
+  const c = mkCanvas(T, 20), x = c.getContext('2d');
+  if (k === 'forest') {
+    const spots = [[1, 7], [8, 6], [4, 11], [10, 11], [0, 12], [6, 2]];
+    for (let i = 0; i < spots.length; i++) if (i < 5 || v % 2) drawTree(x, spots[i][0] + (v === 3 ? 1 : 0), spots[i][1] + 2);
+  } else if (k === 'mount') {
+    // stepped peak
+    const peak = v % 2 ? 6 : 8;
+    for (let row = 0; row < 16; row++) {
+      const half = Math.min(8, Math.floor(row * 0.62) + 1);
+      const y = 2 + row;
+      px(x, peak - half, y, TC.rock2, half * 2, 1);
+      px(x, peak - half + 1, y, TC.rock, Math.max(1, half - 1), 1);
+    }
+    px(x, peak - 1, 2, TC.snow, 2, 2); px(x, peak - 2, 4, TC.snow, 3, 1); px(x, peak - 1, 5, TC.rock3, 1, 2);
+    px(x, peak + 2, 8, TC.rock2, 1, 4); px(x, peak - 4, 11, TC.rock3, 2, 1);
+    if (v > 1) { // small second peak
+      const p2 = peak + 6;
+      for (let row = 0; row < 8; row++) { const h = Math.floor(row * 0.6) + 1; px(x, p2 - h, 10 + row, TC.rock2, h * 2, 1); px(x, p2 - h + 1, 10 + row, TC.rock, Math.max(1, h - 1), 1); }
+    }
+  }
+  SPR.tile[key] = c;
+  return c;
+}
+
+// ---------------- commander portraits (procedural, 32 x 32) ----------------
+function portrait(id, mood = 0) {
+  const key = id + mood;
+  if (SPR.portrait[key]) return SPR.portrait[key];
+  const co = COS[id], L = co.look, side = co.side;
+  const c = mkCanvas(32, 32), x = c.getContext('2d');
+  const ramp = FACTIONS[side].ramp;
+  // backdrop
+  px(x, 0, 0, ramp[3], 32, 32);
+  for (let i = 0; i < 32; i += 4) px(x, 0, i, ramp[2], 32, 1);
+  const skin = L.skin, shade = mixHex(L.skin, '#000000', 0.25), hair = L.hair;
+  // shoulders / uniform
+  const uni = side === 0 ? ['#2c3440', '#1d232c', '#46566a'] : ['#5b5f34', '#3f4224', '#7a7f48'];
+  px(x, 3, 26, uni[0], 26, 6); px(x, 5, 24, uni[0], 22, 2); px(x, 13, 24, uni[1], 6, 8);
+  px(x, 5, 25, uni[2], 4, 1); px(x, 23, 25, uni[2], 4, 1);
+  if (side === 0) { px(x, 20, 27, '#6ff3ff', 3, 1); } else { px(x, 7, 27, '#ffd23a', 2, 2); px(x, 10, 27, '#c8452f', 2, 2); }
+  // neck + face
+  px(x, 13, 20, shade, 6, 5);
+  px(x, 10, 7, skin, 12, 14); px(x, 11, 21, skin, 10, 1); px(x, 9, 10, skin, 1, 7); px(x, 22, 10, skin, 1, 7);
+  px(x, 10, 17, shade, 1, 3); px(x, 21, 17, shade, 1, 3);
+  // eyes / brows / mouth
+  const eye = '#1a1a1a';
+  px(x, 12, 13, '#ffffff', 3, 2); px(x, 17, 13, '#ffffff', 3, 2);
+  px(x, 13, 13, eye, 2, 2); px(x, 18, 13, eye, 2, 2);
+  px(x, 12, 11, hair, 3, 1); px(x, 17, 11, hair, 3, 1);
+  px(x, 15, 15, shade, 2, 3);
+  if (mood === 1) { px(x, 13, 19, '#7a2a24', 6, 1); px(x, 12, 18, '#7a2a24', 1, 1); px(x, 19, 18, '#7a2a24', 1, 1); }
+  else px(x, 14, 19, '#7a3a30', 4, 1);
+  // hair styles
+  switch (L.style) {
+    case 'bob': px(x, 9, 5, hair, 14, 4); px(x, 8, 7, hair, 3, 12); px(x, 21, 7, hair, 3, 12); px(x, 10, 9, hair, 4, 1); break;
+    case 'crop': px(x, 10, 5, hair, 12, 3); px(x, 9, 7, hair, 2, 3); px(x, 21, 7, hair, 2, 3); break;
+    case 'puffs': px(x, 6, 3, hair, 6, 6); px(x, 20, 3, hair, 6, 6); px(x, 10, 5, hair, 12, 3); break;
+    case 'bald': px(x, 9, 9, hair, 2, 4); px(x, 21, 9, hair, 2, 4); px(x, 12, 6, mixHex(skin, '#ffffff', 0.2), 4, 1); break;
+    case 'tied': px(x, 10, 5, hair, 12, 4); px(x, 9, 7, hair, 2, 6); px(x, 21, 7, hair, 2, 6); px(x, 22, 4, hair, 4, 3); px(x, 24, 6, hair, 2, 8); break;
+    case 'beret': px(x, 9, 4, '#7a1e1e', 15, 4); px(x, 8, 6, '#5a1414', 3, 2); px(x, 21, 5, '#ffd23a', 2, 2); px(x, 9, 8, hair, 2, 4); px(x, 21, 8, hair, 2, 4); break;
+  }
+  switch (L.acc) {
+    case 'headset': px(x, 8, 11, '#30343c', 2, 5); px(x, 8, 16, '#30343c', 1, 3); px(x, 9, 19, '#30343c', 4, 1); px(x, 12, 19, '#6ff3ff', 1, 1); break;
+    case 'visor': px(x, 11, 12, '#20262e', 10, 4); px(x, 12, 13, '#6ff3ff', 8, 1); px(x, 10, 13, '#20262e', 1, 2); px(x, 21, 13, '#20262e', 1, 2); break;
+    case 'goggles': px(x, 10, 6, '#30343c', 12, 1); px(x, 11, 4, '#4a5260', 4, 3); px(x, 17, 4, '#4a5260', 4, 3); px(x, 12, 5, '#9ad', 2, 1); px(x, 18, 5, '#9ad', 2, 1); break;
+    case 'moustache': px(x, 12, 17, '#bdb7ad', 8, 2); px(x, 11, 18, '#bdb7ad', 1, 1); px(x, 20, 18, '#bdb7ad', 1, 1); break;
+    case 'scar': px(x, 18, 10, '#c0705a', 1, 6); px(x, 17, 12, '#c0705a', 1, 1); px(x, 19, 14, '#c0705a', 1, 1); break;
+    case 'beard': px(x, 10, 17, hair, 12, 4); px(x, 11, 21, hair, 10, 1); px(x, 14, 19, '#7a3a30', 4, 1); break;
+  }
+  // frame
+  x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(0, 31, 32, 1); x.fillRect(31, 0, 1, 32);
+  SPR.portrait[key] = c;
+  return c;
+}
+
+// Signal Front — WebAudio sound: synthesized effects and a small chiptune sequencer
+
+let AC = null, MASTER = null, SFXG = null, MUSG = null, NOISE = null;
+const AUD = { sfx: storeGet('sfx', true), music: storeGet('music', true), song: null, step: 0, next: 0, timer: 0 };
+
+function audioInit() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  MASTER = AC.createGain(); MASTER.gain.value = 0.5; MASTER.connect(AC.destination);
+  SFXG = AC.createGain(); SFXG.gain.value = AUD.sfx ? 1 : 0; SFXG.connect(MASTER);
+  MUSG = AC.createGain(); MUSG.gain.value = AUD.music ? 0.32 : 0; MUSG.connect(MASTER);
+  const len = AC.sampleRate;
+  NOISE = AC.createBuffer(1, len, AC.sampleRate);
+  const d = NOISE.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  AUD.timer = setInterval(musicTick, 50);
+}
+function setSfx(on) { AUD.sfx = on; storeSet('sfx', on); if (SFXG) SFXG.gain.value = on ? 1 : 0; }
+function setMusic(on) { AUD.music = on; storeSet('music', on); if (MUSG) MUSG.gain.value = on ? 0.32 : 0; }
+
+function tone(type, f0, f1, dur, vol, t = 0, out = SFXG) {
+  if (!AC || TIME.fast) return;
+  const t0 = AC.currentTime + t;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t0);
+  if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
+  o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise(dur, vol, fFrom, fTo, t = 0, q = 0.8, out = SFXG) {
+  if (!AC || TIME.fast) return;
+  const t0 = AC.currentTime + t;
+  const s = AC.createBufferSource(); s.buffer = NOISE;
+  const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = q;
+  f.frequency.setValueAtTime(fFrom, t0); f.frequency.exponentialRampToValueAtTime(Math.max(40, fTo), t0 + dur);
+  const g = AC.createGain(); g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
+  s.connect(f); f.connect(g); g.connect(out); s.start(t0, Math.random() * 0.5); s.stop(t0 + dur + 0.02);
+}
+
+const SFX = {
+  cursor() { tone('square', 1320, 1320, 0.03, 0.04); },
+  select() { tone('square', 660, 990, 0.07, 0.07); },
+  cancel() { tone('square', 520, 260, 0.08, 0.06); },
+  error() { tone('square', 180, 160, 0.14, 0.07); },
+  menu() { tone('square', 880, 880, 0.04, 0.05); },
+  move(t) { const air = isAir(t); if (air) noise(0.35, 0.08, 2400, 900, 0, 4); else { tone('sawtooth', 70, 55, 0.3, 0.06); noise(0.25, 0.05, 600, 200); } },
+  step() { tone('triangle', 140, 120, 0.03, 0.05); },
+  mg() { for (let i = 0; i < 5; i++) { noise(0.05, 0.16, 3000, 800, i * 0.06); tone('square', 220, 90, 0.04, 0.05, i * 0.06); } },
+  cannon() { noise(0.45, 0.35, 1800, 90); tone('sine', 120, 40, 0.35, 0.3); },
+  missile() { noise(0.6, 0.14, 800, 4000, 0, 3); tone('sawtooth', 300, 900, 0.5, 0.03); },
+  launch() { noise(0.3, 0.2, 1200, 300); tone('square', 200, 600, 0.25, 0.04); },
+  boom() { noise(0.7, 0.4, 1400, 60); tone('sine', 90, 30, 0.6, 0.35); },
+  zap() { tone('sawtooth', 1400, 200, 0.25, 0.06); tone('square', 900, 1800, 0.2, 0.03, 0.05); },
+  capture() { [523, 659, 784].forEach((f, i) => tone('square', f, f, 0.08, 0.06, i * 0.07)); },
+  captured() { [523, 659, 784, 1047].forEach((f, i) => tone('square', f, f, 0.1, 0.07, i * 0.08)); },
+  build() { tone('square', 392, 392, 0.06, 0.06); tone('square', 784, 784, 0.1, 0.06, 0.07); },
+  repair() { tone('triangle', 600, 900, 0.12, 0.06); },
+  power() { [262, 330, 392, 523, 659, 784, 1047].forEach((f, i) => tone('square', f, f * 1.01, 0.09, 0.07, i * 0.05)); noise(0.8, 0.1, 400, 4000, 0.1, 2); },
+  turn() { tone('square', 523, 523, 0.08, 0.06); tone('square', 784, 784, 0.16, 0.06, 0.1); },
+  win() { [523, 523, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone('square', f, f, 0.14, 0.07, i * 0.13)); },
+  lose() { [392, 370, 349, 330, 311, 294].forEach((f, i) => tone('square', f, f, 0.2, 0.06, i * 0.18)); },
+  trap() { tone('square', 880, 220, 0.25, 0.08); tone('square', 660, 165, 0.25, 0.06, 0.12); },
+};
+function sfx(name, arg) { if (AC && AUD.sfx && SFX[name]) SFX[name](arg); }
+
+// ---------------- music ----------------
+// Each song: bpm, lead/bass as arrays of midi notes per eighth (0 = rest, -1 = hold), drums as a string per eighth.
+const SONGS = {
+  meridian: { bpm: 132,
+    lead: [67, 67, 72, 74, 76, -1, 74, 72, 74, -1, 67, -1, 71, 72, 74, -1, 76, 76, 77, 79, 81, -1, 79, 76, 77, 76, 74, 71, 72, -1, -1, 0,
+      72, -1, 76, -1, 79, -1, 76, 74, 72, -1, 69, -1, 71, -1, 67, -1, 69, 71, 72, 74, 76, -1, 79, -1, 77, 76, 74, 72, 74, -1, -1, 0],
+    bass: [48, 0, 43, 0, 48, 0, 43, 0, 43, 0, 50, 0, 43, 0, 47, 0, 48, 0, 43, 0, 45, 0, 40, 0, 41, 0, 43, 0, 48, 0, 43, 0,
+      45, 0, 40, 0, 45, 0, 40, 0, 41, 0, 48, 0, 43, 0, 50, 0, 41, 0, 45, 0, 48, 0, 43, 0, 41, 0, 43, 0, 43, 0, 47, 0],
+    drums: 'k.s.k.s.kks.k.s.k.s.k.s.kks.k.ss' },
+  drovic: { bpm: 112,
+    lead: [69, -1, 72, 71, 69, -1, 64, -1, 65, -1, 64, 62, 64, -1, -1, 0, 69, -1, 72, 74, 76, -1, 74, 72, 71, 72, 71, 67, 69, -1, -1, 0,
+      76, -1, 77, 76, 74, -1, 72, -1, 74, -1, 72, 71, 72, -1, 69, -1, 65, -1, 67, 69, 71, -1, 68, -1, 69, -1, -1, -1, 0, 0, 0, 0],
+    bass: [45, 45, 45, 45, 40, 40, 40, 40, 41, 41, 41, 41, 40, 40, 40, 40, 45, 45, 45, 45, 48, 48, 48, 48, 43, 43, 43, 43, 45, 45, 45, 45,
+      41, 41, 41, 41, 43, 43, 43, 43, 45, 45, 45, 45, 40, 40, 40, 40, 38, 38, 38, 38, 40, 40, 40, 40, 45, 45, 45, 45, 40, 40, 44, 44],
+    drums: 'k...s...k.k.s...k...s...k.k.s.s.' },
+  title: { bpm: 96,
+    lead: [64, -1, -1, 67, 69, -1, -1, -1, 71, -1, 69, -1, 67, -1, 64, -1, 62, -1, -1, 64, 67, -1, -1, -1, 64, -1, -1, -1, 0, 0, 0, 0,
+      64, -1, -1, 67, 69, -1, -1, -1, 71, -1, 74, -1, 76, -1, 74, -1, 72, -1, 71, -1, 69, -1, 67, -1, 69, -1, -1, -1, 0, 0, 0, 0],
+    bass: [40, 0, 40, 0, 40, 0, 40, 0, 45, 0, 45, 0, 45, 0, 45, 0, 38, 0, 38, 0, 43, 0, 43, 0, 40, 0, 40, 0, 40, 0, 40, 0,
+      40, 0, 40, 0, 40, 0, 40, 0, 43, 0, 43, 0, 43, 0, 43, 0, 41, 0, 41, 0, 38, 0, 38, 0, 45, 0, 45, 0, 45, 0, 45, 0],
+    drums: 'k.......s.......k.......s...s...' },
+};
+const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+function playSong(name) {
+  if (AUD.song === name) return;
+  AUD.song = name; AUD.step = 0; AUD.next = AC ? AC.currentTime + 0.1 : 0;
+}
+function musicTick() {
+  if (!AC || !AUD.song || TIME.fast) return;
+  const s = SONGS[AUD.song], dt = 60 / s.bpm / 2;
+  if (AUD.next < AC.currentTime - 0.5) AUD.next = AC.currentTime + 0.05;
+  while (AUD.next < AC.currentTime + 0.2) {
+    const i = AUD.step % s.lead.length, t = AUD.next - AC.currentTime;
+    const n = s.lead[i];
+    if (n > 0) {
+      let len = 1; while (s.lead[(i + len) % s.lead.length] === -1 && len < 8) len++;
+      note('square', midiHz(n), dt * len * 0.92, 0.09, t);
+      note('square', midiHz(n) * 1.004, dt * len * 0.92, 0.035, t);
+    }
+    const b = s.bass[i % s.bass.length];
+    if (b > 0) note('triangle', midiHz(b), dt * 0.9, 0.22, t);
+    const d = s.drums[i % s.drums.length];
+    if (d === 'k') { tone('sine', 150, 45, 0.12, 0.35, t, MUSG); }
+    else if (d === 's') noise(0.1, 0.18, 6000, 1500, t, 0.7, MUSG);
+    if (i % 2 === 1) noise(0.025, 0.04, 9000, 6000, t, 0.5, MUSG);
+    AUD.next += dt; AUD.step++;
+  }
+}
+function note(type, f, dur, vol, t) {
+  const t0 = AC.currentTime + t;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = f;
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + 0.008);
+  g.gain.setValueAtTime(vol * 0.8, t0 + dur * 0.6); g.gain.linearRampToValueAtTime(0, t0 + dur);
+  o.connect(g); g.connect(MUSG); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+
+// Signal Front — game rules: state, movement, fog of war, combat, capture, production, turns, CO powers
+// Rules are synchronous and side-agnostic; the UI and the AI both drive the game through these calls.
+
+let S = null; // the current game
+
+const disp = (hp) => Math.ceil(hp / 10); // displayed HP 0-10 from internal 0-100
+const tileAt = (S, x, y) => S.tiles[y * S.w + x];
+const inb = (S, x, y) => x >= 0 && y >= 0 && x < S.w && y < S.h;
+const coOf = (S, side) => COS[S.sides[side].co];
+function bump(S) { S.ver = (S.ver || 0) + 1; }
+
+function unitAt(S, x, y) {
+  for (const u of S.units) if (u.x === x && u.y === y) return u;
+  return null;
+}
+function occGrid(S) {
+  const g = new Array(S.w * S.h).fill(null);
+  for (const u of S.units) g[u.y * S.w + u.x] = u;
+  return g;
+}
+function mkUnit(S, t, side, x, y) {
+  const U = UNITS[t];
+  return { id: S.nextId++, t, s: side, x, y, hp: 100, fuel: U.fuel, ammo: U.w1 ? U.w1.ammo : 0, done: false, cargo: [], cap: false };
+}
+
+function newGame(o) {
+  const def = MAPS.find((m) => m.id === o.map) || MAPS[0];
+  const m = buildMap(def);
+  const side = (i, co) => ({ co, funds: o.funds || 0, meter: 0, uses: 0, pw: 0, ever: false, ai: i === 1 || !!o.allAI,
+    stats: { built: 0, lost: 0, kills: 0, dealt: 0, captured: 0 } });
+  S = { v: 1, ver: 0, map: def.id, name: def.name, w: m.w, h: m.h, tiles: m.tiles, units: [], nextId: 1,
+    day: 1, turn: 0, fog: !!o.fog, income: o.income || 1000, diff: o.diff || 'normal',
+    sides: [side(0, o.coP || 'kade'), side(1, o.coE || 'volsk')], winner: -1, over: false };
+  S.firstEvents = startTurn(S);
+  return S;
+}
+
+// ---------------- commander modifiers ----------------
+function pwOf(S, side) { return S.sides[side].pw; }
+function moveRange(S, u) {
+  const co = coOf(S, u.s);
+  return UNITS[u.t].move + (co.move ? co.move(S, u, pwOf(S, u.s)) : 0);
+}
+function attackRange(S, u) {
+  const w = UNITS[u.t].w1 && UNITS[u.t].w1.range ? UNITS[u.t].w1.range : [1, 1];
+  const co = coOf(S, u.s);
+  const ext = isIndirect(u.t) && co.range ? co.range(S, u, pwOf(S, u.s)) : 0;
+  return [w[0], w[1] + ext];
+}
+function visionOf(S, u) {
+  const co = coOf(S, u.s);
+  let v = UNITS[u.t].vis + (co.vision ? co.vision(S, u) : 0);
+  if (tileAt(S, u.x, u.y).k === 'mount' && (UNITS[u.t].mt === 'foot' || UNITS[u.t].mt === 'boot')) v += 3;
+  return v;
+}
+function unitCost(S, side, t) {
+  const co = coOf(S, side);
+  return Math.round(UNITS[t].cost * (co.cost ? co.cost(t) : 1));
+}
+function towersOf(S, side) {
+  if (S._twv !== S.ver) { S._twv = S.ver; S._tw = [0, 0]; for (const t of S.tiles) if (t.k === 'tower' && t.o >= 0) S._tw[t.o]++; }
+  return S._tw[side];
+}
+function nearUnit(S, side, x, y, r, pred) {
+  for (const u of S.units) if (u.s === side && pred(u) && mdist(u.x, u.y, x, y) <= r) return true;
+  return false;
+}
+const meshed = (S, u, x, y) => nearUnit(S, u.s, x, y, 2, (w) => UNITS[w.t].mesh && w !== u);
+const jammed = (S, u, x, y) => isDrone(u.t) && nearUnit(S, 1 - u.s, x, y, 2, (w) => UNITS[w.t].jam);
+function atkMod(S, u, x, y) {
+  const co = coOf(S, u.s), pw = pwOf(S, u.s);
+  let m = (co.atk ? co.atk(S, u, pw) : 0) + (pw ? 10 : 0) + towersOf(S, u.s) * 10;
+  if (meshed(S, u, x, y)) m += 10;
+  if (jammed(S, u, x, y)) m -= 30;
+  return m;
+}
+function defMod(S, u, x, y) {
+  const co = coOf(S, u.s), pw = pwOf(S, u.s);
+  let m = (co.def ? co.def(S, u, pw) : 0) + (pw ? 10 : 0);
+  if (meshed(S, u, x, y)) m += 10;
+  return m;
+}
+
+// ---------------- fog of war ----------------
+const VIS = { ver: -1, maps: [] };
+function visMap(S, side) {
+  if (VIS.ver !== S.ver || VIS.S !== S) { VIS.ver = S.ver; VIS.S = S; VIS.maps = []; }
+  if (VIS.maps[side]) return VIS.maps[side];
+  const v = new Uint8Array(S.w * S.h);
+  const co = coOf(S, side);
+  if (!S.fog || (co.reveal && co.reveal(S, pwOf(S, side)))) v.fill(1);
+  else {
+    S.tiles.forEach((t, i) => { if (t.o === side) v[i] = 1; });
+    for (const u of S.units) {
+      if (u.s !== side) continue;
+      const r = visionOf(S, u), deep = UNITS[u.t].mesh ? 2 : 1;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const d = Math.abs(dx) + Math.abs(dy), x = u.x + dx, y = u.y + dy;
+        if (d > r || !inb(S, x, y)) continue;
+        if (TER[tileAt(S, x, y).k].cover && d > deep) continue;
+        v[y * S.w + x] = 1;
+      }
+    }
+  }
+  VIS.maps[side] = v;
+  return v;
+}
+function canSee(S, side, u) {
+  if (u.s === side) return true;
+  if (!visMap(S, side)[u.y * S.w + u.x]) return false;
+  if (UNITS[u.t].stealth) return nearUnit(S, side, u.x, u.y, 1, () => true);
+  return true;
+}
+
+// ---------------- movement ----------------
+function moveCost(t, k) { return MOVE[UNITS[t].mt][k] || 0; }
+// Dijkstra over movement points. Enemies the mover's side can see block; hidden ones don't (ambush).
+function reach(S, u, opts = {}) {
+  const W = S.w, N = S.w * S.h;
+  const mp = opts.mp != null ? opts.mp : Math.min(moveRange(S, u), u.fuel);
+  const dist = new Int16Array(N).fill(-1), prev = new Int32Array(N).fill(-1);
+  const occ = occGrid(S), costs = MOVE[UNITS[u.t].mt];
+  const blockAll = opts.blockAll;
+  const start = u.y * W + u.x;
+  dist[start] = 0;
+  const buckets = [[start]];
+  for (let c = 0; c <= mp; c++) {
+    const b = buckets[c]; if (!b) continue;
+    for (const i of b) {
+      if (dist[i] !== c) continue;
+      const x = i % W, y = (i / W) | 0;
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (!inb(S, nx, ny)) continue;
+        const j = ny * W + nx;
+        const mc = costs[S.tiles[j].k];
+        if (!mc) continue;
+        const nc = c + mc;
+        if (nc > mp) continue;
+        const o = occ[j];
+        if (o && o.s !== u.s && (blockAll || canSee(S, u.s, o))) continue;
+        if (dist[j] === -1 || nc < dist[j]) { dist[j] = nc; prev[j] = i; (buckets[nc] = buckets[nc] || []).push(j); }
+      }
+    }
+  }
+  return { dist, prev, mp, sx: u.x, sy: u.y };
+}
+function pathTo(S, r, x, y) {
+  const W = S.w; let i = y * W + x;
+  if (r.dist[i] < 0) return null;
+  const p = [];
+  while (i !== -1) { p.push({ x: i % W, y: (i / W) | 0 }); i = r.prev[i]; }
+  return p.reverse();
+}
+function pathCost(S, u, path) {
+  let c = 0; for (let i = 1; i < path.length; i++) c += moveCost(u.t, tileAt(S, path[i].x, path[i].y).k);
+  return c;
+}
+// What a unit could do by stopping at (x,y): 'stay' | 'move' | 'load' | 'join' | null
+function stopKind(S, u, x, y) {
+  const o = unitAt(S, x, y);
+  if (!o || o === u) return o === u ? 'stay' : 'move';
+  if (o.s !== u.s) return null;
+  const U = UNITS[o.t];
+  if (U.carry && U.carry.includes(u.t) && o.cargo.length === 0) return 'load';
+  if (o.t === u.t && (o.hp < 100 || u.hp < 100) && !o.cargo.length && !u.cargo.length) return 'join';
+  return null;
+}
+// Walk a path; stop short if a hidden enemy is in the way. Returns the truncated path and whether we were trapped.
+function trapCheck(S, u, path) {
+  for (let i = 1; i < path.length; i++) {
+    const o = unitAt(S, path[i].x, path[i].y);
+    if (o && o.s !== u.s) {
+      let k = i - 1;
+      while (k > 0 && unitAt(S, path[k].x, path[k].y) && unitAt(S, path[k].x, path[k].y) !== u) k--;
+      return { path: path.slice(0, k + 1), trapped: true, by: o };
+    }
+  }
+  return { path, trapped: false };
+}
+function commitMove(S, u, path) {
+  const last = path[path.length - 1];
+  if (last.x !== u.x || last.y !== u.y) {
+    if (u.cap) { tileAt(S, u.x, u.y).cp = 20; u.cap = false; }
+    u.fuel = Math.max(0, u.fuel - pathCost(S, u, path));
+    u.x = last.x; u.y = last.y;
+  }
+  bump(S);
+}
+
+// ---------------- combat ----------------
+function weaponFor(S, a, d) {
+  const U = UNITS[a.t], cls = UNITS[d.t].cls;
+  if (U.w1 && a.ammo > 0 && U.w1.dmg[cls]) return 1;
+  if (U.w2 && U.w2.dmg[cls]) return 2;
+  return 0;
+}
+function baseDmg(a, d, w) { const U = UNITS[a.t]; return (w === 1 ? U.w1 : U.w2).dmg[UNITS[d.t].cls] || 0; }
+function calcDmg(S, a, ax, ay, d, dx, dy, luck, ahp = a.hp, dhp = d.hp) {
+  const w = weaponFor(S, a, d);
+  if (!w) return -1;
+  const B = baseDmg(a, d, w);
+  const atk = 100 + atkMod(S, a, ax, ay), def = 100 + defMod(S, d, dx, dy);
+  const stars = isAir(d.t) ? 0 : TER[tileAt(S, dx, dy).k].def;
+  const hpd = disp(dhp);
+  const v = (B * atk / 100 + luck) * disp(ahp) / 10 * (200 - (def + stars * hpd)) / 100;
+  return clamp(Math.floor(v), 0, dhp);
+}
+function canCounter(S, a, d, dist) {
+  if (UNITS[a.t].kamikaze) return false;
+  if (dist !== 1 || isIndirect(d.t)) return false;
+  return weaponFor(S, d, a) > 0;
+}
+// Damage preview for the UI and AI: attacker at (ax,ay) hits d.
+function forecast(S, a, ax, ay, d) {
+  const lo = calcDmg(S, a, ax, ay, d, d.x, d.y, 0), hi = calcDmg(S, a, ax, ay, d, d.x, d.y, 9);
+  const mid = calcDmg(S, a, ax, ay, d, d.x, d.y, 4.5);
+  let clo = 0, chi = 0;
+  if (canCounter(S, a, d, mdist(ax, ay, d.x, d.y))) {
+    const lefthi = d.hp - lo, leftlo = d.hp - hi;
+    if (leftlo > 0) clo = calcDmg(S, d, d.x, d.y, a, ax, ay, 0, leftlo, a.hp);
+    if (lefthi > 0) chi = calcDmg(S, d, d.x, d.y, a, ax, ay, 9, lefthi, a.hp);
+    clo = Math.max(0, clo); chi = Math.max(0, chi);
+  }
+  return { lo, hi, mid, clo, chi, counter: chi > 0 };
+}
+function targetsFrom(S, u, x, y, moved) {
+  if (isIndirect(u.t) && moved) return [];
+  const [r0, r1] = attackRange(S, u);
+  const out = [];
+  for (const e of S.units) {
+    if (e.s === u.s || !canSee(S, u.s, e)) continue;
+    const d = mdist(x, y, e.x, e.y);
+    if (d < r0 || d > r1) continue;
+    if (weaponFor(S, u, e) > 0) out.push(e);
+  }
+  return out;
+}
+function chargeMeters(S, att, def, lost) {
+  if (lost <= 0) return;
+  const value = lost * UNITS[def.t].cost / 10;
+  const add = (side, v) => { const sd = S.sides[side]; if (!sd.pw) sd.meter = Math.min(sd.meter + v, powerCost(S, side, 2)); };
+  add(att.s, value * 0.5); add(def.s, value);
+  S.sides[att.s].stats.dealt += value;
+}
+// One direction of an exchange. Applies damage, ammo and meters. Dead units are removed by removeDead.
+function strike(S, a, d) {
+  const w = weaponFor(S, a, d);
+  const dmg = calcDmg(S, a, a.x, a.y, d, d.x, d.y, irand(0, 9));
+  const before = disp(d.hp);
+  d.hp -= dmg;
+  if (w === 1) a.ammo--;
+  chargeMeters(S, a, d, before - disp(Math.max(0, d.hp)));
+  if (UNITS[a.t].kamikaze) a.hp = 0;
+  if (d.hp <= 0) { S.sides[a.s].stats.kills++; }
+  bump(S);
+  return { dmg, w, killed: d.hp <= 0, shown: before - disp(Math.max(0, d.hp)) };
+}
+function removeDead(S) {
+  const dead = S.units.filter((u) => u.hp <= 0);
+  for (const u of dead) {
+    if (u.cap) { tileAt(S, u.x, u.y).cp = 20; }
+    S.sides[u.s].stats.lost += 1 + u.cargo.length;
+  }
+  if (dead.length) { S.units = S.units.filter((u) => u.hp > 0); bump(S); }
+  return dead;
+}
+
+// ---------------- other actions ----------------
+function canCapture(S, u) {
+  const t = tileAt(S, u.x, u.y);
+  return !!UNITS[u.t].cap && !!TER[t.k].prop && t.o !== u.s;
+}
+function doCapture(S, u) {
+  const t = tileAt(S, u.x, u.y);
+  t.cp -= disp(u.hp); u.cap = true; u.done = true;
+  let done = false, old = t.o;
+  if (t.cp <= 0) {
+    done = true; t.o = u.s; t.cp = 20; u.cap = false;
+    S.sides[u.s].stats.captured++;
+    if (t.k === 'hq' && old >= 0) { S.hqLost = old; }
+  }
+  bump(S);
+  return { done, old, left: Math.max(0, t.cp) };
+}
+function doJoin(S, u, o) {
+  const U = UNITS[u.t];
+  const total = disp(u.hp) + disp(o.hp);
+  const refund = Math.max(0, total - 10) * U.cost / 10;
+  o.hp = Math.min(100, o.hp + u.hp);
+  o.fuel = Math.max(o.fuel, u.fuel); o.ammo = Math.max(o.ammo, u.ammo);
+  S.sides[u.s].funds += refund;
+  S.units = S.units.filter((w) => w !== u);
+  o.done = true; bump(S);
+  return refund;
+}
+function doLoad(S, u, o) {
+  if (u.cap) { tileAt(S, u.x, u.y).cp = 20; u.cap = false; }
+  S.units = S.units.filter((w) => w !== u);
+  u.done = true; u.x = o.x; u.y = o.y; o.cargo.push(u);
+  bump(S);
+}
+function dropTiles(S, t) {
+  if (!t.cargo.length) return [];
+  const c = t.cargo[0], out = [];
+  for (const [dx, dy] of DIRS) {
+    const x = t.x + dx, y = t.y + dy;
+    if (!inb(S, x, y) || unitAt(S, x, y)) continue;
+    if (!moveCost(c.t, tileAt(S, x, y).k)) continue;
+    out.push({ x, y });
+  }
+  return out;
+}
+function doDrop(S, t, x, y) {
+  const c = t.cargo.shift();
+  c.x = x; c.y = y; c.done = true; S.units.push(c); bump(S);
+  return c;
+}
+function resupply(u) { u.fuel = UNITS[u.t].fuel; if (UNITS[u.t].w1) u.ammo = UNITS[u.t].w1.ammo; }
+function needsSupply(u) { const U = UNITS[u.t]; return u.fuel < U.fuel * 0.6 || (U.w1 && u.ammo < U.w1.ammo * 0.5); }
+function supplyAround(S, s) {
+  const got = [];
+  for (const u of S.units) if (u.s === s.s && u !== s && mdist(u.x, u.y, s.x, s.y) === 1) {
+    const U = UNITS[u.t];
+    if (u.fuel < U.fuel || (U.w1 && u.ammo < U.w1.ammo)) { resupply(u); got.push(u); }
+  }
+  return got;
+}
+function buildTilesFor(S, side) {
+  const out = [];
+  S.tiles.forEach((t, i) => {
+    if (t.o !== side || !TER[t.k].build) return;
+    const x = i % S.w, y = (i / S.w) | 0;
+    if (!unitAt(S, x, y)) out.push({ x, y, kind: TER[t.k].build });
+  });
+  return out;
+}
+function buildList(S, side, kind) {
+  return FACTIONS[side].roster.filter((t) => buildKind(t) === kind);
+}
+function doBuild(S, side, t, x, y) {
+  const cost = unitCost(S, side, t);
+  if (S.sides[side].funds < cost || unitAt(S, x, y)) return null;
+  S.sides[side].funds -= cost;
+  const u = mkUnit(S, t, side, x, y);
+  u.done = true;
+  S.units.push(u);
+  S.sides[side].ever = true; S.sides[side].stats.built++;
+  bump(S);
+  return u;
+}
+
+// ---------------- CO powers ----------------
+function powerCost(S, side, level) {
+  const co = coOf(S, side), st = level === 2 ? co.super.stars : co.power.stars;
+  return st * STAR * (1 + 0.2 * Math.min(S.sides[side].uses, 5));
+}
+function canPower(S, side, level) {
+  const sd = S.sides[side];
+  return !sd.pw && sd.meter >= powerCost(S, side, level) - 0.5;
+}
+function activatePower(S, side, level) {
+  const sd = S.sides[side];
+  sd.meter = 0; sd.uses++; sd.pw = level;
+  const co = coOf(S, side);
+  const res = co.onPower ? co.onPower(S, side, level) : null;
+  bump(S);
+  return res || null;
+}
+function healAll(S, side, amt) {
+  const hit = [];
+  for (const u of S.units) if (u.s === side) { u.hp = Math.min(100, u.hp + amt); resupply(u); hit.push(u); }
+  return { kind: 'heal', units: hit };
+}
+function damageAll(S, side, amt) {
+  const hit = [];
+  for (const u of S.units) if (u.s === side) { u.hp = Math.max(1, u.hp - amt); hit.push(u); }
+  return { kind: 'hurt', units: hit };
+}
+// Strike the 2-radius diamond holding the most enemy value; non-lethal.
+function clusterStrike(S, side, amt, r) {
+  let best = null, bv = -1;
+  for (let y = 0; y < S.h; y++) for (let x = 0; x < S.w; x++) {
+    let v = 0;
+    for (const u of S.units) if (u.s !== side && mdist(u.x, u.y, x, y) <= r) v += Math.min(amt, u.hp - 1) * UNITS[u.t].cost;
+    if (v > bv) { bv = v; best = { x, y }; }
+  }
+  const hit = [];
+  for (const u of S.units) if (u.s !== side && mdist(u.x, u.y, best.x, best.y) <= r) { u.hp = Math.max(1, u.hp - amt); hit.push(u); }
+  return { kind: 'strike', x: best.x, y: best.y, r, units: hit };
+}
+
+// ---------------- turns ----------------
+function income(S, side) {
+  let n = 0;
+  for (const t of S.tiles) if (t.o === side && TER[t.k].income) n++;
+  let v = n * S.income;
+  if (side === 1 && S.sides[1].ai && S.diff === 'hard') v = Math.round(v * 1.25);
+  return v;
+}
+// Start of a side's turn: power ends, income, fuel drain, repairs, supply, jamming.
+function startTurn(S) {
+  const p = S.turn, sd = S.sides[p], ev = [];
+  sd.pw = 0; sd.usedThisTurn = false;
+  const inc = income(S, p); sd.funds += inc; ev.push({ kind: 'income', amount: inc });
+  for (const u of S.units) if (u.s === p) {
+    u.done = false;
+    const burn = UNITS[u.t].burn || 0;
+    if (burn) {
+      u.fuel -= burn;
+      if (u.fuel <= 0) { u.hp = 0; ev.push({ kind: 'crash', unit: u }); }
+    }
+  }
+  removeDead(S);
+  const co = coOf(S, p), rep = (co.repair || 2) * 10;
+  for (const u of S.units) if (u.s === p) {
+    const t = tileAt(S, u.x, u.y);
+    if (t.o !== p || !TER[t.k].prop || TER[t.k].repair !== repairKind(u.t)) continue;
+    resupply(u);
+    if (u.hp < 100) {
+      const want = Math.min(rep, (10 - disp(u.hp)) * 10);
+      const per = UNITS[u.t].cost / 10;
+      const afford = Math.min(want / 10, Math.floor(sd.funds / per));
+      if (afford > 0) { u.hp = Math.min(100, (disp(u.hp) + afford) * 10); sd.funds -= afford * per; ev.push({ kind: 'repair', unit: u, hp: afford }); }
+    }
+  }
+  for (const u of S.units) if (u.s === p && UNITS[u.t].supply) supplyAround(S, u);
+  for (const u of S.units) if (u.s === p && UNITS[u.t].jam) {
+    for (const e of S.units) if (e.s !== p && isDrone(e.t) && mdist(e.x, e.y, u.x, u.y) <= 2 && e.hp > 10) {
+      e.hp = Math.max(10, e.hp - 10); ev.push({ kind: 'jam', unit: e });
+    }
+  }
+  bump(S);
+  return ev;
+}
+function endTurn(S) {
+  for (const u of S.units) if (u.s === S.turn) u.done = false;
+  S.turn = 1 - S.turn;
+  if (S.turn === 0) S.day++;
+  return startTurn(S);
+}
+function checkVictory(S) {
+  if (S.over) return S.winner;
+  if (S.hqLost != null) { S.winner = 1 - S.hqLost; S.over = true; S.how = 'hq'; return S.winner; }
+  for (let p = 0; p < 2; p++) {
+    const sd = S.sides[p];
+    const n = S.units.filter((u) => u.s === p).length;
+    if (sd.ever && n === 0) { S.winner = 1 - p; S.over = true; S.how = 'rout'; return S.winner; }
+  }
+  return -1;
+}
+function unitValue(S, side) {
+  let v = 0;
+  for (const u of S.units) if (u.s === side) v += UNITS[u.t].cost * disp(u.hp) / 10;
+  return v;
+}
+function propCount(S, side) { let n = 0; for (const t of S.tiles) if (t.o === side && TER[t.k].prop) n++; return n; }
+
+// Signal Front — computer opponent
+// aiNext() returns one action at a time so the UI can animate each move. It is side-agnostic:
+// the Drovic AI uses it, and the debug autoplay can drive Meridian with it too.
+// Units are scored greedily: damage traded in funds, capture progress, and a positional score
+// built from distance-to-goal fields and the enemy's threat coverage for next turn.
+
+const EXPECTED = [
+  ['crawler', 'crawler', 'strider', 'wraith', 'spark', 'mallet'],
+  ['rifle', 'rifle', 'atgm', 'tank', 'howitzer', 'fpv'],
+];
+const PROP_VALUE = { hq: 9000, base: 6000, airport: 5000, port: 2500, city: 2500, tower: 3500 };
+
+function aiContext(S, side) {
+  const enemies = S.units.filter((u) => u.s !== side && canSee(S, side, u));
+  const mine = S.units.filter((u) => u.s === side);
+  const covers = [];
+  for (const e of enemies) {
+    if (!UNITS[e.t].w1 && !UNITS[e.t].w2) continue;
+    covers.push({ e, cover: threatCover(S, e) });
+  }
+  const claims = new Set();
+  for (const u of mine) if (u.cap) claims.add(u.y * S.w + u.x);
+  // press harder when ahead, hang back when behind
+  const mv = mine.reduce((a, u) => a + UNITS[u.t].cost * disp(u.hp) / 10, 0) + S.sides[side].funds * 0.5;
+  const ev = enemies.reduce((a, u) => a + UNITS[u.t].cost * disp(u.hp) / 10, 0) + 1;
+  const ratio = mv / ev;
+  const caution = ratio > 2 ? 0.45 : ratio > 1.3 ? 0.7 : ratio < 0.7 ? 1.2 : 1;
+  return { side, enemies, mine, covers, claims, caution, fields: {} };
+}
+
+function threatCover(S, e) {
+  const W = S.w, cov = new Uint8Array(S.w * S.h);
+  const [r0, r1] = attackRange(S, e);
+  const mark = (cx, cy, a, b) => {
+    for (let dy = -b; dy <= b; dy++) for (let dx = -b; dx <= b; dx++) {
+      const d = Math.abs(dx) + Math.abs(dy), x = cx + dx, y = cy + dy;
+      if (d >= a && d <= b && inb(S, x, y)) cov[y * W + x] = 1;
+    }
+  };
+  if (isIndirect(e.t)) mark(e.x, e.y, r0, r1);
+  else {
+    const r = reach(S, e, { blockAll: true, mp: moveRange(S, e) });
+    for (let i = 0; i < r.dist.length; i++) if (r.dist[i] >= 0) mark(i % W, (i / W) | 0, 1, UNITS[e.t].kamikaze ? 1 : r1);
+  }
+  return cov;
+}
+
+// Expected damage next turn: the worst single attacker counts fully, the rest partly
+// (they rarely all get a clear shot at the same unit).
+function threatAt(S, ctx, u, x, y) {
+  let tot = 0, mx = 0;
+  const i = y * S.w + x;
+  for (const c of ctx.covers) {
+    if (!c.cover[i] || c.e.hp <= 0) continue;
+    const d = calcDmg(S, c.e, c.e.x, c.e.y, u, x, y, 4.5, c.e.hp, u.hp);
+    if (d > 0) { tot += d; if (d > mx) mx = d; }
+  }
+  return Math.min(mx + 0.35 * (tot - mx), u.hp);
+}
+
+// Multi-source distance field (movement cost) toward goal tiles for a movement type.
+function distField(S, mt, sources) {
+  const N = S.w * S.h, W = S.w, d = new Int16Array(N).fill(-1);
+  const costs = MOVE[mt];
+  const q = [];
+  for (const i of sources) { if (d[i] !== 0) { d[i] = 0; q.push(i); } }
+  // small integer costs: simple label-correcting queue is plenty for these map sizes
+  let h = 0;
+  while (h < q.length) {
+    const i = q[h++], x = i % W, y = (i / W) | 0;
+    const ci = costs[S.tiles[i].k] || 1;
+    for (const [dx, dy] of DIRS) {
+      const nx = x + dx, ny = y + dy;
+      if (!inb(S, nx, ny)) continue;
+      const j = ny * W + nx;
+      if (!costs[S.tiles[j].k]) continue;
+      const nd = d[i] + ci;
+      if (d[j] === -1 || nd < d[j]) { d[j] = nd; q.push(j); }
+    }
+  }
+  return d;
+}
+
+function bestBase(t, cls) {
+  const U = UNITS[t];
+  return Math.max(U.w1 ? U.w1.dmg[cls] || 0 : 0, U.w2 ? U.w2.dmg[cls] || 0 : 0);
+}
+const hasWeapon = (t) => !!(UNITS[t].w1 || UNITS[t].w2);
+
+function goalSources(S, ctx, u) {
+  const W = S.w, side = ctx.side, U = UNITS[u.t], src = [];
+  const own = (k) => S.tiles.forEach((t, i) => { if (t.o === side && TER[t.k].repair === k) src.push(i); });
+  // retreat for repairs or fuel
+  if (disp(u.hp) <= 3 && !U.cap) { own(repairKind(u.t)); if (src.length) return { src, w: 350, why: 'repair' }; }
+  if (isAir(u.t) && u.fuel <= (U.burn || 1) * 4 + 6) { own('air'); if (src.length) return { src, w: 600, why: 'fuel' }; }
+  if (U.w1 && u.ammo === 0 && !U.w2) { own(repairKind(u.t)); if (src.length) return { src, w: 300, why: 'ammo' }; }
+  if (U.cap) {
+    S.tiles.forEach((t, i) => { if (TER[t.k].prop && t.o !== side && !ctx.claims.has(i)) src.push(i); });
+    if (src.length) return { src, w: 260, why: 'capture' };
+  }
+  if (U.jam) {
+    for (const e of ctx.enemies) if (isDrone(e.t)) src.push(e.y * W + e.x);
+    if (src.length) return { src, w: 160, why: 'jam' };
+  }
+  if (!hasWeapon(u.t)) {
+    for (const m of ctx.mine) if (m !== u && hasWeapon(m.t) && !isAir(m.t)) src.push(m.y * W + m.x);
+    if (src.length) return { src, w: 140, why: 'escort' };
+  }
+  if (hasWeapon(u.t)) {
+    for (const e of ctx.enemies) if (bestBase(u.t, UNITS[e.t].cls) >= 25) src.push(e.y * W + e.x);
+    if (src.length) return { src, w: 200, why: 'hunt' };
+  }
+  S.tiles.forEach((t, i) => { if (t.k === 'hq' && t.o >= 0 && t.o !== side) src.push(i); });
+  S.tiles.forEach((t, i) => { if (TER[t.k].prop && t.o >= 0 && t.o !== side) src.push(i); });
+  return { src, w: 120, why: 'advance' };
+}
+
+function goalField(S, ctx, u) {
+  const g = goalSources(S, ctx, u);
+  const key = UNITS[u.t].mt + '|' + g.why + '|' + g.src.join(',');
+  if (!ctx.fields[key]) ctx.fields[key] = distField(S, UNITS[u.t].mt, g.src);
+  return { d: ctx.fields[key], w: g.w, why: g.why };
+}
+
+function riskOf(ctx, u) {
+  const U = UNITS[u.t];
+  let r = U.cap ? 0.4 : isIndirect(u.t) ? 1.1 : !hasWeapon(u.t) ? 1.3 : 0.6;
+  return r * ctx.caution;
+}
+
+function posScore(S, ctx, u, x, y, goal) {
+  const i = y * S.w + x, t = S.tiles[i], U = UNITS[u.t];
+  let s = 0;
+  const d = goal.d[i];
+  s -= (d >= 0 ? d : 60) * goal.w;
+  const thr = threatAt(S, ctx, u, x, y);
+  s -= thr / 100 * U.cost * riskOf(ctx, u);
+  if (!isAir(u.t)) s += TER[t.k].def * 45;
+  if (t.o === ctx.side && TER[t.k].build) s -= 2500;
+  if (t.o === ctx.side && TER[t.k].prop && TER[t.k].repair === repairKind(u.t) && u.hp < 70) s += (100 - u.hp) * 40;
+  if (isIndirect(u.t)) {
+    // like to sit where enemies will be in range next turn
+    const [r0, r1] = attackRange(S, u);
+    for (const e of ctx.enemies) { const dd = mdist(x, y, e.x, e.y); if (dd >= r0 && dd <= r1 && bestBase(u.t, UNITS[e.t].cls)) { s += 600; break; } }
+  }
+  if (UNITS[u.t].mesh || UNITS[u.t].jam) {
+    let near = 0; for (const m of ctx.mine) if (m !== u && mdist(m.x, m.y, x, y) <= 2) near++;
+    s += Math.min(near, 4) * 250;
+  }
+  return s;
+}
+
+function propValue(S, side, t) {
+  let v = PROP_VALUE[t.k] || 2000;
+  if (t.k === 'hq' && t.o >= 0) v = 60000;
+  if (t.o >= 0 && t.o !== side) v *= 1.4; // taking from the enemy is a double swing
+  return v;
+}
+
+function evalUnit(S, ctx, u) {
+  const U = UNITS[u.t], W = S.w;
+  const r = reach(S, u);
+  const goal = goalField(S, ctx, u);
+  const base = posScore(S, ctx, u, u.x, u.y, goal);
+  let best = { score: 0, act: 'wait', x: u.x, y: u.y };
+  const consider = (c) => { if (c.score > best.score) best = c; };
+  for (let i = 0; i < r.dist.length; i++) {
+    if (r.dist[i] < 0) continue;
+    const x = i % W, y = (i / W) | 0;
+    const kind = stopKind(S, u, x, y);
+    if (kind !== 'stay' && kind !== 'move') continue;
+    const moved = kind === 'move';
+    const pos = posScore(S, ctx, u, x, y, goal);
+    const dpos = pos - base;
+    consider({ score: dpos, act: 'wait', x, y });
+    if (hasWeapon(u.t)) {
+      for (const e of targetsFrom(S, u, x, y, moved)) {
+        const f = forecast(S, u, x, y, e);
+        if (f.hi <= 0) continue;
+        const ev = UNITS[e.t].cost;
+        let val = Math.min(f.mid, e.hp) / 100 * ev;
+        if (f.lo >= e.hp) val += ev * 0.35;
+        if (e.cap) val += 3000 + (tileAt(S, e.x, e.y).k === 'hq' ? 30000 : 0);
+        let cost = (f.counter ? (f.clo + f.chi) / 2 : 0) / 100 * U.cost;
+        if (U.kamikaze) { cost = U.cost * 0.75; if (val < U.cost * 1.1) continue; }
+        consider({ score: val - cost + dpos * 0.25 + 1, act: 'attack', x, y, target: e.id });
+      }
+    }
+    if (U.cap) {
+      const t = S.tiles[i];
+      if (TER[t.k].prop && t.o !== ctx.side) {
+        const prog = Math.min(1, disp(u.hp) / t.cp);
+        let sc = propValue(S, ctx.side, t) * (0.35 + 0.65 * prog);
+        if (prog >= 1) sc *= 1.5;
+        if (u.cap && !moved) sc += 2500;
+        consider({ score: sc + dpos * 0.3, act: 'capture', x, y });
+      }
+    }
+    if (U.supply && !moved) {
+      let need = 0; for (const m of ctx.mine) if (m !== u && mdist(m.x, m.y, x, y) === 1 && needsSupply(m)) need += 800;
+      if (need) consider({ score: need + dpos, act: 'supply', x, y });
+    }
+  }
+  best.id = u.id;
+  return best;
+}
+
+function aiPowerChoice(S, side, ctx) {
+  const sd = S.sides[side];
+  if (sd.pw || sd.usedThisTurn) return 0;
+  const engaged = ctx.mine.filter((u) => ctx.enemies.some((e) => mdist(u.x, u.y, e.x, e.y) <= moveRange(S, u) + 2)).length;
+  if (canPower(S, side, 2) && (engaged >= 2 || ctx.enemies.length >= 4)) return 2;
+  if (canPower(S, side, 1) && sd.meter < powerCost(S, side, 2) * 0.7 && engaged >= 3) return 1;
+  return 0;
+}
+
+function capturerCount(ctx) { return ctx.mine.filter((u) => UNITS[u.t].cap).length; }
+
+function chooseBuild(S, ctx, kind, funds) {
+  const side = ctx.side, co = coOf(S, side);
+  const roster = buildList(S, side, kind).filter((t) => !UNITS[t].carry && !UNITS[t].supply && unitCost(S, side, t) <= funds);
+  if (!roster.length) return null;
+  let neutral = 0;
+  for (const t of S.tiles) if (TER[t.k].prop && t.o < 0) neutral++;
+  const caps = capturerCount(ctx);
+  const enemyDrones = ctx.enemies.filter((e) => isDrone(e.t)).length;
+  const myCombat = ctx.mine.filter((u) => hasWeapon(u.t) && !UNITS[u.t].cap).length;
+  // Weight the enemy mix by value. Before scouting much, assume the opponent fields its usual staples.
+  const foes = ctx.enemies.map((e) => ({ t: e.t, v: UNITS[e.t].cost * disp(e.hp) / 10 }));
+  if (foes.length < 4) for (const t of EXPECTED[1 - side]) foes.push({ t, v: UNITS[t].cost * 0.6 });
+  const tot = foes.reduce((a, f) => a + f.v, 0) || 1;
+  const count = {};
+  for (const u of ctx.mine) count[u.t] = (count[u.t] || 0) + 1;
+  const wantCaps = Math.min(5, 2 + Math.ceil(neutral / 2));
+  let best = null, bs = -1e9;
+  for (const t of roster) {
+    const U = UNITS[t], cost = unitCost(S, side, t);
+    let eff = 0, vul = 0;
+    for (const f of foes) {
+      const w = f.v / tot;
+      eff += w * bestBase(t, UNITS[f.t].cls) / 100;
+      vul += w * bestBase(f.t, U.cls) / 100;
+    }
+    // combat quality (what it hits, how hard it is hit), scaled up for pricier units so money gets spent
+    let sc = Math.min(eff, 1.1) * (1.25 - Math.min(vul, 1.2) * 0.6) * Math.pow(cost, 0.6);
+    sc /= 1 + 0.18 * (count[t] || 0);
+    if (U.cap) {
+      if (caps < wantCaps) sc = Math.max(sc, 180 + (wantCaps - caps) * 35 - cost / 100);
+      else if (myCombat < 3) sc *= 0.5;
+    }
+    if (U.mesh) sc = myCombat >= 4 && !count[t] ? 120 : -1;
+    if (U.jam) sc = enemyDrones >= 2 && !count[t] ? 160 + enemyDrones * 10 : -1;
+    if (U.kamikaze) sc *= 0.8;
+    if (isNaval(t) && !ctx.enemies.some((e) => isNaval(e.t))) sc *= 0.3;
+    if (co.cost && co.cost(t) < 1) sc *= 1.15;
+    if (S.diff !== 'hard') sc *= frand(0.88, 1.12);
+    if (sc > bs) { bs = sc; best = t; }
+  }
+  return bs > 20 ? best : null;
+}
+
+// Returns the next action, or {kind:'end'}.
+function aiNext(S, side) {
+  const ctx = aiContext(S, side);
+  const lvl = aiPowerChoice(S, side, ctx);
+  if (lvl) { S.sides[side].usedThisTurn = true; return { kind: 'power', level: lvl }; }
+  let best = null;
+  for (const u of ctx.mine) {
+    if (u.done) continue;
+    const c = evalUnit(S, ctx, u);
+    // nudge: units standing on our own factories move first so production isn't blocked
+    const t = tileAt(S, u.x, u.y);
+    if (t.o === side && TER[t.k].build) c.score += 1;
+    if (!best || c.score > best.score) best = c;
+  }
+  if (best) {
+    const u = S.units.find((w) => w.id === best.id);
+    const r = reach(S, u);
+    return { kind: 'unit', id: u.id, path: pathTo(S, r, best.x, best.y), act: best.act, target: best.target };
+  }
+  // production
+  const free = buildTilesFor(S, side);
+  const hq = S.tiles.findIndex((t) => t.k === 'hq' && t.o === 1 - side);
+  const hx = hq % S.w, hy = (hq / S.w) | 0;
+  const rank = { ground: 0, air: 1, sea: 2 };
+  free.sort((a, b) => rank[a.kind] - rank[b.kind] || mdist(a.x, a.y, hx, hy) - mdist(b.x, b.y, hx, hy));
+  for (const f of free) {
+    const t = chooseBuild(S, ctx, f.kind, S.sides[side].funds);
+    if (t) return { kind: 'build', t, x: f.x, y: f.y };
+  }
+  return { kind: 'end' };
+}
+
+// Signal Front — map renderer: camera, terrain layers, units, range overlays, cursor and effects
+
+const R = {
+  cv: null, ctx: null, dpr: 1, W: 0, H: 0, zoom: 3, cam: { x: 0, y: 0 }, camTo: null,
+  frame: 0, seaFrame: 0, t: 0, shake: 0,
+  over: null,      // { tiles: Uint8Array, kind: 'move'|'attack'|'threat' }
+  over2: null,     // secondary overlay (attack fringe while moving)
+  path: null,      // [{x,y}]
+  cursor: null,    // {x,y}
+  targets: null,   // [{x,y}]
+  hideUnit: null,  // unit id hidden while it animates
+  insets: { top: 56, bottom: 52, left: 0, right: 0 },
+};
+const FX = [];
+
+function renderInit() {
+  R.cv = $('#c');
+  R.ctx = R.cv.getContext('2d');
+  window.addEventListener('resize', resize);
+  resize();
+}
+function resize() {
+  R.dpr = Math.min(window.devicePixelRatio || 1, 3);
+  R.W = Math.round(innerWidth * R.dpr); R.H = Math.round(innerHeight * R.dpr);
+  R.cv.width = R.W; R.cv.height = R.H;
+  if (S) fitZoom(false);
+}
+// Choose a zoom so tiles are comfortably big; integer device pixels per art pixel keeps it crisp.
+function fitZoom(reset) {
+  const target = (isTouch ? 34 : 44) * R.dpr;
+  let z = Math.max(1, Math.round(target / T));
+  // grow to fill the screen when the whole map fits, up to two steps past the comfortable size
+  if (S) {
+    const fw = viewW() / ((S.w + 0.4) * T), fh = viewH() / ((S.h + 0.35) * T);
+    // phones in portrait: fill the height and pan sideways
+    const fit = Math.floor(isTouch && viewH() > viewW() ? fh : Math.min(fw, fh));
+    if (fit > z) z = Math.min(fit, z + 2);
+  }
+  if (reset || !R.userZoom) R.zoom = z;
+  clampCam();
+}
+function setZoom(dz, cx, cy) {
+  const old = R.zoom;
+  const nz = clamp(old + dz, Math.max(1, Math.round(16 * R.dpr / T)), Math.round(96 * R.dpr / T));
+  if (nz === old) return;
+  // keep the point under (cx,cy) fixed
+  const wx = R.cam.x + (cx - viewOX()) / old, wy = R.cam.y + (cy - viewOY()) / old;
+  R.zoom = nz; R.userZoom = true;
+  R.cam.x = wx - (cx - viewOX()) / nz; R.cam.y = wy - (cy - viewOY()) / nz;
+  R.camTo = null;
+  clampCam();
+}
+const viewOX = () => R.insets.left * R.dpr;
+const viewOY = () => R.insets.top * R.dpr;
+const viewW = () => R.W - (R.insets.left + R.insets.right) * R.dpr;
+const viewH = () => R.H - (R.insets.top + R.insets.bottom) * R.dpr;
+
+function clampCam() {
+  if (!S) return;
+  const mw = S.w * T, mh = S.h * T, vw = viewW() / R.zoom, vh = viewH() / R.zoom;
+  const pad = 8;
+  if (mw <= vw) R.cam.x = (mw - vw) / 2; else R.cam.x = clamp(R.cam.x, -pad, mw - vw + pad);
+  if (mh + 4 <= vh) R.cam.y = (mh - vh) / 2 - 2; else R.cam.y = clamp(R.cam.y, -pad - 4, mh - vh + pad);
+}
+function centerOn(x, y, instant) {
+  const vw = viewW() / R.zoom, vh = viewH() / R.zoom;
+  const tx = x * T + T / 2 - vw / 2, ty = y * T + T / 2 - vh / 2;
+  const save = { x: R.cam.x, y: R.cam.y };
+  R.cam.x = tx; R.cam.y = ty; clampCam();
+  const dest = { x: R.cam.x, y: R.cam.y };
+  if (!instant && !TIME.fast) { R.cam.x = save.x; R.cam.y = save.y; R.camTo = dest; }
+  else R.camTo = null;
+}
+// Pan only if the tile is near or beyond the view edge.
+function ensureVisible(x, y, margin = 2) {
+  const vw = viewW() / R.zoom, vh = viewH() / R.zoom;
+  const px0 = x * T, py0 = y * T, m = margin * T;
+  const c = R.camTo || R.cam;
+  if (px0 - m < c.x || px0 + T + m > c.x + vw || py0 - m < c.y || py0 + T + m > c.y + vh) centerOn(x, y);
+}
+function screenToTile(sx, sy) {
+  const ax = (sx * R.dpr - viewOX() - Math.round(-R.cam.x * R.zoom)) / R.zoom;
+  const ay = (sy * R.dpr - viewOY() - Math.round(-R.cam.y * R.zoom)) / R.zoom;
+  return { x: Math.floor(ax / T), y: Math.floor(ay / T) };
+}
+function tileToScreen(x, y) {
+  return {
+    x: (viewOX() + Math.round(-R.cam.x * R.zoom) + x * T * R.zoom) / R.dpr,
+    y: (viewOY() + Math.round(-R.cam.y * R.zoom) + y * T * R.zoom) / R.dpr,
+    s: T * R.zoom / R.dpr,
+  };
+}
+
+function maskOf(S, x, y, test) {
+  let m = 0;
+  const t = (dx, dy) => { const nx = x + dx, ny = y + dy; return inb(S, nx, ny) ? test(tileAt(S, nx, ny).k) : null; };
+  if (t(1, 0)) m |= 1; if (t(-1, 0)) m |= 2; if (t(0, 1)) m |= 4; if (t(0, -1)) m |= 8;
+  return m;
+}
+const isLandK = (k) => k !== 'sea' && k !== 'reef' && k !== 'shoal';
+const roadish = (k) => k === 'road' || k === 'bridge' || k === 'hq' || k === 'base';
+const riverish = (k) => k === 'river' || k === 'bridge' || k === 'sea';
+
+function tileImage(S, x, y) {
+  const k = tileAt(S, x, y).k;
+  let mask = 0;
+  if (k === 'sea' || k === 'reef') mask = maskOf(S, x, y, (n) => isLandK(n) && n !== 'port');
+  else if (k === 'shoal') mask = maskOf(S, x, y, (n) => n === 'sea' || n === 'reef');
+  else if (k === 'road') mask = maskOf(S, x, y, roadish);
+  else if (k === 'river') mask = maskOf(S, x, y, riverish);
+  else if (k === 'bridge') mask = maskOf(S, x, y, roadish) | (maskOf(S, x, y, riverish) << 4);
+  const anim = k === 'sea' || k === 'reef' || k === 'river' || k === 'bridge' || k === 'shoal';
+  return terrainTile(k === 'port' ? 'plain' : k, x, y, mask, anim ? R.seaFrame : 0);
+}
+
+// ---------------- pixel digits for HP ----------------
+const DIG = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001',
+  '111100111001111', '111100111101111', '111001010010010', '111101111101111', '111101111001111'];
+function drawDigit(c, n, x, y, col) {
+  const g = DIG[n];
+  c.fillStyle = '#000';
+  c.fillRect(x - 1, y - 1, 5, 7);
+  c.fillStyle = col;
+  for (let i = 0; i < 15; i++) if (g[i] === '1') c.fillRect(x + (i % 3), y + ((i / 3) | 0), 1, 1);
+}
+
+function unitVisual(u) {
+  const a = u.anim;
+  return a ? { x: a.x, y: a.y } : { x: u.x, y: u.y };
+}
+
+function render(dt) {
+  R.t += dt;
+  R.frame = Math.floor(R.t * 3.2) % 2;
+  R.seaFrame = Math.floor(R.t * 1.6) % 4;
+  const c = R.ctx;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.imageSmoothingEnabled = false;
+  c.fillStyle = '#10141c'; c.fillRect(0, 0, R.W, R.H);
+  if (!S) return;
+  if (R.camTo) {
+    const k = 1 - Math.pow(0.0005, dt);
+    R.cam.x = lerp(R.cam.x, R.camTo.x, k); R.cam.y = lerp(R.cam.y, R.camTo.y, k);
+    if (Math.abs(R.cam.x - R.camTo.x) < 0.3 && Math.abs(R.cam.y - R.camTo.y) < 0.3) { R.cam.x = R.camTo.x; R.cam.y = R.camTo.y; R.camTo = null; }
+  }
+  let sx = 0, sy = 0;
+  if (R.shake > 0) { R.shake = Math.max(0, R.shake - dt * 30); sx = (Math.random() - 0.5) * R.shake; sy = (Math.random() - 0.5) * R.shake; }
+  const z = R.zoom;
+  const ox = viewOX() + Math.round((-R.cam.x + sx) * z), oy = viewOY() + Math.round((-R.cam.y + sy) * z);
+  c.setTransform(z, 0, 0, z, ox, oy);
+  const x0 = Math.max(0, Math.floor(R.cam.x / T) - 1), y0 = Math.max(0, Math.floor(R.cam.y / T) - 1);
+  const x1 = Math.min(S.w - 1, Math.ceil((R.cam.x + viewW() / z) / T) + 1), y1 = Math.min(S.h - 1, Math.ceil((R.cam.y + viewH() / z) / T) + 2);
+  // map border
+  c.fillStyle = '#0a0d12'; c.fillRect(-3, -3, S.w * T + 6, S.h * T + 6);
+  const viewer = viewSide();
+  const vis = visMap(S, viewer);
+  // base terrain
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    c.drawImage(tileImage(S, x, y), x * T, y * T);
+    const k = tileAt(S, x, y).k;
+    if (k === 'port') { // port sits on a quay: draw water edge
+      c.fillStyle = TC.water; c.fillRect(x * T, y * T + 12, T, 4);
+      c.fillStyle = TC.foam; c.fillRect(x * T, y * T + 12, T, 1);
+    }
+  }
+  // tall layer: forests, mountains, properties, row by row
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const t = tileAt(S, x, y);
+    if (t.k === 'forest' || t.k === 'mount') c.drawImage(tallTile(t.k, x, y), x * T, y * T - 4);
+    else if (TER[t.k].prop) c.drawImage(propSprite(t.k, t.o), x * T, y * T - 4);
+  }
+  // fog
+  if (S.fog) {
+    c.fillStyle = 'rgba(8,10,24,0.42)';
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (!vis[y * S.w + x]) c.fillRect(x * T, y * T, T, T);
+  }
+  // overlays
+  drawOverlay(c, R.over2, x0, y0, x1, y1);
+  drawOverlay(c, R.over, x0, y0, x1, y1);
+  if (R.path) drawPath(c, R.path);
+  // capture progress markers
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const t = tileAt(S, x, y);
+    if (TER[t.k].prop && t.cp < 20) {
+      c.fillStyle = '#000'; c.fillRect(x * T + 1, y * T - 5, 14, 3);
+      c.fillStyle = '#ffd23a'; c.fillRect(x * T + 2, y * T - 4, Math.round(12 * (20 - t.cp) / 20), 1);
+    }
+  }
+  // units sorted by row
+  const list = S.units.filter((u) => u.id !== R.hideUnit && canSee(S, viewer, u))
+    .sort((a, b) => unitVisual(a).y - unitVisual(b).y);
+  for (const u of list) drawUnit(c, u);
+  // cursor & targets
+  if (R.targets) for (const t of R.targets) drawBrackets(c, t.x, t.y, '#ff5a4a', 1 + Math.round(Math.sin(R.t * 8)));
+  if (R.cursor && !isTouch) drawBrackets(c, R.cursor.x, R.cursor.y, '#fff6c8', Math.round(Math.sin(R.t * 6) + 1));
+  if (R.cursor && isTouch && R.showCursor) drawBrackets(c, R.cursor.x, R.cursor.y, '#fff6c8', 1);
+  // effects
+  drawFX(c, dt);
+}
+
+function drawOverlay(c, o, x0, y0, x1, y1) {
+  if (!o) return;
+  const col = o.kind === 'move' ? 'rgba(90,170,255,0.42)' : o.kind === 'threat' ? 'rgba(255,150,40,0.36)' : 'rgba(255,70,60,0.42)';
+  const edge = o.kind === 'move' ? 'rgba(200,236,255,0.7)' : o.kind === 'threat' ? 'rgba(255,220,140,0.6)' : 'rgba(255,190,180,0.7)';
+  const pulse = 0.85 + Math.sin(R.t * 4) * 0.15;
+  c.globalAlpha = pulse;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    if (!o.tiles[y * S.w + x]) continue;
+    c.fillStyle = col; c.fillRect(x * T, y * T, T, T);
+    c.fillStyle = edge;
+    const on = (dx, dy) => inb(S, x + dx, y + dy) && o.tiles[(y + dy) * S.w + x + dx];
+    if (!on(0, -1)) c.fillRect(x * T, y * T, T, 1);
+    if (!on(0, 1)) c.fillRect(x * T, y * T + T - 1, T, 1);
+    if (!on(-1, 0)) c.fillRect(x * T, y * T, 1, T);
+    if (!on(1, 0)) c.fillRect(x * T + T - 1, y * T, 1, T);
+  }
+  c.globalAlpha = 1;
+}
+
+function drawPath(c, p) {
+  if (p.length < 2) return;
+  c.fillStyle = '#ffffff';
+  const sh = '#1b4a8a';
+  for (let pass = 0; pass < 2; pass++) {
+    c.fillStyle = pass ? '#fff4c0' : sh;
+    const w = pass ? 4 : 6, o = (T - w) / 2;
+    for (let i = 0; i < p.length - 1; i++) {
+      const a = p[i], b = p[i + 1];
+      const xA = Math.min(a.x, b.x) * T + o, yA = Math.min(a.y, b.y) * T + o;
+      const ww = a.x !== b.x ? T + w : w, hh = a.y !== b.y ? T + w : w;
+      c.fillRect(xA, yA, ww, hh);
+    }
+  }
+  // arrow head
+  const L = p[p.length - 1], P = p[p.length - 2];
+  const dx = L.x - P.x, dy = L.y - P.y, cx = L.x * T + 8, cy = L.y * T + 8;
+  c.fillStyle = '#fff4c0';
+  for (let i = 0; i < 4; i++) {
+    if (dx) c.fillRect(cx + dx * (2 - i) - (dx < 0 ? 1 : 0), cy - i - 1, 1, i * 2 + 2);
+    else c.fillRect(cx - i - 1, cy + dy * (2 - i) - (dy < 0 ? 1 : 0), i * 2 + 2, 1);
+  }
+}
+
+function drawBrackets(c, x, y, col, o) {
+  const X0 = x * T - o, Y0 = y * T - o, X1 = x * T + T - 1 + o, Y1 = y * T + T - 1 + o, L = 4;
+  const corner = (cx, cy, sx, sy) => {
+    const hx = sx > 0 ? cx : cx - L + 1, vy = sy > 0 ? cy : cy - L + 1;
+    c.fillStyle = '#000'; c.fillRect(hx - 1, cy - 1, L + 2, 3); c.fillRect(cx - 1, vy - 1, 3, L + 2);
+    c.fillStyle = col; c.fillRect(hx, cy, L, 1); c.fillRect(cx, vy, 1, L);
+  };
+  corner(X0, Y0, 1, 1); corner(X1, Y0, -1, 1); corner(X0, Y1, 1, -1); corner(X1, Y1, -1, -1);
+}
+
+function drawUnit(c, u) {
+  const v = unitVisual(u);
+  const airU = isAir(u.t), naval = isNaval(u.t);
+  const bob = airU ? (Math.sin(R.t * 3 + u.id) > 0 ? 1 : 0) : 0;
+  const X = Math.round(v.x * T), Y = Math.round(v.y * T);
+  if (airU) { c.fillStyle = 'rgba(0,0,0,0.28)'; c.fillRect(X + 4, Y + 13, 8, 2); c.fillRect(X + 5, Y + 12, 6, 1); }
+  const grey = u.done && u.s === S.turn && !u.anim;
+  const frame = (R.frame + (u.id % 2)) % 2;
+  const spr = unitSprite(u.t, u.s, frame, grey);
+  const flash = u.flash && u.flash > R.t;
+  c.drawImage(spr, X, Y - (airU ? 4 : 0) - bob + (naval ? 1 : 0));
+  if (flash) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.7; c.drawImage(spr, X, Y - (airU ? 4 : 0) - bob); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+  if (naval) { c.fillStyle = TC.foam; c.fillRect(X + 1 + R.frame, Y + 12, 13, 1); }
+  const hp = disp(u.vhp != null ? u.vhp : u.hp);
+  if (hp < 10 && hp > 0) drawDigit(c, hp, X + 12, Y + 10, '#ffffff');
+  // status pips (bottom-left): capture, low supply, cargo
+  let px0 = X + 1;
+  const pip = (col, ch) => {
+    c.fillStyle = '#000'; c.fillRect(px0 - 1, Y + 9, 6, 7);
+    c.fillStyle = col; c.fillRect(px0, Y + 10, 4, 5);
+    if (ch === 'c') { c.fillStyle = '#000'; c.fillRect(px0 + 1, Y + 11, 1, 3); c.fillRect(px0 + 2, Y + 11, 1, 1); }
+    px0 += 6;
+  };
+  if (u.cap) pip('#ffd23a', 'c');
+  const U = UNITS[u.t];
+  if ((u.fuel <= U.fuel * 0.25 || (U.w1 && u.ammo === 0 && !U.w2)) && R.frame) pip('#ff5040');
+  if (u.cargo && u.cargo.length) pip('#6ff3ff');
+}
+
+// ---------------- effects ----------------
+function fxAdd(e) { if (TIME.fast) return e; e.t0 = R.t; FX.push(e); return e; }
+function drawFX(c, dt) {
+  void dt;
+  for (let i = FX.length - 1; i >= 0; i--) {
+    const e = FX[i], k = (R.t - e.t0) / e.dur;
+    if (k >= 1) { FX.splice(i, 1); continue; }
+    FXDRAW[e.type](c, e, k);
+  }
+}
+const FXDRAW = {
+  boom(c, e, k) {
+    const r = 2 + k * (e.big ? 10 : 7);
+    const cols = ['#fff7d0', '#ffd23a', '#ff8a30', '#d04020', '#5a5a5a'];
+    const col = cols[Math.min(4, Math.floor(k * 5))];
+    c.fillStyle = col;
+    pixelCircle(c, e.x, e.y, r * (k < 0.6 ? 1 : 1 - (k - 0.6)), true);
+    if (k > 0.3) { c.fillStyle = 'rgba(70,70,70,' + (1 - k) + ')'; pixelCircle(c, e.x + 3, e.y - k * 8, r * 0.5, true); }
+  },
+  flash(c, e, k) { c.fillStyle = k < 0.5 ? '#fff7c0' : '#ffb040'; const s = Math.round(4 - k * 3); c.fillRect(Math.round(e.x - s / 2), Math.round(e.y - s / 2), s, s); },
+  shot(c, e, k) {
+    const x = lerp(e.x0, e.x1, k), y = lerp(e.y0, e.y1, k) - Math.sin(k * Math.PI) * (e.arc || 0);
+    c.fillStyle = e.col || '#fff4b0'; c.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+    if (e.trail) { c.fillStyle = 'rgba(220,220,220,0.6)'; const x2 = lerp(e.x0, e.x1, Math.max(0, k - 0.08)), y2 = lerp(e.y0, e.y1, Math.max(0, k - 0.08)) - Math.sin(Math.max(0, k - 0.08) * Math.PI) * (e.arc || 0); c.fillRect(Math.round(x2) - 1, Math.round(y2) - 1, 2, 2); }
+  },
+  text(c, e, k) {
+    c.save();
+    c.font = '8px "Press Start 2P", monospace'; c.textAlign = 'center';
+    const y = e.y - k * 10;
+    c.globalAlpha = k > 0.75 ? (1 - k) * 4 : 1;
+    c.fillStyle = '#000'; c.fillText(e.s, e.x + 1, y + 1);
+    c.fillStyle = e.col || '#fff'; c.fillText(e.s, e.x, y);
+    c.restore();
+  },
+  ring(c, e, k) {
+    c.strokeStyle = e.col || '#6ff3ff'; c.globalAlpha = 1 - k; c.lineWidth = 1;
+    const r = Math.round(2 + k * (e.r || 14));
+    pixelCircle(c, e.x, e.y, r, false);
+    c.globalAlpha = 1;
+  },
+  spark(c, e, k) {
+    c.fillStyle = e.col || '#7dffb0';
+    for (let i = 0; i < 5; i++) { const a = i * 1.26 + e.x; c.fillRect(Math.round(e.x + Math.cos(a) * 6), Math.round(e.y + Math.sin(a) * 4 - k * 10), 1, 2); }
+  },
+  beam(c, e, k) {
+    c.fillStyle = 'rgba(255,240,170,' + (1 - k) + ')';
+    c.fillRect(e.x - 3 + k * 2, -200, 6 - k * 4, e.y + 200);
+  },
+};
+function pixelCircle(c, cx, cy, r, fill) {
+  r = Math.max(1, Math.round(r));
+  for (let y = -r; y <= r; y++) {
+    const w = Math.round(Math.sqrt(r * r - y * y));
+    if (fill) c.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2 + 1, 1);
+    else { c.fillRect(Math.round(cx - w), Math.round(cy + y), 1, 1); c.fillRect(Math.round(cx + w), Math.round(cy + y), 1, 1); }
+  }
+}
+const tileCenter = (x, y) => ({ x: x * T + 8, y: y * T + 8 });
+
+// Signal Front — turn flow, animated actions and map input (mouse + touch)
+
+const G = {
+  mode: 'off',    // off | idle | select | menu | target | drop | busy
+  sel: null,      // selected unit
+  reach: null,
+  dest: null,     // {x,y} chosen destination while the action menu is open
+  path: null,
+  targets: null,
+  tgt: null,      // target previewed (touch: first tap previews, second confirms)
+  inspect: null,  // enemy unit whose range is shown
+};
+
+const humanSide = () => (S && !S.sides[0].ai ? 0 : S && !S.sides[1].ai ? 1 : 0);
+const viewSide = () => (DEBUG && R.reveal ? S.turn : humanSide());
+const isHumanTurn = () => S && !S.over && !S.sides[S.turn].ai;
+
+// ---------------- animated actions ----------------
+async function animMove(u, path) {
+  if (path.length < 2) return;
+  const hidden = !canSee(S, viewSide(), u);
+  if (!hidden) { sfx('move', u.t); if (!isHumanTurn()) ensureVisible(path[path.length - 1].x, path[path.length - 1].y, 1); }
+  if (TIME.fast || hidden) return;
+  const per = isAir(u.t) ? 55 : 75;
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i];
+    const t0 = performance.now(), dur = per / TIME.speed;
+    await new Promise((res) => {
+      const step = () => {
+        const k = Math.min(1, (performance.now() - t0) / dur);
+        u.anim = { x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k) };
+        if (k < 1) requestAnimationFrame(step); else res();
+      };
+      step();
+    });
+  }
+  u.anim = { x: path[path.length - 1].x, y: path[path.length - 1].y };
+}
+
+function weaponSound(a, w) {
+  const t = a.t;
+  if (UNITS[t].kamikaze) return 'boom';
+  if (w === 2) return 'mg';
+  if (['spark', 'moray', 'mlrs', 'mallet', 'streak', 'razorwing', 'strider', 'atgm', 'gunship', 'deepfin', 'fpv'].includes(t)) return 'missile';
+  return 'cannon';
+}
+
+async function fireFx(a, d, res) {
+  const A = tileCenter(a.x, a.y), D = tileCenter(d.x, d.y);
+  const visA = canSee(S, viewSide(), a), visD = canSee(S, viewSide(), d);
+  const sound = weaponSound(a, res.w);
+  const indirectShot = mdist(a.x, a.y, d.x, d.y) > 1;
+  if (visA && !UNITS[a.t].kamikaze) { fxAdd({ type: 'flash', x: A.x + (a.s === 0 ? 5 : -5), y: A.y - 2, dur: 0.18 }); a.flash = R.t + 0.12; }
+  sfx(sound);
+  if (indirectShot || sound === 'missile') {
+    fxAdd({ type: 'shot', x0: A.x, y0: A.y - 4, x1: D.x, y1: D.y, arc: indirectShot ? 18 + mdist(a.x, a.y, d.x, d.y) * 4 : 3, dur: indirectShot ? 0.55 : 0.28, trail: true });
+    await wait(indirectShot ? 550 : 280);
+  } else if (sound === 'mg') {
+    for (let i = 0; i < 4; i++) fxAdd({ type: 'shot', x0: A.x, y0: A.y - 2, x1: D.x + frand(-3, 3), y1: D.y + frand(-3, 3), dur: 0.12 + i * 0.04, col: '#ffe890' });
+    await wait(260);
+  } else await wait(160);
+  if (visD) {
+    fxAdd({ type: 'boom', x: D.x + frand(-2, 2), y: D.y + frand(-2, 2), dur: 0.5, big: res.killed });
+    if (res.shown > 0) fxAdd({ type: 'text', s: '-' + res.shown, x: D.x, y: D.y - 6, dur: 1.0, col: '#ffd0c0' });
+    d.flash = R.t + 0.15;
+    R.shake = Math.max(R.shake, res.killed ? 5 : 2);
+  }
+  sfx(res.killed ? 'boom' : 'cannon');
+  await wait(res.killed ? 520 : 360);
+}
+
+async function animAttack(a, d) {
+  if (!TIME.fast && (canSee(S, viewSide(), a) || canSee(S, viewSide(), d))) ensureVisible(d.x, d.y, 1);
+  const dist = mdist(a.x, a.y, d.x, d.y);
+  if (UNITS[a.t].kamikaze && !TIME.fast && canSee(S, viewSide(), a)) {
+    // the one-way drone dives onto its target
+    const t0 = performance.now(), dur = 260 / TIME.speed;
+    await new Promise((res) => { const step = () => { const k = Math.min(1, (performance.now() - t0) / dur); a.anim = { x: lerp(a.x, d.x, k * k), y: lerp(a.y, d.y, k * k) }; if (k < 1) requestAnimationFrame(step); else res(); }; step(); });
+    R.hideUnit = a.id;
+  }
+  const r1 = strike(S, a, d);
+  if (!TIME.fast) await fireFx(a, d, r1);
+  if (d.hp > 0 && a.hp > 0 && canCounter(S, a, d, dist)) {
+    const r2 = strike(S, d, a);
+    if (!TIME.fast) await fireFx(d, a, r2);
+  }
+  if (R.hideUnit === a.id) R.hideUnit = null;
+  a.anim = null;
+  const dead = removeDead(S);
+  if (dead.some((u) => u.s === humanSide())) log('lost', dead.filter((u) => u.s === humanSide()));
+  hudRefresh();
+}
+
+async function perform(a) {
+  if (a.kind === 'power') return doPower(S.turn, a.level);
+  if (a.kind === 'build') {
+    const u = doBuild(S, S.turn, a.t, a.x, a.y);
+    if (u && canSee(S, viewSide(), u)) {
+      if (!isHumanTurn()) ensureVisible(a.x, a.y, 1);
+      const c = tileCenter(a.x, a.y);
+      fxAdd({ type: 'ring', x: c.x, y: c.y, dur: 0.5, col: FACTIONS[u.s].ramp[0] });
+      sfx('build');
+      await wait(isHumanTurn() ? 0 : 320);
+    }
+    hudRefresh();
+    return;
+  }
+  if (a.kind !== 'unit') return;
+  const u = S.units.find((w) => w.id === a.id);
+  if (!u) return;
+  const tc = trapCheck(S, u, a.path || [{ x: u.x, y: u.y }]);
+  await animMove(u, tc.path);
+  const from = { x: u.x, y: u.y };
+  commitMove(S, u, tc.path);
+  u.anim = null;
+  if (tc.trapped) {
+    u.done = true;
+    const c = tileCenter(u.x, u.y);
+    if (canSee(S, viewSide(), u)) { fxAdd({ type: 'text', s: 'AMBUSH!', x: c.x, y: c.y - 8, dur: 1.2, col: '#ffd23a' }); sfx('trap'); await wait(700); }
+    hudRefresh();
+    return;
+  }
+  const visible = canSee(S, viewSide(), u);
+  switch (a.act) {
+    case 'attack': {
+      const d = S.units.find((w) => w.id === a.target);
+      u.done = true;
+      if (d) await animAttack(u, d);
+      break;
+    }
+    case 'capture': {
+      const r = doCapture(S, u);
+      const c = tileCenter(u.x, u.y);
+      if (visible || tileAt(S, u.x, u.y).o === humanSide()) {
+        if (r.done) { fxAdd({ type: 'text', s: 'CAPTURED', x: c.x, y: c.y - 8, dur: 1.3, col: '#ffd23a' }); sfx('captured'); }
+        else { fxAdd({ type: 'text', s: String(r.left), x: c.x, y: c.y - 8, dur: 1.0, col: '#ffe9a0' }); sfx('capture'); }
+        await wait(r.done ? 650 : 380);
+      }
+      break;
+    }
+    case 'load': { const o = unitAt(S, u.x, u.y) === u ? S.units.find((w) => w !== u && w.x === u.x && w.y === u.y) : unitAt(S, u.x, u.y); if (o) doLoad(S, u, o); else u.done = true; sfx('menu'); break; }
+    case 'join': { const o = S.units.find((w) => w !== u && w.x === u.x && w.y === u.y); if (o) { doJoin(S, u, o); sfx('repair'); } else u.done = true; break; }
+    case 'drop': {
+      u.done = true;
+      if (a.drop && u.cargo.length) { const c = doDrop(S, u, a.drop.x, a.drop.y); void c; sfx('menu'); await wait(150); }
+      break;
+    }
+    case 'supply': {
+      u.done = true;
+      const got = supplyAround(S, u);
+      for (const g of got) { const c = tileCenter(g.x, g.y); fxAdd({ type: 'spark', x: c.x, y: c.y, dur: 0.7, col: '#6ff3ff' }); }
+      if (got.length) { sfx('repair'); await wait(350); }
+      break;
+    }
+    default: u.done = true;
+  }
+  void from;
+  bump(S);
+  hudRefresh();
+}
+
+async function doPower(side, level) {
+  const co = coOf(S, side);
+  const res = activatePower(S, side, level);
+  await powerBanner(side, level);
+  if (res && res.units) {
+    for (const u of res.units) {
+      if (!canSee(S, viewSide(), u)) continue;
+      const c = tileCenter(u.x, u.y);
+      if (res.kind === 'heal') fxAdd({ type: 'spark', x: c.x, y: c.y, dur: 0.9 });
+      else fxAdd({ type: 'boom', x: c.x, y: c.y, dur: 0.6 });
+    }
+    if (res.kind === 'strike') {
+      ensureVisible(res.x, res.y, 2);
+      const c = tileCenter(res.x, res.y);
+      fxAdd({ type: 'beam', x: c.x, y: c.y, dur: 0.6 });
+      for (let i = 0; i < 9; i++) setTimeout(() => fxAdd({ type: 'boom', x: c.x + frand(-28, 28), y: c.y + frand(-28, 28), dur: 0.6, big: true }), i * 70);
+      R.shake = 8; sfx('boom');
+    } else if (res.kind === 'hurt') { R.shake = 4; sfx('zap'); }
+    else if (res.kind === 'heal') sfx('repair');
+    await wait(800);
+  }
+  void co;
+  hudRefresh();
+}
+
+// ---------------- turn flow ----------------
+async function beginTurn(events) {
+  const game = S;
+  clearSel();
+  G.mode = 'busy';
+  hudRefresh();
+  const side = S.turn;
+  playSong(FACTIONS[side].id);
+  await turnBanner(side, events);
+  if (S !== game) return; // left the match while the banner played
+  showStartEvents(events);
+  if (S.over) return finishGame();
+  if (S.sides[side].ai) await runAI();
+  else {
+    G.mode = 'idle';
+    // return to where the player left the camera (their HQ on the first turn)
+    if (R.humanCam) { R.camTo = { x: R.humanCam.x, y: R.humanCam.y }; }
+    hudRefresh();
+  }
+}
+function showStartEvents(events) {
+  for (const e of events) {
+    if (e.kind === 'repair' && canSee(S, viewSide(), e.unit)) { const c = tileCenter(e.unit.x, e.unit.y); fxAdd({ type: 'spark', x: c.x, y: c.y, dur: 0.8 }); }
+    if (e.kind === 'jam' && canSee(S, viewSide(), e.unit)) { const c = tileCenter(e.unit.x, e.unit.y); fxAdd({ type: 'ring', x: c.x, y: c.y, dur: 0.6, col: '#ffd23a' }); }
+    if (e.kind === 'crash' && e.unit.s === humanSide()) toast(UNITS[e.unit.t].name + ' ran out of fuel and was lost.');
+  }
+}
+async function runAI() {
+  const game = S;
+  G.mode = 'busy';
+  hudRefresh();
+  let guard = 0;
+  while (S === game && !S.over && guard++ < 400) {
+    const a = aiNext(S, S.turn);
+    if (a.kind === 'end') break;
+    await perform(a);
+    if (S !== game) return;
+    checkVictory(S);
+    if (!TIME.fast) await wait(60);
+  }
+  if (S !== game) return;
+  if (S.over) return finishGame();
+  await nextTurn();
+}
+async function nextTurn() {
+  const ev = endTurn(S);
+  checkVictory(S);
+  saveGame();
+  await beginTurn(ev);
+}
+async function humanEndTurn() {
+  if (!isHumanTurn() || G.mode === 'busy') return;
+  // ask once if units are still waiting for orders
+  if (!G.confirmEnd && S.units.some((u) => u.s === S.turn && !u.done)) {
+    G.confirmEnd = true;
+    $('#endBtn').textContent = 'End turn?';
+    sfx('menu');
+    setTimeout(() => { G.confirmEnd = false; $('#endBtn').textContent = 'End Turn'; }, 2500);
+    return;
+  }
+  G.confirmEnd = false; $('#endBtn').textContent = 'End Turn';
+  R.humanCam = { x: R.cam.x, y: R.cam.y };
+  clearSel();
+  G.mode = 'busy';
+  await nextTurn();
+}
+async function afterHumanAction() {
+  clearSel();
+  checkVictory(S);
+  if (S.over) return finishGame();
+  G.mode = 'idle';
+  hudRefresh();
+  if (S.sides[S.turn].ai) await runAI(); // never happens, but keeps the loop safe
+}
+
+// ---------------- selection helpers ----------------
+function clearSel() {
+  if (G.sel) G.sel.anim = null;
+  G.sel = null; G.reach = null; G.dest = null; G.path = null; G.targets = null; G.tgt = null; G.inspect = null;
+  R.over = null; R.over2 = null; R.path = null; R.targets = null;
+  closeActionMenu(); hideForecast();
+}
+function reachOverlay(r) {
+  const o = new Uint8Array(S.w * S.h);
+  for (let i = 0; i < r.dist.length; i++) if (r.dist[i] >= 0) o[i] = 1;
+  return o;
+}
+function attackFringe(u, r) {
+  const o = new Uint8Array(S.w * S.h);
+  const [r0, r1] = attackRange(S, u);
+  const mark = (cx, cy) => {
+    for (let dy = -r1; dy <= r1; dy++) for (let dx = -r1; dx <= r1; dx++) {
+      const d = Math.abs(dx) + Math.abs(dy), x = cx + dx, y = cy + dy;
+      if (d >= r0 && d <= r1 && inb(S, x, y)) o[y * S.w + x] = 1;
+    }
+  };
+  if (!UNITS[u.t].w1 && !UNITS[u.t].w2) return o;
+  if (isIndirect(u.t)) mark(u.x, u.y);
+  else for (let i = 0; i < r.dist.length; i++) if (r.dist[i] >= 0) { const x = i % S.w, y = (i / S.w) | 0; const k = stopKind(S, u, x, y); if (k === 'move' || k === 'stay') mark(x, y); }
+  return o;
+}
+function selectUnit(u) {
+  clearSel();
+  G.sel = u; G.mode = 'select';
+  G.reach = reach(S, u);
+  R.over = { kind: 'move', tiles: reachOverlay(G.reach) };
+  if (UNITS[u.t].w1 || UNITS[u.t].w2) {
+    const f = attackFringe(u, G.reach);
+    for (let i = 0; i < f.length; i++) if (R.over.tiles[i]) f[i] = 0;
+    R.over2 = { kind: 'attack', tiles: f };
+  }
+  sfx('select');
+  hudRefresh();
+}
+function inspectUnit(u) {
+  clearSel();
+  G.inspect = u; G.mode = 'idle';
+  const r = reach(S, u, { mp: moveRange(S, u) });
+  const f = attackFringe(u, r);
+  if (isIndirect(u.t)) R.over = { kind: 'threat', tiles: f };
+  else { const m = reachOverlay(r); for (let i = 0; i < f.length; i++) if (m[i]) f[i] = 1; R.over = { kind: 'threat', tiles: f }; }
+  sfx('menu');
+  hudRefresh();
+}
+
+// The path follows the pointer the way it does in the classic games: extend it while it stays affordable,
+// otherwise fall back to the cheapest path.
+function updatePath(x, y) {
+  const u = G.sel, r = G.reach;
+  if (!u || !inb(S, x, y) || r.dist[y * S.w + x] < 0) { R.path = null; G.path = null; return; }
+  let p = G.path && G.path.length ? G.path.slice() : [{ x: u.x, y: u.y }];
+  const k = p.findIndex((q) => q.x === x && q.y === y);
+  if (k >= 0) p = p.slice(0, k + 1);
+  else {
+    const last = p[p.length - 1];
+    if (mdist(last.x, last.y, x, y) === 1) {
+      p.push({ x, y });
+      if (pathCost(S, u, p) > r.mp || !pathOK(u, p)) p = pathTo(S, r, x, y);
+    } else p = pathTo(S, r, x, y);
+  }
+  G.path = p; R.path = p;
+}
+function pathOK(u, p) {
+  for (let i = 1; i < p.length; i++) {
+    const t = tileAt(S, p[i].x, p[i].y);
+    if (!moveCost(u.t, t.k)) return false;
+    const o = unitAt(S, p[i].x, p[i].y);
+    if (o && o.s !== u.s && canSee(S, u.s, o)) return false;
+  }
+  return true;
+}
+
+// what the selected unit can do if it stops at (x,y)
+function actionsAt(u, x, y) {
+  const kind = stopKind(S, u, x, y);
+  const out = [];
+  if (kind === 'load') return [{ id: 'load', label: 'Load' }];
+  if (kind === 'join') return [{ id: 'join', label: 'Join' }];
+  const moved = x !== u.x || y !== u.y;
+  const tg = targetsFrom(S, u, x, y, moved);
+  if (tg.length) out.push({ id: 'attack', label: UNITS[u.t].kamikaze ? 'Strike' : 'Fire' });
+  const t = tileAt(S, x, y);
+  if (UNITS[u.t].cap && TER[t.k].prop && t.o !== u.s) out.push({ id: 'capture', label: UNITS[u.t].side === 0 ? 'Network' : 'Capture' });
+  if (UNITS[u.t].supply) {
+    const any = S.units.some((w) => w.s === u.s && w !== u && mdist(w.x, w.y, x, y) === 1 && (w.fuel < UNITS[w.t].fuel || (UNITS[w.t].w1 && w.ammo < UNITS[w.t].w1.ammo)));
+    if (any) out.push({ id: 'supply', label: 'Supply' });
+  }
+  if (u.cargo.length && dropTilesAt(u, x, y).length) out.push({ id: 'drop', label: 'Drop' });
+  out.push({ id: 'wait', label: 'Wait' });
+  return out;
+}
+function dropTilesAt(u, x, y) {
+  const ox = u.x, oy = u.y;
+  u.x = x; u.y = y;
+  const r = dropTiles(S, u).filter((p) => !(p.x === ox && p.y === oy) || true);
+  u.x = ox; u.y = oy;
+  // the transport's own start tile is free once it has moved away
+  return r.filter((p) => !(unitAt(S, p.x, p.y) && unitAt(S, p.x, p.y) !== u));
+}
+
+async function chooseDest(x, y) {
+  const u = G.sel;
+  let p = G.path && G.path.length && G.path[G.path.length - 1].x === x && G.path[G.path.length - 1].y === y ? G.path : pathTo(S, G.reach, x, y);
+  if (!p) return;
+  const kind = stopKind(S, u, x, y);
+  if (!kind) { sfx('error'); return; }
+  const tc = trapCheck(S, u, p);
+  G.mode = 'busy';
+  R.over = null; R.over2 = null; R.path = null;
+  if (tc.trapped) {
+    await perform({ kind: 'unit', id: u.id, path: p, act: 'wait' });
+    return afterHumanAction();
+  }
+  await animMove(u, p);
+  u.anim = { x, y };
+  G.dest = { x, y }; G.path = p;
+  G.mode = 'menu';
+  openActionMenu(actionsAt(u, x, y));
+}
+function cancelMenu() {
+  const u = G.sel;
+  closeActionMenu(); hideForecast();
+  if (!u) { G.mode = 'idle'; return; }
+  u.anim = null;
+  sfx('cancel');
+  selectUnit(u);
+  if (G.dest) R.cursor = { x: u.x, y: u.y };
+}
+async function menuPick(id) {
+  const u = G.sel, d = G.dest;
+  closeActionMenu();
+  sfx('menu');
+  if (id === 'attack') {
+    G.targets = targetsFrom(S, u, d.x, d.y, d.x !== u.x || d.y !== u.y);
+    R.targets = G.targets.map((t) => ({ x: t.x, y: t.y }));
+    G.mode = 'target'; G.tgt = null;
+    if (G.targets.length === 1 || !isTouch) previewTarget(G.targets[0]);
+    hudRefresh();
+    return;
+  }
+  if (id === 'drop') {
+    const tiles = dropTilesAt(u, d.x, d.y);
+    const o = new Uint8Array(S.w * S.h); for (const p of tiles) o[p.y * S.w + p.x] = 1;
+    R.over = { kind: 'move', tiles: o };
+    G.mode = 'drop';
+    toast('Choose where to drop the ' + UNITS[u.cargo[0].t].name + '.');
+    return;
+  }
+  G.mode = 'busy';
+  await perform({ kind: 'unit', id: u.id, path: G.path, act: id });
+  afterHumanAction();
+}
+function previewTarget(t) {
+  G.tgt = t;
+  const u = G.sel, d = G.dest;
+  const f = forecast(S, u, d.x, d.y, t);
+  showForecast(u, t, f);
+}
+async function confirmTarget(t) {
+  const u = G.sel;
+  G.mode = 'busy'; R.targets = null; hideForecast();
+  await perform({ kind: 'unit', id: u.id, path: G.path, act: 'attack', target: t.id });
+  afterHumanAction();
+}
+
+// ---------------- input ----------------
+const PTR = { down: new Map(), drag: false, start: null, cam0: null, pinch: null, lastTap: 0 };
+function inputInit() {
+  const cv = R.cv;
+  cv.addEventListener('pointerdown', (e) => {
+    audioInit();
+    cv.setPointerCapture(e.pointerId);
+    PTR.down.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (PTR.down.size === 1) { PTR.drag = false; PTR.start = { x: e.clientX, y: e.clientY, type: e.pointerType, button: e.button }; PTR.cam0 = { ...R.cam }; }
+    else if (PTR.down.size === 2) {
+      const [a, b] = [...PTR.down.values()];
+      PTR.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: R.zoom }; PTR.drag = true;
+    }
+  });
+  cv.addEventListener('pointermove', (e) => {
+    const p = PTR.down.get(e.pointerId);
+    if (p) { p.x = e.clientX; p.y = e.clientY; }
+    if (PTR.down.size === 2 && PTR.pinch) {
+      const [a, b] = [...PTR.down.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const steps = Math.round(Math.log2(d / PTR.pinch.d) * 3);
+      const want = clamp(PTR.pinch.z + steps, 1, 40);
+      if (want !== R.zoom) setZoom(want - R.zoom, (a.x + b.x) / 2 * R.dpr, (a.y + b.y) / 2 * R.dpr);
+      return;
+    }
+    if (PTR.down.size === 1 && PTR.start) {
+      const dx = e.clientX - PTR.start.x, dy = e.clientY - PTR.start.y;
+      if (!PTR.drag && Math.hypot(dx, dy) > (e.pointerType === 'mouse' ? 6 : 12)) PTR.drag = true;
+      if (PTR.drag) {
+        R.camTo = null;
+        R.cam.x = PTR.cam0.x - dx * R.dpr / R.zoom; R.cam.y = PTR.cam0.y - dy * R.dpr / R.zoom;
+        clampCam();
+        return;
+      }
+    }
+    if (e.pointerType === 'mouse') hover(e.clientX, e.clientY);
+  });
+  const up = (e) => {
+    const was = PTR.down.get(e.pointerId);
+    PTR.down.delete(e.pointerId);
+    if (PTR.down.size < 2) PTR.pinch = null;
+    if (!was || PTR.down.size > 0) return;
+    if (!PTR.drag && PTR.start) {
+      if (PTR.start.button === 2) rightClick();
+      else tap(e.clientX, e.clientY, e.pointerType);
+    }
+    PTR.start = null; PTR.drag = false;
+  };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', (e) => { PTR.down.delete(e.pointerId); PTR.start = null; PTR.pinch = null; });
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(e.deltaY < 0 ? 1 : -1, e.clientX * R.dpr, e.clientY * R.dpr); }, { passive: false });
+  window.addEventListener('keydown', (e) => {
+    if (document.body.dataset.state !== 'play') return;
+    if (e.key === 'Escape') { if (anyModalOpen()) closeModals(); else rightClick(); }
+  });
+}
+
+function hover(cx, cy) {
+  if (!S) return;
+  const t = screenToTile(cx, cy);
+  if (!inb(S, t.x, t.y)) { R.cursor = null; return; }
+  if (!R.cursor || R.cursor.x !== t.x || R.cursor.y !== t.y) {
+    R.cursor = t;
+    if (G.mode === 'select') updatePath(t.x, t.y);
+    if (G.mode === 'target') { const tg = G.targets.find((q) => q.x === t.x && q.y === t.y); if (tg && tg !== G.tgt) { previewTarget(tg); sfx('cursor'); } }
+    if (G.mode === 'idle' || G.mode === 'select') infoAt(t.x, t.y);
+  }
+}
+
+function rightClick() {
+  if (G.mode === 'target') { R.targets = null; hideForecast(); G.mode = 'menu'; openActionMenu(actionsAt(G.sel, G.dest.x, G.dest.y)); sfx('cancel'); return; }
+  if (G.mode === 'drop') { R.over = null; G.mode = 'menu'; openActionMenu(actionsAt(G.sel, G.dest.x, G.dest.y)); sfx('cancel'); return; }
+  if (G.mode === 'menu') return cancelMenu();
+  if (G.mode === 'select' || G.inspect) { clearSel(); G.mode = isHumanTurn() ? 'idle' : G.mode; sfx('cancel'); hudRefresh(); }
+}
+
+function tap(cx, cy, ptype) {
+  if (!S || anyModalOpen()) return;
+  const t = screenToTile(cx, cy);
+  const on = inb(S, t.x, t.y);
+  if (on) { R.cursor = t; infoAt(t.x, t.y); }
+  if (!isHumanTurn() || G.mode === 'busy') {
+    // allow looking at units during the enemy turn
+    return;
+  }
+  const side = S.turn;
+  switch (G.mode) {
+    case 'idle': {
+      if (!on) { clearSel(); return; }
+      const u = unitAt(S, t.x, t.y);
+      if (u && canSee(S, side, u)) {
+        if (u.s === side && !u.done) return selectUnit(u);
+        if (G.inspect === u) { clearSel(); hudRefresh(); return; }
+        return inspectUnit(u);
+      }
+      const tl = tileAt(S, t.x, t.y);
+      if (!u && tl.o === side && TER[tl.k].build) { clearSel(); return openBuild(t.x, t.y, TER[tl.k].build); }
+      clearSel(); hudRefresh();
+      return;
+    }
+    case 'select': {
+      const u = G.sel;
+      if (!on) return rightClick();
+      if (t.x === u.x && t.y === u.y) { G.path = [{ x: u.x, y: u.y }]; return chooseDest(u.x, u.y); }
+      if (G.reach.dist[t.y * S.w + t.x] >= 0 && stopKind(S, u, t.x, t.y)) {
+        if (ptype !== 'mouse') updatePath(t.x, t.y);
+        return chooseDest(t.x, t.y);
+      }
+      // tapping another of our ready units switches selection
+      const o = unitAt(S, t.x, t.y);
+      if (o && o.s === side && !o.done) return selectUnit(o);
+      return rightClick();
+    }
+    case 'menu': return cancelMenu();
+    case 'target': {
+      const tg = on && G.targets.find((q) => q.x === t.x && q.y === t.y);
+      if (!tg) return rightClick();
+      if (ptype === 'mouse' || G.tgt === tg) return confirmTarget(tg);
+      previewTarget(tg); sfx('cursor');
+      return;
+    }
+    case 'drop': {
+      if (on && R.over && R.over.tiles[t.y * S.w + t.x]) {
+        const u = G.sel;
+        G.mode = 'busy'; R.over = null;
+        perform({ kind: 'unit', id: u.id, path: G.path, act: 'drop', drop: { x: t.x, y: t.y } }).then(afterHumanAction);
+        return;
+      }
+      return rightClick();
+    }
+  }
+}
+
+// Signal Front — HUD, menus, banners and the title / setup / result screens
+
+function blit(cv, img, bg) {
+  const x = cv.getContext('2d');
+  x.imageSmoothingEnabled = false;
+  x.clearRect(0, 0, cv.width, cv.height);
+  if (bg) { x.fillStyle = bg; x.fillRect(0, 0, cv.width, cv.height); }
+  x.drawImage(img, 0, 0, cv.width, cv.height);
+}
+function spriteCanvas(t, side, size = 16, bg) {
+  const c = mkCanvas(size, size); c.className = 'pix';
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  if (bg) { x.fillStyle = bg; x.fillRect(0, 0, size, size); }
+  x.drawImage(unitSprite(t, side, 0), 0, 0, size, size);
+  return c;
+}
+
+// ---------------- top bar ----------------
+function hudRefresh() {
+  if (!S) return;
+  for (let p = 0; p < 2; p++) {
+    const card = $('#side' + p), sd = S.sides[p], co = COS[sd.co];
+    card.classList.toggle('active', S.turn === p);
+    blit(card.querySelector('canvas'), portrait(sd.co, sd.pw ? 1 : 0));
+    card.querySelector('.nm').textContent = co.name;
+    card.querySelector('.funds').textContent = 'G ' + fmt(sd.funds);
+    const m = card.querySelector('.meter');
+    const pc = powerCost(S, p, 1), sc = powerCost(S, p, 2), stars = co.super.stars, per = sc / stars;
+    let html = '';
+    for (let i = 0; i < stars; i++) {
+      const f = clamp((sd.meter - i * per) / per, 0, 1);
+      html += '<i class="' + (i >= co.power.stars ? 'big' : '') + '"><b style="width:' + Math.round(f * 100) + '%"></b></i>';
+    }
+    m.innerHTML = html;
+    m.classList.toggle('ready', !sd.pw && sd.meter >= pc);
+    let tag = card.querySelector('.pwtag');
+    if (sd.pw) { if (!tag) { tag = el('span', 'pwtag'); card.appendChild(tag); } tag.textContent = sd.pw === 2 ? 'SUPER' : 'POWER'; }
+    else if (tag) tag.remove();
+  }
+  $('#dayTxt').textContent = 'DAY ' + S.day;
+  $('#turnTxt').textContent = FACTIONS[S.turn].name;
+  const human = isHumanTurn();
+  $('#endBtn').disabled = !human || G.mode === 'busy';
+  const hs = humanSide();
+  $('#powerBtn').hidden = !(human && (canPower(S, hs, 1) || canPower(S, hs, 2)));
+  $('#powerBtn').textContent = canPower(S, hs, 2) ? 'Super!' : 'Power!';
+  if (R.cursor) infoAt(R.cursor.x, R.cursor.y);
+}
+
+function infoAt(x, y) {
+  if (!S || !inb(S, x, y)) return;
+  const t = tileAt(S, x, y), T0 = TER[t.k];
+  $('#terrCard').hidden = false;
+  const tc = $('#terrCard canvas'), tx = tc.getContext('2d');
+  tx.imageSmoothingEnabled = false; tx.clearRect(0, 0, 16, 20);
+  tx.drawImage(tileImage(S, x, y), 0, 4);
+  if (t.k === 'forest' || t.k === 'mount') tx.drawImage(tallTile(t.k, x, y), 0, 0);
+  else if (T0.prop) tx.drawImage(propSprite(t.k, t.o), 0, 0);
+  $('#terrName').textContent = T0.name.toUpperCase();
+  let line = '<span class="stars">' + '★'.repeat(T0.def) + '</span>' + (T0.def ? '' : '<span style="color:var(--dim)">no cover</span>');
+  if (T0.prop) line += ' · ' + (t.o < 0 ? 'Neutral' : FACTIONS[t.o].name) + (t.cp < 20 ? ' · <b>' + t.cp + '</b>/20' : '');
+  $('#terrLine').innerHTML = line;
+  const u = unitAt(S, x, y);
+  const card = $('#unitCard');
+  if (u && canSee(S, viewSide(), u)) {
+    card.hidden = false; card.dataset.unit = u.id;
+    blit(card.querySelector('canvas'), unitSprite(u.t, u.s, 0));
+    const U = UNITS[u.t];
+    $('#unitName').textContent = U.name.toUpperCase();
+    let l = 'HP <b>' + disp(u.hp) + '</b> · Fuel <b>' + u.fuel + '</b>';
+    if (U.w1 && U.w1.ammo) l += ' · Ammo <b>' + u.ammo + '</b>';
+    if (u.cargo.length) l += ' · Carrying ' + UNITS[u.cargo[0].t].name;
+    $('#unitLine').innerHTML = l;
+  } else card.hidden = true;
+}
+
+// ---------------- action menu / forecast ----------------
+function openActionMenu(items) {
+  const m = $('#actionMenu');
+  m.innerHTML = '';
+  for (const it of items) {
+    const b = el('button', null, it.label);
+    b.onclick = (e) => { e.stopPropagation(); menuPick(it.id); };
+    m.appendChild(b);
+  }
+  m.hidden = false;
+  const p = tileToScreen(G.dest.x, G.dest.y);
+  const w = m.offsetWidth, h = m.offsetHeight;
+  let left = p.x + p.s + 8, top = p.y - 4;
+  if (left + w > innerWidth - 8) left = p.x - w - 8;
+  if (left < 8) left = 8;
+  top = clamp(top, 64, innerHeight - h - 8);
+  m.style.left = left + 'px'; m.style.top = top + 'px';
+  if (!isTouch) m.querySelector('button').focus({ preventScroll: true });
+}
+function closeActionMenu() { $('#actionMenu').hidden = true; }
+
+function showForecast(u, t, f) {
+  const box = $('#forecast');
+  const pct = (a, b) => (a === b ? a + '%' : a + '–' + b + '%');
+  let html = '<div class="row"><span class="k">DAMAGE</span><span class="v hit">' + pct(f.lo, f.hi) + '</span></div>';
+  if (UNITS[u.t].kamikaze) html += '<div class="hint">The Kite is destroyed by its own strike.</div>';
+  else if (f.counter) html += '<div class="row"><span class="k">COUNTER</span><span class="v ctr">' + pct(f.clo, f.chi) + '</span></div>';
+  else html += '<div class="row"><span class="k">COUNTER</span><span class="v" style="color:var(--dim)">none</span></div>';
+  if (f.lo >= t.hp) html += '<div class="hint" style="color:var(--good)">Destroys the target.</div>';
+  if (isTouch) html += '<div class="hint">Tap the target again to fire.</div>';
+  box.innerHTML = html;
+  box.hidden = false;
+  const p = tileToScreen(t.x, t.y);
+  const w = box.offsetWidth, h = box.offsetHeight;
+  let left = p.x + p.s + 10, top = p.y - h / 2 + p.s / 2;
+  if (left + w > innerWidth - 8) left = p.x - w - 10;
+  box.style.left = clamp(left, 8, innerWidth - w - 8) + 'px';
+  box.style.top = clamp(top, 64, innerHeight - h - 8) + 'px';
+}
+function hideForecast() { $('#forecast').hidden = true; }
+
+// ---------------- banners & toasts ----------------
+async function showBanner(html, bg, ms, cls) {
+  const b = $('#banner'), s = b.querySelector('.strip');
+  s.innerHTML = html; s.style.background = bg;
+  b.className = cls || '';
+  if (TIME.fast) return;
+  void b.offsetWidth;
+  b.classList.add('on');
+  await wait(ms);
+  b.classList.add('out');
+  await wait(380);
+  // snap back off-screen without animating across the map
+  s.style.transition = 'none';
+  b.className = cls || '';
+  void s.offsetWidth;
+  s.style.transition = '';
+}
+async function turnBanner(side, events) {
+  const sd = S.sides[side], f = FACTIONS[side];
+  const inc = events.find((e) => e.kind === 'income');
+  const cv = mkCanvas(32, 32);
+  const html = '<canvas class="pix" width="32" height="32"></canvas><div><div class="big">DAY ' + S.day + '</div><div class="sub">' + f.long +
+    (inc && inc.amount ? ' · +' + fmt(inc.amount) + ' G' : '') + '</div></div>';
+  void cv; void sd;
+  sfx('turn');
+  const p = showBanner(html, 'linear-gradient(90deg,' + f.ramp[3] + ',' + f.ramp[2] + ' 50%,' + f.ramp[3] + ')', side === humanSide() ? 900 : 650);
+  const c = $('#banner canvas'); if (c) blit(c, portrait(sd.co));
+  await p;
+}
+async function powerBanner(side, level) {
+  const co = coOf(S, side), f = FACTIONS[side];
+  const pw = level === 2 ? co.super : co.power;
+  sfx('power');
+  const html = '<canvas class="pix" width="32" height="32"></canvas><div><div class="big">' + pw.name.toUpperCase() + '</div><div class="sub">' + co.name + ' · ' + pw.desc + '</div></div>';
+  const p = showBanner(html, 'linear-gradient(90deg,#000,' + f.ramp[2] + ' 50%,#000)', 1300, 'power');
+  const c = $('#banner canvas'); if (c) blit(c, portrait(S.sides[side].co, 1));
+  R.shake = 3;
+  await p;
+}
+let toastT = 0;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.remove('off');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.add('off'), 2600);
+}
+function log() { /* reserved for a battle log */ }
+
+// ---------------- modals ----------------
+function anyModalOpen() { return $$('.modal').some((m) => !m.hidden); }
+function closeModals() { $$('.modal').forEach((m) => (m.hidden = true)); }
+function openModal(id) { closeModals(); $(id).hidden = false; sfx('menu'); }
+
+function vsChips(t) {
+  const out = [];
+  const U = UNITS[t];
+  for (const cls of ['inf', 'veh', 'tank', 'heavy', 'drone', 'heli', 'jet', 'ship', 'sub']) {
+    const v = Math.max(U.w1 ? U.w1.dmg[cls] || 0 : 0, U.w2 ? U.w2.dmg[cls] || 0 : 0);
+    if (!v) continue;
+    out.push('<span class="' + (v >= 75 ? 'hi' : v >= 35 ? 'mid' : 'lo') + '">' + CLS_NAME[cls] + ' ' + v + '%</span>');
+  }
+  return out.length ? '<div class="vs">' + out.join('') + '</div>' : '<div class="desc" style="color:var(--dim)">Unarmed.</div>';
+}
+function unitStats(t, side) {
+  const U = UNITS[t];
+  const rng = U.w1 && U.w1.range ? U.w1.range.join('–') : U.w1 || U.w2 ? '1' : '—';
+  return '<div class="stat"><span>Cost</span><span>' + fmt(S ? unitCost(S, side, t) : U.cost) + ' G</span><span>Move</span><span>' + U.move + ' (' + MT_NAME[U.mt] + ')</span>' +
+    '<span>Vision</span><span>' + U.vis + '</span><span>Range</span><span>' + rng + '</span><span>Fuel</span><span>' + U.fuel + (U.burn ? ' (−' + U.burn + '/day)' : '') + '</span>' +
+    '<span>Class</span><span>' + CLS_NAME[U.cls] + '</span>' +
+    (U.w1 ? '<span>Weapon</span><span>' + U.w1.name + (U.w1.ammo ? ' ×' + U.w1.ammo : '') + '</span>' : '') +
+    (U.w2 ? '<span>' + (U.w1 ? 'Backup' : 'Weapon') + '</span><span>' + U.w2.name + '</span>' : '') + '</div>';
+}
+
+let BUILD = { x: 0, y: 0, kind: 'ground', sel: null };
+function openBuild(x, y, kind) {
+  BUILD = { x, y, kind, sel: null };
+  const side = S.turn;
+  $('#buildTitle').textContent = kind === 'ground' ? 'Factory' : kind === 'air' ? 'Airfield' : 'Port';
+  $('#funds2').textContent = 'G ' + fmt(S.sides[side].funds);
+  const list = $('#buildList'); list.innerHTML = '';
+  const roster = buildList(S, side, kind);
+  for (const t of roster) {
+    const cost = unitCost(S, side, t), ok = S.sides[side].funds >= cost;
+    const b = el('button', 'bu' + (ok ? '' : ' no'));
+    b.appendChild(spriteCanvas(t, side, 16));
+    b.appendChild(el('span', 'n', UNITS[t].name));
+    b.appendChild(el('span', 'c', fmt(cost)));
+    b.onclick = () => { if (BUILD.sel === t && ok) return confirmBuild(); buildSelect(t); };
+    b.ondblclick = () => { if (ok) { BUILD.sel = t; confirmBuild(); } };
+    b.dataset.t = t;
+    list.appendChild(b);
+  }
+  const first = roster.find((t) => S.sides[side].funds >= unitCost(S, side, t)) || roster[0];
+  buildSelect(first, true);
+  openModal('#buildModal');
+}
+function buildSelect(t, quiet) {
+  BUILD.sel = t;
+  const side = S.turn, U = UNITS[t], ok = S.sides[side].funds >= unitCost(S, side, t);
+  $$('#buildList .bu').forEach((b) => b.classList.toggle('sel', b.dataset.t === t));
+  const d = $('#buildDetail');
+  d.innerHTML = '<div class="hero"></div><div class="desc">' + U.desc + '</div>' + unitStats(t, side) + '<div class="k" style="font-family:\'Press Start 2P\';font-size:8px;color:var(--dim)">BASE DAMAGE VS</div>' + vsChips(t);
+  const hero = d.querySelector('.hero');
+  hero.appendChild(spriteCanvas(t, side, 16, '#2c5a2a'));
+  hero.appendChild(el('div', null, '<div class="px" style="font-size:11px">' + U.name.toUpperCase() + '</div>'));
+  const go = el('button', 'btn primary', ok ? 'Deploy · ' + fmt(unitCost(S, side, t)) : 'Not enough funds');
+  go.disabled = !ok;
+  go.onclick = confirmBuild;
+  d.appendChild(go);
+  if (!quiet) sfx('cursor');
+}
+async function confirmBuild() {
+  const t = BUILD.sel;
+  if (!t || S.sides[S.turn].funds < unitCost(S, S.turn, t)) { sfx('error'); return; }
+  closeModals();
+  G.mode = 'busy';
+  await perform({ kind: 'build', t, x: BUILD.x, y: BUILD.y });
+  G.mode = 'idle';
+  hudRefresh();
+}
+
+function openCO(side) {
+  const sd = S.sides[side], co = COS[sd.co], box = $('#coBox');
+  const mine = side === humanSide() && isHumanTurn();
+  const pwRow = (lvl) => {
+    const p = lvl === 2 ? co.super : co.power, ok = mine && canPower(S, side, lvl);
+    return '<div class="pw"><div class="tx"><b>' + (lvl === 2 ? 'SUPER: ' : 'POWER: ') + p.name.toUpperCase() + '</b>' + p.desc +
+      ' <span style="color:var(--dim)">(' + fmt(powerCost(S, side, lvl) / STAR) + '★)</span></div>' + (mine ? '<button class="btn ' + (ok ? 'primary' : '') + '" data-lvl="' + lvl + '"' + (ok ? '' : ' disabled') + '>Activate</button>' : '') + '</div>';
+  };
+  box.innerHTML = '<h2>' + FACTIONS[side].long + '<button class="x" data-close>✕</button></h2>' +
+    '<div class="cohead"><canvas class="pix" width="32" height="32"></canvas><div><div class="t">' + co.name.toUpperCase() + '</div><div class="s">' + co.title + '</div></div></div>' +
+    '<div class="desc">' + co.bio + '</div><div class="desc" style="margin-top:8px"><b style="color:var(--gold);font-weight:400">Always:</b> ' + co.d2d + '</div>' +
+    pwRow(1) + pwRow(2) +
+    (sd.pw ? '<div class="desc" style="margin-top:8px;color:var(--gold)">' + (sd.pw === 2 ? co.super.name : co.power.name) + ' is active until the start of their next turn.</div>' : '') +
+    '<div class="desc" style="margin-top:8px;color:var(--dim)">Every power also gives all units +10% firepower and defence. The meter fills as you deal and take damage.</div>';
+  blit(box.querySelector('canvas'), portrait(sd.co));
+  box.querySelectorAll('[data-lvl]').forEach((b) => (b.onclick = async () => {
+    closeModals();
+    G.mode = 'busy'; clearSel();
+    await perform({ kind: 'power', level: +b.dataset.lvl });
+    G.mode = 'idle'; hudRefresh();
+  }));
+  box.querySelectorAll('[data-close]').forEach((b) => (b.onclick = closeModals));
+  openModal('#coModal');
+}
+
+function openIntel(u) {
+  const U = UNITS[u.t], box = $('#intelBox');
+  box.innerHTML = '<h2>' + U.name.toUpperCase() + '<button class="x" data-close>✕</button></h2>' +
+    '<div style="display:flex;gap:12px;align-items:flex-start"><div class="hero"></div><div style="flex:1"><div class="desc">' + U.desc + '</div>' +
+    '<div class="desc" style="margin-top:6px">HP ' + disp(u.hp) + '/10 · Fuel ' + u.fuel + '/' + U.fuel + (U.w1 && U.w1.ammo ? ' · Ammo ' + u.ammo + '/' + U.w1.ammo : '') + '</div></div></div>' +
+    unitStats(u.t, u.s) + '<div style="height:6px"></div>' + vsChips(u.t);
+  box.querySelector('.hero').appendChild(spriteCanvas(u.t, u.s, 16, '#2c5a2a'));
+  box.querySelector('.hero canvas').style.cssText = 'width:64px;height:64px;border:2px solid var(--edge)';
+  box.querySelectorAll('[data-close]').forEach((b) => (b.onclick = closeModals));
+  openModal('#intelModal');
+}
+
+// ---------------- title / setup / how-to / result ----------------
+const SETUP = storeGet('setup', { map: 'crossfire', coP: 'kade', coE: 'volsk', fog: false, funds: 0, income: 1000, diff: 'normal' });
+
+function setState(st) { document.body.dataset.state = st; }
+
+function miniMap(def) {
+  const m = buildMap(def);
+  const sc = 4;
+  const c = mkCanvas(m.w * sc, m.h * sc); c.className = 'mini pix';
+  const x = c.getContext('2d');
+  const col = { plain: '#7cc858', forest: '#2f7a3a', mount: '#a89070', road: '#b9b2a2', bridge: '#a87c4c', river: '#4a90e8', sea: '#3a7ce0', shoal: '#ecd898', reef: '#2a5cb8' };
+  m.tiles.forEach((t, i) => {
+    const X = (i % m.w) * sc, Y = ((i / m.w) | 0) * sc;
+    if (TER[t.k].prop) { x.fillStyle = t.o < 0 ? '#d8d4c8' : FACTIONS[t.o].ramp[1]; x.fillRect(X, Y, sc, sc); x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(X, Y + sc - 1, sc, 1); if (t.k === 'hq') { x.fillStyle = '#ffd23a'; x.fillRect(X + 1, Y + 1, sc - 2, sc - 2); } }
+    else { x.fillStyle = col[t.k] || '#7cc858'; x.fillRect(X, Y, sc, sc); }
+  });
+  return c;
+}
+
+function buildSetup() {
+  const mc = $('#mapCards'); mc.innerHTML = '';
+  for (const def of MAPS) {
+    const b = el('button', 'pick' + (SETUP.map === def.id ? ' sel' : ''));
+    b.appendChild(miniMap(def));
+    const m = buildMap(def);
+    b.appendChild(el('div', 'n', def.name));
+    b.appendChild(el('div', 'b', m.w + '×' + m.h + ' · ' + def.blurb));
+    b.onclick = () => { SETUP.map = def.id; sfx('cursor'); buildSetup(); };
+    mc.appendChild(b);
+  }
+  for (const side of [0, 1]) {
+    const box = $('#coCards' + side); box.innerHTML = '';
+    for (const id in COS) {
+      const co = COS[id];
+      if (co.side !== side) continue;
+      const key = side === 0 ? 'coP' : 'coE';
+      const b = el('button', 'pick' + (SETUP[key] === id ? ' sel' : ''));
+      const row = el('div', 'row');
+      const cv = mkCanvas(32, 32); cv.className = 'pix'; blit(cv, portrait(id));
+      row.appendChild(cv);
+      row.appendChild(el('div', null, '<div class="n">' + co.name + '</div><div class="b">' + co.title + '</div>'));
+      b.appendChild(row);
+      b.appendChild(el('div', 'b', co.d2d + '<br><span style="color:var(--gold)">' + co.power.name + '</span> · <span style="color:var(--gold)">' + co.super.name + '</span>'));
+      b.onclick = () => { SETUP[key] = id; sfx('cursor'); buildSetup(); };
+      box.appendChild(b);
+    }
+  }
+  const ob = $('#optBox'); ob.innerHTML = '';
+  const opt = (label, key, vals) => {
+    const d = el('div', 'opt box'); d.appendChild(el('div', 'k', label));
+    const seg = el('div', 'seg');
+    for (const [v, txt] of vals) {
+      const b = el('button', SETUP[key] === v ? 'on' : '', txt);
+      b.onclick = () => { SETUP[key] = v; sfx('cursor'); buildSetup(); };
+      seg.appendChild(b);
+    }
+    d.appendChild(seg); ob.appendChild(d);
+  };
+  opt('FOG OF WAR', 'fog', [[false, 'Off'], [true, 'On']]);
+  opt('STARTING FUNDS', 'funds', [[0, '0'], [5000, '5,000'], [10000, '10,000']]);
+  opt('INCOME PER PROPERTY', 'income', [[1000, '1,000'], [2000, '2,000']]);
+  opt('ENEMY AI', 'diff', [['normal', 'Normal'], ['hard', 'Hard (+25% income)']]);
+}
+
+function buildHowto(back) {
+  const unitRows = (side) => FACTIONS[side].roster.map((t) => {
+    const U = UNITS[t];
+    return '<div class="r box"><span class="ic"></span><div><div class="n">' + U.name.toUpperCase() + ' <span style="color:var(--gold)">' + fmt(U.cost) + '</span></div><div class="d">' + U.desc + '</div></div></div>';
+  }).join('');
+  const h = $('#howtoBody');
+  h.innerHTML = '<h1>How to play</h1>' +
+    '<p>Turn-based tactics in the classic handheld style. You command <b>Meridian</b>, whose army is entirely uncrewed: robots, drones and autonomous launchers. ' +
+    'The <b>Drovic Federation</b> fields cheap drone swarms alongside tanks, guns and infantry.</p>' +
+    '<p><b>Win</b> by capturing the enemy HQ or destroying every enemy unit.</p>' +
+    '<ul><li><b>Select</b> a unit, then tap a blue tile to move. Pick an action: Fire, Network (capture), Supply, Load, Drop, Join or Wait.</li>' +
+    '<li><b>Attack</b>: choose Fire, then a red-bracketed target. The forecast shows damage and the counterattack. On touch, tap the target twice.</li>' +
+    '<li><b>Counterattacks</b>: a unit that survives a direct attack fires back. Indirect units (Spark, Moray, Howitzer, MLRS) can\'t move and fire on the same turn and never take counter fire.</li>' +
+    '<li><b>Terrain</b>: each ★ reduces damage taken. Air units ignore terrain. Forests hide units in fog.</li>' +
+    '<li><b>Property</b>: Crawlers and Striders network (capture) property. Each capture removes the unit\'s HP from 20 points. Property earns funds, and repairs 2 HP each turn for a fee.</li>' +
+    '<li><b>Build</b>: tap an empty factory, airfield or port you own. New units act next turn.</li>' +
+    '<li><b>Fuel and ammo</b>: aircraft burn fuel every day and crash at zero. Resupply on your property or next to a Nexus.</li>' +
+    '<li><b>Commander powers</b>: the meter fills as you trade damage. Tap your portrait or the Power button to activate.</li>' +
+    '<li><b>Tap an enemy</b> to see everywhere it can strike next turn. Drag to pan, pinch or scroll to zoom. Right-click or Esc cancels.</li></ul>' +
+    '<p><b>Meridian specials:</b> the <b>Watchpost</b> gives nearby units +10% firepower and defence and sees into forests. The <b>Static</b> jammer cuts enemy drone firepower by 30% within 2 tiles and wears them down every turn. The <b>Deepfin</b> is invisible unless an enemy is adjacent. ' +
+    '<b>Drovic specials:</b> the <b>Kite</b> is destroyed by its own strike; <b>FPV swarms</b> are cheap but can\'t fight aircraft.</p>' +
+    '<h3>Meridian Autonomy Command</h3><div class="roster">' + unitRows(0) + '</div>' +
+    '<h3>Drovic Federation</h3><div class="roster">' + unitRows(1) + '</div>' +
+    '<div class="bar"><span></span><button class="btn primary" id="howBack">Back</button></div>';
+  const rows = h.querySelectorAll('.roster');
+  rows.forEach((r, side) => r.querySelectorAll('.ic').forEach((ic, i) => ic.replaceWith(spriteCanvas(FACTIONS[side].roster[i], side, 16, '#2c5a2a'))));
+  $('#howBack').onclick = back;
+}
+
+function finishGame() {
+  if (S.finished) return;
+  S.finished = true;
+  G.mode = 'off';
+  clearSel();
+  storeDel('save');
+  const won = S.winner === humanSide();
+  sfx(won ? 'win' : 'lose');
+  playSong('title');
+  const how = S.how === 'hq' ? (won ? 'Enemy HQ networked.' : 'Your HQ has fallen.') : S.how === 'yield' ? 'You conceded.' : (won ? 'Enemy forces routed.' : 'Your forces were destroyed.');
+  const st = (p) => S.sides[p].stats;
+  const row = (k, f) => '<span>' + f(st(0)) + '</span><span class="h">' + k + '</span><span>' + f(st(1)) + '</span>';
+  $('#resultBody').innerHTML = '<div class="verdict ' + (won ? 'win' : 'lose') + '">' + (won ? 'VICTORY' : 'DEFEAT') + '</div>' +
+    '<div class="desc" style="font-size:24px">' + how + ' Day ' + S.day + ' · ' + S.name + '</div>' +
+    '<div class="stats"><span class="h" style="color:' + FACTIONS[0].ramp[0] + '">MERIDIAN</span><span></span><span class="h" style="color:' + FACTIONS[1].ramp[0] + '">DROVIC</span>' +
+    row('UNITS BUILT', (s) => s.built) + row('UNITS LOST', (s) => s.lost) + row('KILLS', (s) => s.kills) + row('CAPTURES', (s) => s.captured) + row('DAMAGE DEALT', (s) => fmt(s.dealt) + ' G') + '</div>' +
+    '<div class="bar" style="justify-content:center"><button class="btn" id="rTitle">Title</button><button class="btn primary" id="rAgain">Rematch</button></div>';
+  $('#rTitle').onclick = () => toTitle();
+  $('#rAgain').onclick = () => startGame({ ...SETUP });
+  setTimeout(() => setState('result'), TIME.fast ? 0 : 1200);
+}
+
+function uiInit() {
+  $('#endBtn').onclick = () => { audioInit(); humanEndTurn(); };
+  $('#powerBtn').onclick = () => openCO(humanSide());
+  $('#menuBtn').onclick = () => { refreshMenu(); openModal('#menuModal'); };
+  $('#side0').onclick = () => openCO(0);
+  $('#side1').onclick = () => openCO(1);
+  $('#zoomIn').onclick = () => setZoom(1, R.W / 2, R.H / 2);
+  $('#zoomOut').onclick = () => setZoom(-1, R.W / 2, R.H / 2);
+  $('#unitCard').onclick = () => { const u = S.units.find((w) => w.id === +$('#unitCard').dataset.unit); if (u) openIntel(u); };
+  $$('[data-close]').forEach((b) => (b.onclick = closeModals));
+  $$('.modal').forEach((m) => m.addEventListener('pointerdown', (e) => { if (e.target === m) closeModals(); }));
+  $('#mMusic').onclick = () => { setMusic(!AUD.music); refreshMenu(); };
+  $('#mSfx').onclick = () => { setSfx(!AUD.sfx); refreshMenu(); };
+  $('#mSpeed').onclick = () => { TIME.speed = TIME.speed === 1 ? 2.2 : 1; storeSet('speed', TIME.speed); refreshMenu(); };
+  $('#mHelp').onclick = () => { closeModals(); buildHowto(() => setState('play')); setState('howto'); };
+  $('#mQuit').onclick = () => { if (!isHumanTurn() || G.mode === 'busy') return; closeModals(); saveGame(); toTitle(); };
+  $('#mYield').onclick = () => { if (!isHumanTurn() || G.mode === 'busy') return; closeModals(); if (!S.over) { S.over = true; S.winner = 1 - humanSide(); S.how = 'yield'; finishGame(); } };
+  $('#tNew').onclick = () => { audioInit(); buildSetup(); setState('setup'); sfx('menu'); };
+  $('#tContinue').onclick = () => { audioInit(); loadGame(); };
+  $('#tHelp').onclick = () => { audioInit(); buildHowto(() => setState('title')); setState('howto'); };
+  $('#tSound').onclick = () => { audioInit(); const on = !(AUD.music || AUD.sfx); setMusic(on); setSfx(on); refreshTitle(); };
+  $('#setupBack').onclick = () => setState('title');
+  $('#setupGo').onclick = () => { storeSet('setup', SETUP); startGame({ ...SETUP }); };
+}
+function refreshMenu() {
+  // leaving the match is only possible on your own turn, between actions
+  const free = isHumanTurn() && G.mode !== 'busy';
+  $('#mQuit').disabled = !free; $('#mYield').disabled = !free;
+  $('#mMusic').textContent = 'Music: ' + (AUD.music ? 'On' : 'Off');
+  $('#mSfx').textContent = 'Sound FX: ' + (AUD.sfx ? 'On' : 'Off');
+  $('#mSpeed').textContent = 'Enemy speed: ' + (TIME.speed === 1 ? 'Normal' : 'Fast');
+}
+function refreshTitle() {
+  $('#tContinue').hidden = !storeGet('save', null);
+  $('#tSound').textContent = 'Sound: ' + (AUD.music || AUD.sfx ? 'On' : 'Off');
+}
+
+// Signal Front — boot, title attract map, save/load, main loop and the #debug test hook
+
+function saveGame() {
+  if (!S || S.over || S.demo) return;
+  const skip = new Set(['firstEvents', 'anim', 'flash', 'vhp', '_tw', '_twv']);
+  try { storeSet('save', JSON.parse(JSON.stringify(S, (k, v) => (skip.has(k) ? undefined : v)))); } catch (e) { /* ignore */ }
+}
+function loadGame() {
+  const d = storeGet('save', null);
+  if (!d) return;
+  S = d; S.ver = 1;
+  enterPlay();
+  if (isHumanTurn()) { G.mode = 'idle'; playSong(FACTIONS[S.turn].id); hudRefresh(); }
+  else runAI();
+}
+function enterPlay() {
+  clearSel();
+  FX.length = 0;
+  R.insets.top = innerWidth <= 640 ? 52 : 56;
+  R.insets.bottom = innerWidth <= 640 ? 64 : 52;
+  R.userZoom = false;
+  setState('play');
+  fitZoom(true);
+  const hq = S.tiles.findIndex((t) => t.k === 'hq' && t.o === humanSide());
+  centerOn(hq % S.w, (hq / S.w) | 0, true);
+  R.humanCam = { x: R.cam.x, y: R.cam.y };
+  hudRefresh();
+}
+function startGame(opts) {
+  storeDel('save');
+  newGame(opts);
+  enterPlay();
+  beginTurn(S.firstEvents);
+}
+
+// Title screen: a quiet battlefield drifting behind the logo.
+function toTitle() {
+  G.mode = 'off';
+  const demo = newGame({ map: 'twinrivers', coP: 'kade', coE: 'strann' });
+  demo.demo = true;
+  const place = [['crawler', 0, 3, 4], ['strider', 0, 5, 6], ['spark', 0, 2, 7], ['wraith', 0, 6, 3], ['mallet', 0, 4, 9], ['razorwing', 0, 7, 8], ['watchpost', 0, 3, 10],
+    ['rifle', 1, 13, 7], ['tank', 1, 14, 5], ['fpv', 1, 12, 4], ['howitzer', 1, 16, 8], ['gunship', 1, 11, 9], ['heavy', 1, 15, 3], ['kite', 1, 10, 2]];
+  for (const [t, s, x, y] of place) demo.units.push(mkUnit(demo, t, s, x, y));
+  bump(demo);
+  R.insets.top = 0; R.insets.bottom = 0;
+  R.userZoom = false;
+  fitZoom(true);
+  R.cam.x = 0; R.cam.y = 0; R.camTo = null;
+  clampCam();
+  R.titleDrift = 0;
+  setState('title');
+  refreshTitle();
+  playSong('title');
+}
+
+let lastT = 0;
+function loop(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000 || 0);
+  lastT = t;
+  if (S && S.demo && document.body.dataset.state !== 'play') {
+    R.titleDrift += dt;
+    const vw = viewW() / R.zoom, mw = S.w * T;
+    if (mw > vw) R.cam.x = (Math.sin(R.titleDrift * 0.08) * 0.5 + 0.5) * (mw - vw);
+  }
+  render(dt);
+  requestAnimationFrame(loop);
+}
+
+function boot() {
+  renderInit();
+  inputInit();
+  uiInit();
+  TIME.speed = storeGet('speed', 1);
+  toTitle();
+  requestAnimationFrame(loop);
+  // first gesture unlocks audio
+  window.addEventListener('pointerdown', () => audioInit(), { once: true });
+  if (DEBUG) {
+    window.SF = {
+      get S() { return S; },
+      rules: { newGame, mkUnit, reach, pathTo, trapCheck, commitMove, strike, removeDead, doCapture, doJoin, doLoad, doDrop, dropTiles, doBuild, startTurn, endTurn, checkVictory, canSee, visMap, calcDmg, forecast, activatePower, canPower, powerCost, unitAt, stopKind, targetsFrom, supplyAround, bump },
+      api: { TIME, G, R, tileToScreen, aiNext, aiContext, evalUnit, targetsFrom, forecast, reach, posScore, goalField, threatAt, UNITS, canSee, endTurn, perform },
+      start(o = {}) { startGame({ map: 'crossfire', coP: 'kade', coE: 'volsk', ...o }); },
+      reveal() { R.reveal = !R.reveal; },
+      place(t, s, x, y, hp = 100) { const u = mkUnit(S, t, s, x, y); u.hp = hp; S.units.push(u); S.sides[s].ever = true; bump(S); hudRefresh(); return u; },
+      meter(side, v) { S.sides[side].meter = v; hudRefresh(); },
+      // AI vs AI, no animation: returns { winner, day, how }
+      async sim(o = {}, maxDays = 40) {
+        TIME.fast = true;
+        newGame({ map: 'crossfire', coP: 'kade', coE: 'volsk', allAI: true, ...o });
+        enterPlay();
+        let guard = 0;
+        while (maxDays > 0 && !S.over && S.day <= maxDays && guard++ < 10000) {
+          let n = 0;
+          while (!S.over && n++ < 400) { const a = aiNext(S, S.turn); if (a.kind === 'end') break; await perform(a); checkVictory(S); }
+          if (S.over) break;
+          endTurn(S); checkVictory(S);
+        }
+        TIME.fast = false;
+        return { winner: S.winner, day: S.day, how: S.how, units: [0, 1].map((p) => S.units.filter((u) => u.s === p).length),
+          props: [0, 1].map((p) => propCount(S, p)), stats: S.sides.map((s) => s.stats) };
+      },
+      gallery() {
+        const c = mkCanvas(16 * 14 * 4, 16 * 4 * 4 + 40), x = c.getContext('2d');
+        x.imageSmoothingEnabled = false; x.fillStyle = '#7cc858'; x.fillRect(0, 0, c.width, c.height);
+        let i = 0;
+        for (const side of [0, 1]) for (const t of FACTIONS[side].roster) {
+          x.drawImage(unitSprite(t, side, 0), (i % 14) * 64, Math.floor(i / 14) * 64, 64, 64); i++;
+        }
+        i = 28;
+        for (const k of ['city', 'base', 'airport', 'port', 'hq', 'tower']) for (const o of [-1, 0, 1]) { x.drawImage(propSprite(k, o), (i % 14) * 64, Math.floor(i / 14) * 64, 64, 80); i++; }
+        document.body.appendChild(c);
+        c.style.cssText = 'position:fixed;left:0;top:0;z-index:99;image-rendering:pixelated';
+        return c;
+      },
+    };
+  }
+}
+boot();
+
+})();
+</script>
+</body>
+</html>
