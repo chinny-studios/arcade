@@ -1,0 +1,37 @@
+// Real-time run: the rAF loop with worker-built terrain and real keyboard events.
+import { createRequire } from 'module';
+import path from 'path'; import url from 'url'; import fs from 'fs';
+const require = createRequire(import.meta.url);
+let pw; try { pw = require('playwright'); } catch { pw = require('/opt/node22/lib/node_modules/playwright'); }
+const here = path.dirname(url.fileURLToPath(import.meta.url));
+fs.mkdirSync(path.join(here, 'out'), { recursive: true });
+const browser = await pw.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errors = [];
+page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+page.on('pageerror', (e) => errors.push(e.stack || e.message));
+await page.goto('file://' + path.resolve(here, '../../index.html'));
+await page.waitForTimeout(1500);
+await page.screenshot({ path: path.join(here, 'out', 'live_title.png') });
+await page.click('#btnNew');
+await page.fill('#nameIn', 'Live');
+await page.fill('#seedIn', 'live-test');
+await page.click('#btnBegin');
+await page.waitForFunction(() => document.body.dataset.state === 'play', null, { timeout: 120000 });
+await page.waitForTimeout(3000);
+await page.keyboard.down('KeyW'); await page.waitForTimeout(2500); await page.keyboard.up('KeyW');
+await page.keyboard.press('Space');
+await page.waitForTimeout(800);
+await page.screenshot({ path: path.join(here, 'out', 'live_walk.png') });
+await page.keyboard.press('Tab'); await page.waitForTimeout(500);
+const inv = await page.evaluate(() => !document.getElementById('ui').hidden);
+await page.keyboard.press('Tab'); await page.waitForTimeout(300);
+await page.keyboard.press('KeyC'); await page.waitForTimeout(1500);
+await page.keyboard.press('KeyM'); await page.waitForTimeout(800);
+await page.screenshot({ path: path.join(here, 'out', 'live_map.png') });
+await page.keyboard.press('KeyM'); await page.waitForTimeout(300);
+const fps = await page.evaluate(() => document.getElementById('fps').textContent);
+await browser.close();
+console.log({ inv, fps, errors: errors.slice(0, 10) });
+if (errors.length) process.exit(1);
+console.log('OK');
