@@ -227,7 +227,7 @@ const MISSIONS = [
         'Q': { item: 'tape' },
       },
       extraProps: [
-        { scenery: 'mirror', c: 24, r: -30, yaw: 0 },
+        { scenery: 'mirror', c: 24, r: -26, yaw: 0 },
         { scenery: 'dome', c: 4, r: -8, rad: 7 },
         { scenery: 'dome', c: 48, r: -6 },
         { scenery: 'dome', c: -8, r: 20 },

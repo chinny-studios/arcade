@@ -363,8 +363,9 @@ const PROPS = {
     const x = s.x, z = s.z, y = s.y;
     const p = { kind: 'mirror', box: null, solid: false, hp: Infinity };
     propMesh(p, (g) => {
-      g.cyl(x, y, z, 4, 30, 8, TILE.steel_red, TILE.metal_dk, 3, true, 2.5);
-      const m = new THREE.Matrix4().makeRotationX(-0.6).premultiply(new THREE.Matrix4().makeRotationY(s.yaw || 0)).setPosition(x, y + 32, z);
+      g.lit = (x, y, z, nx, ny, nz) => { const l = exteriorLit(x, y, z, nx, ny, nz); return [l[0] + 0.35, l[1] + 0.38, l[2] + 0.45]; };
+      g.cyl(x, y, z, 4, 9, 8, TILE.steel_red, TILE.metal_dk, 3, true, 2.5);
+      const m = new THREE.Matrix4().makeRotationX(-0.95).premultiply(new THREE.Matrix4().makeRotationY(s.yaw || 0)).setPosition(x, y + 13, z);
       g.setXf(m);
       const rings = 4, R = 34;
       for (let ri = 0; ri < rings; ri++) {
@@ -385,12 +386,16 @@ const PROPS = {
   dome(s) { // lunar surface habitat domes seen through the windows
     const p = { kind: 'dome', box: null, solid: false, hp: Infinity };
     propMesh(p, (g) => {
+      g.lit = exteriorLit;
       g.sphere(s.x, s.y - 1, s.z, s.rad || 8, 10, 6, () => TILE.moon_wall, 4, 2);
       g.cyl(s.x, s.y - 1, s.z, (s.rad || 8) + 0.5, 1.5, 10, TILE.metal_dk, null, 4, false);
     }, MAT.levelNoFog);
     return p;
   },
 };
+// Outside the map there is no baked light: scenery out there gets plain sun + ambient (the lunar sun is harsh).
+const MOON_SUN = new THREE.Vector3(-0.4, 0.35, -0.7).normalize();
+function exteriorLit(x, y, z, nx, ny, nz) { const d = Math.max(0, nx * MOON_SUN.x + ny * MOON_SUN.y + nz * MOON_SUN.z); return [0.32 + d * 1.15, 0.32 + d * 1.15, 0.34 + d * 1.15]; }
 function ROCKET_SEG(g, x, y, z, r, h, tileFn) {
   const sides = 8;
   for (let i = 0; i < sides; i++) {
