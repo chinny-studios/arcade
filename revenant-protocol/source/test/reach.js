@@ -1,0 +1,1 @@
+const r = []; for (let m = 0; m < 4; m++) { RP.start(m); const x = RP.reach(); r.push({ m, exit: x.exit, un: x.unreachable, keys: x.keys, opened: x.opened, reached: x.reached + '/' + x.open, enemies: RP.ENEMIES.length, items: RP.ITEMS.length }); } return r;
