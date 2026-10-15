@@ -128,11 +128,6 @@ function paintTextures() {
     for (let x = 5; x < 28; x += 4) p.vline(x, 4, 24, C(0xe0dcc8));
     p.bevel(2, 2, 28, 28, 1.3, 0.6);
   });
-  tex('lamp_cage', (p) => { // a bulkhead lamp for outdoor walls and the station
-    p.fill(C(0x404040)); p.disc(16, 16, 12, C(0xfff2c0)); p.disc(16, 16, 7, C(0xffffff));
-    for (let k = 4; k < 30; k += 6) { p.hline(4, k, 24, C(0x303030)); }
-    p.ring(16, 16, 12, 14, C(0x2a2a2a));
-  });
   // ---- outdoors (steppe launch site)
   tex('sand', (p) => { p.fill(C(0xa89470)).grain(0.35, 4).grain(0.2, 16, 9).speck(60, C(0x7c6a4c), 0.6).speck(30, C(0xd0bf98), 0.6); });
   tex('grass', (p) => {
@@ -283,7 +278,6 @@ function paintTextures() {
   });
   tex('floor_st', (p) => { p.fill(C(0x3c4046)).grain(0.12, 4); for (let y = 2; y < 32; y += 6) p.rect(0, y, 32, 2, C(0x52575e)); p.hline(0, 0, 32, C(0x26292c)); p.vline(0, 0, 32, C(0x26292c)); });
   tex('ceil_st', (p) => { p.fill(C(0xbab8b0)).grain(0.08, 4); p.rect(4, 4, 24, 24, C(0xcac8c0)); p.bevel(4, 4, 24, 24, 1.15, 0.75); p.rect(10, 14, 12, 4, C(0x707070)); });
-  tex('earthwin', (p) => { p.fill(C(0x101820)); }); // used for flat backing
   // ---- lunar base
   tex('moon_wall', (p) => {
     p.fill(C(0xb8ab92)).grain(0.12, 4);

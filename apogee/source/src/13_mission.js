@@ -120,9 +120,16 @@ function buildSky(kind) {
     g.lit = (x, y) => { const t = clamp(y / 260, 0, 1); return mix3(hor, zen, Math.pow(t, 0.6)); };
     g.sphere(0, 0, 0, 400, 16, 10, () => TILE.white, 1, 1, true);
     add(g.mesh(MAT.sky), true, 0);
-    const c = new Geo(); c.tint = [1, 0.98, 0.94];
-    c.sphere(0, -40, 0, 380, 16, 5, () => TILE.clouds, 8, 2, true);
-    const cm = add(c.mesh(MAT.skyAlpha), true, 1); cm.userData.spin = 0.003;
+    // a flat cloud layer projected onto a dome: planar UVs foreshorten toward the horizon, where it fades into the haze
+    const c = new Geo(), R = 380, rings = 7, segs = 24;
+    c.lit = (x, y) => mix3(hor, [1, 0.99, 0.96], clamp((y - 8) / 110, 0, 1));
+    for (let j = 0; j < rings; j++) for (let i = 0; i < segs; i++) {
+      const e0 = j / rings * Math.PI / 2 * 0.95, e1 = (j + 1) / rings * Math.PI / 2 * 0.95, a0 = i / segs * TAU, a1 = (i + 1) / segs * TAU;
+      const P = (e, a) => [Math.cos(e) * Math.sin(a) * R, Math.sin(e) * R * 0.45, Math.cos(e) * Math.cos(a) * R];
+      const q = [P(e0, a0), P(e0, a1), P(e1, a1), P(e1, a0)];
+      c.quad(q[0], q[1], q[2], q[3], q.flatMap((v) => [v[0] / 140, v[2] / 140]), TILE.clouds, [0, -1, 0]);
+    }
+    const cm = add(c.mesh(MAT.skyAlpha), true, 1); cm.userData.spin = 0.004;
     // distant mountains: a ring of peaks fading into the haze
     const mg = new Geo(), R0 = 330, N = 36;
     mg.lit = (x, y) => mix3([0.42, 0.38, 0.33], hor, clamp(0.55 + y / 120, 0, 1));

@@ -15,8 +15,8 @@ N64-style pipeline (320×240, 3-point filtering, vertex light, fog, dithered 16-
   `state()`, `reach()`, `audio()`, `render()`, and internals on `AP.f`.
 - **Tests (in `source/`):** `node test/smoke.mjs --no-start --steps test/reach.js` checks reachability in all missions; run
   it after any map edit. `test/play1.js` (default mission), `play2.js` (`--mission 1 --diff 2`) and `play3.js`
-  (`--mission 2 --diff 2`) complete each mission. `ai.js` checks combat and reinforcements, `anim.js` and `vm.js` take
-  screenshots of people and view models, `look1-3.js`, `views.js` and `ui.js` are screenshot tours, `audio.js` plays
+  (`--mission 2 --diff 2`) complete each mission. `ai.js` checks combat and reinforcements, `alert.js` that wary guards re-engage, `classic.js` auto-aim and aim mode, `anim.js` and `vm.js` take
+  screenshots of people and view models, `look1-3.js`, `views.js`, `sky.js`, `intro.js` and `ui.js` are screenshot tours, `audio.js` plays
   every sound and song. `node test/live.mjs` drives the menus, movement, the watch and both control schemes with real
   key presses.
 - **Gotchas:** gameplay delays use `later()` on the game clock, not `setTimeout`. Props register boxes in grid cells.

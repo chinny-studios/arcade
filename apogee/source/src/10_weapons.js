@@ -85,7 +85,7 @@ function autoAimTarget(dir) {
     const dx = a.x - cp.x, dy = ty - cp.y, dz = a.z - cp.z, d = Math.hypot(dx, dz);
     if (d > 28 || d < 0.5) continue;
     const dyaw = Math.abs(angDiff(yaw0, Math.atan2(-dx, -dz))), dp = Math.abs(Math.atan2(dy, d) - pitch0);
-    const lim = Math.max(0.07, 0.6 / d);
+    const lim = Math.max(0.14, 1.0 / d);
     if (dyaw > lim || dp > 0.35) continue;
     if (!losClear(cp.x, cp.y, cp.z, a.x, ty, a.z)) continue;
     const s = dyaw * 3 + dp;

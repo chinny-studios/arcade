@@ -24,7 +24,7 @@ function updateIntro(dt) {
 function step(dt) {
   G.time += dt;
   runTimers();
-  if (G.intro) { updateIntro(dt); updateActors(dt); updateDoors(dt); updateFx(dt); updateSky(dt); INPUT.pressed.clear(); return; }
+  if (G.intro) { updateIntro(dt); for (const a of G.actors) if (!a.dead) { a.t += dt; animateActor(a, dt); } updateDoors(dt); updateFx(dt); updateSky(dt); INPUT.pressed.clear(); return; }
   updatePlayer(dt);
   updateActors(dt);
   updateDoors(dt);
@@ -179,7 +179,7 @@ function installDebug() {
     },
     unlockAll() { G.unlockAll = true; return true; },
     audio() { initAudio(); const names = Object.keys(SFX); for (const n of names) sfx(n); for (const s of Object.keys(SONGS)) { stopMusic(); playMusic(s); scheduleMusic(); } playMusic('steppe'); return { ctx: !!AU.ctx, state: AU.ctx && AU.ctx.state, sfx: names.length, songs: Object.keys(SONGS).length }; },
-    f: { startIntro, applyVideoSettings, actorFire, muzzleFlashAt, G, L, OBJ, WEAPONS, MISSIONS, SET, SAVE, PROPS, TILE, camera, scene, renderer, rayWorld, findPath, damageActor, openDoor, explode, setState, toSelect, openWatch, closeWatch, showEnd, startMission, VIEW, UNI, MINES, PICKUPS, AU },
+    f: { autoAimTarget, playerFire, startIntro, applyVideoSettings, actorFire, muzzleFlashAt, G, L, OBJ, WEAPONS, MISSIONS, SET, SAVE, PROPS, TILE, camera, scene, renderer, rayWorld, findPath, damageActor, openDoor, explode, setState, toSelect, openWatch, closeWatch, showEnd, startMission, VIEW, UNI, MINES, PICKUPS, AU },
   };
   window.AP = AP;
 }

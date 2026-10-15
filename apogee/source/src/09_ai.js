@@ -100,10 +100,11 @@ function spot(a) {
     if (d < 9 && a.state !== 'surrender') { a.state = 'surrender'; a.action = 'surrender'; a.waitT = 1e9; }
     return;
   }
-  if (a.state === 'idle' || a.state === 'patrol' || a.state === 'search') {
-    const fresh = a.state !== 'search';
+  if (a.state === 'idle' || a.state === 'patrol' || a.state === 'search' || a.state === 'alert') {
+    const fresh = a.state === 'idle' || a.state === 'patrol';
     a.reactT = DIFF.reaction[G.diff] * (fresh ? 1 : 0.5);
     if (fresh) sfx('alert', a);
+    if (a.boss && !a.taunted) { a.taunted = true; hudMsg('KESSLER: "You are too late. HELIOS sees everything."', true); }
     if (a.alarmRunner && L.alarms.some((q) => !q.dead) && !(G.alarm && G.alarm.on)) a.state = 'alarm';
     else a.state = 'combat';
     // shout to friends nearby
