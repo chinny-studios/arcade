@@ -24,7 +24,7 @@ Collection of experimental browser games made with Claude. **Play them at https:
 
 ## The index page
 
-[`index.html`](index.html) builds its cards from the `GAMES` list in its script. Visitors can sort (newest, oldest, A–Z, genre), search (`/` to focus), filter by genre or by input (touch, gamepad), and open a random game with **Surprise me**. The view is kept in the URL (e.g. `?sort=az&genre=Strategy&input=touch`), so filtered views can be shared. To list a new game, add an entry to `GAMES` with the day it was added, its genres, tags and supported inputs (`kbm`, `touch`, `pad`). Then drop a 16:9 screenshot at `<game>/cover.webp` (800×450, about 20–60 KB). The four newest games from the past week get a **New** badge.
+[`index.html`](index.html) builds its cards from the `GAMES` list in its script. Visitors can sort (newest, oldest, A–Z, genre), search (`/` to focus), filter by genre or by input (touch, gamepad), and open a random game with **Surprise me**. The view is kept in the URL (e.g. `?sort=az&genre=Strategy&input=touch`), so filtered views can be shared. To list a new game, add an entry to `GAMES` with the day it was added, its genres, tags and supported inputs (`kbm`, `touch`, `pad`). Then add a 16:9 screenshot at `<game>/cover.webp` (800×450, about 20–60 KB). [`tools/covers`](tools/covers/) captures one headlessly from a per-game recipe. The four newest games from the past week get a **New** badge.
 
 ## Rebuilding
 

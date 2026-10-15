@@ -5,3 +5,7 @@ dist/
 midnight-in-the-sprawl/midnight-in-the-sprawl.html
 # test screenshots
 */source/test/out/
+
+# tools/covers: npm tarball cache and full-size shots
+tools/covers/.cache/
+tools/covers/out/
