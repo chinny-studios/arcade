@@ -15,6 +15,18 @@ function drawHud(dt) {
   if (HUD.hurt > 0) { c.fillStyle = 'rgba(190,0,0,' + (HUD.hurt * 0.45) + ')'; c.fillRect(0, 0, W, H); }
   if (HUD.flash > 0) { c.fillStyle = 'rgba(255,255,255,' + Math.min(1, HUD.flash * 2) + ')'; c.fillRect(0, 0, W, H); }
   if (!p) return;
+  if (G.intro) {
+    const M = MISSIONS[G.mission], t = G.intro.t;
+    const type = (s, n) => s.slice(0, Math.max(0, Math.floor(n)));
+    c.textAlign = 'left';
+    c.font = '22px "Special Elite", "Courier New", monospace';
+    shadowText(c, type(M.name, t * 18), 34, H - 70, '#ffe8b0');
+    c.font = '13px "Special Elite", "Courier New", monospace';
+    shadowText(c, type(M.place, (t - 0.6) * 30), 36, H - 46, '#f4ecd8');
+    c.font = '10px Michroma, sans-serif'; c.textAlign = 'right';
+    if (t > 0.6) shadowText(c, 'PRESS ANY KEY', W - 20, H - 20, 'rgba(240,230,200,.6)');
+    return;
+  }
   const Wp = curWeapon();
   c.textBaseline = 'alphabetic';
   // scope for the zoomed rifles
@@ -85,6 +97,7 @@ function drawHud(dt) {
       if (HUD.use) { c.font = '11px Michroma, sans-serif'; shadowText(c, (INPUT.lastPad && performance.now() - INPUT.lastPad < 4000 ? '[A] ' : '[E] ') + HUD.use.text, W / 2, H * 0.62, '#f4ecd8'); }
     }
   }
+  if (!INPUT.locked && !DEBUG && G.state === 'play' && !p.dead && !(INPUT.lastPad && performance.now() - INPUT.lastPad < 4000)) { c.font = '13px Michroma, sans-serif'; c.textAlign = 'center'; shadowText(c, 'CLICK TO TAKE CONTROL', W / 2, H * 0.4, '#ffd870'); }
   // alarm
   if (G.alarm && G.alarm.on && (G.time * 2 % 1) < 0.6) { c.font = '13px Michroma, sans-serif'; c.textAlign = 'center'; shadowText(c, 'ALARM', W / 2, 28, '#ff5040'); }
 }
@@ -242,7 +255,7 @@ function beginMission(i, d) {
   setTimeout(() => {
     startMission(i, d);
     setState('play');
-    hudMsg(MISSIONS[i].name.toUpperCase(), true);
+    startIntro();
     if (!DEBUG) requestLock();
   }, 30);
 }

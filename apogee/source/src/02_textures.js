@@ -147,8 +147,10 @@ function paintTextures() {
   });
   tex('pad_line', (p) => { p.fill(C(0xa5a39b)).grain(0.25, 4); p.rect(0, 13, 32, 6, C(0xd8b830)); p.grain(0.15, 8, 2); p.hline(0, 0, 32, C(0x5d5b55)); });
   tex('cliff', (p) => {
-    p.each((x, y) => { const s = fbm(x * 0.5, y * 2, 3, 4); return mix3(C(0x6e5e4a), C(0x9c8a6c), s); }).grain(0.35, 8, 4);
-    for (let y = 3; y < 32; y += 7) for (let x = 0; x < 32; x++) if (fbm(x, y, 11, 8) > 0.45) p.mul(x, y, 0.65);
+    p.each((x, y) => { const n = fbm(x, y * 0.6, 3, 4), m = fbm(x * 1.5, y * 0.4, 8, 2); return mix3(C(0x5a4c3a), C(0xa89474), clamp(n * 0.75 + m * 0.35 - 0.05, 0, 1)); });
+    for (let k = 0; k < 7; k++) { let x = p.r() * 32; const y0 = p.r() * 32, len = 6 + p.r() * 20; for (let j = 0; j < len; j++) { x += (p.r() - 0.5) * 1.4; p.mul(x, y0 + j, 0.62); } }
+    for (const y of [6, 17, 26]) for (let x = 0; x < 32; x++) if (fbm(x, y, 13, 4) > 0.42) { p.mul(x, y, 1.22); p.mul(x, y + 1, 0.78); }
+    p.speck(30, C(0x3e3428), 0.6);
   });
   tex('corrugated', (p) => {
     p.each((x) => { const s = 0.75 + 0.35 * Math.sin(x / 32 * TAU * 4); return [0.46 * s, 0.52 * s, 0.56 * s]; }).grain(0.2, 4).speck(30, C(0x6a4a30), 0.5);

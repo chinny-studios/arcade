@@ -400,7 +400,7 @@ function ROCKET_SEG(g, x, y, z, r, h, tileFn) {
   }
 }
 function spawnProps() {
-  for (const s of L.spawnProps || []) {
+  for (const s of L.spawnProps) {
     const kind = s.prop || s.scenery;
     const b = PROPS[kind];
     if (!b) { console.warn('unknown prop', kind); continue; }

@@ -30,7 +30,7 @@ function startMission(m, d) {
   buildViewmodel(curWeapon().id);
   OBJ.list = M.objectives.filter((o) => o.diffs.includes(d)).map((o, k) => Object.assign({}, o, { letter: 'abcdefgh'[k], status: o.type === 'noAlarm' || o.type === 'protect' ? 'ok' : 'open' }));
   G.stats = { shots: 0, hits: 0, head: 0, body: 0, limb: 0, hat: 0, kills: 0, civKilled: 0 };
-  G.time = 0; G.ended = false; G.run = (G.run || 0) + 1;
+  G.time = 0; G.ended = false; G.run = (G.run || 0) + 1; G.intro = null;
   HUD.msgs = []; HUD.hurt = 0; HUD.flash = 0; HUD.showBars = 0;
   // label photo targets for the message
   for (const pr of L.props) if (pr.id === 'payload') pr.label = 'HELIOS payload';

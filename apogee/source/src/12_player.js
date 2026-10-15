@@ -170,7 +170,12 @@ function bumpDoor(p) {
   const fx = fwdX(p.yaw), fz = fwdZ(p.yaw);
   for (const d of [1.0, 0.6]) {
     const i = idxAt(p.x + fx * d, p.z + fz * d);
-    if (i >= 0 && L.type[i] === T_DOOR) { const door = L.doorAt.get(i); if (door.open < 0.5 && door.target === 0 && !door.locked) openDoor(door, 'player'); return; }
+    if (i >= 0 && L.type[i] === T_DOOR) {
+      const door = L.doorAt.get(i);
+      if (door.locked && !G.player.items[door.locked]) { if (G.time - (p.lockNag || -9) > 3) { p.lockNag = G.time; hudMsg((L.def.lockMsg && L.def.lockMsg[door.locked]) || 'Door is locked'); sfx('deny'); } }
+      else if (door.open < 0.5 && door.target === 0) openDoor(door, 'player');
+      return;
+    }
   }
 }
 // What's in front of the player that E would act on?

@@ -32,7 +32,7 @@ function parseLevel(def) {
     wtex: new Int16Array(W * H), wtexOut: new Int16Array(W * H), ftex: new Int16Array(W * H), ctex: new Int16Array(W * H),
     wallTop: new Float32Array(W * H), lamp: new Uint8Array(W * H), blocked: new Uint8Array(W * H), ch: [],
     props: [], cellProps: [], doors: [], doorAt: new Map(), windows: new Map(), exits: new Set(), lights: [],
-    spawns: [], items: [], reinf: [], patrols: def.patrols || [], start: null, alarms: [], fences: [],
+    spawns: [], items: [], reinf: [], patrols: def.patrols || [], start: null, alarms: [], fences: [], spawnProps: [],
   });
   for (let i = 0; i < W * H; i++) L.cellProps.push(null);
   const tx = def.tex, T = (n) => TILE[n];
@@ -135,16 +135,16 @@ function parseLevel(def) {
     else if (ch === 'r') L.reinf.push(at);
     else if (ch === 'a') L.items.push(Object.assign({ item: 'armor' }, at));
     else if (ch === 'm') L.items.push(Object.assign({ item: 'ammo' }, at));
-    else if ('xbockuhlA'.includes(ch)) L.spawnProps = (L.spawnProps || []).concat([Object.assign({ prop: { x: 'crate', b: 'barrel', o: 'tank', c: 'console', k: 'bank', u: 'bunk', h: 'trough', l: 'locker', A: 'alarm' }[ch] }, at)]);
+    else if ('xbockuhlA'.includes(ch)) L.spawnProps.push(Object.assign({ prop: { x: 'crate', b: 'barrel', o: 'tank', c: 'console', k: 'bank', u: 'bunk', h: 'trough', l: 'locker', A: 'alarm' }[ch] }, at));
     else if (marks[ch]) {
       const m = marks[ch];
-      if (m.prop || m.scenery) L.spawnProps = (L.spawnProps || []).concat([Object.assign({}, m, at)]);
+      if (m.prop || m.scenery) L.spawnProps.push(Object.assign({}, m, at));
       if (m.actor) L.spawns.push(Object.assign({ kind: m.actor }, m, at));
       if (m.item) L.items.push(Object.assign({}, m, at));
       if (m.exit) L.exits.add(i);
     }
   }
-  for (const d of def.extraProps || []) L.spawnProps = (L.spawnProps || []).concat([Object.assign({ x: cx2(d.c), z: cx2(d.r), y: 0, i: cellIdx(d.c, d.r) }, d)]);
+  for (const d of def.extraProps || []) L.spawnProps.push(Object.assign({ x: cx2(d.c), z: cx2(d.r), y: 0, i: -1 }, d));
 }
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const N8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];

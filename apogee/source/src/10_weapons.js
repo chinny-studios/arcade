@@ -110,7 +110,7 @@ function traceShot(r, W, opts = {}) {
   }
   if (ah) {
     if (W.beam) beamFx(ox + dx * 0.8, oy + dy * 0.8 - 0.15, oz + dz * 0.8, ah.x, ah.y, ah.z, W.beamCol);
-    damageActor(aa, W.dmg * (opts.mul || 1), ah.part, 'player', { hitPos: ah, fromX: ox, fromZ: oz, dir: [dx, dy, dz] });
+    damageActor(aa, W.dmg * (opts.mul || 1), ah.part, 'player', { hitPos: ah, fromX: ox, fromZ: oz, dir: [dx, dy, dz], bullet: true });
     return true;
   }
   if (wh) {
@@ -135,14 +135,13 @@ function playerFire() {
   }
   p.mag[W.id]--;
   p.fireT = W.rate;
-  G.stats.shots++;
+  G.stats.shots++; G.stats.shotId = (G.stats.shotId || 0) + 1;
   VM.kick = 1; VM.flashT = W.beam ? 0.08 : 0.05;
   sfx(W.snd);
   if (W.noise) noiseEvent(p.x, p.z, W.noise, null);
   const aiming = p.aiming || p.aimMode;
   const spread = W.spread * (aiming ? 0.45 : 1) * (p.crouch ? 0.8 : 1) * (1 + Math.min(1, Math.hypot(p.vx, p.vz) / 4) * 0.6);
   for (let k = 0; k < (W.pellets || 1); k++) traceShot(aimRay(spread), W);
-  if (W.pellets) G.stats.shots += 0;
   if (p.mag[W.id] === 0 && (p.ammo[W.ammo] || 0) > 0) later(0.25, () => { if (curWeapon() === W) startReload(); });
 }
 function chop(W) {
@@ -159,11 +158,11 @@ function chop(W) {
   if (!best) return;
   later(0.12, () => {
     if (best.dead) return;
-    G.stats.shots++;
+    G.stats.shots++; G.stats.shotId = (G.stats.shotId || 0) + 1;
     // an unaware guard struck from behind goes down at once
     const behind = Math.abs(angDiff(best.yaw, p.yaw)) < 1.0 && !best.sees && best.state !== 'combat';
     sfx('chopHit', best);
-    damageActor(best, behind ? 400 : W.dmg, behind ? 'torso' : pick(['torso', 'torso', 'head', 'armL', 'armR']), 'player', { fromX: p.x, fromZ: p.z, hitPos: { x: best.x, y: best.y + 1.4, z: best.z } });
+    damageActor(best, behind ? 400 : W.dmg, behind ? 'torso' : pick(['torso', 'torso', 'head', 'armL', 'armR']), 'player', { fromX: p.x, fromZ: p.z, hitPos: { x: best.x, y: best.y + 1.4, z: best.z }, bullet: true });
   });
 }
 function snapPhoto() {
@@ -326,8 +325,7 @@ function buildViewmodel(id) {
   const root = new THREE.Group();
   const g = new Geo();
   // sleeve and hand: dark suit cloth with a white cuff
-  g.tint = [0.22, 0.23, 0.27]; g.box(-0.04, -0.075, 0.1, 0.04, 0.02, 0.5, TILE.cloth, 0);
-  g.tint = [0.9, 0.9, 0.88]; g.box(-0.042, -0.077, 0.085, 0.042, 0.022, 0.1, TILE.white, 0);
+  g.tint = [0.2, 0.21, 0.26]; g.box(-0.036, -0.09, 0.07, 0.036, 0.01, 0.5, TILE.cloth, 0);
   g.tint = [1, 1, 1]; g.box(-0.034, -0.095, -0.015, 0.034, 0.02, 0.075, TILE.hand, 0);
   if (id === 'chop') { g.box(-0.035, -0.02, -0.12, 0.035, 0.0, -0.02, TILE.hand, 0); }
   else gunGeo(g, id, true);

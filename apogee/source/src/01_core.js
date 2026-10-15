@@ -37,7 +37,7 @@ const fmtTime = (s) => {
 // Difficulty tables. Index 0 Agent, 1 Secret Agent, 2 Orbital Agent.
 const DIFFS = ['Agent', 'Secret Agent', 'Orbital Agent'];
 const DIFF = {
-  dmgToPlayer: [0.5, 1.0, 1.9],
+  dmgToPlayer: [0.45, 0.75, 1.5],
   accuracy:    [0.42, 0.62, 0.88],
   reaction:    [1.0, 0.65, 0.4],
   guardHp:     [70, 100, 130],

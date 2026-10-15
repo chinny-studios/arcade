@@ -1,9 +1,30 @@
 // 15_main: boot, the frame loop (optionally locked to 20 fps like the cartridge), the title scene and the #debug
 // test hook window.AP.
 
+// The mission intro: the camera starts behind and above the agent and glides down to their eyes.
+function startIntro() {
+  const p = G.player, ex = p.x, ey = p.y + p.eye, ez = p.z;
+  const bx = -fwdX(p.yaw), bz = -fwdZ(p.yaw), d = new THREE.Vector3(bx * 0.75, 0.55, bz * 0.75).normalize();
+  const h = rayWorld(ex, ey, ez, d.x, d.y, d.z, 16);
+  const dist = Math.max(1.5, Math.min(14, (h ? h.t : 16) - 0.6));
+  G.intro = { t: 0, len: 2.2 + dist * 0.12, from: new THREE.Vector3(ex + d.x * dist, ey + d.y * dist, ez + d.z * dist) };
+}
+function updateIntro(dt) {
+  const I = G.intro, p = G.player;
+  I.t += dt;
+  const pad = pollPad();
+  const skip = INPUT.pressed.size || INPUT.lmb || (pad && pad.b.some((x) => x));
+  if (I.t >= I.len || (skip && I.t > 0.3)) { G.intro = null; INPUT.lmb = false; updateCamera(0); return; }
+  const s = smooth(clamp(I.t / I.len, 0, 1)), eye = new THREE.Vector3(p.x, p.y + p.eye, p.z);
+  camera.position.lerpVectors(I.from, eye, s);
+  const look = new THREE.Vector3(p.x + fwdX(p.yaw) * 6 * s, p.y + 1.2 + (p.eye - 1.2) * s, p.z + fwdZ(p.yaw) * 6 * s);
+  camera.lookAt(look);
+  camera.updateMatrixWorld(true);
+}
 function step(dt) {
   G.time += dt;
   runTimers();
+  if (G.intro) { updateIntro(dt); updateActors(dt); updateDoors(dt); updateFx(dt); updateSky(dt); INPUT.pressed.clear(); return; }
   updatePlayer(dt);
   updateActors(dt);
   updateDoors(dt);
@@ -18,7 +39,7 @@ function step(dt) {
 }
 function draw(dt) {
   drawFx();
-  renderFrame(G.state === 'play' && !G.player.dead);
+  renderFrame(G.state === 'play' && !G.player.dead && !G.intro);
   drawHud(dt);
 }
 
@@ -158,7 +179,7 @@ function installDebug() {
     },
     unlockAll() { G.unlockAll = true; return true; },
     audio() { initAudio(); const names = Object.keys(SFX); for (const n of names) sfx(n); for (const s of Object.keys(SONGS)) { stopMusic(); playMusic(s); scheduleMusic(); } playMusic('steppe'); return { ctx: !!AU.ctx, state: AU.ctx && AU.ctx.state, sfx: names.length, songs: Object.keys(SONGS).length }; },
-    f: { G, L, OBJ, WEAPONS, MISSIONS, SET, SAVE, PROPS, TILE, camera, scene, renderer, rayWorld, findPath, damageActor, openDoor, explode, setState, toSelect, openWatch, closeWatch, showEnd, startMission, VIEW, UNI, MINES, PICKUPS, AU },
+    f: { startIntro, applyVideoSettings, actorFire, muzzleFlashAt, G, L, OBJ, WEAPONS, MISSIONS, SET, SAVE, PROPS, TILE, camera, scene, renderer, rayWorld, findPath, damageActor, openDoor, explode, setState, toSelect, openWatch, closeWatch, showEnd, startMission, VIEW, UNI, MINES, PICKUPS, AU },
   };
   window.AP = AP;
 }

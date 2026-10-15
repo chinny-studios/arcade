@@ -200,7 +200,7 @@ const fmtTime = (s) => {
 // Difficulty tables. Index 0 Agent, 1 Secret Agent, 2 Orbital Agent.
 const DIFFS = ['Agent', 'Secret Agent', 'Orbital Agent'];
 const DIFF = {
-  dmgToPlayer: [0.5, 1.0, 1.9],
+  dmgToPlayer: [0.45, 0.75, 1.5],
   accuracy:    [0.42, 0.62, 0.88],
   reaction:    [1.0, 0.65, 0.4],
   guardHp:     [70, 100, 130],
@@ -417,8 +417,10 @@ function paintTextures() {
   });
   tex('pad_line', (p) => { p.fill(C(0xa5a39b)).grain(0.25, 4); p.rect(0, 13, 32, 6, C(0xd8b830)); p.grain(0.15, 8, 2); p.hline(0, 0, 32, C(0x5d5b55)); });
   tex('cliff', (p) => {
-    p.each((x, y) => { const s = fbm(x * 0.5, y * 2, 3, 4); return mix3(C(0x6e5e4a), C(0x9c8a6c), s); }).grain(0.35, 8, 4);
-    for (let y = 3; y < 32; y += 7) for (let x = 0; x < 32; x++) if (fbm(x, y, 11, 8) > 0.45) p.mul(x, y, 0.65);
+    p.each((x, y) => { const n = fbm(x, y * 0.6, 3, 4), m = fbm(x * 1.5, y * 0.4, 8, 2); return mix3(C(0x5a4c3a), C(0xa89474), clamp(n * 0.75 + m * 0.35 - 0.05, 0, 1)); });
+    for (let k = 0; k < 7; k++) { let x = p.r() * 32; const y0 = p.r() * 32, len = 6 + p.r() * 20; for (let j = 0; j < len; j++) { x += (p.r() - 0.5) * 1.4; p.mul(x, y0 + j, 0.62); } }
+    for (const y of [6, 17, 26]) for (let x = 0; x < 32; x++) if (fbm(x, y, 13, 4) > 0.42) { p.mul(x, y, 1.22); p.mul(x, y + 1, 0.78); }
+    p.speck(30, C(0x3e3428), 0.6);
   });
   tex('corrugated', (p) => {
     p.each((x) => { const s = 0.75 + 0.35 * Math.sin(x / 32 * TAU * 4); return [0.46 * s, 0.52 * s, 0.56 * s]; }).grain(0.2, 4).speck(30, C(0x6a4a30), 0.5);
@@ -1011,7 +1013,7 @@ function parseLevel(def) {
     wtex: new Int16Array(W * H), wtexOut: new Int16Array(W * H), ftex: new Int16Array(W * H), ctex: new Int16Array(W * H),
     wallTop: new Float32Array(W * H), lamp: new Uint8Array(W * H), blocked: new Uint8Array(W * H), ch: [],
     props: [], cellProps: [], doors: [], doorAt: new Map(), windows: new Map(), exits: new Set(), lights: [],
-    spawns: [], items: [], reinf: [], patrols: def.patrols || [], start: null, alarms: [], fences: [],
+    spawns: [], items: [], reinf: [], patrols: def.patrols || [], start: null, alarms: [], fences: [], spawnProps: [],
   });
   for (let i = 0; i < W * H; i++) L.cellProps.push(null);
   const tx = def.tex, T = (n) => TILE[n];
@@ -1114,16 +1116,16 @@ function parseLevel(def) {
     else if (ch === 'r') L.reinf.push(at);
     else if (ch === 'a') L.items.push(Object.assign({ item: 'armor' }, at));
     else if (ch === 'm') L.items.push(Object.assign({ item: 'ammo' }, at));
-    else if ('xbockuhlA'.includes(ch)) L.spawnProps = (L.spawnProps || []).concat([Object.assign({ prop: { x: 'crate', b: 'barrel', o: 'tank', c: 'console', k: 'bank', u: 'bunk', h: 'trough', l: 'locker', A: 'alarm' }[ch] }, at)]);
+    else if ('xbockuhlA'.includes(ch)) L.spawnProps.push(Object.assign({ prop: { x: 'crate', b: 'barrel', o: 'tank', c: 'console', k: 'bank', u: 'bunk', h: 'trough', l: 'locker', A: 'alarm' }[ch] }, at));
     else if (marks[ch]) {
       const m = marks[ch];
-      if (m.prop || m.scenery) L.spawnProps = (L.spawnProps || []).concat([Object.assign({}, m, at)]);
+      if (m.prop || m.scenery) L.spawnProps.push(Object.assign({}, m, at));
       if (m.actor) L.spawns.push(Object.assign({ kind: m.actor }, m, at));
       if (m.item) L.items.push(Object.assign({}, m, at));
       if (m.exit) L.exits.add(i);
     }
   }
-  for (const d of def.extraProps || []) L.spawnProps = (L.spawnProps || []).concat([Object.assign({ x: cx2(d.c), z: cx2(d.r), y: 0, i: cellIdx(d.c, d.r) }, d)]);
+  for (const d of def.extraProps || []) L.spawnProps.push(Object.assign({ x: cx2(d.c), z: cx2(d.r), y: 0, i: -1 }, d));
 }
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const N8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
@@ -2052,7 +2054,7 @@ function ROCKET_SEG(g, x, y, z, r, h, tileFn) {
   }
 }
 function spawnProps() {
-  for (const s of L.spawnProps || []) {
+  for (const s of L.spawnProps) {
     const kind = s.prop || s.scenery;
     const b = PROPS[kind];
     if (!b) { console.warn('unknown prop', kind); continue; }
@@ -3120,7 +3122,7 @@ function damageActor(a, dmg, part, src, opts = {}) {
   const byPlayer = src === 'player';
   if (part === 'hat') {
     knockHat(a, opts);
-    if (byPlayer) G.stats.hits++, G.stats.hat++;
+    if (byPlayer && opts.bullet) { if (G.stats.shotId !== G.stats.lastHitShot) { G.stats.hits++; G.stats.lastHitShot = G.stats.shotId; } G.stats.hat++; }
     if (!a.civilian) { a.state = a.state === 'idle' || a.state === 'patrol' ? 'combat' : a.state; a.lastSeen = { x: G.player.x, z: G.player.z }; }
     a.hit = { where: 'hat', t: 0, len: 0.35, side: 1 };
     return;
@@ -3131,8 +3133,8 @@ function damageActor(a, dmg, part, src, opts = {}) {
   else if (part && (part.startsWith('arm') || part.startsWith('leg'))) mul = 0.6;
   const d = dmg * mul;
   a.hp -= d;
-  if (byPlayer) {
-    G.stats.hits++;
+  if (byPlayer && opts.bullet) {
+    if (G.stats.shotId !== G.stats.lastHitShot) { G.stats.hits++; G.stats.lastHitShot = G.stats.shotId; }
     if (part === 'head') G.stats.head++;
     else if (part === 'torso' || part === 'groin') G.stats.body++;
     else if (part) G.stats.limb++;
@@ -3379,7 +3381,7 @@ function traceShot(r, W, opts = {}) {
   }
   if (ah) {
     if (W.beam) beamFx(ox + dx * 0.8, oy + dy * 0.8 - 0.15, oz + dz * 0.8, ah.x, ah.y, ah.z, W.beamCol);
-    damageActor(aa, W.dmg * (opts.mul || 1), ah.part, 'player', { hitPos: ah, fromX: ox, fromZ: oz, dir: [dx, dy, dz] });
+    damageActor(aa, W.dmg * (opts.mul || 1), ah.part, 'player', { hitPos: ah, fromX: ox, fromZ: oz, dir: [dx, dy, dz], bullet: true });
     return true;
   }
   if (wh) {
@@ -3404,14 +3406,13 @@ function playerFire() {
   }
   p.mag[W.id]--;
   p.fireT = W.rate;
-  G.stats.shots++;
+  G.stats.shots++; G.stats.shotId = (G.stats.shotId || 0) + 1;
   VM.kick = 1; VM.flashT = W.beam ? 0.08 : 0.05;
   sfx(W.snd);
   if (W.noise) noiseEvent(p.x, p.z, W.noise, null);
   const aiming = p.aiming || p.aimMode;
   const spread = W.spread * (aiming ? 0.45 : 1) * (p.crouch ? 0.8 : 1) * (1 + Math.min(1, Math.hypot(p.vx, p.vz) / 4) * 0.6);
   for (let k = 0; k < (W.pellets || 1); k++) traceShot(aimRay(spread), W);
-  if (W.pellets) G.stats.shots += 0;
   if (p.mag[W.id] === 0 && (p.ammo[W.ammo] || 0) > 0) later(0.25, () => { if (curWeapon() === W) startReload(); });
 }
 function chop(W) {
@@ -3428,11 +3429,11 @@ function chop(W) {
   if (!best) return;
   later(0.12, () => {
     if (best.dead) return;
-    G.stats.shots++;
+    G.stats.shots++; G.stats.shotId = (G.stats.shotId || 0) + 1;
     // an unaware guard struck from behind goes down at once
     const behind = Math.abs(angDiff(best.yaw, p.yaw)) < 1.0 && !best.sees && best.state !== 'combat';
     sfx('chopHit', best);
-    damageActor(best, behind ? 400 : W.dmg, behind ? 'torso' : pick(['torso', 'torso', 'head', 'armL', 'armR']), 'player', { fromX: p.x, fromZ: p.z, hitPos: { x: best.x, y: best.y + 1.4, z: best.z } });
+    damageActor(best, behind ? 400 : W.dmg, behind ? 'torso' : pick(['torso', 'torso', 'head', 'armL', 'armR']), 'player', { fromX: p.x, fromZ: p.z, hitPos: { x: best.x, y: best.y + 1.4, z: best.z }, bullet: true });
   });
 }
 function snapPhoto() {
@@ -3595,8 +3596,7 @@ function buildViewmodel(id) {
   const root = new THREE.Group();
   const g = new Geo();
   // sleeve and hand: dark suit cloth with a white cuff
-  g.tint = [0.22, 0.23, 0.27]; g.box(-0.04, -0.075, 0.1, 0.04, 0.02, 0.5, TILE.cloth, 0);
-  g.tint = [0.9, 0.9, 0.88]; g.box(-0.042, -0.077, 0.085, 0.042, 0.022, 0.1, TILE.white, 0);
+  g.tint = [0.2, 0.21, 0.26]; g.box(-0.036, -0.09, 0.07, 0.036, 0.01, 0.5, TILE.cloth, 0);
   g.tint = [1, 1, 1]; g.box(-0.034, -0.095, -0.015, 0.034, 0.02, 0.075, TILE.hand, 0);
   if (id === 'chop') { g.box(-0.035, -0.02, -0.12, 0.035, 0.0, -0.02, TILE.hand, 0); }
   else gunGeo(g, id, true);
@@ -4082,7 +4082,12 @@ function bumpDoor(p) {
   const fx = fwdX(p.yaw), fz = fwdZ(p.yaw);
   for (const d of [1.0, 0.6]) {
     const i = idxAt(p.x + fx * d, p.z + fz * d);
-    if (i >= 0 && L.type[i] === T_DOOR) { const door = L.doorAt.get(i); if (door.open < 0.5 && door.target === 0 && !door.locked) openDoor(door, 'player'); return; }
+    if (i >= 0 && L.type[i] === T_DOOR) {
+      const door = L.doorAt.get(i);
+      if (door.locked && !G.player.items[door.locked]) { if (G.time - (p.lockNag || -9) > 3) { p.lockNag = G.time; hudMsg((L.def.lockMsg && L.def.lockMsg[door.locked]) || 'Door is locked'); sfx('deny'); } }
+      else if (door.open < 0.5 && door.target === 0) openDoor(door, 'player');
+      return;
+    }
   }
 }
 // What's in front of the player that E would act on?
@@ -4193,7 +4198,7 @@ function startMission(m, d) {
   buildViewmodel(curWeapon().id);
   OBJ.list = M.objectives.filter((o) => o.diffs.includes(d)).map((o, k) => Object.assign({}, o, { letter: 'abcdefgh'[k], status: o.type === 'noAlarm' || o.type === 'protect' ? 'ok' : 'open' }));
   G.stats = { shots: 0, hits: 0, head: 0, body: 0, limb: 0, hat: 0, kills: 0, civKilled: 0 };
-  G.time = 0; G.ended = false; G.run = (G.run || 0) + 1;
+  G.time = 0; G.ended = false; G.run = (G.run || 0) + 1; G.intro = null;
   HUD.msgs = []; HUD.hurt = 0; HUD.flash = 0; HUD.showBars = 0;
   // label photo targets for the message
   for (const pr of L.props) if (pr.id === 'payload') pr.label = 'HELIOS payload';
@@ -4361,6 +4366,18 @@ function drawHud(dt) {
   if (HUD.hurt > 0) { c.fillStyle = 'rgba(190,0,0,' + (HUD.hurt * 0.45) + ')'; c.fillRect(0, 0, W, H); }
   if (HUD.flash > 0) { c.fillStyle = 'rgba(255,255,255,' + Math.min(1, HUD.flash * 2) + ')'; c.fillRect(0, 0, W, H); }
   if (!p) return;
+  if (G.intro) {
+    const M = MISSIONS[G.mission], t = G.intro.t;
+    const type = (s, n) => s.slice(0, Math.max(0, Math.floor(n)));
+    c.textAlign = 'left';
+    c.font = '22px "Special Elite", "Courier New", monospace';
+    shadowText(c, type(M.name, t * 18), 34, H - 70, '#ffe8b0');
+    c.font = '13px "Special Elite", "Courier New", monospace';
+    shadowText(c, type(M.place, (t - 0.6) * 30), 36, H - 46, '#f4ecd8');
+    c.font = '10px Michroma, sans-serif'; c.textAlign = 'right';
+    if (t > 0.6) shadowText(c, 'PRESS ANY KEY', W - 20, H - 20, 'rgba(240,230,200,.6)');
+    return;
+  }
   const Wp = curWeapon();
   c.textBaseline = 'alphabetic';
   // scope for the zoomed rifles
@@ -4431,6 +4448,7 @@ function drawHud(dt) {
       if (HUD.use) { c.font = '11px Michroma, sans-serif'; shadowText(c, (INPUT.lastPad && performance.now() - INPUT.lastPad < 4000 ? '[A] ' : '[E] ') + HUD.use.text, W / 2, H * 0.62, '#f4ecd8'); }
     }
   }
+  if (!INPUT.locked && !DEBUG && G.state === 'play' && !p.dead && !(INPUT.lastPad && performance.now() - INPUT.lastPad < 4000)) { c.font = '13px Michroma, sans-serif'; c.textAlign = 'center'; shadowText(c, 'CLICK TO TAKE CONTROL', W / 2, H * 0.4, '#ffd870'); }
   // alarm
   if (G.alarm && G.alarm.on && (G.time * 2 % 1) < 0.6) { c.font = '13px Michroma, sans-serif'; c.textAlign = 'center'; shadowText(c, 'ALARM', W / 2, 28, '#ff5040'); }
 }
@@ -4588,7 +4606,7 @@ function beginMission(i, d) {
   setTimeout(() => {
     startMission(i, d);
     setState('play');
-    hudMsg(MISSIONS[i].name.toUpperCase(), true);
+    startIntro();
     if (!DEBUG) requestLock();
   }, 30);
 }
@@ -4677,9 +4695,30 @@ function showEnd(ok, why) {
 // 15_main: boot, the frame loop (optionally locked to 20 fps like the cartridge), the title scene and the #debug
 // test hook window.AP.
 
+// The mission intro: the camera starts behind and above the agent and glides down to their eyes.
+function startIntro() {
+  const p = G.player, ex = p.x, ey = p.y + p.eye, ez = p.z;
+  const bx = -fwdX(p.yaw), bz = -fwdZ(p.yaw), d = new THREE.Vector3(bx * 0.75, 0.55, bz * 0.75).normalize();
+  const h = rayWorld(ex, ey, ez, d.x, d.y, d.z, 16);
+  const dist = Math.max(1.5, Math.min(14, (h ? h.t : 16) - 0.6));
+  G.intro = { t: 0, len: 2.2 + dist * 0.12, from: new THREE.Vector3(ex + d.x * dist, ey + d.y * dist, ez + d.z * dist) };
+}
+function updateIntro(dt) {
+  const I = G.intro, p = G.player;
+  I.t += dt;
+  const pad = pollPad();
+  const skip = INPUT.pressed.size || INPUT.lmb || (pad && pad.b.some((x) => x));
+  if (I.t >= I.len || (skip && I.t > 0.3)) { G.intro = null; INPUT.lmb = false; updateCamera(0); return; }
+  const s = smooth(clamp(I.t / I.len, 0, 1)), eye = new THREE.Vector3(p.x, p.y + p.eye, p.z);
+  camera.position.lerpVectors(I.from, eye, s);
+  const look = new THREE.Vector3(p.x + fwdX(p.yaw) * 6 * s, p.y + 1.2 + (p.eye - 1.2) * s, p.z + fwdZ(p.yaw) * 6 * s);
+  camera.lookAt(look);
+  camera.updateMatrixWorld(true);
+}
 function step(dt) {
   G.time += dt;
   runTimers();
+  if (G.intro) { updateIntro(dt); updateActors(dt); updateDoors(dt); updateFx(dt); updateSky(dt); INPUT.pressed.clear(); return; }
   updatePlayer(dt);
   updateActors(dt);
   updateDoors(dt);
@@ -4694,7 +4733,7 @@ function step(dt) {
 }
 function draw(dt) {
   drawFx();
-  renderFrame(G.state === 'play' && !G.player.dead);
+  renderFrame(G.state === 'play' && !G.player.dead && !G.intro);
   drawHud(dt);
 }
 
@@ -4834,7 +4873,7 @@ function installDebug() {
     },
     unlockAll() { G.unlockAll = true; return true; },
     audio() { initAudio(); const names = Object.keys(SFX); for (const n of names) sfx(n); for (const s of Object.keys(SONGS)) { stopMusic(); playMusic(s); scheduleMusic(); } playMusic('steppe'); return { ctx: !!AU.ctx, state: AU.ctx && AU.ctx.state, sfx: names.length, songs: Object.keys(SONGS).length }; },
-    f: { G, L, OBJ, WEAPONS, MISSIONS, SET, SAVE, PROPS, TILE, camera, scene, renderer, rayWorld, findPath, damageActor, openDoor, explode, setState, toSelect, openWatch, closeWatch, showEnd, startMission, VIEW, UNI, MINES, PICKUPS, AU },
+    f: { startIntro, applyVideoSettings, actorFire, muzzleFlashAt, G, L, OBJ, WEAPONS, MISSIONS, SET, SAVE, PROPS, TILE, camera, scene, renderer, rayWorld, findPath, damageActor, openDoor, explode, setState, toSelect, openWatch, closeWatch, showEnd, startMission, VIEW, UNI, MINES, PICKUPS, AU },
   };
   window.AP = AP;
 }

@@ -318,7 +318,7 @@ function damageActor(a, dmg, part, src, opts = {}) {
   const byPlayer = src === 'player';
   if (part === 'hat') {
     knockHat(a, opts);
-    if (byPlayer) G.stats.hits++, G.stats.hat++;
+    if (byPlayer && opts.bullet) { if (G.stats.shotId !== G.stats.lastHitShot) { G.stats.hits++; G.stats.lastHitShot = G.stats.shotId; } G.stats.hat++; }
     if (!a.civilian) { a.state = a.state === 'idle' || a.state === 'patrol' ? 'combat' : a.state; a.lastSeen = { x: G.player.x, z: G.player.z }; }
     a.hit = { where: 'hat', t: 0, len: 0.35, side: 1 };
     return;
@@ -329,8 +329,8 @@ function damageActor(a, dmg, part, src, opts = {}) {
   else if (part && (part.startsWith('arm') || part.startsWith('leg'))) mul = 0.6;
   const d = dmg * mul;
   a.hp -= d;
-  if (byPlayer) {
-    G.stats.hits++;
+  if (byPlayer && opts.bullet) {
+    if (G.stats.shotId !== G.stats.lastHitShot) { G.stats.hits++; G.stats.lastHitShot = G.stats.shotId; }
     if (part === 'head') G.stats.head++;
     else if (part === 'torso' || part === 'groin') G.stats.body++;
     else if (part) G.stats.limb++;
