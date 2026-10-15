@@ -19,7 +19,7 @@ export default async ({ page, shot, wait, url }) => {
     MI.sim(13);
     const live = mine.filter((e) => !e.dead);
     const cx = live.reduce((s, e) => s + e.x, 0) / live.length, cz = live.reduce((s, e) => s + e.z, 0) / live.length;
-    document.querySelector('#banner').classList.remove('on');
+    document.querySelector('#banner').style.visibility = 'hidden'; // its fade outlasts a slow frame
     Object.assign(MI.CAM, { x: cx, z: cz, yaw: Math.atan2(ux, uz) + Math.PI + 0.5, pitch: 0.5, dist: 48, tdist: 48 });
     MI.render();
   });

@@ -14,5 +14,6 @@ export default async ({ page, shot, wait, url }) => {
     }, [x, z, ex, ez]);
     await wait(2000);
   }
-  await shot();
+  await page.evaluate(() => { document.querySelector('#hint').style.visibility = 'hidden'; });
+  await wait(500); await shot();
 };
