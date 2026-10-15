@@ -126,7 +126,7 @@ function step(dt, render) {
   if (!G.paused) {
     if (!G.sleeping) G.time += dt;
     WIND.t.value += dt; WAVE.t.value += dt;
-    if (G.intro) updateIntro(dt);
+    if (G.intro) { if (Input.hit('Space') || Input.hit('KeyE') || Input.m.hit[0]) G.intro.t = G.intro.dur; updateIntro(dt); }
     else {
       T('player', () => updatePlayer(dt));
       if (!(P.eq.right && ITEMS[P.eq.right.id].build) || !P.alive || UI.blocking()) BUILD.toolIdle();
@@ -163,7 +163,9 @@ function promptText() {
   return t && t.prompt ? t.prompt.replace(/\[(.+?)\]/g, '<b>[$1]</b>') : '';
 }
 function adaptQuality() {
-  if (!SETTINGS.autoQ || G.state !== 'play' || G.paused || document.hidden) return;
+  if (!SETTINGS.autoQ || G.state !== 'play' || G.paused || document.hidden || G.intro) return;
+  G.playT = (G.playT || 0) + 1;
+  if (G.playT < 20) return; // let the world finish streaming in first
   if (clock.fps < 28) clock.lowT++; else clock.lowT = 0;
   if (clock.lowT >= 4) {
     clock.lowT = 0;
