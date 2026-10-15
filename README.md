@@ -22,6 +22,10 @@ Collection of experimental browser games made with Claude. **Play them at https:
 | [Tokoyo](tokoyo/) | Survival sandbox in the eternal land of Japanese myth: a seeded island of meadows and cedar forest, snap-together building with structural support, Valheim-style food, rest, rain and cold, bronze smelting in a tatara, rafts and torii portals, yokai from gaki to oni, and two great kami to calm. | [`source/`](tokoyo/source/) (three.js, vendored) |
 | [Farhold](farhold/) | A seamless procedural universe in the spirit of No Man's Sky: crash-land on an alien world, mine and craft to repair your ship, fly from the surface to orbit without a loading screen, trade at space stations, scan alien creatures and plants, build a base, dodge sentinels and pirates, and warp from star to star toward the galactic core. Mouse and keyboard or gamepad. | [`source/`](farhold/source/) (three.js, vendored) |
 
+## The index page
+
+[`index.html`](index.html) builds its cards from the `GAMES` list in its script. Visitors can sort (newest, oldest, A–Z, genre), search (`/` to focus), filter by genre or by input (touch, gamepad), and open a random game with **Surprise me**. The view is kept in the URL (e.g. `?sort=az&genre=Strategy&input=touch`), so filtered views can be shared. To list a new game, add an entry to `GAMES` with the day it was added, its genres, tags and supported inputs (`kbm`, `touch`, `pad`). Then add a 16:9 screenshot at `<game>/cover.webp` (800×450, about 20–60 KB). [`tools/covers`](tools/covers/) captures one headlessly from a per-game recipe. The four newest games from the past week get a **New** badge.
+
 ## Rebuilding
 
 - **Gravity at the Edge:** `cd gravity-at-the-edge/source && npm install && python3 build.py` → `dist/standalone.html` (copy over `../index.html`).

@@ -8,36 +8,128 @@
 <style>
   :root {
     --bg: #0d0f14; --card: #161a22; --line: #262c38; --text: #e6e8ee; --muted: #8b93a5;
-    --accent: #7cc4ff;
+    --accent: #7cc4ff; --accent-ink: #0d0f14; --chip: #1c212b; --new: #ffcf5c; --shade: rgba(13, 15, 20, .82);
   }
   @media (prefers-color-scheme: light) {
-    :root { --bg: #f6f7f9; --card: #fff; --line: #dde1e8; --text: #161a22; --muted: #5b6475; --accent: #1f6fd1; }
+    :root {
+      --bg: #f6f7f9; --card: #fff; --line: #dde1e8; --text: #161a22; --muted: #5b6475;
+      --accent: #1f6fd1; --accent-ink: #fff; --chip: #eef1f5; --new: #ffcf5c; --shade: rgba(246, 247, 249, .85);
+    }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
     font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
-  main { max-width: 960px; margin: 0 auto; padding: 56px 16px 40px; }
+  main { max-width: 1120px; margin: 0 auto; padding: 56px 16px 40px; }
   h1 { font-size: 2.2rem; margin: 0 0 4px; letter-spacing: -0.02em; }
-  .lede { color: var(--muted); margin: 0 0 36px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-  a.card {
-    display: flex; flex-direction: column; gap: 8px; padding: 20px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    color: inherit; text-decoration: none; transition: border-color .15s, transform .15s;
+  .lede { color: var(--muted); margin: 0 0 24px; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* toolbar */
+  .bar {
+    position: sticky; top: 0; z-index: 5; margin: 0 -16px 20px; padding: 12px 16px;
+    background: var(--shade); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid transparent; display: grid; gap: 10px;
   }
-  a.card:hover, a.card:focus-visible { border-color: var(--accent); transform: translateY(-2px); outline: none; }
+  .bar.stuck { border-bottom-color: var(--line); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .search { position: relative; flex: 1 1 240px; }
+  .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  .search input {
+    width: 100%; padding: 9px 36px 9px 36px; border-radius: 10px;
+    background: var(--card); border: 1px solid var(--line);
+  }
+  .search input::placeholder { color: var(--muted); }
+  .search input:focus { border-color: var(--accent); outline: none; }
+  .search kbd {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none;
+    font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px;
+  }
+  .search input:focus + kbd, .search input:not(:placeholder-shown) + kbd { display: none; }
+  .search input::-webkit-search-cancel-button { cursor: pointer; }
+  .sort { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: .9rem; }
+  .sort select {
+    padding: 8px 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); cursor: pointer;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); font-weight: 600; font-size: .9rem;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chips .label { color: var(--muted); font-size: .8rem; margin-right: 2px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+    background: var(--chip); border: 1px solid var(--line); color: var(--muted); font-size: .82rem; line-height: 1.3;
+  }
+  .chip:hover { color: var(--text); border-color: var(--muted); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .chip .n { opacity: .65; font-size: .75rem; }
+  .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+  .status { color: var(--muted); font-size: .85rem; display: flex; gap: 10px; align-items: center; min-height: 1.5em; }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-size: .85rem; }
+  .linkbtn:hover { text-decoration: underline; }
+
+  /* grid */
+  .group { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 8px 0 -4px; grid-column: 1 / -1; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+  .card {
+    position: relative; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    transition: border-color .15s, transform .15s;
+  }
+  .card:hover, .card:focus-within { border-color: var(--accent); transform: translateY(-2px); }
+  .shot { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: linear-gradient(135deg, var(--line), var(--card)); }
+  .shot img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+  .card:hover .shot img { transform: scale(1.04); }
+  .badge {
+    position: absolute; top: 10px; left: 10px; padding: 3px 8px; border-radius: 6px;
+    background: var(--new); color: #1a1400; font: 700 11px/1.2 system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+  }
+  .body { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px 18px; flex: 1; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
   .card h2 { font-size: 1.15rem; margin: 0; }
+  .card h2 a { color: inherit; text-decoration: none; }
+  .card h2 a::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+  .card h2 a:focus-visible { outline: none; }
+  .card:has(h2 a:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card time { color: var(--muted); font-size: .8rem; white-space: nowrap; }
   .card p { margin: 0; color: var(--muted); font-size: .95rem; flex: 1; }
   .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .tags span {
     font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
     border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px;
   }
+  .tags span.g { color: var(--text); }
+  .inputs { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 0; padding: 0; list-style: none; }
+  .inputs li {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px;
+    background: var(--chip); color: var(--muted); font-size: .78rem;
+  }
+  .inputs svg, .chip svg { flex: none; }
   .play { color: var(--accent); font-weight: 600; font-size: .9rem; }
+  .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 48px 0; }
   footer { margin-top: 40px; color: var(--muted); font-size: .85rem; }
   footer a { color: var(--accent); }
+
+  @media (max-width: 640px) {
+    main { padding-top: 32px; }
+    .bar { position: static; }
+    .bar .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+    .bar .chips::-webkit-scrollbar { display: none; }
+    .chip, .chips .label { flex: none; }
+    .grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card, .shot img { transition: none; }
+    .card:hover, .card:focus-within { transform: none; }
+    .card:hover .shot img { transform: none; }
+  }
 </style>
 </head>
 <body>
@@ -45,112 +137,235 @@
   <h1>Chinny's Arcade</h1>
   <p class="lede">A repo for experimental browser games. Best on a desktop browser with WebGL 2.</p>
 
-  <div class="grid">
-    <a class="card" href="be-kind-rewind/">
-      <h2>Be Kind, Rewind</h2>
-      <p>New Year's Eve 1999, home alone. Explore the house and find every hidden memory before the ball drops.</p>
-      <div class="tags"><span>exploration</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="blockhaven/">
-      <h2>Blockhaven</h2>
-      <p>An endless voxel world of grass, stone and timber. Dig anywhere, build anything.</p>
-      <div class="tags"><span>sandbox</span><span>voxel</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="rimward/">
-      <h2>Rimward</h2>
-      <p>Fly past the last charted stars. Scan worlds, ride gravity wells, skim stars for fuel and bank your survey data.</p>
-      <div class="tags"><span>space</span><span>2D</span><span>soundtrack</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="gravity-at-the-edge/">
-      <h2>Gravity at the Edge</h2>
-      <p>Take an explorer ship out of the bubble. Honk unknown systems, chase neutron jets, sell the data back home.</p>
-      <div class="tags"><span>space</span><span>3D</span><span>soundtrack</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="midnight-in-the-sprawl/">
-      <h2>Midnight in the Sprawl</h2>
-      <p>Walk the rain-soaked neon streets of a city that never powers down, set to an original soundtrack.</p>
-      <div class="tags"><span>cyberpunk</span><span>3D</span><span>soundtrack</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="port-calder/">
-      <h2>Port Calder</h2>
-      <p>Glass towers by the bay, cul-de-sacs out east. Every car in town is yours if you can get the door open.</p>
-      <div class="tags"><span>open world</span><span>driving</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="vyrium/">
-      <h2>Vyrium</h2>
-      <p>A looter shooter across 58 zones. Pick one of five professions and chase procedurally generated guns.</p>
-      <div class="tags"><span>shooter</span><span>loot</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="hollowmere/">
-      <h2>Hollowmere</h2>
-      <p>1888. A village in the woods has gone silent. Find the eight pages in the storm, and don't look at the tall man for long.</p>
-      <div class="tags"><span>horror</span><span>PS1 style</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="calamity-bay/">
-      <h2>Calamity Bay</h2>
-      <p>Pick a giant monster, rise from the bay or burst out of the mountain, and bring the skyline down while the army throws everything it has at you.</p>
-      <div class="tags"><span>kaiju</span><span>destruction</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="studworks/">
-      <h2>Studworks</h2>
-      <p>A brick-building sandbox. Snap bricks, plates, tiles and slopes onto a baseplate in 26 classic colors.</p>
-      <div class="tags"><span>sandbox</span><span>building</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="mud-and-iron/">
-      <h2>Mud &amp; Iron</h2>
-      <p>A Great War RTS. Dig trenches, string wire, call in gas and creeping barrages, and send the tanks over the top. Four nations, procedural sectors, a five-mission campaign.</p>
-      <div class="tags"><span>strategy</span><span>RTS</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="iron-saber/">
-      <h2>Iron Saber</h2>
-      <p>Climb out of the hangar and up the winch into an 18-metre mobile suit. Fight Dominion mono-eyes through a city that falls apart around you, then out into the desert, forest and mountains.</p>
-      <div class="tags"><span>mecha</span><span>action</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="ashreach/">
-      <h2>Ashreach</h2>
-      <p>An offline homage to the classic sci-fi MMOs. Roll a breed and one of fourteen professions, learn nano programs, slot implants, run mission terminals and level to 50 on a terraformed mining world crowded with simulated players.</p>
-      <div class="tags"><span>MMO</span><span>RPG</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="signal-front/">
-      <h2>Signal Front</h2>
-      <p>Turn-based tactics in the classic handheld style. Command an army made entirely of robots, drones and autonomous launchers against a federation of drone swarms, tanks and guns.</p>
-      <div class="tags"><span>strategy</span><span>turn-based</span><span>2D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="tokoyo/">
-      <h2>Tokoyo</h2>
-      <p>You have died, and the three-legged crow has carried you to the eternal land. Gather, build a home that has to stand up, smelt bronze, sail to the far isle, and calm the white boar god and the elder cedar.</p>
-      <div class="tags"><span>survival</span><span>sandbox</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="revenant-protocol/">
-      <h2>Revenant Protocol</h2>
-      <p>A 1995-style shooter. A mercenary goes after the Ascendancy's secret battle droids across a desert garrison, flooded sewers, a lava foundry and the flagship itself. Ten weapons, keycards, lifts, an automap and a boss.</p>
-      <div class="tags"><span>shooter</span><span>retro</span><span>2.5D</span></div>
-      <span class="play">Play →</span>
-    </a>
-    <a class="card" href="farhold/">
-      <h2>Farhold</h2>
-      <p>Wake beside a wrecked ship on an alien world. Mine, craft and repair, then fly straight from the surface to orbit, trade at stations, scan strange creatures, build a base and warp star to star toward the galaxy's heart.</p>
-      <div class="tags"><span>exploration</span><span>survival</span><span>3D</span></div>
-      <span class="play">Play →</span>
-    </a>
+  <div class="bar" id="bar">
+    <div class="row">
+      <label class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Search games" autocomplete="off" aria-label="Search games">
+        <kbd>/</kbd>
+      </label>
+      <label class="sort">Sort
+        <select id="sort">
+          <option value="new">Newest</option>
+          <option value="old">Oldest</option>
+          <option value="az">A–Z</option>
+          <option value="genre">Genre</option>
+        </select>
+      </label>
+      <button class="btn" id="surprise" type="button" title="Open a random game from the current list">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"/></svg>
+        Surprise me
+      </button>
+    </div>
+    <div class="chips" id="genres" role="group" aria-label="Filter by genre"><span class="label">Genre</span></div>
+    <div class="chips" id="inputs" role="group" aria-label="Filter by input"><span class="label">Plays with</span></div>
+    <div class="status" aria-live="polite"><span id="count"></span><button class="linkbtn" id="clear" type="button" hidden>Clear filters</button></div>
   </div>
+
+  <div class="grid" id="grid"></div>
+  <noscript><p>The game list needs JavaScript. Browse the folders on <a href="https://github.com/chinny-studios/arcade">GitHub</a> instead.</p></noscript>
 
   <footer>Source on <a href="https://github.com/chinny-studios/arcade">GitHub</a>.</footer>
 </main>
+
+<script>
+// One entry per game. `added` is the day it was listed here; games added on the same day keep their order.
+// `cover` is a 16:9 screenshot in the game's folder (800×450 WebP).
+const GAMES = [
+  { slug: 'be-kind-rewind', title: 'Be Kind, Rewind', added: '2026-10-05',
+    blurb: "New Year's Eve 1999, home alone. Explore the house and find every hidden memory before the ball drops.",
+    genres: ['Exploration'], tags: ['90s', '3D'], inputs: ['kbm', 'touch'] },
+  { slug: 'blockhaven', title: 'Blockhaven', added: '2026-10-05',
+    blurb: 'An endless voxel world of grass, stone and timber. Dig anywhere, build anything.',
+    genres: ['Sandbox'], tags: ['voxel', 'building', '3D'], inputs: ['kbm', 'touch'] },
+  { slug: 'rimward', title: 'Rimward', added: '2026-10-05',
+    blurb: 'Fly past the last charted stars. Scan worlds, ride gravity wells, skim stars for fuel and bank your survey data.',
+    genres: ['Space', 'Exploration'], tags: ['2D', 'soundtrack'], inputs: ['kbm', 'touch'] },
+  { slug: 'gravity-at-the-edge', title: 'Gravity at the Edge', added: '2026-10-05',
+    blurb: 'Take an explorer ship out of the bubble. Honk unknown systems, chase neutron jets, sell the data back home.',
+    genres: ['Space', 'Exploration'], tags: ['3D', 'soundtrack'], inputs: ['kbm', 'touch'] },
+  { slug: 'midnight-in-the-sprawl', title: 'Midnight in the Sprawl', added: '2026-10-05',
+    blurb: 'Walk the rain-soaked neon streets of a city that never powers down, set to an original soundtrack.',
+    genres: ['Exploration'], tags: ['cyberpunk', '3D', 'soundtrack'], inputs: ['kbm', 'touch'] },
+  { slug: 'port-calder', title: 'Port Calder', added: '2026-10-06',
+    blurb: 'Glass towers by the bay, cul-de-sacs out east. Every car in town is yours if you can get the door open.',
+    genres: ['Open world'], tags: ['driving', '3D'], inputs: ['kbm', 'touch'] },
+  { slug: 'vyrium', title: 'Vyrium', added: '2026-10-06',
+    blurb: 'A looter shooter across 58 zones. Pick one of five professions and chase procedurally generated guns.',
+    genres: ['Shooter', 'RPG'], tags: ['loot', '3D'], inputs: ['kbm', 'touch'] },
+  { slug: 'hollowmere', title: 'Hollowmere', added: '2026-10-06',
+    blurb: "1888. A village in the woods has gone silent. Find the eight pages in the storm, and don't look at the tall man for long.",
+    genres: ['Horror'], tags: ['PS1 style', '3D'], inputs: ['kbm', 'touch'] },
+  { slug: 'calamity-bay', title: 'Calamity Bay', added: '2026-10-07',
+    blurb: 'Pick a giant monster, rise from the bay or burst out of the mountain, and bring the skyline down while the army throws everything it has at you.',
+    genres: ['Action'], tags: ['kaiju', 'destruction', '3D'], inputs: ['kbm', 'touch'] },
+  { slug: 'studworks', title: 'Studworks', added: '2026-10-07',
+    blurb: 'A brick-building sandbox. Snap bricks, plates, tiles and slopes onto a baseplate in 26 classic colors.',
+    genres: ['Sandbox'], tags: ['building', '3D'], inputs: ['kbm', 'touch'] },
+  { slug: 'mud-and-iron', title: 'Mud & Iron', added: '2026-10-09',
+    blurb: 'A Great War RTS. Dig trenches, string wire, call in gas and creeping barrages, and send the tanks over the top. Four nations, procedural sectors, a five-mission campaign.',
+    genres: ['Strategy'], tags: ['RTS', 'WWI', '3D'], inputs: ['kbm', 'touch'] },
+  { slug: 'iron-saber', title: 'Iron Saber', added: '2026-10-12',
+    blurb: 'Climb out of the hangar and up the winch into an 18-metre mobile suit. Fight Dominion mono-eyes through a city that falls apart around you, then out into the desert, forest and mountains.',
+    genres: ['Action'], tags: ['mecha', '3D'], inputs: ['kbm'] },
+  { slug: 'ashreach', title: 'Ashreach', added: '2026-10-13',
+    blurb: 'An offline homage to the classic sci-fi MMOs. Roll a breed and one of fourteen professions, learn nano programs, slot implants, run mission terminals and level to 50 on a terraformed mining world crowded with simulated players.',
+    genres: ['RPG'], tags: ['MMO', '3D'], inputs: ['kbm'] },
+  { slug: 'signal-front', title: 'Signal Front', added: '2026-10-14',
+    blurb: 'Turn-based tactics in the classic handheld style. Command an army made entirely of robots, drones and autonomous launchers against a federation of drone swarms, tanks and guns.',
+    genres: ['Strategy'], tags: ['turn-based', '2D'], inputs: ['kbm', 'touch'] },
+  { slug: 'tokoyo', title: 'Tokoyo', added: '2026-10-15',
+    blurb: 'You have died, and the three-legged crow has carried you to the eternal land. Gather, build a home that has to stand up, smelt bronze, sail to the far isle, and calm the white boar god and the elder cedar.',
+    genres: ['Survival', 'Sandbox'], tags: ['building', 'yokai', '3D'], inputs: ['kbm'] },
+  { slug: 'revenant-protocol', title: 'Revenant Protocol', added: '2026-10-15',
+    blurb: "A 1995-style shooter. A mercenary goes after the Ascendancy's secret battle droids across a desert garrison, flooded sewers, a lava foundry and the flagship itself. Ten weapons, keycards, lifts, an automap and a boss.",
+    genres: ['Shooter'], tags: ['retro', '2.5D'], inputs: ['kbm', 'touch'] },
+  { slug: 'farhold', title: 'Farhold', added: '2026-10-15',
+    blurb: "Wake beside a wrecked ship on an alien world. Mine, craft and repair, then fly straight from the surface to orbit, trade at stations, scan strange creatures, build a base and warp star to star toward the galaxy's heart.",
+    genres: ['Space', 'Survival', 'Exploration'], tags: ['procedural', '3D'], inputs: ['kbm', 'pad'] },
+];
+
+const INPUTS = {
+  kbm: { label: 'Keyboard & mouse', icon: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>' },
+  touch: { label: 'Touch', icon: '<path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V11m0-.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-4.6-2.2L4 15.5a1.5 1.5 0 0 1 2.3-1.9L9 16"/>' },
+  pad: { label: 'Gamepad', icon: '<path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-3.96 3.43l-.9 6.3A2.5 2.5 0 0 0 6.2 16.5L8 14.5h8l1.8 2a2.5 2.5 0 0 0 4.36-1.77l-.9-6.3A4 4 0 0 0 17.3 5z"/>' },
+};
+const SORTS = ['new', 'old', 'az', 'genre'];
+const NEW_DAYS = 7, NEW_MAX = 4; // a "New" badge: listed in the last week, and among the latest few
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const icon = (id, size = 14) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${INPUTS[id].icon}</svg>`;
+const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+GAMES.forEach((g, i) => {
+  g.order = i;
+  g.text = norm([g.title, g.blurb, ...g.genres, ...g.tags, ...g.inputs.map((k) => INPUTS[k].label)].join(' '));
+});
+const newest = [...GAMES].sort((a, b) => b.added.localeCompare(a.added) || b.order - a.order);
+const cutoff = Date.now() - NEW_DAYS * 864e5;
+const NEW = new Set(newest.slice(0, NEW_MAX).filter((g) => new Date(g.added + 'T23:59:59') >= cutoff).map((g) => g.slug));
+const GENRES = [...new Set(GAMES.flatMap((g) => g.genres))].sort();
+// an input every game supports would filter nothing, so it only shows on the cards
+const INPUT_FILTERS = Object.keys(INPUTS).filter((k) => GAMES.some((g) => !g.inputs.includes(k)));
+
+const cardHTML = (g) => `
+  <article class="card">
+    <div class="shot">
+      <img src="${g.slug}/cover.webp" alt="" width="800" height="450" loading="lazy" decoding="async" onerror="this.remove()">
+      ${NEW.has(g.slug) ? '<span class="badge">New</span>' : ''}
+    </div>
+    <div class="body">
+      <div class="head"><h2><a href="${g.slug}/">${esc(g.title)}</a></h2><time datetime="${g.added}">${fmtDate(g.added)}</time></div>
+      <p>${esc(g.blurb)}</p>
+      <div class="tags">${g.genres.map((t) => `<span class="g">${esc(t.toLowerCase())}</span>`).join('')}${g.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div>
+      <ul class="inputs" aria-label="Plays with">${g.inputs.map((k) => `<li>${icon(k)}${INPUTS[k].label}</li>`).join('')}</ul>
+      <span class="play" aria-hidden="true">Play →</span>
+    </div>
+  </article>`;
+
+// ---- state <-> URL ----
+const state = { q: '', sort: 'new', genres: new Set(), inputs: new Set() };
+function readURL() {
+  const p = new URLSearchParams(location.search);
+  state.q = p.get('q') || '';
+  state.sort = SORTS.includes(p.get('sort')) ? p.get('sort') : 'new';
+  const list = (k, ok) => new Set((p.get(k) || '').split(',').filter((v) => ok.includes(v)));
+  state.genres = list('genre', GENRES);
+  state.inputs = list('input', INPUT_FILTERS);
+}
+function writeURL(push) {
+  const p = new URLSearchParams();
+  if (state.q) p.set('q', state.q);
+  if (state.sort !== 'new') p.set('sort', state.sort);
+  if (state.genres.size) p.set('genre', [...state.genres].join(','));
+  if (state.inputs.size) p.set('input', [...state.inputs].join(','));
+  const url = location.pathname + (p.toString() ? '?' + p.toString().replace(/%2C/g, ',') : '') + location.hash;
+  history[push ? 'pushState' : 'replaceState'](null, '', url);
+}
+
+// ---- filtering and sorting ----
+const matches = (g, skip) => {
+  if (skip !== 'genres' && state.genres.size && !g.genres.some((t) => state.genres.has(t))) return false;
+  if (skip !== 'inputs' && state.inputs.size && ![...state.inputs].every((k) => g.inputs.includes(k))) return false;
+  const words = norm(state.q).split(/\s+/).filter(Boolean);
+  return words.every((w) => g.text.includes(w));
+};
+const visible = () => GAMES.filter((g) => matches(g));
+const SORTERS = {
+  new: (a, b) => b.added.localeCompare(a.added) || b.order - a.order,
+  old: (a, b) => a.added.localeCompare(b.added) || a.order - b.order,
+  az: (a, b) => a.title.localeCompare(b.title),
+  genre: (a, b) => a.genres[0].localeCompare(b.genres[0]) || a.title.localeCompare(b.title),
+};
+
+function chipHTML(kind, id, label, n, on, iconId) {
+  return `<button class="chip" type="button" data-kind="${kind}" data-id="${esc(id)}" aria-pressed="${on}">${iconId ? icon(iconId, 13) : ''}${esc(label)}<span class="n">${n}</span></button>`;
+}
+
+function render() {
+  $('#q').value !== state.q && ($('#q').value = state.q);
+  $('#sort').value = state.sort;
+  // Chip counts reflect the other active filters, so a chip never promises results it can't show.
+  // Genres widen the list (any of them); inputs narrow it (all of them).
+  $('#genres').innerHTML = '<span class="label">Genre</span>' + GENRES.map((t) =>
+    chipHTML('genres', t, t, GAMES.filter((g) => g.genres.includes(t) && matches(g, 'genres')).length, state.genres.has(t))).join('');
+  $('#inputs').innerHTML = '<span class="label">Plays with</span>' + INPUT_FILTERS.map((k) =>
+    chipHTML('inputs', k, INPUTS[k].label, GAMES.filter((g) => g.inputs.includes(k) && matches(g)).length, state.inputs.has(k), k)).join('');
+
+  const list = visible().sort(SORTERS[state.sort]);
+  let html = '', group = null;
+  for (const g of list) {
+    if (state.sort === 'genre' && g.genres[0] !== group) { group = g.genres[0]; html += `<h3 class="group">${esc(group)}</h3>`; }
+    html += cardHTML(g);
+  }
+  $('#grid').innerHTML = html || '<p class="empty">No games match. <button class="linkbtn" type="button" data-clear>Clear filters</button></p>';
+  const filtered = state.q || state.genres.size || state.inputs.size;
+  $('#count').textContent = filtered ? `Showing ${list.length} of ${GAMES.length} games` : `${GAMES.length} games`;
+  $('#clear').hidden = !filtered;
+}
+
+function clearFilters() {
+  state.q = ''; state.genres.clear(); state.inputs.clear();
+  writeURL(true); render();
+}
+
+// ---- events ----
+$('#q').addEventListener('input', (e) => {
+  const wasEmpty = !state.q;
+  state.q = e.target.value.trim();
+  writeURL(wasEmpty && !!state.q); render();
+});
+$('#q').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.target.value = ''; state.q = ''; writeURL(false); render(); e.target.blur(); }
+  if (e.key === 'Enter') { const first = $('#grid .card h2 a'); if (first) first.focus(); }
+});
+$('#sort').addEventListener('change', (e) => { state.sort = e.target.value; writeURL(true); render(); });
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (chip) {
+    const set = state[chip.dataset.kind], id = chip.dataset.id;
+    set.has(id) ? set.delete(id) : set.add(id);
+    writeURL(true); render();
+    document.querySelector(`.chip[data-kind="${chip.dataset.kind}"][data-id="${CSS.escape(id)}"]`)?.focus();
+  }
+  if (e.target.closest('#clear, [data-clear]')) clearFilters();
+});
+$('#surprise').addEventListener('click', () => {
+  const pool = visible().length ? visible() : GAMES;
+  location.href = pool[Math.floor(Math.random() * pool.length)].slug + '/';
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) {
+    e.preventDefault(); $('#q').focus(); $('#q').select();
+  }
+});
+addEventListener('popstate', () => { readURL(); render(); });
+new IntersectionObserver(([e]) => $('#bar').classList.toggle('stuck', e.intersectionRatio < 1), { threshold: 1, rootMargin: '-1px 0px 0px 0px' }).observe($('#bar'));
+
+readURL();
+render();
+</script>
 </body>
 </html>
