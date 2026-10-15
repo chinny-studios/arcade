@@ -12,7 +12,12 @@ function boot() {
   initTitle();
   requestAnimationFrame(frame);
   if (DEBUG) setupDebug();
-  bus.on('lock', (locked) => { const c = document.getElementById('clickToPlay'); if (c) c.hidden = locked || G.state !== 'play' || !!UI.cur; });
+  bus.on('lock', (locked, was) => {
+    const c = document.getElementById('clickToPlay'); if (c) c.hidden = locked || G.state !== 'play' || !!UI.cur;
+    // the browser released the mouse (Esc): pause, like most games do
+    if (!locked && was && G.state === 'play' && !UI.cur && !Input.gp.active) { UI.tab = null; UI.open('pause'); }
+  });
+  document.getElementById('c').addEventListener('click', () => { if (G.state === 'play' && !UI.cur && !Input.locked) { AU.resume(); Input.lock(); } });
   document.getElementById('clickToPlay').onclick = () => { AU.resume(); Input.lock(); };
   addEventListener('visibilitychange', () => { if (document.hidden && G.state === 'play') SAVE.save('auto'); });
 }
@@ -225,7 +230,7 @@ function step(dt, render) {
 function buildPrompt() { return '<b>' + PARTS[BUILD.part].name + '</b>' + (BUILD.why ? ' · <span class="bad">' + BUILD.why + '</span>' : '') + ' · <kbd>' + keyLabel('fire') + '</kbd> place · <kbd>' + keyLabel('rotate') + '</kbd> rotate · <kbd>' + keyLabel('cancel') + '</kbd> done' + (BUILD.target ? ' · <kbd>' + keyLabel('dismantle') + '</kbd> dismantle ' + PARTS[BUILD.target.part.id].name : ''); }
 function updateLights() {
   const P = PLAYER;
-  R.torch.intensity = P.torch && !P.inShip ? 1.6 : 0;
+  R.torch.intensity = P.torch && !P.inShip ? 3.2 : 0;
   const src = [];
   for (const l of baseLightSources()) src.push({ p: toWorld(planetFrame(l.pl), l.local), i: l.i * (0.4 + ENV.night), c: l.c, r: 18 });
   for (const l of poiLightSources()) src.push({ p: toWorld(planetFrame(l.pl), l.local), i: 0.9 * (0.3 + ENV.night), c: 0xffe0b0, r: 16 });
@@ -274,7 +279,7 @@ function setupDebug() {
     aimAt(local) { const P = PLAYER; const up = playerUp(new V3()); const eye = P.pos.clone().addScaledVector(up, P.eye); const d = local.clone().sub(eye); const h = d.clone().addScaledVector(up, -d.dot(up)); basisQuat(up, h.normalize(), P.q); P.pitch = Math.asin(clamp(d.normalize().dot(up), -1, 1)); updateFootCamera(0); },
     tpPlanet(i, lat, lon) { const pl = SYS.cur.planets[i]; const d = new V3(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)); PLAYER.inShip = false; placePlayer(planetFrame(pl), d.clone().multiplyScalar(pl.R + surfaceH(pl, d) + 0.2), null); this.stream(); },
     nearest(kind) { let b = null, bd = 1e9; for (const o of NAT.near) { if (!o.alive || o.sp.kind !== kind) continue; const d = o.pos.distanceTo(PLAYER.pos); if (d < bd) { bd = d; b = o; } } return b; },
-    PROJ, CAM, f: { makeShipObject, makeStation, shipChangeFrame, updateFootCamera, updateShipCamera, boardShip, exitShip, tryTakeoff, tryLand, startDock, dockInstant, arriveSystem, engageWarp, spawnPirates, spawnSentinel, discover, craft, recharge, repairTech, buildTech, placePart, startPlacing, natDamage, natPick, toolRaycast, terrainRaycast, surfaceH, planetFrame, toWorld, toLocal, shipWorldPos, damagePlayer, killPlayer, teleportTo, warpCheck, bestHopToward, newGalaxy, applySave, streamWorld, planetFlora, planetFauna, spawnCreature, WEATHER, POIS, claimWreck },
+    PROJ, CAM, POOL: TERRAIN_POOL, f: { makeShipObject, makeStation, shipChangeFrame, updateFootCamera, updateShipCamera, boardShip, exitShip, tryTakeoff, tryLand, startDock, dockInstant, arriveSystem, engageWarp, spawnPirates, spawnSentinel, discover, craft, recharge, repairTech, buildTech, placePart, startPlacing, natDamage, natPick, toolRaycast, terrainRaycast, surfaceH, planetFrame, toWorld, toLocal, shipWorldPos, damagePlayer, killPlayer, teleportTo, warpCheck, bestHopToward, newGalaxy, applySave, streamWorld, planetFlora, planetFauna, spawnCreature, WEATHER, POIS, claimWreck },
     stats() { const i = R.renderer.info.render; return { calls: i.calls, tris: i.triangles, fps: clock.fps, chunks: PLANETS.list.map(planetChunkCount), cells: NAT.cells.size, fauna: FAUNA.live.length }; },
     mute() { if (!AU.muted) AU.toggleMute(); },
   };

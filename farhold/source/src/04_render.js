@@ -43,7 +43,7 @@ function initRender() {
   sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.05;
   scene.add(sun); scene.add(sun.target); R.sun = sun;
   // flashlight and a small pool of point lights for base lamps, muzzle flashes and engines
-  R.torch = new THREE.SpotLight(0xfff2dd, 0, 60, 0.5, 0.5, 1.2);
+  R.torch = new THREE.SpotLight(0xfff2dd, 0, 70, 0.6, 0.45, 1);
   cam.add(R.torch); R.torch.position.set(0.3, -0.2, 0); R.torch.target.position.set(0, 0, -10); cam.add(R.torch.target);
   R.lights = [];
   for (let i = 0; i < 4; i++) { const l = new THREE.PointLight(0xffc080, 0, 20, 1.6); scene.add(l); R.lights.push(l); }

@@ -72,7 +72,7 @@ function updateEnvironment(dt, focusWorld) {
     if (pl.cloudMesh) {
       const u = pl.cloudMesh.material.uniforms;
       dirToLocal(planetFrame(pl), ENV.sunDir, u.uSun.value);
-      u.uT.value += dt; u.uCov.value = 0.45 + storm * 0.5;
+      u.uT.value += dt; u.uCov.value = 0.45 + storm * 0.5; u.uCamR.value = cw.distanceTo(pl.pos);
     }
     R.hemi.position.copy(ENV.up);
     // local hour for the HUD clock
@@ -87,7 +87,7 @@ function updateEnvironment(dt, focusWorld) {
     const u = p.atmoMesh.material.uniforms;
     toLocal(planetFrame(p), cw, u.uCam.value);
     dirToLocal(planetFrame(p), ENV.sunDir, u.uSun.value);
-    if (p.cloudMesh) dirToLocal(planetFrame(p), ENV.sunDir, p.cloudMesh.material.uniforms.uSun.value);
+    if (p.cloudMesh) { dirToLocal(planetFrame(p), ENV.sunDir, p.cloudMesh.material.uniforms.uSun.value); p.cloudMesh.material.uniforms.uCamR.value = cw.distanceTo(p.pos); }
   }
   // inside the station hangar: bright, even interior light
   const inStation = (PLAYER.inShip ? SHIP.frame : PLAYER.frame) && (PLAYER.inShip ? SHIP.frame : PLAYER.frame).kind === 'station';
@@ -109,7 +109,7 @@ function updateEnvironment(dt, focusWorld) {
 // Each planet with a storm type alternates calm and storm phases.
 const WEATHER = (() => {
   const st = new Map();
-  const COL = { 'Superheated Rain': 0xc07050, Blizzard: 0xd8e8f8, Firestorm: 0xff6020, 'Acid Rain': 0x9ac030, 'Radiation Storm': 0x70ff60, 'Dust Storm': 0xc09060, 'Static Storm': 0xc060ff };
+  const COL = { 'Superheated Rain': 0xa07060, Blizzard: 0xd0dce8, Firestorm: 0xc06038, 'Acid Rain': 0x8a9a50, 'Radiation Storm': 0x7a9a68, 'Dust Storm': 0xa88a68, 'Static Storm': 0x9a78b0 };
   function get(pl) {
     if (!pl || !pl.storm) return null;
     let w = st.get(pl.id);

@@ -252,7 +252,7 @@ function makeAtmosphere(pl) {
   if (Qset().clouds) {
     const cg = new THREE.SphereGeometry(1, 64, 32);
     const cm = new THREE.ShaderMaterial({
-      uniforms: { uNoise: { value: R.noiseTex }, uSun: { value: new V3(1, 0, 0) }, uCol: { value: new THREE.Color(pal.cloud) }, uCov: { value: 0.5 }, uT: { value: 0 }, uCam: { value: new V3() } },
+      uniforms: { uNoise: { value: R.noiseTex }, uSun: { value: new V3(1, 0, 0) }, uCol: { value: new THREE.Color(pal.cloud) }, uCov: { value: 0.5 }, uT: { value: 0 }, uCamR: { value: 0 }, uShell: { value: pl.R + pl.P.amp * 2.2 + 120 } },
       vertexShader: `#include <common>
         #include <logdepthbuf_pars_vertex>
         varying vec3 vN;
@@ -261,7 +261,7 @@ function makeAtmosphere(pl) {
         }`,
       fragmentShader: `#include <common>
         #include <logdepthbuf_pars_fragment>
-        uniform sampler2D uNoise; uniform vec3 uSun, uCol, uCam; uniform float uCov, uT; varying vec3 vN;
+        uniform sampler2D uNoise; uniform vec3 uSun, uCol; uniform float uCov, uT, uCamR, uShell; varying vec3 vN;
         void main(){
           vec3 n = normalize(vN);
           vec3 w = pow(abs(n), vec3(3.0)); w /= w.x + w.y + w.z;
@@ -272,15 +272,16 @@ function makeAtmosphere(pl) {
           float a = smoothstep(0.62 - uCov * 0.25, 0.75 - uCov * 0.2, c);
           float lit = smoothstep(-0.2, 0.4, dot(n, uSun));
           vec3 col = uCol * (0.25 + 0.85 * lit);
-          float camIn = smoothstep(0.0, 1.0, 1.0);
-          gl_FragColor = vec4(col * a * 0.85, a * 0.85);
+          // fade out when the camera flies through the layer
+          a *= 0.85 * smoothstep(40.0, 260.0, abs(uCamR - uShell));
+          gl_FragColor = vec4(col * a, a);
           #include <logdepthbuf_fragment>
         }`,
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
     });
     const cmesh = new THREE.Mesh(cg, cm);
-    cmesh.renderOrder = 4; cmesh.scale.setScalar(pl.R + pl.P.amp * 1.25 + 60);
+    cmesh.renderOrder = 4; cmesh.scale.setScalar(pl.R + pl.P.amp * 2.2 + 120);
     pl.group.add(cmesh);
     pl.cloudMesh = cmesh;
   }

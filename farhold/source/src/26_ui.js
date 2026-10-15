@@ -386,7 +386,7 @@ const UI = {
     }
   },
   // ---------- gamepad navigation ----------
-  focusables() { this.focusI = 0; this.updateFocus(); },
+  focusables() { const l = this.list(); const i = l.findIndex((e) => !e.classList.contains('x') && !e.classList.contains('tab')); this.focusI = Math.max(0, i); this.updateFocus(); },
   list() { return [...this.el.querySelectorAll('.btn, .slot[data-act], .part, .trow[data-act], input, select')].filter((e) => e.offsetParent); },
   updateFocus() {
     if (!Input.gp.active) return;

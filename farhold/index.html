@@ -1196,7 +1196,7 @@ function initRender() {
   sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.05;
   scene.add(sun); scene.add(sun.target); R.sun = sun;
   // flashlight and a small pool of point lights for base lamps, muzzle flashes and engines
-  R.torch = new THREE.SpotLight(0xfff2dd, 0, 60, 0.5, 0.5, 1.2);
+  R.torch = new THREE.SpotLight(0xfff2dd, 0, 70, 0.6, 0.45, 1);
   cam.add(R.torch); R.torch.position.set(0.3, -0.2, 0); R.torch.target.position.set(0, 0, -10); cam.add(R.torch.target);
   R.lights = [];
   for (let i = 0; i < 4; i++) { const l = new THREE.PointLight(0xffc080, 0, 20, 1.6); scene.add(l); R.lights.push(l); }
@@ -1897,7 +1897,7 @@ function makeAtmosphere(pl) {
   if (Qset().clouds) {
     const cg = new THREE.SphereGeometry(1, 64, 32);
     const cm = new THREE.ShaderMaterial({
-      uniforms: { uNoise: { value: R.noiseTex }, uSun: { value: new V3(1, 0, 0) }, uCol: { value: new THREE.Color(pal.cloud) }, uCov: { value: 0.5 }, uT: { value: 0 }, uCam: { value: new V3() } },
+      uniforms: { uNoise: { value: R.noiseTex }, uSun: { value: new V3(1, 0, 0) }, uCol: { value: new THREE.Color(pal.cloud) }, uCov: { value: 0.5 }, uT: { value: 0 }, uCamR: { value: 0 }, uShell: { value: pl.R + pl.P.amp * 2.2 + 120 } },
       vertexShader: `#include <common>
         #include <logdepthbuf_pars_vertex>
         varying vec3 vN;
@@ -1906,7 +1906,7 @@ function makeAtmosphere(pl) {
         }`,
       fragmentShader: `#include <common>
         #include <logdepthbuf_pars_fragment>
-        uniform sampler2D uNoise; uniform vec3 uSun, uCol, uCam; uniform float uCov, uT; varying vec3 vN;
+        uniform sampler2D uNoise; uniform vec3 uSun, uCol; uniform float uCov, uT, uCamR, uShell; varying vec3 vN;
         void main(){
           vec3 n = normalize(vN);
           vec3 w = pow(abs(n), vec3(3.0)); w /= w.x + w.y + w.z;
@@ -1917,15 +1917,16 @@ function makeAtmosphere(pl) {
           float a = smoothstep(0.62 - uCov * 0.25, 0.75 - uCov * 0.2, c);
           float lit = smoothstep(-0.2, 0.4, dot(n, uSun));
           vec3 col = uCol * (0.25 + 0.85 * lit);
-          float camIn = smoothstep(0.0, 1.0, 1.0);
-          gl_FragColor = vec4(col * a * 0.85, a * 0.85);
+          // fade out when the camera flies through the layer
+          a *= 0.85 * smoothstep(40.0, 260.0, abs(uCamR - uShell));
+          gl_FragColor = vec4(col * a, a);
           #include <logdepthbuf_fragment>
         }`,
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
     });
     const cmesh = new THREE.Mesh(cg, cm);
-    cmesh.renderOrder = 4; cmesh.scale.setScalar(pl.R + pl.P.amp * 1.25 + 60);
+    cmesh.renderOrder = 4; cmesh.scale.setScalar(pl.R + pl.P.amp * 2.2 + 120);
     pl.group.add(cmesh);
     pl.cloudMesh = cmesh;
   }
@@ -2043,7 +2044,7 @@ function updateEnvironment(dt, focusWorld) {
     if (pl.cloudMesh) {
       const u = pl.cloudMesh.material.uniforms;
       dirToLocal(planetFrame(pl), ENV.sunDir, u.uSun.value);
-      u.uT.value += dt; u.uCov.value = 0.45 + storm * 0.5;
+      u.uT.value += dt; u.uCov.value = 0.45 + storm * 0.5; u.uCamR.value = cw.distanceTo(pl.pos);
     }
     R.hemi.position.copy(ENV.up);
     // local hour for the HUD clock
@@ -2058,7 +2059,7 @@ function updateEnvironment(dt, focusWorld) {
     const u = p.atmoMesh.material.uniforms;
     toLocal(planetFrame(p), cw, u.uCam.value);
     dirToLocal(planetFrame(p), ENV.sunDir, u.uSun.value);
-    if (p.cloudMesh) dirToLocal(planetFrame(p), ENV.sunDir, p.cloudMesh.material.uniforms.uSun.value);
+    if (p.cloudMesh) { dirToLocal(planetFrame(p), ENV.sunDir, p.cloudMesh.material.uniforms.uSun.value); p.cloudMesh.material.uniforms.uCamR.value = cw.distanceTo(p.pos); }
   }
   // inside the station hangar: bright, even interior light
   const inStation = (PLAYER.inShip ? SHIP.frame : PLAYER.frame) && (PLAYER.inShip ? SHIP.frame : PLAYER.frame).kind === 'station';
@@ -2080,7 +2081,7 @@ function updateEnvironment(dt, focusWorld) {
 // Each planet with a storm type alternates calm and storm phases.
 const WEATHER = (() => {
   const st = new Map();
-  const COL = { 'Superheated Rain': 0xc07050, Blizzard: 0xd8e8f8, Firestorm: 0xff6020, 'Acid Rain': 0x9ac030, 'Radiation Storm': 0x70ff60, 'Dust Storm': 0xc09060, 'Static Storm': 0xc060ff };
+  const COL = { 'Superheated Rain': 0xa07060, Blizzard: 0xd0dce8, Firestorm: 0xc06038, 'Acid Rain': 0x8a9a50, 'Radiation Storm': 0x7a9a68, 'Dust Storm': 0xa88a68, 'Static Storm': 0x9a78b0 };
   function get(pl) {
     if (!pl || !pl.storm) return null;
     let w = st.get(pl.id);
@@ -4325,13 +4326,14 @@ function flyShip(dt, pilot) {
   const turn = st.turn * (S.pulseK > 0.1 ? 0.3 : 1) * (S.speed > 400 ? 0.7 : 1);
   const yawR = -S.stick.x * 1.35 * turn, pitchR = -S.stick.y * 1.5 * turn;
   let rollR = 0;
-  if (pilot) rollR = (Act.down('rollL') ? 1 : 0) - (Act.down('rollR') ? 1 : 0) + (Input.gp.axes[2] ? -Input.gp.axes[2] : 0);
+  // positive roll drops the right wing
+  if (pilot) rollR = (Act.down('rollR') ? 1 : 0) - (Act.down('rollL') ? 1 : 0) + (Input.gp.axes[2] || 0);
   rollR *= 1.9;
   // auto-level in atmosphere
   if (S.inAtmo && Math.abs(rollR) < 0.05) {
     const side = right.dot(up);
     rollR += side * 1.6;
-    rollR += -S.stick.x * 0.6; // bank into turns
+    rollR += S.stick.x * 0.6; // bank into turns
   }
   _q1.setFromAxisAngle(sup, yawR * dt); S.q.premultiply(_q1);
   _q1.setFromAxisAngle(right, pitchR * dt); S.q.premultiply(_q1);
@@ -6704,7 +6706,7 @@ const UI = {
     }
   },
   // ---------- gamepad navigation ----------
-  focusables() { this.focusI = 0; this.updateFocus(); },
+  focusables() { const l = this.list(); const i = l.findIndex((e) => !e.classList.contains('x') && !e.classList.contains('tab')); this.focusI = Math.max(0, i); this.updateFocus(); },
   list() { return [...this.el.querySelectorAll('.btn, .slot[data-act], .part, .trow[data-act], input, select')].filter((e) => e.offsetParent); },
   updateFocus() {
     if (!Input.gp.active) return;
@@ -6907,7 +6909,12 @@ function boot() {
   initTitle();
   requestAnimationFrame(frame);
   if (DEBUG) setupDebug();
-  bus.on('lock', (locked) => { const c = document.getElementById('clickToPlay'); if (c) c.hidden = locked || G.state !== 'play' || !!UI.cur; });
+  bus.on('lock', (locked, was) => {
+    const c = document.getElementById('clickToPlay'); if (c) c.hidden = locked || G.state !== 'play' || !!UI.cur;
+    // the browser released the mouse (Esc): pause, like most games do
+    if (!locked && was && G.state === 'play' && !UI.cur && !Input.gp.active) { UI.tab = null; UI.open('pause'); }
+  });
+  document.getElementById('c').addEventListener('click', () => { if (G.state === 'play' && !UI.cur && !Input.locked) { AU.resume(); Input.lock(); } });
   document.getElementById('clickToPlay').onclick = () => { AU.resume(); Input.lock(); };
   addEventListener('visibilitychange', () => { if (document.hidden && G.state === 'play') SAVE.save('auto'); });
 }
@@ -7120,7 +7127,7 @@ function step(dt, render) {
 function buildPrompt() { return '<b>' + PARTS[BUILD.part].name + '</b>' + (BUILD.why ? ' · <span class="bad">' + BUILD.why + '</span>' : '') + ' · <kbd>' + keyLabel('fire') + '</kbd> place · <kbd>' + keyLabel('rotate') + '</kbd> rotate · <kbd>' + keyLabel('cancel') + '</kbd> done' + (BUILD.target ? ' · <kbd>' + keyLabel('dismantle') + '</kbd> dismantle ' + PARTS[BUILD.target.part.id].name : ''); }
 function updateLights() {
   const P = PLAYER;
-  R.torch.intensity = P.torch && !P.inShip ? 1.6 : 0;
+  R.torch.intensity = P.torch && !P.inShip ? 3.2 : 0;
   const src = [];
   for (const l of baseLightSources()) src.push({ p: toWorld(planetFrame(l.pl), l.local), i: l.i * (0.4 + ENV.night), c: l.c, r: 18 });
   for (const l of poiLightSources()) src.push({ p: toWorld(planetFrame(l.pl), l.local), i: 0.9 * (0.3 + ENV.night), c: 0xffe0b0, r: 16 });
@@ -7169,7 +7176,7 @@ function setupDebug() {
     aimAt(local) { const P = PLAYER; const up = playerUp(new V3()); const eye = P.pos.clone().addScaledVector(up, P.eye); const d = local.clone().sub(eye); const h = d.clone().addScaledVector(up, -d.dot(up)); basisQuat(up, h.normalize(), P.q); P.pitch = Math.asin(clamp(d.normalize().dot(up), -1, 1)); updateFootCamera(0); },
     tpPlanet(i, lat, lon) { const pl = SYS.cur.planets[i]; const d = new V3(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)); PLAYER.inShip = false; placePlayer(planetFrame(pl), d.clone().multiplyScalar(pl.R + surfaceH(pl, d) + 0.2), null); this.stream(); },
     nearest(kind) { let b = null, bd = 1e9; for (const o of NAT.near) { if (!o.alive || o.sp.kind !== kind) continue; const d = o.pos.distanceTo(PLAYER.pos); if (d < bd) { bd = d; b = o; } } return b; },
-    PROJ, CAM, f: { makeShipObject, makeStation, shipChangeFrame, updateFootCamera, updateShipCamera, boardShip, exitShip, tryTakeoff, tryLand, startDock, dockInstant, arriveSystem, engageWarp, spawnPirates, spawnSentinel, discover, craft, recharge, repairTech, buildTech, placePart, startPlacing, natDamage, natPick, toolRaycast, terrainRaycast, surfaceH, planetFrame, toWorld, toLocal, shipWorldPos, damagePlayer, killPlayer, teleportTo, warpCheck, bestHopToward, newGalaxy, applySave, streamWorld, planetFlora, planetFauna, spawnCreature, WEATHER, POIS, claimWreck },
+    PROJ, CAM, POOL: TERRAIN_POOL, f: { makeShipObject, makeStation, shipChangeFrame, updateFootCamera, updateShipCamera, boardShip, exitShip, tryTakeoff, tryLand, startDock, dockInstant, arriveSystem, engageWarp, spawnPirates, spawnSentinel, discover, craft, recharge, repairTech, buildTech, placePart, startPlacing, natDamage, natPick, toolRaycast, terrainRaycast, surfaceH, planetFrame, toWorld, toLocal, shipWorldPos, damagePlayer, killPlayer, teleportTo, warpCheck, bestHopToward, newGalaxy, applySave, streamWorld, planetFlora, planetFauna, spawnCreature, WEATHER, POIS, claimWreck },
     stats() { const i = R.renderer.info.render; return { calls: i.calls, tris: i.triangles, fps: clock.fps, chunks: PLANETS.list.map(planetChunkCount), cells: NAT.cells.size, fauna: FAUNA.live.length }; },
     mute() { if (!AU.muted) AU.toggleMute(); },
   };

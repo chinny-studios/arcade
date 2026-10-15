@@ -156,13 +156,14 @@ function flyShip(dt, pilot) {
   const turn = st.turn * (S.pulseK > 0.1 ? 0.3 : 1) * (S.speed > 400 ? 0.7 : 1);
   const yawR = -S.stick.x * 1.35 * turn, pitchR = -S.stick.y * 1.5 * turn;
   let rollR = 0;
-  if (pilot) rollR = (Act.down('rollL') ? 1 : 0) - (Act.down('rollR') ? 1 : 0) + (Input.gp.axes[2] ? -Input.gp.axes[2] : 0);
+  // positive roll drops the right wing
+  if (pilot) rollR = (Act.down('rollR') ? 1 : 0) - (Act.down('rollL') ? 1 : 0) + (Input.gp.axes[2] || 0);
   rollR *= 1.9;
   // auto-level in atmosphere
   if (S.inAtmo && Math.abs(rollR) < 0.05) {
     const side = right.dot(up);
     rollR += side * 1.6;
-    rollR += -S.stick.x * 0.6; // bank into turns
+    rollR += S.stick.x * 0.6; // bank into turns
   }
   _q1.setFromAxisAngle(sup, yawR * dt); S.q.premultiply(_q1);
   _q1.setFromAxisAngle(right, pitchR * dt); S.q.premultiply(_q1);
