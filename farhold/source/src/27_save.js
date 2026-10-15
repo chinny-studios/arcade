@@ -27,7 +27,7 @@ const SAVE = {
       disc: DISC.planets,
       removed: Object.fromEntries([...NAT.removed].map(([k, s]) => [k, [...s]])),
       pois: [...POIS.done],
-      bases: BASES.list.map((b) => ({ id: b.id, pl: b.pl, star: b.star, name: b.name, center: v3(b.center), parts: b.parts.map((p) => ({ id: p.id, pos: v3(p.pos), q: q4(p.q), g: p.g ? { o: v3(p.g.o), q: q4(p.g.q) } : null, inv: p.inv ? p.inv.toJSON() : null, ref: p.ref ? { input: p.ref.input, output: p.ref.output } : null, grow: p.grow })) })),
+      bases: BASES.list.map((b) => ({ id: b.id, pl: b.pl, star: b.star, name: b.name, portable: !!b.portable, center: v3(b.center), parts: b.parts.map((p) => ({ id: p.id, pos: v3(p.pos), q: q4(p.q), g: p.g ? { o: v3(p.g.o), q: q4(p.g.q) } : null, inv: p.inv ? p.inv.toJSON() : null, ref: p.ref ? { input: p.ref.input, output: p.ref.output } : null, grow: p.grow })) })),
       visited: [...GALAXY.visited], stations: [...GALAXY.stationsVisited], target: GALAXY.target ? GALAXY.target.i : null,
       wanted: 0,
     };
@@ -73,7 +73,7 @@ function applySave(d) {
   DISC.planets = d.disc || {};
   NAT.removed = new Map(Object.entries(d.removed || {}).map(([k, a]) => [k, new Set(a)]));
   POIS.done = new Set(d.pois || []);
-  BASES.list = (d.bases || []).map((b) => ({ id: b.id, pl: b.pl, star: b.star, name: b.name, center: V(b.center), parts: b.parts.map((p) => { const o = { id: p.id, pos: V(p.pos), q: Qq(p.q) }; if (p.g) o.g = { o: V(p.g.o), q: Qq(p.g.q) }; if (p.inv) { o.inv = new Inv(10, 1, 'Storage'); o.inv.load(p.inv); } if (p.id === 'refiner') { o.ref = makeRefiner(0.4); if (p.ref) { o.ref.input = p.ref.input; o.ref.output = p.ref.output; } } if (p.id === 'planter') o.grow = p.grow || 0; return o; }) }));
+  BASES.list = (d.bases || []).map((b) => ({ id: b.id, pl: b.pl, star: b.star, name: b.name, portable: !!b.portable, center: V(b.center), parts: b.parts.map((p) => { const o = { id: p.id, pos: V(p.pos), q: Qq(p.q) }; if (p.g) o.g = { o: V(p.g.o), q: Qq(p.g.q) }; if (p.inv) { o.inv = new Inv(10, 1, 'Storage'); o.inv.load(p.inv); } if (p.id === 'refiner') { o.ref = makeRefiner(0.4); if (p.ref) { o.ref.input = p.ref.input; o.ref.output = p.ref.output; } } if (p.id === 'planter') o.grow = p.grow || 0; return o; }) }));
   // the system and our ship
   const star = GALAXY.stars[d.star];
   setShip(Object.assign(makeShipData(d.ship.type, d.ship.seed, d.ship.name), { lift: d.ship.lift, pulse: d.ship.pulse, shield: d.ship.shield, hull: d.ship.hull }));

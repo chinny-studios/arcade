@@ -164,14 +164,14 @@ const PARTS = {
   window: { name: 'Window Wall', cost: { ferrite: 15, dihydro: 10 }, grid: 'edge', desc: 'A wall with a wide window.' },
   roof: { name: 'Roof Panel', cost: { ferrite: 20 }, grid: 'roof', desc: 'Covers a 4 × 4 m cell. Sheltered rooms protect you from hazards.' },
   ramp: { name: 'Ramp', cost: { ferrite: 30 }, grid: 'cell', desc: 'Climb up a storey.' },
-  light: { name: 'Light Pole', cost: { carbon: 10, sodium: 5 }, grid: 'free', desc: 'A warm light.' },
+  light: { name: 'Light Pole', cost: { carbon: 10, sodium: 5 }, grid: 'free', portable: true, desc: 'A warm light. Can be placed anywhere.' },
   crate: { name: 'Storage Crate', cost: { plate: 1, ferrite: 20 }, grid: 'free', desc: 'Holds 10 stacks of anything.' },
-  refiner: { name: 'Refiner', cost: { ferrite: 30, sodium: 20 }, grid: 'free', desc: 'Refines elements over time.' },
+  refiner: { name: 'Portable Refiner', cost: { ferrite: 30, sodium: 20 }, grid: 'free', portable: true, desc: 'Refines elements over time. Can be placed anywhere.' },
   pad: { name: 'Landing Pad', cost: { plate: 2, ferrite: 40 }, grid: 'free', desc: 'Launching from a pad costs no lift fuel.' },
-  beacon: { name: 'Save Beacon', cost: { ferrite: 20, carbon: 20 }, grid: 'free', desc: 'Save your progress here at any time.' },
+  beacon: { name: 'Save Beacon', cost: { ferrite: 20, carbon: 20 }, grid: 'free', portable: true, desc: 'Save your progress here at any time. Can be placed anywhere.' },
   teleport: { name: 'Teleporter', cost: { plate: 2, chromatic: 20 }, grid: 'free', desc: 'Travel between your bases and the space stations you have visited.' },
   planter: { name: 'Hydroponic Tray', cost: { ferrite: 20, carbon: 20 }, grid: 'free', desc: 'Grows oxygen and sodium plants. Harvest every few minutes.' },
-  flag: { name: 'Banner', cost: { carbon: 5 }, grid: 'free', desc: 'Plant your colours.' },
+  flag: { name: 'Banner', cost: { carbon: 5 }, grid: 'free', portable: true, desc: 'Plant your colours anywhere.' },
 };
 for (const k in PARTS) PARTS[k].id = k;
 

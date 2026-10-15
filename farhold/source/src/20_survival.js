@@ -26,6 +26,7 @@ function updateSurvival(dt) {
     else if (t < -15) { k = Math.max(k, (-15 - t) / 50 * Math.max(pl.hazMul, 0.6)); kind = 'cold'; }
     if (W && W.k > 0.3) k = k * (1 + W.k * 3) + W.k * 0.6;
     if (P.swim && pl.type === 'frozen') { k += 1; kind = 'cold'; }
+    if (pl.gentle) k *= 0.45; // the crash world is kind to beginners
   }
   SURV.hazK = k; SURV.kind = kind; SURV.exposed = k > 0.02;
   if (SURV.exposed) st.haz = Math.max(0, st.haz - dt * k * (100 / 210) * techFx('haz'));

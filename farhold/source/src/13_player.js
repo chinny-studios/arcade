@@ -135,6 +135,7 @@ function updatePlayer(dt) {
 // camera for the on-foot player
 function updateFootCamera(dt) {
   const P = PLAYER, f = P.frame;
+  if (SHIP.dash) { SHIP.dash.visible = false; if (SHIP.obj) SHIP.obj.body.visible = true; }
   const up = playerUp(new V3());
   _q1.setFromAxisAngle(_v1.set(1, 0, 0), P.pitch);
   const camQ = P.q.clone().multiply(_q1);

@@ -231,7 +231,7 @@ function collectMarkers() {
       const d = loc.distanceTo(me);
       if (d < range || poi.known && d < 2500) { const T = POI_TYPES[poi.type]; add(f, loc, { icon: T.icon, label: T.name, color: POIS.done.has(poiKey(pl, poi)) ? '#888' : T.col }); }
     }
-    for (const b of BASES.list) if (b.pl === pl.id) add(f, b.center.clone().addScaledVector(b.center.clone().normalize(), 4), { icon: '⌂', label: b.name, color: '#80d0ff' });
+    for (const b of BASES.list) if (b.pl === pl.id && !b.portable) add(f, b.center.clone().addScaledVector(b.center.clone().normalize(), 4), { icon: '⌂', label: b.name, color: '#80d0ff' });
     for (const gm of GRAVES.markers) if (gm.pl === pl) add(f, gm.g.pos.clone().addScaledVector(gm.g.pos.clone().normalize(), 2), { icon: '✝', label: 'Grave', color: '#ff70b0' });
   } else if (!f && SYS.cur) {
     if (STATION.obj && (!qt || qt.label !== 'Station')) add(null, STATION.pos, { icon: '◎', label: 'Station', color: '#9ae0ff' });

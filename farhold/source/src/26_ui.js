@@ -192,7 +192,7 @@ const UI = {
     let h = this.head('Build', 'Place with <kbd>' + keyLabel('fire') + '</kbd> · rotate <kbd>' + keyLabel('rotate') + '</kbd> · dismantle <kbd>' + keyLabel('dismantle') + '</kbd> · exit <kbd>' + keyLabel('cancel') + '</kbd>');
     const pl = PLAYER.frame && PLAYER.frame.pl;
     const hasBase = pl && baseAt(pl, PLAYER.pos);
-    if (!hasBase) h += '<p class="warnc">Start by placing a <b>Base Computer</b> — every other part must be within ' + BASE_R + ' m of one.</p>';
+    if (!hasBase) h += '<p class="warnc">Place a <b>Base Computer</b> to claim land — structures must be within ' + BASE_R + ' m of one. Portable devices can go anywhere.</p>';
     else h += '<p class="dim">Base: <b>' + esc(hasBase.name) + '</b> · ' + hasBase.parts.length + ' parts &nbsp; <input type="text" id="renameIn" placeholder="Rename base" maxlength="28"> <button class="btn sm" data-act="renamebase" data-id="' + hasBase.id + '">Rename</button></p>';
     h += '<div class="parts">';
     for (const id in PARTS) { const p = PARTS[id]; const ok = INV.hasAll(p.cost); h += '<div class="part ' + (ok ? '' : 'no') + '" data-act="part" data-id="' + id + '"><b>' + p.name + '</b><div class="dim">' + p.desc + '</div><div>' + this.costHtml(p.cost) + '</div></div>'; }

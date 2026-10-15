@@ -7,8 +7,10 @@ const BASES = { list: [], meshes: [] };
 const BUILD = { active: false, menuOpen: false, part: null, rot: 0, ghost: null, valid: false, place: null, target: null };
 const STRUCT = new Set(['floor', 'wall', 'door', 'window', 'roof', 'ramp']);
 
-function baseAt(pl, local, r = BASE_R) { for (const b of BASES.list) if (b.pl === pl.id && b.center.distanceTo(local) < r) return b; return null; }
-function curPlanetBases() { const pl = PLAYER.frame && PLAYER.frame.kind === 'planet' ? PLAYER.frame.pl : null; return pl ? BASES.list.filter((b) => b.pl === pl.id) : []; }
+function baseAt(pl, local, r = BASE_R) { for (const b of BASES.list) if (b.pl === pl.id && !b.portable && b.center.distanceTo(local) < r) return b; return null; }
+// portable devices placed away from a base live in a small unclaimed 'outpost' record
+function outpostAt(pl, local) { for (const b of BASES.list) if (b.pl === pl.id && b.portable && b.center.distanceTo(local) < 60) return b; return null; }
+function curPlanetBases() { const pl = PLAYER.frame && PLAYER.frame.kind === 'planet' ? PLAYER.frame.pl : null; return pl ? BASES.list.filter((b) => b.pl === pl.id && !b.portable) : []; }
 // create meshes/colliders for every base in the loaded system
 BASES.rebuild = function () {
   for (const m of this.meshes) m.parent && m.parent.remove(m);
@@ -98,7 +100,7 @@ function updateBuild(dt) {
   let why = '';
   const myBase = baseAt(pl, pos);
   if (id === 'basecomp') { if (myBase) why = 'Another base is too close.'; }
-  else if (!myBase) why = 'Must be within ' + BASE_R + ' m of a Base Computer.';
+  else if (!myBase && !def.portable) why = 'Must be within ' + BASE_R + ' m of a Base Computer.';
   if (!G.free && !INV.hasAll(def.cost)) why = why || 'Not enough materials.';
   if (pl.P.sea != null && surfaceH(pl, up) < pl.P.sea - 0.5 && !anchor) why = why || 'Cannot build underwater.';
   BUILD.valid = !why; BUILD.why = why;
@@ -113,6 +115,10 @@ function placePart(pl, id, pos, q, g) {
   const def = PARTS[id];
   if (!G.free && !INV.takeAll(def.cost)) return;
   let b = baseAt(pl, pos);
+  if (!b && def.portable) {
+    b = outpostAt(pl, pos);
+    if (!b) { b = { id: 'o' + Date.now().toString(36), pl: pl.id, star: SYS.star.i, center: pos.clone(), name: 'Outpost', parts: [], portable: true }; BASES.list.push(b); }
+  }
   if (id === 'basecomp') {
     b = { id: 'b' + Date.now().toString(36), pl: pl.id, star: SYS.star.i, center: pos.clone(), name: pl.name + ' Base', parts: [] };
     BASES.list.push(b);
@@ -176,7 +182,7 @@ function baseLightSources() {
 // ---------- teleport ----------
 function teleportDestinations() {
   const out = [];
-  for (const b of BASES.list) { const tp = b.parts.find((p) => p.id === 'teleport'); if (tp) out.push({ kind: 'base', name: b.name, star: b.star, base: b, part: tp }); }
+  for (const b of BASES.list) { if (b.portable) continue; const tp = b.parts.find((p) => p.id === 'teleport'); if (tp) out.push({ kind: 'base', name: b.name, star: b.star, base: b, part: tp }); }
   for (const i of GALAXY.stationsVisited) out.push({ kind: 'station', name: GALAXY.stars[i].name + ' Station', star: i });
   return out;
 }

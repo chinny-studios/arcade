@@ -151,7 +151,7 @@ function genPlanet(S, idx, type, pos, moon, seed) {
     gravity: 11 * (R / 2000) ** 0.3,
   };
   if (pl.fauna < 0.05) pl.fauna = 0;
-  if (S.star === GALAXY.start && idx === 0) { pl.sentinel = 1; pl.flora = Math.max(pl.flora, 0.8); pl.fauna = Math.max(pl.fauna, 0.5); pl.hazMul = 0.8; }
+  if (S.star === GALAXY.start && idx === 0) { pl.sentinel = 1; pl.flora = Math.max(pl.flora, 0.8); pl.fauna = Math.max(pl.fauna, 0.5); pl.hazMul = 0.35; pl.gentle = true; }
   if (S.core) { pl.sentinel = 0; }
   pl.lifeLabel = pl.fauna <= 0 ? 'None' : pl.fauna < 0.35 ? 'Sparse' : pl.fauna < 0.8 ? 'Moderate' : 'Bountiful';
   pl.floraLabel = pl.flora <= 0 ? 'None' : pl.flora < 0.35 ? 'Sparse' : pl.flora < 0.8 ? 'Average' : 'Abundant';

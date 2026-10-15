@@ -13,6 +13,7 @@ function makeShipData(type, seed, name) {
 const shipStats = () => SHIP_TYPES[SHIP.cur.type];
 const shipMaxShield = () => 100 * shipStats().shield * techFx('dshield');
 function setShip(data) {
+  if (SHIP.dash) { R.camera.remove(SHIP.dash); SHIP.dash = null; }
   if (SHIP.obj) { SHIP.obj.root.parent && SHIP.obj.root.parent.remove(SHIP.obj.root); }
   SHIP.cur = data;
   SHIP.obj = makeShipObject(data.type, data.seed);
@@ -374,8 +375,16 @@ function updateShipCamera(dt) {
   if (!S.camInit) { S.camQ.copy(S.q); S.camInit = true; }
   S.camQ.slerp(S.q, Math.min(1, dt * (S.state === 'flight' ? 5 : 3)));
   let local, q;
+  if (!S.dash) {
+    const C = S.obj.S.colors, dk = C ? C.dark : 0x202428, hl = C ? C.hull2 : 0x606870;
+    S.dash = meshOf(buildModel([P_.box(1.6, 0.35, 0.5, dk, [0, -0.62, -0.9], [-0.35, 0, 0]), glowPart(P_.box(0.5, 0.22, 0.03, 0x2a6a88, [-0.35, -0.5, -1.06], [-0.35, 0, 0]), 0.35), glowPart(P_.box(0.3, 0.22, 0.03, 0x886030, [0.4, -0.5, -1.06], [-0.35, 0, 0]), 0.35),
+      P_.box(0.035, 1.6, 0.035, dk, [-1.05, 0.05, -1.0], [0.25, 0, -0.35]), P_.box(0.035, 1.6, 0.035, dk, [1.05, 0.05, -1.0], [0.25, 0, 0.35]), P_.box(2.1, 0.035, 0.035, dk, [0, 0.75, -0.8])]), R.mat.vc, false);
+    S.dash.renderOrder = 10; R.camera.add(S.dash);
+  }
+  const ck = S.cockpit && PLAYER.inShip;
+  S.dash.visible = ck; S.obj.body.visible = !ck;
   if (S.cockpit) {
-    local = S.pos.clone().add(S.obj.S.cockpit.clone().applyQuaternion(S.q));
+    local = S.pos.clone().add(S.obj.S.cockpit.clone().add(new V3(0, 0.25, 0)).applyQuaternion(S.q));
     q = S.q.clone();
   } else {
     const back = S.state === 'landed' ? new V3(0, 7, 20) : new V3(0, 5.5 + S.obj.S.len * 0.1, 15 + S.obj.S.len + S.pulseK * 6 + S.boostK * 4);
