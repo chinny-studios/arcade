@@ -3,3 +3,5 @@ dist/
 *:Zone.Identifier
 # build.py also writes the claude.ai artifact variant
 midnight-in-the-sprawl/midnight-in-the-sprawl.html
+# test screenshots
+*/source/test/out/

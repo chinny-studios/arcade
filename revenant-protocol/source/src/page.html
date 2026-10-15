@@ -1,0 +1,245 @@
+<title>Revenant Protocol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --amber: #ffb43c; --amber2: #b8741c; --cyan: #6fd6ff; --red: #ff4a3a; --dim: #8c8c94; --ink: #e8e4da; --panel: rgba(8,10,14,.82); }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: var(--ink);
+    font-family: 'Share Tech Mono', ui-monospace, monospace; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; touch-action: none; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #map { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+  body.map #map { display: block; }
+  #tint { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+  #lowhp { position: absolute; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 22vmin 4vmin rgba(160,0,0,.8); }
+
+  /* HUD */
+  #hud { position: absolute; inset: 0; pointer-events: none; display: none; font-size: 18px; text-shadow: 2px 2px 0 #000; }
+  body[data-state="play"] #hud { display: block; }
+  #msgs { position: absolute; left: 14px; top: 10px; right: 30%; line-height: 1.35; color: var(--amber); }
+  #msgs div { transition: opacity .6s; }
+  #cross { position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -5px 0 0 -5px; }
+  #cross::before, #cross::after { content: ''; position: absolute; background: rgba(255,200,120,.75); }
+  #cross::before { left: 4px; top: 0; width: 1px; height: 9px; }
+  #cross::after { top: 4px; left: 0; height: 1px; width: 9px; }
+  .pod { position: absolute; bottom: 12px; background: var(--panel); border: 1px solid #3a3326; padding: 8px 12px; box-shadow: 3px 3px 0 rgba(0,0,0,.6); }
+  #vitals { left: 12px; width: 210px; }
+  .bar { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+  .bar b { font-weight: 400; width: 54px; font-size: 14px; color: var(--dim); letter-spacing: .08em; }
+  .bar .track { flex: 1; height: 9px; background: #1a1a1f; border: 1px solid #333; }
+  .bar .track i { display: block; height: 100%; width: 50%; }
+  #shBar i { background: linear-gradient(#8fe0ff, #2a8fd0); }
+  #hpBar i { background: linear-gradient(#ff8a6a, #c0301e); }
+  .bar span { width: 38px; text-align: right; font-size: 20px; }
+  #shNum { color: var(--cyan); } #hpNum { color: #ff8a6a; }
+  #vrow { display: flex; justify-content: space-between; margin-top: 4px; font-size: 15px; color: var(--dim); }
+  #keys i { display: inline-block; width: 14px; height: 9px; margin-left: 4px; border: 1px solid #555; vertical-align: middle; opacity: .2; }
+  #keys i.on { opacity: 1; border-color: #fff; }
+  #kr { background: #e33; } #kb { background: #39f; } #ky { background: #fd2; }
+  #ammo { right: 12px; min-width: 170px; text-align: right; }
+  #wname { font-size: 14px; color: var(--dim); letter-spacing: .08em; }
+  #wammo { font-size: 34px; color: var(--amber); line-height: 1.05; }
+  #walt { font-size: 14px; color: var(--amber2); min-height: 16px; }
+  #gear { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; font-size: 13px; }
+  #gear span { background: var(--panel); border: 1px solid #333; padding: 3px 7px; color: #555; letter-spacing: .1em; }
+  #gear span.have { color: var(--dim); } #gear span.on { color: #fff; border-color: var(--amber); }
+  #gear #batt { color: var(--amber); }
+  #boost { position: absolute; top: 12px; right: 14px; text-align: right; font-size: 15px; color: var(--cyan); }
+  #objpop { position: absolute; left: 0; right: 0; top: 24%; text-align: center; font-family: 'Orbitron', sans-serif; font-size: clamp(16px, 2.6vw, 26px);
+    color: var(--amber); letter-spacing: .12em; opacity: 0; transition: opacity .5s; }
+  #objpop.on { opacity: 1; }
+  #prompt { position: absolute; left: 0; right: 0; top: 60%; text-align: center; font-size: 18px; color: var(--ink); }
+
+  /* Screens */
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    padding: 16px; box-sizing: border-box; overflow-y: auto; z-index: 5; }
+  .screen.dark { background: radial-gradient(ellipse at 50% 40%, rgba(30,20,10,.55), rgba(0,0,0,.92)); }
+  h1, h2, h3 { font-family: 'Orbitron', sans-serif; font-weight: 800; margin: 0; }
+  #title h1 { font-size: clamp(34px, 8vw, 92px); letter-spacing: .08em; color: var(--amber); line-height: 1;
+    text-shadow: 0 0 24px rgba(255,140,30,.35), 4px 4px 0 #3a1c04; }
+  #title .sub { font-size: clamp(13px, 1.8vw, 18px); color: var(--dim); letter-spacing: .5em; margin: 14px 0 34px; }
+  .menu { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  button.b { min-width: 0 !important; }
+  .menu button, button.b { font: inherit; font-size: clamp(18px, 2.4vw, 24px); letter-spacing: .2em; color: var(--ink); background: none;
+    border: 1px solid transparent; cursor: pointer; padding: 7px 22px; min-width: 260px; }
+  .menu button:hover, .menu button:focus-visible, button.b:hover, button.b:focus-visible { color: #000; background: var(--amber); outline: none; }
+  .menu button:disabled { color: #444; cursor: default; background: none; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .hint { margin-top: 26px; font-size: 15px; color: var(--dim); line-height: 1.6; max-width: 720px; }
+  .hint kbd { font: inherit; color: var(--amber); }
+  #diffs button.sel { border-color: var(--amber); color: var(--amber); }
+  .card { background: var(--panel); border: 1px solid #3a3326; padding: 22px 26px; max-width: 760px; width: 100%; box-sizing: border-box; text-align: left; }
+  .card h2 { font-size: clamp(18px, 3vw, 28px); color: var(--amber); letter-spacing: .08em; }
+  .card h3 { font-size: 13px; color: var(--dim); letter-spacing: .3em; margin: 0 0 8px; font-weight: 500; }
+  .card p { line-height: 1.55; font-size: 17px; white-space: pre-line; margin: 14px 0; }
+  .card ul { list-style: none; padding: 0; margin: 10px 0; }
+  .card li { padding: 3px 0; font-size: 17px; }
+  .card li::before { content: '[ ] '; color: var(--dim); }
+  .card li.done { color: var(--dim); text-decoration: line-through; }
+  .card li.done::before { content: '[x] '; color: var(--amber); }
+  #briefText { min-height: 8em; }
+  .stats { display: grid; grid-template-columns: auto auto; gap: 4px 28px; font-size: 18px; margin: 16px 0; }
+  .stats span:nth-child(odd) { color: var(--dim); }
+  #pda .card { max-height: 86vh; overflow-y: auto; }
+  .tabs { display: flex; gap: 6px; margin: 12px 0 4px; }
+  .tabs button { font: inherit; font-size: 15px; letter-spacing: .15em; background: none; color: var(--dim); border: 1px solid #333; padding: 4px 12px; cursor: pointer; }
+  .tabs button.sel { color: #000; background: var(--amber); border-color: var(--amber); }
+  .inv { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 18px; font-size: 16px; margin: 10px 0; }
+  .inv .no { color: #444; }
+  #dead h2 { color: var(--red); font-size: clamp(30px, 6vw, 60px); letter-spacing: .1em; }
+  #dead p { color: var(--dim); font-size: 18px; }
+  #end h2 { color: var(--amber); font-size: clamp(26px, 5vw, 52px); }
+  .opt { display: grid; grid-template-columns: auto 200px; gap: 12px 18px; align-items: center; font-size: 17px; margin: 16px 0; text-align: left; }
+  .opt input[type=range] { width: 100%; accent-color: var(--amber); }
+  .opt select { font: inherit; background: #111; color: var(--ink); border: 1px solid #444; padding: 3px; }
+  .note { font-size: 13px; color: #666; margin-top: 18px; }
+  #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--dim); letter-spacing: .3em; background: #000; z-index: 9; }
+
+  /* Touch */
+  #touch { position: absolute; inset: 0; display: none; }
+  body.touch[data-state="play"] #touch { display: block; }
+  body.touch #hud { font-size: 15px; }
+  body.touch #vitals { top: 10px; bottom: auto; left: auto; right: 12px; width: 170px; }
+  body.touch #ammo { top: 106px; bottom: auto; min-width: 140px; padding: 4px 10px; }
+  body.touch #wammo { font-size: 26px; }
+  body.touch #msgs { right: 200px; }
+  body.touch #gear { bottom: auto; top: 66px; left: 12px; transform: none; }
+  #tlook { position: absolute; left: 40%; right: 0; top: 0; bottom: 0; }
+  #tmove { position: absolute; left: 0; width: 40%; top: 25%; bottom: 0; }
+  #joy { position: absolute; width: 120px; height: 120px; margin: -60px; border: 2px solid rgba(255,180,60,.3); border-radius: 50%; display: none; pointer-events: none; }
+  #joy i { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px; border-radius: 50%; background: rgba(255,180,60,.3); }
+  .tb { position: absolute; font: inherit; font-size: 13px; letter-spacing: .08em; color: var(--ink); background: rgba(0,0,0,.4);
+    border: 2px solid rgba(255,180,60,.4); width: 64px; height: 64px; border-radius: 50%; padding: 0; }
+  .tb.big { width: 88px; height: 88px; font-size: 15px; }
+  .tb.sm { width: 48px; height: 48px; font-size: 11px; border-radius: 10px; }
+  .tb.on { background: rgba(255,180,60,.35); }
+  #tFire { right: 26px; bottom: 34px; } #tAlt { right: 128px; bottom: 22px; } #tJump { right: 34px; bottom: 136px; }
+  #tCrouch { right: 116px; bottom: 112px; } #tUse { right: 196px; bottom: 34px; }
+  #tPrev { left: 50%; margin-left: -110px; bottom: 10px; } #tNext { left: 50%; margin-left: 62px; bottom: 10px; }
+  #tMap { left: 12px; top: 10px; } #tPda { left: 66px; top: 10px; } #tLamp { left: 120px; top: 10px; } #tMask { left: 174px; top: 10px; }
+  #tCleat { left: 228px; top: 10px; } #tPause { left: 282px; top: 10px; }
+  body.touch #msgs { top: 96px; }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <canvas id="map"></canvas>
+  <div id="tint"></div>
+  <div id="lowhp"></div>
+  <div id="hud">
+    <div id="msgs"></div>
+    <div id="cross"></div>
+    <div id="objpop"></div>
+    <div id="prompt"></div>
+    <div id="boost"></div>
+    <div id="vitals" class="pod">
+      <div class="bar" id="shBar"><b>SHIELD</b><div class="track"><i></i></div><span id="shNum">0</span></div>
+      <div class="bar" id="hpBar"><b>HEALTH</b><div class="track"><i></i></div><span id="hpNum">100</span></div>
+      <div id="vrow"><span id="lives">LIVES 3</span><span id="keys">KEYS<i id="kr"></i><i id="kb"></i><i id="ky"></i></span></div>
+    </div>
+    <div id="gear"><span id="gLamp">LAMP</span><span id="gMask">MASK</span><span id="gCleat">CLEATS</span><span id="batt">BATT 100%</span></div>
+    <div id="ammo" class="pod"><div id="wname">FISTS</div><div id="wammo">--</div><div id="walt"></div></div>
+  </div>
+  <div id="touch">
+    <div id="tmove"></div><div id="tlook"></div><div id="joy"><i></i></div>
+    <button class="tb big" id="tFire">FIRE</button><button class="tb" id="tAlt">ALT</button>
+    <button class="tb" id="tJump">JUMP</button><button class="tb" id="tCrouch">DUCK</button><button class="tb" id="tUse">USE</button>
+    <button class="tb sm" id="tPrev">&lt; WPN</button><button class="tb sm" id="tNext">WPN &gt;</button>
+    <button class="tb sm" id="tMap">MAP</button><button class="tb sm" id="tPda">PDA</button><button class="tb sm" id="tLamp">LAMP</button>
+    <button class="tb sm" id="tMask">MASK</button><button class="tb sm" id="tCleat">CLEAT</button><button class="tb sm" id="tPause">II</button>
+  </div>
+
+  <div id="title" class="screen dark">
+    <h1>REVENANT<br>PROTOCOL</h1>
+    <div class="sub">A MERCENARY'S WAR</div>
+    <div class="menu" id="mainMenu">
+      <button id="bNew">NEW CAMPAIGN</button>
+      <button id="bCont">CONTINUE</button>
+      <button id="bSelect">MISSION SELECT</button>
+      <button id="bOpts">OPTIONS</button>
+    </div>
+    <div class="menu" id="diffMenu" hidden>
+      <h3 style="color:var(--dim);letter-spacing:.3em;font-size:14px;margin-bottom:10px">DIFFICULTY</h3>
+      <div id="diffs" class="menu"></div>
+      <button id="bBack1">BACK</button>
+    </div>
+    <div class="menu" id="selMenu" hidden>
+      <h3 style="color:var(--dim);letter-spacing:.3em;font-size:14px;margin-bottom:10px">MISSION SELECT</h3>
+      <div id="missions" class="menu"></div>
+      <button id="bBack2">BACK</button>
+    </div>
+    <div class="hint" id="help"></div>
+  </div>
+
+  <div id="brief" class="screen dark" hidden>
+    <div class="card">
+      <h3 id="briefNum">MISSION 1</h3>
+      <h2 id="briefName"></h2>
+      <p id="briefText"></p>
+      <h3>OBJECTIVES</h3>
+      <ul id="briefObj"></ul>
+      <div class="row" style="justify-content:flex-start;margin-top:16px"><button class="b" id="bLaunch">BEGIN MISSION</button></div>
+    </div>
+  </div>
+
+  <div id="pda" class="screen dark" hidden>
+    <div class="card">
+      <h3 id="pdaNum"></h3>
+      <h2 id="pdaName"></h2>
+      <div class="tabs"><button data-tab="obj" class="sel">OBJECTIVES</button><button data-tab="inv">INVENTORY</button><button data-tab="brief">BRIEFING</button></div>
+      <div id="pdaBody"></div>
+      <div class="row" style="justify-content:flex-start;margin-top:14px"><button class="b" id="bPdaClose">CLOSE [P]</button></div>
+    </div>
+  </div>
+
+  <div id="pause" class="screen dark" hidden>
+    <h2 style="color:var(--amber);letter-spacing:.2em;margin-bottom:20px">PAUSED</h2>
+    <div class="menu">
+      <button id="bResume">RESUME</button>
+      <button id="bRestart">RESTART MISSION</button>
+      <button id="bOpts2">OPTIONS</button>
+      <button id="bQuit">QUIT TO TITLE</button>
+    </div>
+  </div>
+
+  <div id="options" class="screen dark" hidden>
+    <div class="card">
+      <h2>OPTIONS</h2>
+      <div class="opt">
+        <label for="oSens">Look sensitivity</label><input type="range" id="oSens" min="0.2" max="3" step="0.05">
+        <label for="oInv">Invert look</label><select id="oInv"><option value="0">Off</option><option value="1">On</option></select>
+        <label for="oScale">Resolution</label><select id="oScale"><option value="low">Chunky (240 lines)</option><option value="classic">Classic (400 lines)</option><option value="high">Sharp (720 lines)</option><option value="native">Native</option></select>
+        <label for="oVol">Effects volume</label><input type="range" id="oVol" min="0" max="1" step="0.05">
+        <label for="oMus">Music volume</label><input type="range" id="oMus" min="0" max="1" step="0.05">
+        <label for="oAim">Vertical aim assist</label><select id="oAim"><option value="0">Off</option><option value="1">On</option></select>
+      </div>
+      <div class="row" style="justify-content:flex-start"><button class="b" id="bOptsDone">DONE</button></div>
+    </div>
+  </div>
+
+  <div id="dead" class="screen dark" hidden>
+    <h2 id="deadTitle">YOU HAVE FALLEN</h2>
+    <p id="deadText"></p>
+    <div class="menu"><button id="bRespawn">CONTINUE</button><button id="bQuit2">QUIT TO TITLE</button></div>
+  </div>
+
+  <div id="done" class="screen dark" hidden>
+    <div class="card">
+      <h3 id="doneNum"></h3>
+      <h2 id="doneName"></h2>
+      <p id="doneText"></p>
+      <div class="stats" id="doneStats"></div>
+      <div class="row" style="justify-content:flex-start"><button class="b" id="bNext">NEXT MISSION</button><button class="b" id="bQuit3">TITLE</button></div>
+    </div>
+  </div>
+
+  <div id="end" class="screen dark" hidden>
+    <div class="card">
+      <h2>PROTOCOL ENDED</h2>
+      <p id="endText"></p>
+      <div class="row" style="justify-content:flex-start"><button class="b" id="bEnd">RETURN TO TITLE</button></div>
+    </div>
+  </div>
+  <div id="loading">BUILDING SPRITES…</div>
+</div>
