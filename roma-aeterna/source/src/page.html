@@ -1,0 +1,179 @@
+<title>Roma Aeterna</title>
+<meta name="description" content="Walk through Rome in AD 125: the Forum, the Colosseum, the Pantheon and the crowded streets of the Subura, then out along the Via Appia to a small town.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #f3ead6; --dim: #c9b994; --faint: #8a7b5e; --red: #9c2a22; --gold: #d9b24a; --panel: rgba(28,20,14,.86); --panel2: rgba(40,28,18,.94);
+    --line: rgba(217,178,74,.3); --parch: #efe4c9; --pink: #3a2416;
+    --serif: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif; --body: 'EB Garamond', Garamond, Georgia, serif; }
+  html, body { margin: 0; height: 100%; background: #120d09; overflow: hidden; color: var(--ink); font-family: var(--body); -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud { display: block; }
+  button { font-family: var(--serif); cursor: pointer; }
+  #cross { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: rgba(255,248,230,.75); box-shadow: 0 0 2px #000; }
+  body.modal #cross, body.modal #prompt { display: none; }
+  /* compass */
+  #compass { position: absolute; left: 50%; top: 14px; width: min(560px, 70vw); height: 34px; transform: translateX(-50%); overflow: hidden;
+    background: linear-gradient(90deg, transparent, rgba(20,14,10,.55) 18%, rgba(20,14,10,.55) 82%, transparent); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    -webkit-mask: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); mask: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
+  #compass::after { content: ''; position: absolute; left: 50%; top: 0; width: 2px; height: 7px; margin-left: -1px; background: var(--gold); }
+  #ctrack { position: absolute; inset: 0; }
+  #ctrack i { position: absolute; left: 0; top: 9px; width: 30px; margin-left: -15px; text-align: center; font-style: normal; font-size: 11px; color: var(--dim); font-family: var(--serif); }
+  #ctrack i.cd { font-size: 16px; top: 6px; color: var(--ink); font-weight: 700; }
+  #ctrack i.ic { font-size: 11px; top: 10px; }
+  #ctrack .mk { position: absolute; left: 0; top: 0; width: 0; height: 34px; font-weight: 400; transition: opacity .3s; }
+  #ctrack .mk s { position: absolute; left: -4px; top: 24px; width: 7px; height: 7px; background: var(--faint); transform: rotate(45deg); }
+  #ctrack .mk.found s { background: var(--gold); }
+  #ctrack .mk span { display: none; }
+  #ctrack .mk.lab span { display: block; position: absolute; left: 0; top: 36px; transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-family: var(--serif); color: var(--ink); text-shadow: 0 1px 3px #000; }
+  #compass { overflow: visible; } #compass { -webkit-mask: none; mask: none; }
+  #ctrack { overflow: hidden; height: 60px; -webkit-mask: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); mask: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
+  /* clock & place */
+  #clock { position: absolute; right: 18px; top: 12px; text-align: right; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.6); }
+  #clock b { display: block; font-family: var(--serif); font-size: 17px; color: var(--gold); font-weight: 600; letter-spacing: .04em; }
+  #clock span { font-size: 14px; color: var(--dim); } #clock em { color: var(--gold); font-style: normal; }
+  #where { position: absolute; left: 22px; bottom: 20px; text-shadow: 0 1px 3px #000, 0 0 12px rgba(0,0,0,.7); max-width: 50vw; }
+  #where b { display: block; font-family: var(--serif); font-size: 19px; font-weight: 600; letter-spacing: .05em; }
+  #where span { font-size: 15px; font-style: italic; color: var(--dim); }
+  #where.fade { animation: wIn .8s ease-out; } @keyframes wIn { from { opacity: 0; transform: translateY(6px); } }
+  #fps { position: absolute; left: 10px; top: 8px; font: 11px monospace; color: #cfc; text-shadow: 0 1px 2px #000; }
+  /* prompt, banner, messages */
+  #prompt { position: absolute; left: 50%; top: calc(50% + 30px); transform: translateX(-50%); font-size: 17px; white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 8px #000; }
+  #prompt b { display: inline-block; min-width: 18px; padding: 0 6px; margin-right: 6px; border: 1px solid var(--gold); border-radius: 4px; color: var(--gold); font-family: var(--serif); font-size: 14px; text-align: center; }
+  #banner { position: absolute; left: 0; right: 0; top: 17%; text-align: center; opacity: 0; transition: opacity 1s, transform 1s; transform: translateY(8px); padding: 0 16px; text-shadow: 0 2px 4px rgba(0,0,0,.6), 0 0 30px rgba(0,0,0,.6); }
+  #banner.on { opacity: 1; transform: none; }
+  #banner .l { font-family: var(--serif); font-size: clamp(28px, 4.4vw, 56px); font-weight: 700; letter-spacing: .12em; color: var(--parch); }
+  #banner .n { font-size: clamp(17px, 2vw, 24px); font-style: italic; color: var(--ink); margin-top: 2px; }
+  #banner .s { font-family: var(--serif); font-size: 13px; color: var(--gold); letter-spacing: .14em; margin-top: 8px; text-transform: uppercase; }
+  #msgs { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; max-width: min(460px, 60vw); }
+  .msg { font-size: 17px; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.8); animation: mIn .3s ease-out; transition: opacity .7s; }
+  @keyframes mIn { from { opacity: 0; transform: translateX(-10px); } }
+  /* dialogue */
+  #dlg { position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); width: min(680px, 92vw); pointer-events: auto; cursor: pointer;
+    background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--red); border-radius: 6px; padding: 14px 20px 12px; box-shadow: 0 8px 30px rgba(0,0,0,.5); box-sizing: border-box; }
+  #dlg .who { font-family: var(--serif); color: var(--gold); font-weight: 600; font-size: 17px; letter-spacing: .04em; }
+  #dlg .who i { font-family: var(--body); color: var(--dim); font-weight: 400; font-size: 15px; letter-spacing: 0; margin-left: 8px; }
+  #dlg .say { font-size: 19px; line-height: 1.45; margin: 6px 0 6px; }
+  #dlg .say em { color: var(--parch); }
+  #dlg .gloss { font-size: 14px; color: var(--dim); font-style: italic; min-height: 0; }
+  #dlg .more { font-size: 13px; color: var(--faint); text-align: right; font-family: var(--serif); letter-spacing: .06em; }
+  /* placard */
+  #placard { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(580px, 92vw); max-height: 82vh; overflow: auto; pointer-events: auto; box-sizing: border-box;
+    background: linear-gradient(#efe4c9, #e2d3b0); color: #2c1e12; border-radius: 4px; padding: 26px 32px 22px; box-shadow: 0 10px 40px rgba(0,0,0,.6), inset 0 0 0 6px rgba(120,90,50,.15); }
+  #placard .t { font-family: var(--serif); font-weight: 700; font-size: 25px; letter-spacing: .05em; color: #5a1a14; }
+  #placard .l { font-style: italic; font-size: 17px; color: #6b5636; margin-bottom: 12px; }
+  #placard .b p { font-size: 18px; line-height: 1.5; margin: 0 0 10px; }
+  #placard .close { position: absolute; right: 12px; top: 10px; background: none; border: 0; font-size: 22px; color: #6b5636; }
+  #placard .k { font-family: var(--serif); font-size: 12px; color: #8a7350; letter-spacing: .08em; text-align: right; margin-top: 6px; }
+  /* map */
+  #mapView { position: absolute; inset: 0; pointer-events: auto; background: rgba(18,12,8,.92); display: flex; }
+  #mapCv { flex: 1; min-width: 0; height: 100%; display: block; cursor: grab; touch-action: none; }
+  #mapSide { width: 300px; max-width: 40vw; height: 100%; overflow: auto; background: var(--panel2); border-left: 1px solid var(--line); box-sizing: border-box; padding: 16px 16px 30px; }
+  #mapSide h2 { font-family: var(--serif); margin: 0 0 4px; color: var(--gold); font-size: 20px; letter-spacing: .08em; }
+  #journal .jh { color: var(--dim); font-size: 15px; margin-bottom: 8px; }
+  #journal .jg { font-family: var(--serif); color: var(--gold); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; margin: 12px 0 4px; border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+  #journal .je { font-size: 15px; padding: 3px 4px; color: var(--faint); border-radius: 3px; }
+  #journal .je.f { color: var(--ink); cursor: pointer; } #journal .je.f:hover { background: rgba(217,178,74,.12); }
+  #journal .je span { display: block; font-style: italic; color: var(--dim); font-size: 13px; }
+  #mapTools { position: absolute; left: 16px; top: 16px; display: flex; gap: 6px; }
+  #mapTools button, #mapClose { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; font-size: 15px; }
+  #mapClose { position: absolute; left: 16px; bottom: 16px; }
+  #mapTravel { position: absolute; left: 50%; bottom: 18px; transform: translateX(calc(-50% - 150px)); background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-size: 16px; white-space: nowrap; }
+  #mapTravel b { font-family: var(--serif); color: var(--gold); } #mapTravel i { color: var(--dim); margin-right: 8px; }
+  #mapTravel button { background: var(--red); color: var(--parch); border: 0; border-radius: 4px; padding: 6px 12px; font-size: 14px; }
+  #mapKey { position: absolute; right: 316px; bottom: 16px; font-size: 13px; color: var(--dim); text-shadow: 0 1px 2px #000; text-align: right; }
+  /* pause */
+  #pause { position: absolute; inset: 0; pointer-events: auto; background: rgba(14,10,6,.78); display: grid; place-items: center; }
+  .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 22px 26px; width: min(520px, 92vw); box-sizing: border-box; max-height: 90vh; overflow: auto; }
+  .card h2 { font-family: var(--serif); color: var(--gold); margin: 0 0 4px; letter-spacing: .1em; font-size: 24px; }
+  .card .sub { color: var(--dim); font-size: 15px; margin-bottom: 14px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 16px; }
+  .btn { background: rgba(255,255,255,.04); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 9px 16px; font-size: 15px; letter-spacing: .05em; }
+  .btn:hover { background: rgba(217,178,74,.15); } .btn.main { background: var(--red); border-color: #c0483c; color: var(--parch); }
+  #settings label { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 16px; color: var(--ink); }
+  #settings input[type=range] { width: 52%; accent-color: var(--gold); } #settings select { width: 52%; background: #2a1e14; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px; font-family: var(--body); font-size: 15px; }
+  #settings input[type=checkbox] { accent-color: var(--gold); width: 18px; height: 18px; }
+  .keys { font-size: 14px; color: var(--dim); line-height: 1.6; margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .keys b { color: var(--ink); font-family: var(--serif); font-size: 12px; border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; margin-right: 2px; }
+  /* title */
+  #title { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 35%, #5a3a22 0%, #2a1a10 55%, #120c08 100%); z-index: 5; }
+  #title .in { text-align: center; padding: 20px; max-width: 640px; }
+  #title h1 { font-family: var(--serif); font-size: clamp(42px, 8vw, 86px); margin: 0; letter-spacing: .14em; color: var(--parch); font-weight: 700; text-shadow: 0 3px 0 #3a2416, 0 0 40px rgba(217,178,74,.25); }
+  #title .tag { font-size: clamp(17px, 2.4vw, 22px); font-style: italic; color: var(--dim); margin: 6px 0 24px; }
+  #title .spqr { font-family: var(--serif); letter-spacing: .5em; color: var(--gold); font-size: 14px; margin-bottom: 14px; }
+  #title p.blurb { font-size: 17px; line-height: 1.55; color: var(--ink); opacity: .9; margin: 0 auto 22px; max-width: 520px; }
+  #menu .btn { font-size: 17px; padding: 11px 26px; }
+  #loading { margin-top: 18px; } #loading .bar { width: 320px; max-width: 80vw; height: 6px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; margin: 0 auto 10px; }
+  #loading .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #9c2a22, #d9b24a); transition: width .2s; }
+  #loading .t { font-style: italic; color: var(--dim); font-size: 16px; }
+  #title .foot { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; font-size: 13px; color: var(--faint); }
+  #title .foot a { color: var(--dim); }
+  #nogl { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; z-index: 6; background: #120c08; font-size: 18px; }
+  #fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s; z-index: 4; }
+  #fade.on { opacity: 1; }
+  /* touch */
+  .tctl { display: none; }
+  body.touch[data-state="play"] .tctl { display: block; }
+  #stick { position: absolute; left: 34px; bottom: 34px; width: 120px; height: 120px; border-radius: 50%; border: 2px solid rgba(255,240,210,.35); background: rgba(20,14,10,.25); opacity: .35; pointer-events: none; }
+  #stick i { position: absolute; left: 36px; top: 36px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,240,210,.45); }
+  .tbtn { position: absolute; width: 58px; height: 58px; border-radius: 50%; background: rgba(28,20,14,.6); border: 1px solid var(--line); color: var(--ink); font-family: var(--serif); font-size: 13px; display: grid; place-items: center; pointer-events: auto; }
+  .tbtn.down { background: rgba(156,42,34,.7); } .tbtn.on { border-color: var(--gold); color: var(--gold); }
+  #tE { right: 30px; bottom: 120px; width: 70px; height: 70px; font-size: 22px; opacity: .45; } #tE.on { opacity: 1; border-color: var(--gold); }
+  #tRun { right: 112px; bottom: 40px; } #tMap { right: 30px; bottom: 40px; } #tTime { right: 112px; bottom: 120px; }
+  #tMenu { right: 18px; top: 64px; width: 44px; height: 44px; }
+  body.touch #where { left: 50%; transform: translateX(-50%); bottom: auto; top: 86px; text-align: center; }
+  body.touch #where b { font-size: 15px; } body.touch #where span { font-size: 13px; }
+  @media (max-width: 720px) { #mapSide { display: none; } #mapTravel { transform: translateX(-50%); } #mapKey { right: 16px; } #clock b { font-size: 14px; } #clock span { font-size: 12px; } }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div class="hud">
+    <div id="cross"></div>
+    <div id="compass"><div id="ctrack"></div></div>
+    <div id="clock"></div>
+    <div id="where"></div>
+    <div id="prompt" hidden></div>
+    <div id="banner"></div>
+    <div id="msgs"></div>
+    <div id="fps"></div>
+    <div id="dlg" hidden><div class="who"></div><div class="say"></div><div class="gloss"></div><div class="more"></div></div>
+    <div id="placard" hidden><button class="close" aria-label="Close">×</button><div class="t"></div><div class="l"></div><div class="b"></div><div class="k">E · close</div></div>
+    <div id="mapView" hidden>
+      <canvas id="mapCv"></canvas>
+      <div id="mapTools"><button id="mapIn">+</button><button id="mapOut">−</button><button id="mapMe">You</button></div>
+      <button id="mapClose">Close · M</button>
+      <div id="mapTravel" hidden></div>
+      <div id="mapKey">Drag to pan, wheel to zoom. Pick a place you have found to travel there.</div>
+      <div id="mapSide"><h2>Itinerarium</h2><div id="journal"></div></div>
+    </div>
+    <div id="pause" hidden>
+      <div class="card">
+        <h2>Roma Aeterna</h2>
+        <div class="sub" id="pStats"></div>
+        <div class="btns"><button class="btn main" id="pResume">Resume</button><button class="btn" id="pMap">Map &amp; journal</button><button class="btn" id="pTitle">Save &amp; quit to title</button></div>
+        <div id="settings"></div>
+        <div class="keys"><b>W A S D</b> walk · <b>Shift</b> run (<b>Caps</b> toggles) · <b>Space</b> jump · <b>E</b> or click: talk, read · <b>M</b> map &amp; journal · <b>T</b> hold to let time pass · <b>Esc</b> this menu.
+          Gamepad: sticks to walk and look, Ⓐ talk/read, Ⓨ map, Ⓧ hold for time, triggers to run.</div>
+      </div>
+    </div>
+    <div class="tctl"><div id="stick"><i></i></div>
+      <div class="tbtn" id="tE">✦</div><div class="tbtn" id="tRun">Run</div><div class="tbtn" id="tMap">Map</div><div class="tbtn" id="tTime">Time</div><div class="tbtn" id="tMenu">≡</div></div>
+  </div>
+  <div id="fade"></div>
+  <div id="title">
+    <div class="in">
+      <div class="spqr">S · P · Q · R</div>
+      <h1>Roma Aeterna</h1>
+      <div class="tag">Rome, in the ninth year of Hadrian · AD 125</div>
+      <p class="blurb">The emperor is home from Greece. Walk the city as it stood: the Forum and the Capitol, the Colosseum and the Circus, the new Pantheon, and the loud, crowded streets of the Subura where Rome actually lived. Then take the Via Appia out past the tombs to the little town of Bovillae.</p>
+      <div id="menu"><div class="btns" style="justify-content:center"><button class="btn main" id="bBegin">Enter the city</button><button class="btn" id="bContinue" hidden>Continue</button></div></div>
+      <div id="loading" hidden><div class="bar"><i></i></div><div class="t"></div></div>
+    </div>
+    <div class="foot">Mouse &amp; keyboard, touch or gamepad · a part of <a href="../">Chinny's Arcade</a></div>
+  </div>
+  <div id="nogl" hidden><div>This walk through Rome needs WebGL, which your browser didn't provide.<br>Try another browser, or enable hardware acceleration.</div></div>
+</div>
