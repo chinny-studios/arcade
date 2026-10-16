@@ -70,6 +70,8 @@ function sfx(name) {
     case 'wrench': noise(t, 0.06, { vol: 0.15, f: 4000, q: 6 }); break;
     case 'blow': noise(t, 0.5, { vol: 0.15, f: 1200, q: 0.6, attack: 0.05 }); break;
     case 'mail': tone(NOTE(84), t, 0.15, { vol: 0.08 }); tone(NOTE(88), t + 0.12, 0.3, { vol: 0.08 }); break;
+    case 'bird': { const f = rrange(2600, 4200); for (let i = 0; i < rint(2, 4); i++) tone(f * rrange(0.9, 1.15), t + i * 0.13, 0.09, { vol: 0.025, slide: rrange(0.7, 1.4) }); break; }
+    case 'cricket': for (let i = 0; i < 3; i++) for (let k = 0; k < 4; k++) tone(4400, t + i * 0.32 + k * 0.025, 0.018, { vol: 0.012 }); break;
     case 'passing': [57, 64, 69, 72].forEach((n, i) => tone(NOTE(n), t + i * 0.35, 2.2, { vol: 0.07, type: 'triangle', attack: 0.3 })); break;
   }
 }

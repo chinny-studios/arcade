@@ -17,7 +17,8 @@ school, visitors and gibberish voices.
   school, hosts a visitor, has a baby and ages a child up. `life.js` covers a wedding with a neighbour, a fire and old
   age; `build.js` builds a shed with the real tools, buys a fridge, undoes and round-trips a save; `kid.js` logs a child's
   afternoon alone; `soak.js` lets free will run the family for a week and reports daily moods, accidents and messes;
-  `visual.js`, `night.js` and `menus.js` (run with `--no-start`) are screenshot tours. `node test/live.mjs` drives the menus, pie menus,
+  `visual.js`, `night.js`, `mobile.js` (with `--w 390 --h 844` or `--w 844 --h 390`) and `menus.js` / `cas.js` (with
+  `--no-start`) are screenshot tours; `party.js` checks wants and a party. `node test/live.mjs` drives the menus, pie menus,
   camera and build/buy with real mouse and keyboard input.
 - **Gotchas:** the frame loop stops the clock in buy and build mode (`WL.sim()` still advances it). The `WL.render()` used before screenshots renders the CAS scene while Create-a-Sim is open.
   Steps segments split by `//--- shot` don't share `const`s; the runner predefines `G`, `F` and `S` (the household) and

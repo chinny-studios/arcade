@@ -85,7 +85,8 @@ function everyMinute() {
   tickObjects(1);
   for (const s of G.sims) if (s.alive) { expireMoodlets(s); if (s.household) { tickPregnancy(s); calcMood(s); topUpWants(s); } if (s.onLot) calcMood(s); }
   tickParty();
-  checkSchedules(); tickReturns(); tickVisitors(); tickServices(); tickBills(); tickFires(); tickDaily();
+  checkSchedules(); tickReturns(); tickVisitors(); tickServices(); tickBills(); tickFires(); tickDaily(); tickTraffic();
+  if (G.speed <= 2 && chance(0.05)) sfx(isDark() ? 'cricket' : roomAt(R.cam.tx, R.cam.tz) === 0 || R.cam.dist > 25 ? 'bird' : '');
   if (Math.floor(G.t) % 10 === 0) updateRoomScores();
   // lone thoughts about whatever's bothering a sim
   for (const s of household()) if (s.onLot && !s.away && s.age !== 'baby' && chance(0.02)) {
@@ -191,6 +192,7 @@ function onMove(e) {
   }
   if (G.mode !== 'live' && BUILD.tool && e.target === $('#c')) buildPointer('move', screenToGround(e.clientX, e.clientY), e);
   else if (G.mode !== 'live') hideTip();
+  else if (e.pointerType === 'mouse' && !D) hoverSim(e);
   // edge pan
   PTR.edge = G.options.edgePan && e.pointerType === 'mouse' ? [e.clientX < 8 ? -1 : e.clientX > window.innerWidth - 8 ? 1 : 0, e.clientY < 8 ? 1 : e.clientY > window.innerHeight - 8 ? -1 : 0] : null;
 }
@@ -208,6 +210,22 @@ function onUp(e) {
   }
   if (D.btn !== 0) return;
   if (G.mode === 'live') liveClick(e);
+}
+// name tags when the mouse rests on a sim
+let hoverT = 0;
+function hoverSim(e) {
+  const now = performance.now(); if (now - hoverT < 90) return; hoverT = now;
+  if (e.target !== $('#c') || UI.pie) { hideTip(); return; }
+  const hit = pickAt(e.clientX, e.clientY, G.sims.filter((s) => s.model && s.model.visible).map((s) => s.model));
+  if (!hit) { hideTip(); return; }
+  const t = hit.pick.sim, s = G.selected;
+  let txt = fullName(t);
+  if (t.service) txt = t.first;
+  else if (t.age === 'baby') txt += ' · ' + moodLabel(t.mood);
+  else if (s && t !== s) txt += ' · ' + relLabel(s, t);
+  else if (t === s) txt += ' · ' + moodLabel(t.mood);
+  if (t.visit && t.visit.state === 'door') txt += ' · at the door';
+  showTip(e, txt);
 }
 function liveClick(e) {
   if (UI.pie) { closePie(); return; }

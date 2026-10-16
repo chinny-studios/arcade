@@ -114,9 +114,11 @@ function renderCasScene(dt) {
   // frame the sim in the middle of the screen (the panels sit either side)
   const w = window.innerWidth, hh = window.innerHeight;
   CAS.cam.aspect = w / hh; CAS.cam.updateProjectionMatrix();
-  const span = h + 0.75, dist = span / (2 * Math.tan((CAS.cam.fov * Math.PI / 180) / 2)) * 1.18;
+  // on narrow screens the panels sit above and below: frame the sim smaller, in the gap between them
+  const narrow = w <= 900;
+  const span = h + 0.75, dist = span / (2 * Math.tan((CAS.cam.fov * Math.PI / 180) / 2)) * (narrow ? 2.6 : 1.18);
   CAS.cam.position.set(0, span * 0.5 + 0.25, dist); CAS.cam.lookAt(0, span * 0.5 - 0.05, 0);
-  CAS.cam.setViewOffset(w, hh, w > 900 ? -w * 0.02 : 0, w > 900 ? 0 : hh * 0.18, w, hh);
+  CAS.cam.setViewOffset(w, hh, narrow ? 0 : -w * 0.02, narrow ? hh * 0.13 : 0, w, hh);
   CAS.gem.position.set(0, h + 0.35, 0); CAS.gem.rotation.y += dt * 1.5;
   R.renderer.render(CAS.scene, CAS.cam);
 }

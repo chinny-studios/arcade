@@ -7,7 +7,7 @@ const VEH = [];
 // ---------- vehicles ----------
 function spawnVehicle(kind, color, purpose) {
   const model = buildCar(color, kind);
-  const slot = VEH.filter((v) => v.state !== 'leave').length;
+  const slot = VEH.filter((v) => v.state !== 'leave' && v.purpose.type !== 'pass').length;
   const stopX = frontDoorTile()[0] + 0.5 - 3 + slot * 6;
   const v = { kind, model, x: -70, z: STREET_Z, stopX, state: 'arrive', purpose, t: 0, riders: [] };
   model.position.set(v.x, 0, v.z); model.rotation.y = Math.PI / 2;
@@ -26,13 +26,22 @@ function tickVehicles(dt) { // dt in game minutes; cars move in sim time too
       if (v.leaveAt != null && G.t >= v.leaveAt) v.state = 'leave';
       if (v.leaveAfter != null && v.t >= v.leaveAfter) v.state = 'leave';
     } else if (v.state === 'leave') {
-      v.speed = Math.min(16, (v.speed || 0) + dt * 12);
-      v.x += v.speed * dt;
-      if (v.x > 110) { R.scene.remove(v.model); v.dead = true; if (v.onGone) v.onGone(v); }
+      if (v.purpose.type !== 'pass') v.speed = Math.min(16, (v.speed || 0) + dt * 12);
+      v.x += v.speed * dt * (v.dir || 1);
+      if (v.x > 110 || v.x < -80) { R.scene.remove(v.model); v.dead = true; if (v.onGone) v.onGone(v); }
     }
     v.model.position.x = v.x;
   }
   for (let i = VEH.length - 1; i >= 0; i--) if (VEH[i].dead) VEH.splice(i, 1);
+}
+// traffic that just drives past
+function tickTraffic() {
+  if (chance(hourIn(hourF(), 7, 20) ? 1 / 18 : 1 / 70)) {
+    const v = spawnVehicle(chance(0.15) ? 'van' : 'car', rpick([0xc83a3a, 0x3a6ac8, 0xe8e4dc, 0x2a2a2e, 0x5aa850, 0xe8c840, 0x8a8a8a]), { type: 'pass' });
+    v.state = 'leave'; v.speed = rrange(8, 13); v.z = STREET_Z + (chance(0.5) && !VEH.some((x) => x.purpose.type !== 'pass' && !x.dead) ? 0 : 3.2);
+    if (v.z > STREET_Z + 1) { v.x = 110; v.dir = -1; v.model.rotation.y = -Math.PI / 2; } else v.dir = 1;
+    v.model.position.set(v.x, 0, v.z);
+  }
 }
 function clearVehicles() { for (const v of VEH) R.scene.remove(v.model); VEH.length = 0; }
 

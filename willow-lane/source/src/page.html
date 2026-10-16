@@ -272,12 +272,37 @@
     #clock b { font-size: 20px; } #clockbox .mrow { order: 2; } #speed { flex: 1; min-width: 160px; } .tools { width: auto; }
     #catalog { left: 14px; right: 14px; bottom: 96px; height: 180px; }
     body[data-mode="buy"] #panel, body[data-mode="build"] #panel { display: none; }
-    .casL { width: auto; right: 16px; bottom: auto; max-height: 34vh; }
-    .casR { left: 16px; right: 16px; width: auto; top: auto; height: 38vh; }
+    .casL { left: 10px; right: 10px; top: 10px; width: auto; bottom: auto; max-height: 27vh; padding: 10px 12px; }
+    .casL h2 { font-size: 17px; margin: 0 0 6px; } .casL .dim.small { display: none; } .casL .fl { margin-bottom: 6px; }
+    .mems { display: flex; overflow-x: auto; gap: 6px; margin: 4px 0; } .mem { flex: none; padding: 6px 30px 6px 10px; } .mem.add { padding: 6px 12px; }
+    .casR { left: 10px; right: 10px; width: auto; top: auto; bottom: 70px; height: 40vh; padding: 10px 12px; }
+    .casB { left: 10px; right: 10px; bottom: 10px; } .casB .btn { padding: 10px 18px; font-size: 14px; }
     .rels, .needs { grid-template-columns: 1fr; }
     .cols { grid-template-columns: 1fr; }
   }
-  @media (max-width: 560px) { #notes { width: calc(100vw - 28px); } #queue { top: auto; bottom: 300px; } .qa { width: 44px; height: 44px; } }
+  @media (max-width: 900px) { .rels { grid-template-columns: 1fr; } .needs { grid-template-columns: 1fr 1fr; gap: 4px 10px; } #wantsBar .asp { display: none; } }
+  @media (max-width: 560px) {
+    #notes { width: calc(100vw - 28px); } #queue { top: auto; bottom: 334px; } .qa.cur small { opacity: 0; } .qa:hover small { opacity: 1; } .qa { width: 44px; height: 44px; } .qa span { font-size: 20px; }
+    #tabs { overflow-x: auto; } #tabs button { padding: 6px 8px 8px; } #wantsBar { display: none; }
+    #who div span:first-of-type { display: none; }
+  }
+  /* short screens (phones held sideways): a compact bottom bar */
+  @media (max-height: 520px) {
+    #panel { height: 118px; bottom: 70px; width: calc(100vw - 28px); left: 14px; }
+    #side { width: 116px; padding: 8px; gap: 4px; } #who { min-height: 0; } #who div { display: none; } #who img { width: 34px; height: 34px; }
+    #modes button { height: 36px; font-size: 0; } #modes button span { font-size: 18px; }
+    #tabs { padding: 4px 8px 0; } #tabs button { padding: 4px 9px 6px; font-size: 11px; }
+    #panelBody { padding: 6px 10px; } .need span { font-size: 11px; } .meter { height: 8px; }
+    #family { bottom: 196px; } .fam { width: 40px; height: 40px; }
+    #queue { top: 10px; bottom: auto; } .qa { width: 40px; height: 40px; } .qa span { font-size: 18px; }
+    #notes { top: 10px; width: 300px; } .note { padding: 6px 10px; font-size: 12px; } .note img, .note .ni { width: 30px; height: 30px; font-size: 18px; }
+    #clockbox { left: 14px; right: 14px; width: auto; bottom: 10px; flex-direction: row; align-items: center; padding: 6px 10px; gap: 8px; }
+    #clock b { font-size: 18px; } #clock span { font-size: 10px; } #money { font-size: 18px; } #speed { flex: 1; } #speed button { height: 28px; }
+    .tools button { height: 28px; width: 34px; flex: none; }
+    #catalog { left: 14px; right: 14px; bottom: 70px; height: 150px; } .item { width: 64px; } .item img { width: 50px; height: 50px; }
+    body[data-mode="buy"] #panel, body[data-mode="build"] #panel { display: none; }
+    .casL { bottom: 76px; } .casR { bottom: 76px; }
+  }
 </style>
 <div id="app">
   <canvas id="c"></canvas>

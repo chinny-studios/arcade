@@ -277,12 +277,37 @@
     #clock b { font-size: 20px; } #clockbox .mrow { order: 2; } #speed { flex: 1; min-width: 160px; } .tools { width: auto; }
     #catalog { left: 14px; right: 14px; bottom: 96px; height: 180px; }
     body[data-mode="buy"] #panel, body[data-mode="build"] #panel { display: none; }
-    .casL { width: auto; right: 16px; bottom: auto; max-height: 34vh; }
-    .casR { left: 16px; right: 16px; width: auto; top: auto; height: 38vh; }
+    .casL { left: 10px; right: 10px; top: 10px; width: auto; bottom: auto; max-height: 27vh; padding: 10px 12px; }
+    .casL h2 { font-size: 17px; margin: 0 0 6px; } .casL .dim.small { display: none; } .casL .fl { margin-bottom: 6px; }
+    .mems { display: flex; overflow-x: auto; gap: 6px; margin: 4px 0; } .mem { flex: none; padding: 6px 30px 6px 10px; } .mem.add { padding: 6px 12px; }
+    .casR { left: 10px; right: 10px; width: auto; top: auto; bottom: 70px; height: 40vh; padding: 10px 12px; }
+    .casB { left: 10px; right: 10px; bottom: 10px; } .casB .btn { padding: 10px 18px; font-size: 14px; }
     .rels, .needs { grid-template-columns: 1fr; }
     .cols { grid-template-columns: 1fr; }
   }
-  @media (max-width: 560px) { #notes { width: calc(100vw - 28px); } #queue { top: auto; bottom: 300px; } .qa { width: 44px; height: 44px; } }
+  @media (max-width: 900px) { .rels { grid-template-columns: 1fr; } .needs { grid-template-columns: 1fr 1fr; gap: 4px 10px; } #wantsBar .asp { display: none; } }
+  @media (max-width: 560px) {
+    #notes { width: calc(100vw - 28px); } #queue { top: auto; bottom: 334px; } .qa.cur small { opacity: 0; } .qa:hover small { opacity: 1; } .qa { width: 44px; height: 44px; } .qa span { font-size: 20px; }
+    #tabs { overflow-x: auto; } #tabs button { padding: 6px 8px 8px; } #wantsBar { display: none; }
+    #who div span:first-of-type { display: none; }
+  }
+  /* short screens (phones held sideways): a compact bottom bar */
+  @media (max-height: 520px) {
+    #panel { height: 118px; bottom: 70px; width: calc(100vw - 28px); left: 14px; }
+    #side { width: 116px; padding: 8px; gap: 4px; } #who { min-height: 0; } #who div { display: none; } #who img { width: 34px; height: 34px; }
+    #modes button { height: 36px; font-size: 0; } #modes button span { font-size: 18px; }
+    #tabs { padding: 4px 8px 0; } #tabs button { padding: 4px 9px 6px; font-size: 11px; }
+    #panelBody { padding: 6px 10px; } .need span { font-size: 11px; } .meter { height: 8px; }
+    #family { bottom: 196px; } .fam { width: 40px; height: 40px; }
+    #queue { top: 10px; bottom: auto; } .qa { width: 40px; height: 40px; } .qa span { font-size: 18px; }
+    #notes { top: 10px; width: 300px; } .note { padding: 6px 10px; font-size: 12px; } .note img, .note .ni { width: 30px; height: 30px; font-size: 18px; }
+    #clockbox { left: 14px; right: 14px; width: auto; bottom: 10px; flex-direction: row; align-items: center; padding: 6px 10px; gap: 8px; }
+    #clock b { font-size: 18px; } #clock span { font-size: 10px; } #money { font-size: 18px; } #speed { flex: 1; } #speed button { height: 28px; }
+    .tools button { height: 28px; width: 34px; flex: none; }
+    #catalog { left: 14px; right: 14px; bottom: 70px; height: 150px; } .item { width: 64px; } .item img { width: 50px; height: 50px; }
+    body[data-mode="buy"] #panel, body[data-mode="build"] #panel { display: none; }
+    .casL { bottom: 76px; } .casR { bottom: 76px; }
+  }
 </style>
 </head>
 <body>
@@ -4136,7 +4161,7 @@ const VEH = [];
 // ---------- vehicles ----------
 function spawnVehicle(kind, color, purpose) {
   const model = buildCar(color, kind);
-  const slot = VEH.filter((v) => v.state !== 'leave').length;
+  const slot = VEH.filter((v) => v.state !== 'leave' && v.purpose.type !== 'pass').length;
   const stopX = frontDoorTile()[0] + 0.5 - 3 + slot * 6;
   const v = { kind, model, x: -70, z: STREET_Z, stopX, state: 'arrive', purpose, t: 0, riders: [] };
   model.position.set(v.x, 0, v.z); model.rotation.y = Math.PI / 2;
@@ -4155,13 +4180,22 @@ function tickVehicles(dt) { // dt in game minutes; cars move in sim time too
       if (v.leaveAt != null && G.t >= v.leaveAt) v.state = 'leave';
       if (v.leaveAfter != null && v.t >= v.leaveAfter) v.state = 'leave';
     } else if (v.state === 'leave') {
-      v.speed = Math.min(16, (v.speed || 0) + dt * 12);
-      v.x += v.speed * dt;
-      if (v.x > 110) { R.scene.remove(v.model); v.dead = true; if (v.onGone) v.onGone(v); }
+      if (v.purpose.type !== 'pass') v.speed = Math.min(16, (v.speed || 0) + dt * 12);
+      v.x += v.speed * dt * (v.dir || 1);
+      if (v.x > 110 || v.x < -80) { R.scene.remove(v.model); v.dead = true; if (v.onGone) v.onGone(v); }
     }
     v.model.position.x = v.x;
   }
   for (let i = VEH.length - 1; i >= 0; i--) if (VEH[i].dead) VEH.splice(i, 1);
+}
+// traffic that just drives past
+function tickTraffic() {
+  if (chance(hourIn(hourF(), 7, 20) ? 1 / 18 : 1 / 70)) {
+    const v = spawnVehicle(chance(0.15) ? 'van' : 'car', rpick([0xc83a3a, 0x3a6ac8, 0xe8e4dc, 0x2a2a2e, 0x5aa850, 0xe8c840, 0x8a8a8a]), { type: 'pass' });
+    v.state = 'leave'; v.speed = rrange(8, 13); v.z = STREET_Z + (chance(0.5) && !VEH.some((x) => x.purpose.type !== 'pass' && !x.dead) ? 0 : 3.2);
+    if (v.z > STREET_Z + 1) { v.x = 110; v.dir = -1; v.model.rotation.y = -Math.PI / 2; } else v.dir = 1;
+    v.model.position.set(v.x, 0, v.z);
+  }
 }
 function clearVehicles() { for (const v of VEH) R.scene.remove(v.model); VEH.length = 0; }
 
@@ -5550,9 +5584,11 @@ function renderCasScene(dt) {
   // frame the sim in the middle of the screen (the panels sit either side)
   const w = window.innerWidth, hh = window.innerHeight;
   CAS.cam.aspect = w / hh; CAS.cam.updateProjectionMatrix();
-  const span = h + 0.75, dist = span / (2 * Math.tan((CAS.cam.fov * Math.PI / 180) / 2)) * 1.18;
+  // on narrow screens the panels sit above and below: frame the sim smaller, in the gap between them
+  const narrow = w <= 900;
+  const span = h + 0.75, dist = span / (2 * Math.tan((CAS.cam.fov * Math.PI / 180) / 2)) * (narrow ? 2.6 : 1.18);
   CAS.cam.position.set(0, span * 0.5 + 0.25, dist); CAS.cam.lookAt(0, span * 0.5 - 0.05, 0);
-  CAS.cam.setViewOffset(w, hh, w > 900 ? -w * 0.02 : 0, w > 900 ? 0 : hh * 0.18, w, hh);
+  CAS.cam.setViewOffset(w, hh, narrow ? 0 : -w * 0.02, narrow ? hh * 0.13 : 0, w, hh);
   CAS.gem.position.set(0, h + 0.35, 0); CAS.gem.rotation.y += dt * 1.5;
   R.renderer.render(CAS.scene, CAS.cam);
 }
@@ -5743,6 +5779,8 @@ function sfx(name) {
     case 'wrench': noise(t, 0.06, { vol: 0.15, f: 4000, q: 6 }); break;
     case 'blow': noise(t, 0.5, { vol: 0.15, f: 1200, q: 0.6, attack: 0.05 }); break;
     case 'mail': tone(NOTE(84), t, 0.15, { vol: 0.08 }); tone(NOTE(88), t + 0.12, 0.3, { vol: 0.08 }); break;
+    case 'bird': { const f = rrange(2600, 4200); for (let i = 0; i < rint(2, 4); i++) tone(f * rrange(0.9, 1.15), t + i * 0.13, 0.09, { vol: 0.025, slide: rrange(0.7, 1.4) }); break; }
+    case 'cricket': for (let i = 0; i < 3; i++) for (let k = 0; k < 4; k++) tone(4400, t + i * 0.32 + k * 0.025, 0.018, { vol: 0.012 }); break;
     case 'passing': [57, 64, 69, 72].forEach((n, i) => tone(NOTE(n), t + i * 0.35, 2.2, { vol: 0.07, type: 'triangle', attack: 0.3 })); break;
   }
 }
@@ -6025,7 +6063,8 @@ function everyMinute() {
   tickObjects(1);
   for (const s of G.sims) if (s.alive) { expireMoodlets(s); if (s.household) { tickPregnancy(s); calcMood(s); topUpWants(s); } if (s.onLot) calcMood(s); }
   tickParty();
-  checkSchedules(); tickReturns(); tickVisitors(); tickServices(); tickBills(); tickFires(); tickDaily();
+  checkSchedules(); tickReturns(); tickVisitors(); tickServices(); tickBills(); tickFires(); tickDaily(); tickTraffic();
+  if (G.speed <= 2 && chance(0.05)) sfx(isDark() ? 'cricket' : roomAt(R.cam.tx, R.cam.tz) === 0 || R.cam.dist > 25 ? 'bird' : '');
   if (Math.floor(G.t) % 10 === 0) updateRoomScores();
   // lone thoughts about whatever's bothering a sim
   for (const s of household()) if (s.onLot && !s.away && s.age !== 'baby' && chance(0.02)) {
@@ -6131,6 +6170,7 @@ function onMove(e) {
   }
   if (G.mode !== 'live' && BUILD.tool && e.target === $('#c')) buildPointer('move', screenToGround(e.clientX, e.clientY), e);
   else if (G.mode !== 'live') hideTip();
+  else if (e.pointerType === 'mouse' && !D) hoverSim(e);
   // edge pan
   PTR.edge = G.options.edgePan && e.pointerType === 'mouse' ? [e.clientX < 8 ? -1 : e.clientX > window.innerWidth - 8 ? 1 : 0, e.clientY < 8 ? 1 : e.clientY > window.innerHeight - 8 ? -1 : 0] : null;
 }
@@ -6148,6 +6188,22 @@ function onUp(e) {
   }
   if (D.btn !== 0) return;
   if (G.mode === 'live') liveClick(e);
+}
+// name tags when the mouse rests on a sim
+let hoverT = 0;
+function hoverSim(e) {
+  const now = performance.now(); if (now - hoverT < 90) return; hoverT = now;
+  if (e.target !== $('#c') || UI.pie) { hideTip(); return; }
+  const hit = pickAt(e.clientX, e.clientY, G.sims.filter((s) => s.model && s.model.visible).map((s) => s.model));
+  if (!hit) { hideTip(); return; }
+  const t = hit.pick.sim, s = G.selected;
+  let txt = fullName(t);
+  if (t.service) txt = t.first;
+  else if (t.age === 'baby') txt += ' · ' + moodLabel(t.mood);
+  else if (s && t !== s) txt += ' · ' + relLabel(s, t);
+  else if (t === s) txt += ' · ' + moodLabel(t.mood);
+  if (t.visit && t.visit.state === 'door') txt += ' · at the door';
+  showTip(e, txt);
 }
 function liveClick(e) {
   if (UI.pie) { closePie(); return; }
