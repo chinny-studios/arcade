@@ -1,0 +1,146 @@
+<title>Apogee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root { --u: 1px; --gold: #e8c060; --gold2: #a07a28; --ink: #ece6d6; --dim: #9a9488; --red: #e04030; --lcd: #b9c6a4; --lcdInk: #1f2a1c; --paper: #e9e1c8; --paperInk: #2a2418; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: var(--ink); font-family: 'Michroma', 'Eurostile', 'Arial Narrow', sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; background: #000; }
+  #frame { position: absolute; overflow: hidden; background: #000; }
+  #c { position: absolute; left: 0; top: 0; display: block; }
+  #hud { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  body:not([data-state="play"]) #hud { display: none; }
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; padding: calc(var(--u) * 16); }
+  body[data-state="title"] #title, body[data-state="select"] #select, body[data-state="brief"] #brief, body[data-state="watch"] #watch, body[data-state="end"] #end, body[data-state="boot"] #boot { display: flex; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  .b { white-space: nowrap; font-size: calc(var(--u) * 15); letter-spacing: .12em; padding: calc(var(--u) * 7) calc(var(--u) * 18); border: calc(var(--u) * 2) solid transparent; color: var(--ink); text-transform: uppercase; }
+  .b:hover, .b:focus-visible, .b.focus { outline: none; border-color: var(--gold); color: var(--gold); }
+  .b:disabled { color: #555; cursor: default; border-color: transparent; }
+
+  /* boot */
+  #boot { font-size: calc(var(--u) * 16); color: var(--dim); letter-spacing: .3em; }
+
+  /* title */
+  #title { justify-content: flex-start; padding-top: calc(var(--u) * 70); background: radial-gradient(ellipse at 50% 120%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%); }
+  #title h1 { font-weight: 400; margin: 0; font-size: calc(var(--u) * 64); letter-spacing: .32em; padding-left: .32em; color: var(--gold);
+    text-shadow: 0 0 calc(var(--u) * 18) rgba(255,190,80,.35), calc(var(--u) * 3) calc(var(--u) * 3) 0 #3a2508; }
+  #title .sub { margin-top: calc(var(--u) * 10); font-family: 'Special Elite', 'Courier New', monospace; font-size: calc(var(--u) * 15); letter-spacing: .2em; color: var(--ink); opacity: .85; }
+  #title .press { text-shadow: 0 0 calc(var(--u) * 6) #000; position: absolute; bottom: calc(var(--u) * 90); font-size: calc(var(--u) * 15); letter-spacing: .3em; animation: blink 1.2s steps(2) infinite; }
+  #title .foot { text-shadow: 0 0 calc(var(--u) * 4) #000, 0 0 calc(var(--u) * 2) #000; position: absolute; bottom: calc(var(--u) * 18); font-size: calc(var(--u) * 9); color: var(--dim); letter-spacing: .15em; line-height: 1.8; }
+  @keyframes blink { 50% { opacity: .15; } }
+
+  /* mission select: dossiers */
+  #select { background: rgba(0,0,0,.62); }
+  #select h2, #end h2 { font-weight: 400; font-size: calc(var(--u) * 22); letter-spacing: .25em; color: var(--gold); margin: 0 0 calc(var(--u) * 18); }
+  #folders { display: flex; gap: calc(var(--u) * 14); justify-content: center; flex-wrap: wrap; }
+  .folder { width: calc(var(--u) * 180); min-height: calc(var(--u) * 240); background: linear-gradient(#c9a868, #b08d4e); color: var(--paperInk); border-radius: calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 2) calc(var(--u) * 2);
+    position: relative; padding: calc(var(--u) * 26) calc(var(--u) * 12) calc(var(--u) * 12); box-sizing: border-box; text-align: left; font-family: 'Special Elite', 'Courier New', monospace; box-shadow: calc(var(--u) * 4) calc(var(--u) * 4) 0 rgba(0,0,0,.5);
+    border: calc(var(--u) * 2) solid transparent; display: flex; flex-direction: column; }
+  .folder::before { content: ''; position: absolute; top: calc(var(--u) * -12); left: calc(var(--u) * 10); width: calc(var(--u) * 70); height: calc(var(--u) * 14); background: #c9a868; border-radius: calc(var(--u) * 4) calc(var(--u) * 4) 0 0; }
+  .folder.focus, .folder:hover, .folder:focus-visible { border-color: var(--gold); outline: none; transform: translateY(calc(var(--u) * -4)); }
+  .folder .num { font-size: calc(var(--u) * 11); letter-spacing: .2em; opacity: .7; }
+  .folder .nm { font-size: calc(var(--u) * 17); margin: calc(var(--u) * 6) 0 calc(var(--u) * 4); line-height: 1.15; }
+  .folder .pl { font-size: calc(var(--u) * 10); opacity: .8; line-height: 1.3; }
+  .folder .stamp { margin-top: auto; font-size: calc(var(--u) * 10); line-height: 1.6; }
+  .folder .stamp b { color: #7a1a10; font-weight: 400; }
+  .folder.locked { filter: grayscale(.8) brightness(.6); }
+  .folder.locked .nm::after { content: 'CLASSIFIED'; display: block; color: #8a1a10; border: calc(var(--u) * 2) solid #8a1a10; padding: 0 calc(var(--u) * 4); transform: rotate(-8deg); margin-top: calc(var(--u) * 16); width: max-content; font-size: calc(var(--u) * 14); }
+  #diffs { display: flex; gap: calc(var(--u) * 6); margin-top: calc(var(--u) * 18); }
+  .hint { margin-top: calc(var(--u) * 14); font-size: calc(var(--u) * 9); color: var(--dim); letter-spacing: .12em; }
+
+  /* briefing */
+  #brief { background: rgba(0,0,0,.7); }
+  .paper { background: var(--paper); color: var(--paperInk); font-family: 'Special Elite', 'Courier New', monospace; width: calc(var(--u) * 560); max-width: 100%; text-align: left;
+    padding: calc(var(--u) * 18) calc(var(--u) * 22); box-sizing: border-box; box-shadow: calc(var(--u) * 5) calc(var(--u) * 5) 0 rgba(0,0,0,.6); position: relative; }
+  .paper h3 { margin: 0; font-weight: 400; font-size: calc(var(--u) * 20); }
+  .paper .meta { font-size: calc(var(--u) * 11); opacity: .75; margin-bottom: calc(var(--u) * 10); }
+  .paper .secret { position: absolute; right: calc(var(--u) * 16); top: calc(var(--u) * 14); color: #8a1a10; border: calc(var(--u) * 2) solid #8a1a10; padding: 0 calc(var(--u) * 6); transform: rotate(6deg); font-size: calc(var(--u) * 13); }
+  #tabs { display: flex; gap: calc(var(--u) * 4); margin-bottom: calc(var(--u) * 8); }
+  #tabs .b { font-family: inherit; color: var(--paperInk); font-size: calc(var(--u) * 11); padding: calc(var(--u) * 3) calc(var(--u) * 8); border-color: rgba(42,36,24,.25); }
+  #tabs .b.on { background: var(--paperInk); color: var(--paper); }
+  #tabs .b:hover, #tabs .b.focus { border-color: var(--paperInk); }
+  #btext { font-size: calc(var(--u) * 13); line-height: 1.5; white-space: pre-line; min-height: calc(var(--u) * 150); }
+  #bobj { font-size: calc(var(--u) * 12); line-height: 1.6; margin: calc(var(--u) * 8) 0 0; padding: 0; list-style: none; border-top: calc(var(--u) * 1) dashed rgba(42,36,24,.4); padding-top: calc(var(--u) * 6); }
+  #brief .row { margin-top: calc(var(--u) * 14); display: flex; gap: calc(var(--u) * 10); }
+
+  /* the watch */
+  #watch { background: rgba(0,0,0,.45); }
+  .wcase { width: calc(var(--u) * 520); height: calc(var(--u) * 400); border-radius: calc(var(--u) * 46); background: linear-gradient(145deg, #e0e0dc, #7a7a78 45%, #b8b8b4 70%, #555);
+    padding: calc(var(--u) * 22); box-sizing: border-box; box-shadow: 0 0 0 calc(var(--u) * 4) #2a2a2a, calc(var(--u) * 8) calc(var(--u) * 10) 0 rgba(0,0,0,.5); position: relative; }
+  .wcase::before, .wcase::after { content: ''; position: absolute; left: 50%; width: calc(var(--u) * 200); margin-left: calc(var(--u) * -100); height: calc(var(--u) * 60); background: #1c1c1c; z-index: -1; }
+  .wcase::before { top: calc(var(--u) * -50); } .wcase::after { bottom: calc(var(--u) * -50); }
+  .lcd { background: var(--lcd); width: 100%; height: 100%; border-radius: calc(var(--u) * 26); box-shadow: inset calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 10) rgba(0,0,0,.45); color: var(--lcdInk);
+    font-family: 'VT323', 'Courier New', monospace; font-size: calc(var(--u) * 22); padding: calc(var(--u) * 14) calc(var(--u) * 22); box-sizing: border-box; display: flex; flex-direction: column; text-align: left; overflow: hidden; }
+  .lcd .bars { display: flex; gap: calc(var(--u) * 12); align-items: center; font-size: calc(var(--u) * 16); }
+  .lcd .bars i { display: inline-block; height: calc(var(--u) * 9); background: var(--lcdInk); vertical-align: middle; }
+  .lcd .bars span { opacity: .8; }
+  #wtabs { display: flex; gap: calc(var(--u) * 2); margin: calc(var(--u) * 8) 0; border-bottom: calc(var(--u) * 2) solid var(--lcdInk); }
+  #wtabs .b { font-family: inherit; font-size: calc(var(--u) * 18); padding: 0 calc(var(--u) * 8); color: var(--lcdInk); letter-spacing: .05em; border: 0; }
+  #wtabs .b.on { background: var(--lcdInk); color: var(--lcd); }
+  #wtabs .b.focus, #wtabs .b:hover { text-decoration: underline; }
+  #wbody { flex: 1; overflow-y: auto; line-height: 1.15; }
+  #wbody .b { font-family: inherit; color: var(--lcdInk); font-size: calc(var(--u) * 21); padding: 0 calc(var(--u) * 6); border: 0; text-transform: none; letter-spacing: 0; text-align: left; display: block; width: 100%; }
+  #wbody .b.focus, #wbody .b:hover { background: var(--lcdInk); color: var(--lcd); }
+  #wbody .b.on::before { content: '> '; }
+  #wbody .row2 { display: flex; justify-content: space-between; }
+  #wbody .st { opacity: .75; }
+  #wbody .failed { text-decoration: line-through; }
+  .wfoot { font-size: calc(var(--u) * 15); opacity: .7; margin-top: calc(var(--u) * 4); }
+
+  /* end */
+  #end { background: rgba(0,0,0,.72); }
+  #end h2.fail { color: var(--red); }
+  #estats { font-size: calc(var(--u) * 12); letter-spacing: .08em; line-height: 1.8; min-width: calc(var(--u) * 360); }
+  #estats .r { display: flex; justify-content: space-between; border-bottom: calc(var(--u) * 1) solid rgba(255,255,255,.08); }
+  #estats .r b { font-weight: 400; color: var(--gold); }
+  #eobj { font-size: calc(var(--u) * 11); margin: calc(var(--u) * 12) 0; text-align: left; line-height: 1.7; color: var(--ink); }
+  #eobj .done { color: #9ad08a; } #eobj .failed { color: var(--red); } #eobj .open { color: var(--dim); }
+  #end .row { display: flex; gap: calc(var(--u) * 8); margin-top: calc(var(--u) * 10); }
+</style>
+<div id="app">
+  <div id="frame">
+    <canvas id="c"></canvas>
+    <canvas id="hud" width="640" height="480"></canvas>
+    <div id="boot" class="screen">LOADING</div>
+    <div id="title" class="screen">
+      <h1>APOGEE</h1>
+      <div class="sub">a 1960s orbital espionage</div>
+      <div class="press">PRESS START</div>
+      <div class="foot">Mouse &amp; keyboard or gamepad · Enter / click / Start<br>An homage to the 1997 console spy shooters. Not affiliated with any film or game.</div>
+    </div>
+    <div id="select" class="screen">
+      <h2>SELECT MISSION</h2>
+      <div id="folders"></div>
+      <div id="diffs" hidden></div>
+      <div class="hint">Arrows / mouse to choose · Enter to open · Esc to go back</div>
+    </div>
+    <div id="brief" class="screen">
+      <div class="paper">
+        <div class="secret">TOP SECRET</div>
+        <h3 id="bname"></h3>
+        <div class="meta" id="bmeta"></div>
+        <div id="tabs"></div>
+        <div id="btext"></div>
+        <ul id="bobj"></ul>
+      </div>
+      <div class="row"><button class="b" id="baccept">Accept mission</button><button class="b" id="bback">Back</button></div>
+    </div>
+    <div id="watch" class="screen">
+      <div class="wcase"><div class="lcd">
+        <div class="bars"><span>HEALTH</span><i id="wh"></i><span>ARMOUR</span><i id="wa"></i></div>
+        <div id="wtabs"></div>
+        <div id="wbody"></div>
+        <div class="wfoot" id="wfoot">Tab / Esc: back to the mission</div>
+      </div></div>
+    </div>
+    <div id="end" class="screen">
+      <h2 id="etitle"></h2>
+      <div id="ewhy" class="hint"></div>
+      <div id="estats"></div>
+      <div id="eobj"></div>
+      <div class="row" id="ebtns"></div>
+    </div>
+  </div>
+</div>
