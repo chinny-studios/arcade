@@ -137,6 +137,8 @@ IX.social = {
       if (def.romantic) addMoodlet(a, 'rejected');
       if (def.onLose) def.onLose(a, b);
     }
+    bus.emit('did', a, 'social', { id, target: b, win });
+    bus.emit('did', b, 'social', { id, target: a, win });
     yield* wait(a, act, 2.5, a.anim);
     bAct.cancel = true;
     a.anim = 'idle';
@@ -161,6 +163,7 @@ IX.beSocial = {
 function wedding(a, b) {
   setPartners(a, b, 'spouse');
   addMoodlet(a, 'married'); addMoodlet(b, 'married');
+  bus.emit('did', a, 'married', { target: b }); bus.emit('did', b, 'married', { target: a });
   G.stats.weddings++;
   sfx('fanfare'); confetti(a.x, 2, a.z); confetti(b.x, 2.2, b.z);
   for (const o of onLotSims()) if (o !== a && o !== b && o.age !== 'baby' && !o.sleeping && Math.hypot(o.x - a.x, o.z - a.z) < 12) { if (!o.cur || !o.cur.user) { cancelAll(o, false); queueAct(o, 'cheerFor', a, null, false, true); } }
@@ -201,7 +204,7 @@ function giveBirth(s) {
   if (s.model && s.model.userData.J && s.model.userData.J.belly) s.model.userData.J.belly.visible = false;
   const baby = makeBaby(s, other);
   notify(`${s.first} had a baby! Welcome, ${baby.first}! 👶`, '👶', baby, true);
-  for (const p of [s, other]) if (p) addMoodlet(p, 'newBaby');
+  for (const p of [s, other]) if (p) { addMoodlet(p, 'newBaby'); bus.emit('did', p, 'baby', { baby }); }
   sfx('fanfare');
   bus.emit('household');
 }

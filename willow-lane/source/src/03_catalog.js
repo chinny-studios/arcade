@@ -82,7 +82,7 @@ const CATALOG = [
   { id: 'stereo', name: 'Boombox Stereo', cat: 'electronics', price: 300, w: 1, d: 1, room: 0, stats: { fun: 4 },
     desc: 'Put on a record and dance. Others will join in.', acts: ['dance', 'stereoOff'] },
   { id: 'phone', name: 'Wall Phone', cat: 'electronics', price: 60, w: 1, d: 1, room: 0, wall: true, noblock: true, stats: { social: 2 },
-    desc: 'Call friends, invite them over, order a pizza or ask about adoption.', acts: ['callFriend', 'invite', 'pizza', 'adopt'] },
+    desc: 'Call friends, invite them over, order a pizza or ask about adoption.', acts: ['callFriend', 'invite', 'party', 'pizza', 'adopt'] },
 
   // hobbies & skills
   { id: 'bookshelf', name: 'Oak Bookcase', cat: 'hobbies', price: 280, w: 1, d: 1, room: 1, stats: { fun: 2, room: 1 },

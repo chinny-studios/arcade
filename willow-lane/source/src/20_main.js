@@ -2,7 +2,7 @@
 
 function init() {
   initRender();
-  R.gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.12), new THREE.MeshLambertMaterial({ color: 0x40e060, emissive: 0x40e060, emissiveIntensity: 0.45 }));
+  R.gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.15), new THREE.MeshLambertMaterial({ color: 0x40e060, emissive: 0x40e060, emissiveIntensity: 0.45 }));
   R.gem.scale.y = 1.7; R.scene.add(R.gem);
   initUI(); initMenu(); initInput();
   const unlock = () => { audioInit(); };
@@ -83,11 +83,16 @@ function simulate(dtMin) {
 }
 function everyMinute() {
   tickObjects(1);
-  for (const s of G.sims) if (s.alive) { expireMoodlets(s); if (s.household) { tickPregnancy(s); calcMood(s); } if (s.onLot) calcMood(s); }
+  for (const s of G.sims) if (s.alive) { expireMoodlets(s); if (s.household) { tickPregnancy(s); calcMood(s); topUpWants(s); } if (s.onLot) calcMood(s); }
+  tickParty();
   checkSchedules(); tickReturns(); tickVisitors(); tickServices(); tickBills(); tickFires(); tickDaily();
   if (Math.floor(G.t) % 10 === 0) updateRoomScores();
   // lone thoughts about whatever's bothering a sim
-  for (const s of household()) if (s.onLot && !s.away && s.age !== 'baby' && chance(0.02)) { const n = lowestNeed(s); if (n && s.needs[n.id] < 30) thought(s, n.icon, 2.5); }
+  for (const s of household()) if (s.onLot && !s.away && s.age !== 'baby' && chance(0.02)) {
+    const n = lowestNeed(s);
+    if (n && s.needs[n.id] < 30) thought(s, n.icon, 2.5);
+    else if (s.wants && s.wants.length && !s.sleeping && chance(0.4)) thought(s, wantIcon(rpick(s.wants)), 2.2);
+  }
 }
 function tickBaby(s, dt) {
   const crib = objById(s.crib);

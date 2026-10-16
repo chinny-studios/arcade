@@ -181,4 +181,7 @@ const MOODLETS = {
   badDay: { label: 'Bad day at work', icon: '🌧️', mood: -10, hours: 6 },
   missedBaby: { label: 'Baby taken away', icon: '😢', mood: -40, hours: 72 },
   hotShower: { label: 'Squeaky clean', icon: '🫧', mood: 6, hours: 3 },
+  wantMet: { label: 'Wish come true', icon: '⭐', mood: 12, hours: 6 },
+  greatParty: { label: 'Great party', icon: '🎊', mood: 18, hours: 12 },
+  lameParty: { label: 'Party flopped', icon: '😬', mood: -10, hours: 8 },
 };

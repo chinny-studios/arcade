@@ -55,9 +55,12 @@ function tickActions(s, dt) {
     try { r = act.it.next(dt); } catch (e) { console.error('action', act.id, e); r = { done: true }; }
     act.running = false;
     if (s.cur !== act) { s.queue = s.queue.filter((a) => a !== act); return; } // stopped from inside
+    // long activities count as done (for wants) once they've gone on a while
+    if (!act.didEmit && !r.done && G.t - act.t0 > 15 && !act.cancel) { act.didEmit = true; bus.emit('did', s, 'ix', { id: act.id, target: act.target }); }
     if (r.done) {
       const done = s.cur;
       if (!done.user && G.t - done.t0 < 0.6) noteFailed(s, done);
+      if (!done.didEmit && !done.cancel && G.t - done.t0 > 1.5) bus.emit('did', s, 'ix', { id: done.id, target: done.target });
       s.queue = s.queue.filter((a) => a !== done);
       s.cur = null; s.busy = false; s.talking = false;
       if (s.posture === 'stand' && !s.path) s.anim = 'idle';
@@ -771,6 +774,25 @@ IX.invite = {
     const yes = relGet(p, s).f > -20 && chance(0.6 + relGet(p, s).f / 150 + p.pers.outgoing * 0.03);
     if (yes) { notify(`${p.first} is coming over.`, '🏠', s); scheduleVisit(p, G.t + rint(30, 70), s); }
     else notify(`${p.first} can’t come over right now.`, '📵', s);
+  },
+};
+IX.party = {
+  label: 'Throw a party ($150)', icon: '🎊',
+  test: (s) => (!isGrown(s) || !s.household ? false : G.flags.party ? 'A party is already on' : !moneyOK(150) ? 'Costs $150 for food and drinks' : !hourIn(hourF(), 10, 21) ? 'Too late to throw a party' : knownSims(s).length < 2 ? 'Get to know some neighbours first' : true),
+  run: function* (s, o, act) {
+    if (!(yield* goStand(s, act, o))) return;
+    sfx('dial'); yield* wait(s, act, 1.5, 'phone'); s.talking = true;
+    yield* wait(s, act, 6, 'phone', (dt) => { if (chance(dt * 0.3)) babble(s, 0.6); }); s.talking = false; leaveSeat(s);
+    spend(150);
+    const until = Math.min(G.t + 330, Math.floor(G.t / 1440) * 1440 + 26 * 60);
+    G.flags.party = { start: G.t, until, host: s.id };
+    const guests = knownSims(s).filter((p) => !p.onLot).slice(0, 5);
+    for (const p of rshuffle(G.sims.filter((p) => !p.household && !p.service && p.alive && !p.onLot && !guests.includes(p)))) { if (guests.length >= 7) break; if (chance(0.5)) guests.push(p); }
+    guests.forEach((p) => scheduleVisit(p, G.t + rint(15, 70), s, true));
+    const spot = surfaceSpotNear(s.x, s.z, 12) || surfaceSpotNear(s.x, s.z, 40);
+    if (spot) addItem('meal', spot.x, spot.z, spot.y, { servings: 10, quality: 65, food: 0xd89a40 });
+    const st = G.objects.find((x) => x.type === 'stereo'); if (st) { st.on = true; music.stereo(true); }
+    notify(`${s.first} is throwing a party! ${guests.length} guests are on their way.`, '🎊', s, true);
   },
 };
 IX.pizza = {

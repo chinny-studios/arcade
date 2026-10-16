@@ -243,6 +243,7 @@ function placePointer(type, p, ev) {
     } else {
       spend(price);
       placeObject(id, x, z, r);
+      for (const h of household()) bus.emit('did', h, 'buy', { type: id });
       updateCutaway(true);
       sfx('place');
       if (!ev.shiftKey) { clearGhost(); BUILD.tool = 'hand'; BUILD.item = null; bus.emit('tool'); }
@@ -257,6 +258,7 @@ function handPointer(type, p, ev) {
   BUILD.hover = o;
   if (type === 'down' && ev.button === 0 && !o.def.fixed) {
     if (Object.keys(o.users).length) { toast('Someone is using that'); sfx('error'); return; }
+    if (o.type === 'crib' && babyIn(o)) { toast('A baby sleeps here'); sfx('error'); return; }
     BUILD.moving = o; o.model.visible = false; BUILD.rot = o.r; BUILD.item = o.type;
     // free its tiles while it's held
     OCC.fill(0); for (const x of G.objects) if (x !== o && blocks(x.def)) for (const [tx, tz] of objTiles(x)) if (inLot(tx, tz)) OCC[tidx(tx, tz)] = x.id;
@@ -266,6 +268,7 @@ function handPointer(type, p, ev) {
 function sellHeld() {
   const o = BUILD.moving || (BUILD.tool === 'hand' ? BUILD.hover : null);
   if (!o || o.def.fixed) return;
+  if (o.type === 'crib' && babyIn(o)) { toast('A baby sleeps here'); sfx('error'); return; }
   pushUndo();
   earn(sellValue(o));
   if (BUILD.moving) { BUILD.moving = null; if (BUILD.ghost) { R.scene.remove(BUILD.ghost); BUILD.ghost = null; } }

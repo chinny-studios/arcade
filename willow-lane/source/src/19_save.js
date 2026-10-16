@@ -2,7 +2,7 @@
 
 const SAVE_KEY = 'willow-lane.save';
 const SIM_KEYS = ['id', 'first', 'last', 'age', 'ageDays', 'pronoun', 'look', 'canCarry', 'voice', 'pers', 'interests', 'sign', 'needs', 'skills', 'rels', 'moodlets',
-  'job', 'school', 'household', 'role', 'alive', 'x', 'z', 'dir', 'onLot', 'preg', 'crib', 'pension', 'novel', 'painting', 'bornDay', 'extraLife', 'birthdayDue', 'deathDue', 'neglect', 'money'];
+  'job', 'school', 'household', 'role', 'alive', 'x', 'z', 'dir', 'onLot', 'preg', 'crib', 'pension', 'novel', 'painting', 'bornDay', 'extraLife', 'birthdayDue', 'deathDue', 'neglect', 'money', 'wants', 'aspire'];
 
 function simToJSON(s) {
   const o = {};

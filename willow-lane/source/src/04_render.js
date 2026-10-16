@@ -316,7 +316,8 @@ function buildNeighbourhood() {
   // street lamps
   for (let x = -40; x < 80; x += 14) for (const z of [LOT_D + 1.7, LOT_D + 9.3]) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.2, 6), mat(0x3a3e44)); pole.position.set(x, 2.1, z); S.add(pole);
-    const glowM = new THREE.MeshLambertMaterial({ color: 0xfff0c0, emissive: 0xffd890, emissiveIntensity: 0 }); R.nightGlow.push(glowM);
+    if (!R.lampGlow) { R.lampGlow = new THREE.MeshLambertMaterial({ color: 0xfff0c0, emissive: 0xffd890, emissiveIntensity: 0 }); R.nightGlow.push(R.lampGlow); }
+    const glowM = R.lampGlow;
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), glowM); head.position.set(x, 4.2, z); S.add(head);
   }
   // houses across the street and on either side
@@ -351,7 +352,8 @@ function buildHouse(x, z, r, col, seed) {
   // door and windows on the front (+z)
   const door = new THREE.Mesh(new THREE.BoxGeometry(1, 2.1, 0.1), mat(0x5a3a2a)); door.position.set(-1.5, 1.05, d / 2 + 0.03); g.add(door);
   for (const wx of [-3.8, 1.2, 3.6]) {
-    const gm = new THREE.MeshLambertMaterial({ color: 0x8ab0c8, emissive: 0xffc870, emissiveIntensity: 0 }); R.nightGlow.push(gm);
+    if (!R.winGlow) { R.winGlow = new THREE.MeshLambertMaterial({ color: 0x8ab0c8, emissive: 0xffc870, emissiveIntensity: 0 }); R.nightGlow.push(R.winGlow); }
+    const gm = R.winGlow;
     const win = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 0.08), gm); win.position.set(wx, 1.7, d / 2 + 0.03); g.add(win);
     const fr = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.3, 0.04), mat(0xf4f0e8)); fr.position.set(wx, 1.7, d / 2 + 0.01); g.add(fr);
   }

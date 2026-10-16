@@ -1,5 +1,5 @@
 // Exercise the main systems headless and report what happened
-const G = WL.G, f = WL.f, rep = {};
+const f = WL.f, rep = {};
 const hh = () => WL.sims();
 const [maya, ben, jun] = hh();
 const fridge = G.objects.find(o => o.type === 'fridge');

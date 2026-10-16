@@ -82,6 +82,11 @@
   #tabs { display: flex; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--line); }
   #tabs button { padding: 6px 12px 8px; border-radius: 12px 12px 0 0; font-weight: 800; font-size: 12px; color: var(--ink2); }
   #tabs button.on { background: #fff; color: var(--acc2); box-shadow: 0 -1px 0 var(--line) inset; }
+  #wantsBar { margin-left: auto; display: flex; gap: 4px; align-items: center; padding-bottom: 4px; }
+  .want { width: 30px; height: 30px; border-radius: 50%; background: #fff8e0; box-shadow: inset 0 0 0 1.5px #f0c860; display: grid; place-items: center; font-size: 16px; cursor: help; }
+  .asp { font: 600 13px var(--head); color: #c89a20; margin-left: 4px; white-space: nowrap; }
+  .wantsL { display: grid; gap: 4px; margin-bottom: 8px; }
+  .wantsL div { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 8px; background: #fff8e0; }
   #panelBody { flex: 1; overflow-y: auto; padding: 10px 14px; background: #fff; }
   body[data-mode="buy"] #main, body[data-mode="build"] #main { display: none; }
   body[data-mode="buy"] #panel, body[data-mode="build"] #panel { width: 168px; }
@@ -300,7 +305,7 @@
       </div>
       <div id="main">
         <div id="tabs">
-          <button data-tab="needs" class="on">Needs</button><button data-tab="mood">Mood</button><button data-tab="skills">Skills</button><button data-tab="career">Career</button><button data-tab="rels">Relationships</button>
+          <button data-tab="needs" class="on">Needs</button><button data-tab="mood">Mood</button><button data-tab="skills">Skills</button><button data-tab="career">Career</button><button data-tab="rels">Relationships</button><div id="wantsBar"></div>
         </div>
         <div id="panelBody"></div>
       </div>
@@ -621,6 +626,9 @@ const MOODLETS = {
   badDay: { label: 'Bad day at work', icon: '🌧️', mood: -10, hours: 6 },
   missedBaby: { label: 'Baby taken away', icon: '😢', mood: -40, hours: 72 },
   hotShower: { label: 'Squeaky clean', icon: '🫧', mood: 6, hours: 3 },
+  wantMet: { label: 'Wish come true', icon: '⭐', mood: 12, hours: 6 },
+  greatParty: { label: 'Great party', icon: '🎊', mood: 18, hours: 12 },
+  lameParty: { label: 'Party flopped', icon: '😬', mood: -10, hours: 8 },
 };
 
 // Willow Lane — the buy-mode catalog. Footprint w×d is in tiles; the object's front faces local +z.
@@ -707,7 +715,7 @@ const CATALOG = [
   { id: 'stereo', name: 'Boombox Stereo', cat: 'electronics', price: 300, w: 1, d: 1, room: 0, stats: { fun: 4 },
     desc: 'Put on a record and dance. Others will join in.', acts: ['dance', 'stereoOff'] },
   { id: 'phone', name: 'Wall Phone', cat: 'electronics', price: 60, w: 1, d: 1, room: 0, wall: true, noblock: true, stats: { social: 2 },
-    desc: 'Call friends, invite them over, order a pizza or ask about adoption.', acts: ['callFriend', 'invite', 'pizza', 'adopt'] },
+    desc: 'Call friends, invite them over, order a pizza or ask about adoption.', acts: ['callFriend', 'invite', 'party', 'pizza', 'adopt'] },
 
   // hobbies & skills
   { id: 'bookshelf', name: 'Oak Bookcase', cat: 'hobbies', price: 280, w: 1, d: 1, room: 1, stats: { fun: 2, room: 1 },
@@ -1096,7 +1104,8 @@ function buildNeighbourhood() {
   // street lamps
   for (let x = -40; x < 80; x += 14) for (const z of [LOT_D + 1.7, LOT_D + 9.3]) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.2, 6), mat(0x3a3e44)); pole.position.set(x, 2.1, z); S.add(pole);
-    const glowM = new THREE.MeshLambertMaterial({ color: 0xfff0c0, emissive: 0xffd890, emissiveIntensity: 0 }); R.nightGlow.push(glowM);
+    if (!R.lampGlow) { R.lampGlow = new THREE.MeshLambertMaterial({ color: 0xfff0c0, emissive: 0xffd890, emissiveIntensity: 0 }); R.nightGlow.push(R.lampGlow); }
+    const glowM = R.lampGlow;
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), glowM); head.position.set(x, 4.2, z); S.add(head);
   }
   // houses across the street and on either side
@@ -1131,7 +1140,8 @@ function buildHouse(x, z, r, col, seed) {
   // door and windows on the front (+z)
   const door = new THREE.Mesh(new THREE.BoxGeometry(1, 2.1, 0.1), mat(0x5a3a2a)); door.position.set(-1.5, 1.05, d / 2 + 0.03); g.add(door);
   for (const wx of [-3.8, 1.2, 3.6]) {
-    const gm = new THREE.MeshLambertMaterial({ color: 0x8ab0c8, emissive: 0xffc870, emissiveIntensity: 0 }); R.nightGlow.push(gm);
+    if (!R.winGlow) { R.winGlow = new THREE.MeshLambertMaterial({ color: 0x8ab0c8, emissive: 0xffc870, emissiveIntensity: 0 }); R.nightGlow.push(R.winGlow); }
+    const gm = R.winGlow;
     const win = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 0.08), gm); win.position.set(wx, 1.7, d / 2 + 0.03); g.add(win);
     const fr = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.3, 0.04), mat(0xf4f0e8)); fr.position.set(wx, 1.7, d / 2 + 0.01); g.add(fr);
   }
@@ -1385,6 +1395,10 @@ function makeTreeModel(s = 1, kind = 0) {
 function buildObjectModel(id) {
   const g = new THREE.Group();
   (MODELS[id] || MODELS.end_table)(g);
+  // leaves merge into one mesh per colour that keeps the leaf tag (for wilting)
+  const leaves = new THREE.Group(); leaves.userData.leaves = true;
+  for (const m of g.children.slice()) if (m.userData.leaf) { g.remove(m); leaves.add(m); m.userData = {}; }
+  if (leaves.children.length) { mergeStatic(leaves); leaves.children.forEach((m) => { m.userData.leaf = true; }); g.add(leaves); }
   return mergeStatic(g);
 }
 
@@ -1449,6 +1463,8 @@ function buildSimModel(s) {
     J.leg.push(hp); J.knee.push(kn);
   }
   root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+  // fewer draw calls: merge the meshes hanging directly off each joint
+  for (const g of [J.torso, J.head, J.hips, ...J.arm, ...J.elbow, ...J.leg, ...J.knee]) mergeStatic(g, true);
   // an invisible, generous click target
   const hit = new THREE.Mesh(cylGeo(0.36, 0.36, 1.8, 8), mat(0xffffff)); hit.position.y = 0.9; hit.visible = false; hit.castShadow = false; root.add(hit);
   const sc = AGES[s.age].scale;
@@ -1467,7 +1483,7 @@ function face(head, r, L) {
   }
   // a smile: half a torus whose y-scale flips to a frown when the mood sinks
   const mouth = new THREE.Mesh(new THREE.TorusGeometry(r * 0.2, r * 0.045, 5, 10, Math.PI), mat(0x8a3a3a));
-  mouth.rotation.z = Math.PI; mouth.position.set(0, -r * 0.36, r * 0.9); head.add(mouth);
+  mouth.rotation.z = Math.PI; mouth.position.set(0, -r * 0.36, r * 0.9); mouth.userData.live = true; head.add(mouth);
   head.userData.mouth = mouth;
   const nose = sph(head, r * 0.13, mat(shadeHex(L.skin, 0.94)), 0, -r * 0.1, r * 0.97, 6); nose.scale.set(0.8, 1, 0.8);
 }
@@ -1658,13 +1674,14 @@ function buildItemModel(it) {
 
 // Merge a model's static meshes into one mesh per material to save draw calls.
 // Meshes carrying userData (screens, lamp shades, swings, leaves…) and their subtrees stay separate.
-function mergeStatic(root) {
+function mergeStatic(root, shallow) {
   root.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
   const buckets = new Map(), remove = [];
   const live = (o) => { for (let p = o; p && p !== root; p = p.parent) if (Object.keys(p.userData).length) return true; return false; };
-  root.traverse((m) => {
-    if (!m.isMesh || Array.isArray(m.material) || live(m) || m.material.transparent) return;
+  const visit = shallow ? (f) => root.children.slice().forEach(f) : (f) => root.traverse(f);
+  visit((m) => {
+    if (!m.isMesh || Array.isArray(m.material) || live(m) || m.material.transparent || !m.visible) return;
     const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
     g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
     const key = m.material.uuid;
@@ -1830,7 +1847,8 @@ function buildWallGroup(o, x, z, w) {
       if (D.glass) { for (const yy of [0.7, 1.45]) { const gl = new THREE.Mesh(boxGeo(0.6, 0.55, 0.05), new THREE.MeshLambertMaterial({ color: 0xa8d0e8, transparent: true, opacity: 0.5 })); gl.position.set(0.41, yy, 0); hinge.add(gl); } }
       else for (const yy of [0.55, 1.45]) for (const ss of [-1, 1]) { const p = new THREE.Mesh(boxGeo(0.66, 0.6, 0.012), mat(shadeHex(D.color, 0.93))); p.position.set(0.41, yy, ss * 0.026); hinge.add(p); }
       const kn = new THREE.Mesh(sphGeo(0.03, 8, 6), mat(0xd8b048)); kn.position.set(0.74, 1.0, 0.04); hinge.add(kn);
-      g.userData.hinge = hinge; g.userData.open = 0;
+      g.userData.hinge = hinge; g.userData.open = 0; hinge.userData.live = true;
+      mergeStatic(hinge);
     }
   } else {
     const Wd = WINDOW[op.style] || WINDOWS[0];
@@ -1844,6 +1862,7 @@ function buildWallGroup(o, x, z, w) {
     if (!Wd.round) { const m1 = new THREE.Mesh(boxGeo(0.03, h, 0.05), frameM); m1.position.set(0, cy, 0); g.add(m1); const m2 = new THREE.Mesh(boxGeo(0.84, 0.03, 0.05), frameM); m2.position.set(0, cy, 0); g.add(m2); }
     const sill = new THREE.Mesh(boxGeo(0.96, 0.04, WALL_T + 0.12), frameM); sill.position.set(0, Wd.y0 - 0.02, 0); g.add(sill);
   }
+  if (op) mergeStatic(g, true);
   if (o === 'h') g.position.set(x + 0.5, 0, z);
   else { g.position.set(x, 0, z + 0.5); g.rotation.y = Math.PI / 2; }
   g.userData.pick = { type: 'wall', o, x, z, key: wkey(o, x, z) };
@@ -1855,7 +1874,7 @@ function rebuildLot() {
   if (!LOT.group) { LOT.group = new THREE.Group(); R.scene.add(LOT.group); }
   for (const g of LOT.wallObjs.values()) LOT.group.remove(g);
   LOT.wallObjs.clear();
-  for (const p of LOT.posts) LOT.group.remove(p);
+  if (LOT.postMesh) { LOT.group.remove(LOT.postMesh); LOT.postMesh.dispose && LOT.postMesh.dispose(); LOT.postMesh = null; }
   LOT.posts = [];
   if (LOT.floorMesh) { LOT.group.remove(LOT.floorMesh); LOT.floorMesh.geometry.dispose(); }
   // the glass materials are recreated, so drop the old ones from the night glow list
@@ -1886,19 +1905,68 @@ function rebuildLot() {
   // corner posts
   const vertex = new Set();
   for (const k of LOT.walls.keys()) { const [o, xs, zs] = k.split(':'); const x = +xs, z = +zs; if (o === 'h') { vertex.add(x + ',' + z); vertex.add(x + 1 + ',' + z); } else { vertex.add(x + ',' + z); vertex.add(x + ',' + (z + 1)); } }
-  const postM = mat(TRIM);
-  for (const v of vertex) {
-    const [x, z] = v.split(',').map(Number);
-    const p = new THREE.Mesh(boxGeo(WALL_T + 0.03, WALL_H + 0.01, WALL_T + 0.03), postM);
-    p.position.set(x, WALL_H / 2, z); p.castShadow = true; p.userData.vx = x; p.userData.vz = z;
-    LOT.group.add(p); LOT.posts.push(p);
+  // corner posts: one instanced mesh, a unit-high box scaled per post by the cutaway
+  if (vertex.size) {
+    const geo = new THREE.BoxGeometry(WALL_T + 0.03, 1, WALL_T + 0.03); geo.translate(0, 0.5, 0);
+    LOT.postMesh = new THREE.InstancedMesh(geo, mat(TRIM), vertex.size); LOT.postMesh.castShadow = true;
+    for (const v of vertex) { const [x, z] = v.split(',').map(Number); LOT.posts.push({ x, z }); }
+    LOT.group.add(LOT.postMesh);
   }
   computeRooms();
+  buildRoof();
   for (const o of G.objects) o.room = roomAt(o.x + 0.5, o.z + 0.5);
   for (const it of G.items) it.room = roomAt(it.x, it.z);
   updateRoomScores();
   LOT.dirty = false;
   LOT.cutKey = '';
+}
+
+// A hip roof over every indoor tile, shown in walls-up view. Each corner's height grows with its
+// (chessboard) distance from the outdoors, which gives ridges and hips for any floor plan.
+const ROOF_PITCH = 0.55;
+function buildRoof() {
+  if (LOT.roof) { LOT.group.remove(LOT.roof); LOT.roof.geometry.dispose(); LOT.roof = null; }
+  const VW = LOT_W + 1, VD = LOT_D + 1, dist = new Float32Array(VW * VD).fill(1e9), q = [];
+  const outside = (x, z) => !inLot(x, z) || LOT.room[tidx(x, z)] === 0;
+  for (let z = 0; z <= LOT_D; z++) for (let x = 0; x <= LOT_W; x++) {
+    if (outside(x - 1, z - 1) || outside(x, z - 1) || outside(x - 1, z) || outside(x, z)) { dist[z * VW + x] = 0; q.push(x, z); }
+  }
+  for (let i = 0; i < q.length; i += 2) {
+    const x = q[i], z = q[i + 1], d = dist[z * VW + x];
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx, nz = z + dz; if (nx < 0 || nz < 0 || nx > LOT_W || nz > LOT_D) continue;
+      if (dist[nz * VW + nx] > d + 1) { dist[nz * VW + nx] = d + 1; q.push(nx, nz); }
+    }
+  }
+  const pos = [];
+  const H = (x, z) => WALL_H + 0.02 + Math.min(dist[z * VW + x], 7) * ROOF_PITCH;
+  for (let z = 0; z < LOT_D; z++) for (let x = 0; x < LOT_W; x++) {
+    if (outside(x, z)) continue;
+    const v = [[x, z], [x + 1, z], [x + 1, z + 1], [x, z + 1]].map(([a, b]) => [a, H(a, b), b]);
+    const tri = (a, b, c) => pos.push(...v[a], ...v[b], ...v[c]);
+    // split along the diagonal with the bigger rise, so hips and valleys stay sharp
+    if (Math.abs(v[0][1] - v[2][1]) >= Math.abs(v[1][1] - v[3][1])) { tri(0, 2, 1); tri(0, 3, 2); } else { tri(0, 3, 1); tri(1, 3, 2); }
+  }
+  if (!pos.length) return;
+  // shingle rows run parallel to each face's eave: map v along the downhill direction
+  const uv = [];
+  for (let i = 0; i < pos.length; i += 9) {
+    const ax = pos[i], ay = pos[i + 1], az = pos[i + 2], bx = pos[i + 3], by = pos[i + 4], bz = pos[i + 5], cx = pos[i + 6], cy = pos[i + 7], cz = pos[i + 8];
+    const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
+    let nx = uy * vz - uz * vy, nz = ux * vy - uy * vx; const L = Math.hypot(nx, nz) || 1; nx /= L; nz /= L;
+    for (let k = 0; k < 9; k += 3) { const x = pos[i + k], z = pos[i + k + 2]; uv.push((x * -nz + z * nx) * 0.5, (x * nx + z * nz) * 1.25); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+  if (!TEX.shingle) {
+    TEX.shingle = canvasTex(64, 64, (c, w, h) => {
+      c.fillStyle = '#9a4e3c'; c.fillRect(0, 0, w, h);
+      for (let r = 0; r < 4; r++) for (let k = -1; k < 3; k++) { c.fillStyle = cssHex(shadeHex(0x9a4e3c, 0.85 + Math.random() * 0.25)); c.fillRect(k * 32 + (r % 2) * 16 + 1, r * 16, 30, 15); }
+      c.fillStyle = 'rgba(40,10,5,.45)'; for (let r = 0; r < 4; r++) c.fillRect(0, r * 16 + 14, w, 2);
+    }, true);
+    TEX.roofMat = new THREE.MeshLambertMaterial({ map: TEX.shingle });
+  }
+  LOT.roof = new THREE.Mesh(g, TEX.roofMat); LOT.roof.castShadow = true; LOT.roof.visible = false;
+  LOT.group.add(LOT.roof);
 }
 
 // Lower walls that hide the inside of a room from the camera ('cut'), or all of them ('down').
@@ -1921,13 +1989,16 @@ function updateCutaway(force) {
     g.userData.low = low;
     g.scale.y = low ? WALL_LOW / WALL_H : 1;
   }
-  for (const p of LOT.posts) {
-    const x = p.userData.vx, z = p.userData.vz;
+  const M = new THREE.Matrix4();
+  LOT.posts.forEach(({ x, z }, i) => {
     let up = false;
     for (const k of [wkey('h', x - 1, z), wkey('h', x, z), wkey('v', x, z - 1), wkey('v', x, z)]) { const g = LOT.wallObjs.get(k); if (g && !g.userData.low) up = true; }
-    p.scale.y = up ? 1 : WALL_LOW / WALL_H; p.position.y = (up ? WALL_H : WALL_LOW) / 2;
-  }
+    M.makeScale(1, (up ? WALL_H : WALL_LOW) + 0.01, 1); M.setPosition(x, 0, z);
+    LOT.postMesh.setMatrixAt(i, M);
+  });
+  if (LOT.postMesh) LOT.postMesh.instanceMatrix.needsUpdate = true;
   for (const o of G.objects) if (o.def.wall && o.model) { const g = LOT.wallObjs.get(o.wallKey); o.model.visible = !(g && g.userData.low); }
+  if (LOT.roof) LOT.roof.visible = mode === 'up' && G.mode === 'live';
 }
 const wallIsLow = (k) => { const g = LOT.wallObjs.get(k); return !!(g && g.userData.low); };
 
@@ -2447,6 +2518,7 @@ function gainSkill(s, id, minutes) {
   const need = skillNeed(sk.lv);
   if (sk.xp >= need) {
     sk.xp -= need; sk.lv++;
+    bus.emit('did', s, 'skill', { skill: id, level: sk.lv });
     if (s.household) { notify(`${s.first} reached ${SKILL[id].label} level ${sk.lv}!`, SKILL[id].icon, s); floatText(s, '+' + SKILL[id].icon, '#8af0a0'); sfx('skill'); }
   }
 }
@@ -2466,7 +2538,7 @@ function relAdd(a, b, df, dr = 0) {
   if (dr) { ra.r = clamp(ra.r + dr, 0, 100); rb.r = clamp(rb.r + dr * 0.9, 0, 100); }
   if (dr < 0) { ra.r = clamp(ra.r, 0, 100); }
   ra.met = rb.met = true;
-  if (before < 50 && ra.f >= 50 && !ra.family) { addMoodlet(a, 'newFriend'); addMoodlet(b, 'newFriend'); if (a.household || b.household) notify(`${a.first} and ${b.first} are now friends.`, '🤝', a.household ? a : b); }
+  if (before < 50 && ra.f >= 50 && !ra.family) { addMoodlet(a, 'newFriend'); addMoodlet(b, 'newFriend'); bus.emit('did', a, 'friend', { target: b }); bus.emit('did', b, 'friend', { target: a }); if (a.household || b.household) notify(`${a.first} and ${b.first} are now friends.`, '🤝', a.household ? a : b); }
   if (before > -50 && ra.f <= -50 && (a.household || b.household)) notify(`${a.first} and ${b.first} have become enemies.`, '😠', a.household ? a : b);
 }
 function relLabel(a, b) {
@@ -2516,6 +2588,7 @@ function simPortrait(s) {
 function syncSimModel(s) {
   const m = s.model; if (!m) return;
   m.visible = s.onLot && !s.away && s.alive;
+  if (!m.visible) return;
   m.position.set(s.x, s.y || 0, s.z);
   m.rotation.y = s.dir;
   poseSim(m, s.anim, s.animT, { talk: s.talking, mood: s.mood, seatH: s.seatH });
@@ -2578,9 +2651,12 @@ function tickActions(s, dt) {
     try { r = act.it.next(dt); } catch (e) { console.error('action', act.id, e); r = { done: true }; }
     act.running = false;
     if (s.cur !== act) { s.queue = s.queue.filter((a) => a !== act); return; } // stopped from inside
+    // long activities count as done (for wants) once they've gone on a while
+    if (!act.didEmit && !r.done && G.t - act.t0 > 15 && !act.cancel) { act.didEmit = true; bus.emit('did', s, 'ix', { id: act.id, target: act.target }); }
     if (r.done) {
       const done = s.cur;
       if (!done.user && G.t - done.t0 < 0.6) noteFailed(s, done);
+      if (!done.didEmit && !done.cancel && G.t - done.t0 > 1.5) bus.emit('did', s, 'ix', { id: done.id, target: done.target });
       s.queue = s.queue.filter((a) => a !== done);
       s.cur = null; s.busy = false; s.talking = false;
       if (s.posture === 'stand' && !s.path) s.anim = 'idle';
@@ -3296,6 +3372,25 @@ IX.invite = {
     else notify(`${p.first} can’t come over right now.`, '📵', s);
   },
 };
+IX.party = {
+  label: 'Throw a party ($150)', icon: '🎊',
+  test: (s) => (!isGrown(s) || !s.household ? false : G.flags.party ? 'A party is already on' : !moneyOK(150) ? 'Costs $150 for food and drinks' : !hourIn(hourF(), 10, 21) ? 'Too late to throw a party' : knownSims(s).length < 2 ? 'Get to know some neighbours first' : true),
+  run: function* (s, o, act) {
+    if (!(yield* goStand(s, act, o))) return;
+    sfx('dial'); yield* wait(s, act, 1.5, 'phone'); s.talking = true;
+    yield* wait(s, act, 6, 'phone', (dt) => { if (chance(dt * 0.3)) babble(s, 0.6); }); s.talking = false; leaveSeat(s);
+    spend(150);
+    const until = Math.min(G.t + 330, Math.floor(G.t / 1440) * 1440 + 26 * 60);
+    G.flags.party = { start: G.t, until, host: s.id };
+    const guests = knownSims(s).filter((p) => !p.onLot).slice(0, 5);
+    for (const p of rshuffle(G.sims.filter((p) => !p.household && !p.service && p.alive && !p.onLot && !guests.includes(p)))) { if (guests.length >= 7) break; if (chance(0.5)) guests.push(p); }
+    guests.forEach((p) => scheduleVisit(p, G.t + rint(15, 70), s, true));
+    const spot = surfaceSpotNear(s.x, s.z, 12) || surfaceSpotNear(s.x, s.z, 40);
+    if (spot) addItem('meal', spot.x, spot.z, spot.y, { servings: 10, quality: 65, food: 0xd89a40 });
+    const st = G.objects.find((x) => x.type === 'stereo'); if (st) { st.on = true; music.stereo(true); }
+    notify(`${s.first} is throwing a party! ${guests.length} guests are on their way.`, '🎊', s, true);
+  },
+};
 IX.pizza = {
   label: 'Order pizza ($40)', icon: '🍕', test: (s) => (!canAdult(s) ? 'Too young' : !moneyOK(40) ? 'Not enough money' : G.flags.pizzaComing ? 'Already on its way' : true),
   run: function* (s, o, act) {
@@ -3648,6 +3743,8 @@ IX.social = {
       if (def.romantic) addMoodlet(a, 'rejected');
       if (def.onLose) def.onLose(a, b);
     }
+    bus.emit('did', a, 'social', { id, target: b, win });
+    bus.emit('did', b, 'social', { id, target: a, win });
     yield* wait(a, act, 2.5, a.anim);
     bAct.cancel = true;
     a.anim = 'idle';
@@ -3672,6 +3769,7 @@ IX.beSocial = {
 function wedding(a, b) {
   setPartners(a, b, 'spouse');
   addMoodlet(a, 'married'); addMoodlet(b, 'married');
+  bus.emit('did', a, 'married', { target: b }); bus.emit('did', b, 'married', { target: a });
   G.stats.weddings++;
   sfx('fanfare'); confetti(a.x, 2, a.z); confetti(b.x, 2.2, b.z);
   for (const o of onLotSims()) if (o !== a && o !== b && o.age !== 'baby' && !o.sleeping && Math.hypot(o.x - a.x, o.z - a.z) < 12) { if (!o.cur || !o.cur.user) { cancelAll(o, false); queueAct(o, 'cheerFor', a, null, false, true); } }
@@ -3712,7 +3810,7 @@ function giveBirth(s) {
   if (s.model && s.model.userData.J && s.model.userData.J.belly) s.model.userData.J.belly.visible = false;
   const baby = makeBaby(s, other);
   notify(`${s.first} had a baby! Welcome, ${baby.first}! 👶`, '👶', baby, true);
-  for (const p of [s, other]) if (p) addMoodlet(p, 'newBaby');
+  for (const p of [s, other]) if (p) { addMoodlet(p, 'newBaby'); bus.emit('did', p, 'baby', { baby }); }
   sfx('fanfare');
   bus.emit('household');
 }
@@ -3941,6 +4039,94 @@ function idleWander(s) {
   queueAct(s, 'goHere', { x: x + 0.5, z: z + 0.5 }, null, false);
 }
 
+// Willow Lane — wants: every household sim keeps three small wishes drawn from who they are and what's going on.
+// Making one come true lifts their mood and adds aspiration points. Game code reports what happened with
+// bus.emit('did', sim, kind, data); kinds: ix, social, friend, skill, job, promoted, buy, married, baby, grade, party.
+
+const WANTS = [
+  { id: 'chatWith', icon: '💬', w: 3, gen: (s) => { const o = knownOnLot(s, (x) => relGet(s, x).f > -10); return o ? o.id : (knownAny(s) || {}).id; },
+    label: (s, a) => 'Chat with ' + nameOf(a), done: (k, d, a) => k === 'social' && d.win && d.target.id === a && !SOCIAL[d.id].mean },
+  { id: 'newFriend', icon: '🤝', w: 2, gen: (s) => s.age !== 'baby' && true, label: () => 'Make a new friend', done: (k) => k === 'friend' },
+  { id: 'hugFamily', icon: '🤗', w: 2, gen: (s) => { const f = household().find((h) => h !== s && h.age !== 'baby' && isFamily(s, h)); return f ? f.id : null; },
+    label: (s, a) => 'Hug ' + nameOf(a), done: (k, d, a) => k === 'social' && d.win && d.id === 'hug' && d.target.id === a },
+  { id: 'kiss', icon: '💋', w: 3, gen: (s) => { const p = partnerOf(s); return p && p.household ? p.id : null; },
+    label: (s, a) => 'Kiss ' + nameOf(a), done: (k, d, a) => k === 'social' && d.win && (d.id === 'kiss' || d.id === 'slowDance') && d.target.id === a },
+  { id: 'goSteady', icon: '💞', w: 2, gen: (s) => (romanceGroup(s) && !partnerOf(s) ? true : null), label: () => 'Go steady with someone', done: (k, d) => k === 'social' && d.win && d.id === 'goSteady' },
+  { id: 'propose', icon: '💍', w: 2, gen: (s) => { const p = partnerOf(s); return p && isGrown(s) && relGet(s, p).partner ? p.id : null; },
+    label: (s, a) => 'Propose to ' + nameOf(a), done: (k, d, a) => k === 'social' && d.win && d.id === 'propose' && d.target.id === a },
+  { id: 'marry', icon: '💒', w: 3, gen: (s) => { const p = partnerOf(s); return p && relGet(s, p).engaged ? p.id : null; }, label: (s, a) => 'Marry ' + nameOf(a), done: (k) => k === 'married' },
+  { id: 'baby', icon: '👶', w: 2, gen: (s) => (isGrown(s) && s.age !== 'elder' && partnerOf(s) && relGet(s, partnerOf(s)).spouse && household().length < 7 ? true : null), label: () => 'Have a baby', done: (k) => k === 'baby' },
+  { id: 'skill', icon: '📈', w: 4, gen: (s) => { if (s.age === 'baby') return null; const k = wantedSkill(s); return k ? k + ':' + (skillLv(s, k) + 1) : null; },
+    label: (s, a) => { const [k, n] = a.split(':'); return `Reach ${SKILL[k].label} ${n}`; }, done: (k, d, a) => { const [sk, n] = a.split(':'); return k === 'skill' && d.skill === sk && d.level >= +n; } },
+  { id: 'getJob', icon: '💼', w: 5, gen: (s) => (isGrown(s) && s.age !== 'elder' && !s.job ? true : null), label: () => 'Find a job', done: (k) => k === 'job' },
+  { id: 'promotion', icon: '🎉', w: 3, gen: (s) => (s.job && CAREER[s.job.track].levels[s.job.level + 1] ? true : null), label: () => 'Get promoted', done: (k) => k === 'promoted' },
+  { id: 'aGrade', icon: '📝', w: 3, gen: (s) => (s.school && s.school.grade < 11 ? true : null), label: () => 'Get an A at school', done: (k, d) => k === 'grade' && d.grade >= 11 },
+  { id: 'homework', icon: '📚', w: 2, gen: (s) => (s.school ? true : null), label: () => 'Do homework', done: (k, d) => k === 'ix' && d.id === 'homework' },
+  { id: 'buy', icon: '🛍️', w: 3, gen: (s) => { if (s.age === 'baby') return null; const c = rpick(CATALOG.filter((c) => !c.fixed && !c.hidden && c.price >= 80 && c.price <= Math.max(300, G.money * 0.5) && !G.objects.some((o) => o.type === c.id) && c.cat !== 'kitchen' && c.cat !== 'bath' && wantTaste(s, c))); return c ? c.id : null; },
+    label: (s, a) => 'Buy a ' + CAT[a].name.toLowerCase().replace(/^(a|an|the) /, ''), done: (k, d, a) => k === 'buy' && d.type === a },
+  { id: 'do', icon: '✨', w: 5, gen: (s) => { const ids = availableFun(s); return ids.length ? rpick(ids) : null; },
+    label: (s, a) => IX[a] ? (typeof IX[a].label === 'function' ? IX[a].label(s, G.objects.find((o) => o.def.acts.includes(a)) || {}) : IX[a].label) : a, iconOf: (a) => (IX[a] ? IX[a].icon : '✨'), done: (k, d, a) => k === 'ix' && d.id === a },
+  { id: 'meal', icon: '🍲', w: 2, gen: (s) => (s.age !== 'baby' ? true : null), label: () => 'Eat a home-cooked meal', done: (k, d) => k === 'ix' && (d.id === 'serving' || d.id === 'cookMeal') },
+  { id: 'party', icon: '🎊', w: 2, gen: (s) => (isGrown(s) && s.pers.outgoing >= 6 && G.objects.some((o) => o.type === 'phone') ? true : null), label: () => 'Throw a party', done: (k, d) => k === 'party' && d.hit },
+];
+const WANT = Object.fromEntries(WANTS.map((w) => [w.id, w]));
+const nameOf = (id) => { const s = simById(id); return s ? s.first : 'someone'; };
+const knownOnLot = (s, f) => rpick(onLotSims().filter((o) => o !== s && !o.service && o.age !== 'baby' && relGet(s, o).met && f(o)));
+const knownAny = (s) => rpick(G.sims.filter((o) => o !== s && o.alive && !o.service && o.age !== 'baby' && relGet(s, o).met));
+function wantedSkill(s) {
+  const w = {};
+  for (const k of SKILLS) w[k.id] = 1;
+  if (s.job) { const N = CAREER[s.job.track].levels[s.job.level + 1]; if (N) for (const k in N[4]) if (skillLv(s, k) < N[4][k]) w[k] += 6; }
+  w.body += s.pers.active * 0.4; w.charisma += s.pers.outgoing * 0.4; w.creativity += s.pers.playful * 0.4; w.logic += (10 - s.pers.playful) * 0.4; w.cooking += s.pers.neat * 0.2;
+  const opts = SKILLS.filter((k) => skillLv(s, k.id) < 10);
+  return opts.length ? rweighted(opts, (k) => w[k.id]).id : null;
+}
+// personality flavours the shopping list
+function wantTaste(s, c) {
+  if (c.cat === 'kids') return s.age === 'child' || (isGrown(s) && household().some((h) => h.age === 'child' || h.age === 'baby'));
+  if (c.cat === 'hobbies') return true;
+  if (c.cat === 'electronics') return s.pers.playful >= 4 || s.age !== 'elder';
+  if (c.cat === 'decor' || c.cat === 'lighting') return s.pers.neat >= 4 || chance(0.5);
+  return true;
+}
+const FUN_IX = ['watchTV', 'dance', 'chess', 'paint', 'piano', 'stargaze', 'playGames', 'chatOnline', 'read', 'bath', 'swing', 'playToys', 'playDollhouse', 'workout', 'watchFish', 'writeNovel', 'practiceSpeech', 'nap'];
+function availableFun(s) {
+  const out = new Set();
+  for (const o of G.objects) for (const id of o.def.acts) if (FUN_IX.includes(id) && IX[id] && (!IX[id].test || IX[id].test(s, o) === true || id === 'stargaze')) out.add(id);
+  return [...out];
+}
+
+function topUpWants(s) {
+  if (!s.household || s.age === 'baby' || !s.alive) return;
+  s.wants = (s.wants || []).filter((w) => G.t < w.until && WANT[w.id]);
+  let guard = 0;
+  while (s.wants.length < 3 && guard++ < 20) {
+    const def = rweighted(WANTS.filter((d) => !s.wants.some((w) => w.id === d.id)), (d) => d.w);
+    if (!def) break;
+    const arg = def.gen(s);
+    if (arg == null || arg === false) continue;
+    s.wants.push({ id: def.id, arg, until: G.t + rint(18, 30) * 60 });
+  }
+}
+const wantLabel = (s, w) => WANT[w.id].label(s, w.arg);
+const wantIcon = (w) => (WANT[w.id].iconOf ? WANT[w.id].iconOf(w.arg) : WANT[w.id].icon);
+bus.on('did', (s, kind, data) => {
+  if (!s || !s.household || !s.wants) return;
+  for (const w of s.wants.slice()) {
+    let ok = false;
+    try { ok = WANT[w.id].done(kind, data || {}, w.arg); } catch (e) { ok = false; }
+    if (!ok) continue;
+    s.wants = s.wants.filter((x) => x !== w);
+    const pts = 20 + WANT[w.id].w * 0 + (['marry', 'baby', 'promotion', 'propose', 'goSteady'].includes(w.id) ? 40 : 0);
+    s.aspire = (s.aspire || 0) + pts;
+    addMoodlet(s, 'wantMet');
+    floatText(s, '★ +' + pts, '#ffd860');
+    thought(s, wantIcon(w), 2, 'Wish come true!');
+    sfx('skill');
+    if (G.selected === s) renderPanel();
+  }
+});
+
 // Willow Lane — the world around the household: careers & carpools, school bus, visitors and walk-bys,
 // bills and the repo man, pizza delivery, the adoption agency, fires, accidents and the daily clock.
 
@@ -4004,6 +4190,7 @@ function meetsReq(s, job, level) {
 function takeJob(s, track) {
   s.job = { track, level: 0, perf: 0, missed: 0 };
   const L = careerLevel(s.job);
+  bus.emit('did', s, 'job', { track });
   notify(`${s.first} joined the ${CAREER[track].label} career as a ${L.title}. Work is ${L.start}:00–${(L.start + L.hours) % 24}:00 on weekdays, ${fmtMoney(L.pay)} a day.`, CAREER[track].icon, s, true);
   bus.emit('household');
 }
@@ -4110,7 +4297,7 @@ function returnHome(s) {
       s.job.level++; s.job.perf = 10; G.stats.promotions++;
       const NL = careerLevel(s.job);
       notify(`${s.first} was promoted to ${NL.title}! The pay is now ${fmtMoney(NL.pay)} a day, ${NL.start}:00–${(NL.start + NL.hours) % 24}:00.`, '🎉', s, true);
-      addMoodlet(s, 'promoted'); sfx('fanfare'); confetti(s.x, 2, s.z);
+      addMoodlet(s, 'promoted'); sfx('fanfare'); confetti(s.x, 2, s.z); bus.emit('did', s, 'promoted', {});
     } else if (s.job.perf <= -80) {
       notify(`${s.first} was fired for poor performance.`, '📉', s, true); addMoodlet(s, 'fired'); s.job = null;
     } else floatText(s, '+' + fmtMoney(L.pay), '#8af0a0');
@@ -4120,6 +4307,7 @@ function returnHome(s) {
     s.school.perf = 0;
     s.school.grade = clamp(s.school.grade + delta, 0, 12);
     s.school.homework = true;
+    bus.emit('did', s, 'grade', { grade: s.school.grade });
     if (s.school.grade !== before) notify(`${s.first}’s grade went ${s.school.grade > before ? 'up' : 'down'} to ${GRADES[s.school.grade]}.`, s.school.grade > before ? '📈' : '📉', s);
     if (s.school.grade >= 11 && before < 11) { addMoodlet(s, 'goodGrades'); earn(100, s); notify(`${s.first}’s grandparents sent ${fmtMoney(100)} for the A on the report card.`, '💌', s); }
     addNeeds(s, { social: 15 }, 60);
@@ -4135,11 +4323,11 @@ function spawnAtEdge(s) {
   for (const n of NEEDS) s.needs[n.id] = Math.max(s.needs[n.id], rrange(55, 90));
   if (!s.model) makeSimModel(s); else s.model.visible = true;
 }
-function scheduleVisit(p, t, host) { G.flags.visits = G.flags.visits || []; G.flags.visits.push({ id: p.id, t, host: host ? host.id : 0, invited: true }); }
-function startVisit(p, kind, invited) {
+function scheduleVisit(p, t, host, party) { G.flags.visits = G.flags.visits || []; G.flags.visits.push({ id: p.id, t, host: host ? host.id : 0, invited: true, party: !!party }); }
+function startVisit(p, kind, invited, party) {
   if (p.onLot || !p.alive || p.household) return;
   spawnAtEdge(p);
-  p.visit = { state: kind === 'pass' ? 'passing' : 'coming', since: G.t, until: G.t + rint(150, 300), invited };
+  p.visit = { state: kind === 'pass' ? 'passing' : 'coming', since: G.t, until: party && G.flags.party ? G.flags.party.until : G.t + rint(150, 300), invited, party };
   if (kind === 'pass') queueAct(p, 'walkBy', null, null, false);
   else queueAct(p, 'visitDoor', null, null, false);
 }
@@ -4189,7 +4377,7 @@ function despawn(s) {
 function tickVisitors() {
   const h = hourF();
   // scheduled visits (invites)
-  if (G.flags.visits) for (const v of G.flags.visits.slice()) if (G.t >= v.t) { G.flags.visits = G.flags.visits.filter((x) => x !== v); const p = simById(v.id); if (p) startVisit(p, 'visit', true); }
+  if (G.flags.visits) for (const v of G.flags.visits.slice()) if (G.t >= v.t) { G.flags.visits = G.flags.visits.filter((x) => x !== v); const p = simById(v.id); if (p) startVisit(p, 'visit', v.invited, v.party); }
   // walk-bys and drop-ins during the day
   if (hourIn(h, 8, 20) && chance(1 / 110)) {
     const free = G.sims.filter((p) => p.alive && !p.household && !p.service && !p.onLot);
@@ -4209,7 +4397,7 @@ function tickVisitors() {
   for (const s of G.sims) {
     if (!s.onLot || s.household || !s.visit) continue;
     if (s.visit.state === 'in') {
-      const late = hourF() >= 23.5 || hourF() < 6;
+      const late = (hourF() >= 23.5 || hourF() < 6) && !(s.visit.party && G.flags.party);
       if ((G.t >= s.visit.until || late || calcMood(s) < -45 || s.needs.energy < 12) && !s.leaving) {
         if (s.cur && s.cur.id === 'beSocial') continue;
         cancelAll(s, false); queueAct(s, 'leaveLot', null, null, false, true);
@@ -4217,6 +4405,18 @@ function tickVisitors() {
       }
     } else if (s.visit.state === 'door' && G.t >= s.visit.until && !s.leaving) { cancelAll(s, false); queueAct(s, 'leaveLot', null, null, false, true); }
   }
+}
+
+// ---------- parties ----------
+function tickParty() {
+  const P = G.flags.party; if (!P || G.t < P.until) return;
+  G.flags.party = null;
+  const guests = G.sims.filter((s) => s.onLot && s.visit && s.visit.party);
+  const mood = guests.length ? guests.reduce((a, s) => a + calcMood(s), 0) / guests.length : -50;
+  const hit = guests.length >= 3 && mood > 20;
+  for (const h of household()) if (h.onLot && h.age !== 'baby') { addMoodlet(h, hit ? 'greatParty' : 'lameParty'); bus.emit('did', h, 'party', { hit }); }
+  for (const g of guests) { g.visit.until = G.t; g.visit.party = false; for (const h of household()) relAdd(g, h, hit ? 6 : -3); }
+  notify(hit ? 'The party was a hit! Everyone had a great time.' : guests.length < 3 ? 'Hardly anyone came to the party…' : 'The party fizzled out. Better music next time?', hit ? '🎊' : '😬', simById(P.host), true);
 }
 
 // ---------- service visits: pizza, adoption, social worker, repo ----------
@@ -4263,7 +4463,7 @@ IX.serviceDoor = { label: 'Working', icon: '🧾', keep: true, run: function* (s
     const by = simById(G.flags.adoptBy) || household().find(isGrown);
     const baby = makeBaby(by, partnerOf(by) && partnerOf(by).household ? partnerOf(by) : null, true);
     notify(`The agency brought ${baby.first} home. Welcome to the family!`, '🍼', baby, true);
-    for (const p of household()) if (isGrown(p)) addMoodlet(p, 'newBaby');
+    for (const p of household()) if (isGrown(p)) { addMoodlet(p, 'newBaby'); bus.emit('did', p, 'baby', { baby }); }
     bus.emit('household');
   } else if (s.service === 'social') {
     sfx('doorbell'); yield* wait(s, act, 8, 'talk');
@@ -4632,6 +4832,7 @@ function placePointer(type, p, ev) {
     } else {
       spend(price);
       placeObject(id, x, z, r);
+      for (const h of household()) bus.emit('did', h, 'buy', { type: id });
       updateCutaway(true);
       sfx('place');
       if (!ev.shiftKey) { clearGhost(); BUILD.tool = 'hand'; BUILD.item = null; bus.emit('tool'); }
@@ -4646,6 +4847,7 @@ function handPointer(type, p, ev) {
   BUILD.hover = o;
   if (type === 'down' && ev.button === 0 && !o.def.fixed) {
     if (Object.keys(o.users).length) { toast('Someone is using that'); sfx('error'); return; }
+    if (o.type === 'crib' && babyIn(o)) { toast('A baby sleeps here'); sfx('error'); return; }
     BUILD.moving = o; o.model.visible = false; BUILD.rot = o.r; BUILD.item = o.type;
     // free its tiles while it's held
     OCC.fill(0); for (const x of G.objects) if (x !== o && blocks(x.def)) for (const [tx, tz] of objTiles(x)) if (inLot(tx, tz)) OCC[tidx(tx, tz)] = x.id;
@@ -4655,6 +4857,7 @@ function handPointer(type, p, ev) {
 function sellHeld() {
   const o = BUILD.moving || (BUILD.tool === 'hand' ? BUILD.hover : null);
   if (!o || o.def.fixed) return;
+  if (o.type === 'crib' && babyIn(o)) { toast('A baby sleeps here'); sfx('error'); return; }
   pushUndo();
   earn(sellValue(o));
   if (BUILD.moving) { BUILD.moving = null; if (BUILD.ghost) { R.scene.remove(BUILD.ghost); BUILD.ghost = null; } }
@@ -4754,7 +4957,8 @@ function cycleWalls() { G.walls = G.walls === 'up' ? 'cut' : G.walls === 'cut' ?
 // ---------- top/bottom bar ----------
 function renderMoney() { $('#money').textContent = fmtMoney(G.money); }
 function renderClock() {
-  $('#clock').innerHTML = `<b>${fmtClock()}</b><span>${DAYS[weekday()]} · Day ${dayNum()}</span>`;
+  const h = `<b>${fmtClock()}</b><span>${DAYS[weekday()]} · Day ${dayNum()}</span>`;
+  if (h !== UI.clockH) { UI.clockH = h; $('#clock').innerHTML = h; }
 }
 function renderFamily() {
   const hh = household();
@@ -4774,15 +4978,17 @@ function renderPanel() {
   const s = G.selected, body = $('#panelBody');
   for (const b of $$('#tabs [data-tab]')) b.classList.toggle('on', b.dataset.tab === UI.tab);
   if (G.mode !== 'live') return;
-  if (!s) { body.innerHTML = ''; $('#who').innerHTML = ''; return; }
+  if (!s) { body.innerHTML = ''; $('#who').innerHTML = ''; $('#wantsBar').innerHTML = ''; return; }
   calcMood(s);
+  $('#wantsBar').innerHTML = (s.wants || []).map((w) => `<span class="want" title="Wants to: ${esc(wantLabel(s, w))}">${wantIcon(w)}</span>`).join('') + (s.age !== 'baby' ? `<span class="asp" title="Aspiration points from wishes come true">★ ${s.aspire || 0}</span>` : '');
   $('#who').innerHTML = `<img src="${simPortrait(s)}" alt=""><div><b>${esc(fullName(s))}</b><span>${AGES[s.age].label} · ${SIGN[s.sign].icon} ${SIGN[s.sign].label}</span><span class="mood" style="color:${cssHex(moodColor(s.mood))}">${moodLabel(s.mood)}</span></div>`;
   let h = '';
   if (UI.tab === 'needs') {
     h = '<div class="needs">' + NEEDS.map((n) => (s.age === 'baby' && (n.id === 'bladder' || n.id === 'comfort' || n.id === 'room') ? '' : `<div class="need"><span>${n.icon} ${n.label}</span>${bar(s.needs[n.id])}</div>`)).join('') + '</div>';
   } else if (UI.tab === 'mood') {
     const ml = s.moodlets.map((m) => { const d = MOODLETS[m.id]; const left = Math.max(0, Math.ceil((m.until - G.t) / 60)); return `<div class="ml ${d.mood > 0 ? 'pos' : 'neg'}" title="${left} h left">${d.icon} ${d.label} <b>${d.mood > 0 ? '+' : ''}${d.mood}</b></div>`; }).join('') || '<div class="dim small">No moodlets right now.</div>';
-    h = `<div class="cols"><div><div class="moodbig"><div class="mm"><i style="left:${(s.mood + 100) / 2}%"></i></div><span>${moodLabel(s.mood)}</span></div>${ml}</div>
+    const wl = (s.wants || []).map((w) => `<div>${wantIcon(w)} ${esc(wantLabel(s, w))}</div>`).join('');
+    h = `<div class="cols"><div>${wl ? `<div class="wantsL"><b class="small dim">WANTS</b>${wl}</div>` : ''}<div class="moodbig"><div class="mm"><i style="left:${(s.mood + 100) / 2}%"></i></div><span>${moodLabel(s.mood)}</span></div>${ml}</div>
       <div>${TRAITS.map((t) => `<div class="trait" title="${esc(t.tip)}"><span>${t.lo}</span><div class="pips">${pips(s.pers[t.id])}</div><span>${t.hi}</span></div>`).join('')}
       <div class="ints">${s.interests.map((i) => `<span class="chip">${INTEREST[i].icon} ${INTEREST[i].label}</span>`).join('')}</div>
       ${s.household ? `<button class="mini" id="renameBtn">✏️ Rename</button>` : ''}</div></div>`;
@@ -5661,7 +5867,7 @@ const music = (() => {
 
 const SAVE_KEY = 'willow-lane.save';
 const SIM_KEYS = ['id', 'first', 'last', 'age', 'ageDays', 'pronoun', 'look', 'canCarry', 'voice', 'pers', 'interests', 'sign', 'needs', 'skills', 'rels', 'moodlets',
-  'job', 'school', 'household', 'role', 'alive', 'x', 'z', 'dir', 'onLot', 'preg', 'crib', 'pension', 'novel', 'painting', 'bornDay', 'extraLife', 'birthdayDue', 'deathDue', 'neglect', 'money'];
+  'job', 'school', 'household', 'role', 'alive', 'x', 'z', 'dir', 'onLot', 'preg', 'crib', 'pension', 'novel', 'painting', 'bornDay', 'extraLife', 'birthdayDue', 'deathDue', 'neglect', 'money', 'wants', 'aspire'];
 
 function simToJSON(s) {
   const o = {};
@@ -5736,7 +5942,7 @@ function resetWorld() {
 
 function init() {
   initRender();
-  R.gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.12), new THREE.MeshLambertMaterial({ color: 0x40e060, emissive: 0x40e060, emissiveIntensity: 0.45 }));
+  R.gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.15), new THREE.MeshLambertMaterial({ color: 0x40e060, emissive: 0x40e060, emissiveIntensity: 0.45 }));
   R.gem.scale.y = 1.7; R.scene.add(R.gem);
   initUI(); initMenu(); initInput();
   const unlock = () => { audioInit(); };
@@ -5817,11 +6023,16 @@ function simulate(dtMin) {
 }
 function everyMinute() {
   tickObjects(1);
-  for (const s of G.sims) if (s.alive) { expireMoodlets(s); if (s.household) { tickPregnancy(s); calcMood(s); } if (s.onLot) calcMood(s); }
+  for (const s of G.sims) if (s.alive) { expireMoodlets(s); if (s.household) { tickPregnancy(s); calcMood(s); topUpWants(s); } if (s.onLot) calcMood(s); }
+  tickParty();
   checkSchedules(); tickReturns(); tickVisitors(); tickServices(); tickBills(); tickFires(); tickDaily();
   if (Math.floor(G.t) % 10 === 0) updateRoomScores();
   // lone thoughts about whatever's bothering a sim
-  for (const s of household()) if (s.onLot && !s.away && s.age !== 'baby' && chance(0.02)) { const n = lowestNeed(s); if (n && s.needs[n.id] < 30) thought(s, n.icon, 2.5); }
+  for (const s of household()) if (s.onLot && !s.away && s.age !== 'baby' && chance(0.02)) {
+    const n = lowestNeed(s);
+    if (n && s.needs[n.id] < 30) thought(s, n.icon, 2.5);
+    else if (s.wants && s.wants.length && !s.sleeping && chance(0.4)) thought(s, wantIcon(rpick(s.wants)), 2.2);
+  }
 }
 function tickBaby(s, dt) {
   const crib = objById(s.crib);

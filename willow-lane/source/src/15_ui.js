@@ -58,7 +58,8 @@ function cycleWalls() { G.walls = G.walls === 'up' ? 'cut' : G.walls === 'cut' ?
 // ---------- top/bottom bar ----------
 function renderMoney() { $('#money').textContent = fmtMoney(G.money); }
 function renderClock() {
-  $('#clock').innerHTML = `<b>${fmtClock()}</b><span>${DAYS[weekday()]} · Day ${dayNum()}</span>`;
+  const h = `<b>${fmtClock()}</b><span>${DAYS[weekday()]} · Day ${dayNum()}</span>`;
+  if (h !== UI.clockH) { UI.clockH = h; $('#clock').innerHTML = h; }
 }
 function renderFamily() {
   const hh = household();
@@ -78,15 +79,17 @@ function renderPanel() {
   const s = G.selected, body = $('#panelBody');
   for (const b of $$('#tabs [data-tab]')) b.classList.toggle('on', b.dataset.tab === UI.tab);
   if (G.mode !== 'live') return;
-  if (!s) { body.innerHTML = ''; $('#who').innerHTML = ''; return; }
+  if (!s) { body.innerHTML = ''; $('#who').innerHTML = ''; $('#wantsBar').innerHTML = ''; return; }
   calcMood(s);
+  $('#wantsBar').innerHTML = (s.wants || []).map((w) => `<span class="want" title="Wants to: ${esc(wantLabel(s, w))}">${wantIcon(w)}</span>`).join('') + (s.age !== 'baby' ? `<span class="asp" title="Aspiration points from wishes come true">★ ${s.aspire || 0}</span>` : '');
   $('#who').innerHTML = `<img src="${simPortrait(s)}" alt=""><div><b>${esc(fullName(s))}</b><span>${AGES[s.age].label} · ${SIGN[s.sign].icon} ${SIGN[s.sign].label}</span><span class="mood" style="color:${cssHex(moodColor(s.mood))}">${moodLabel(s.mood)}</span></div>`;
   let h = '';
   if (UI.tab === 'needs') {
     h = '<div class="needs">' + NEEDS.map((n) => (s.age === 'baby' && (n.id === 'bladder' || n.id === 'comfort' || n.id === 'room') ? '' : `<div class="need"><span>${n.icon} ${n.label}</span>${bar(s.needs[n.id])}</div>`)).join('') + '</div>';
   } else if (UI.tab === 'mood') {
     const ml = s.moodlets.map((m) => { const d = MOODLETS[m.id]; const left = Math.max(0, Math.ceil((m.until - G.t) / 60)); return `<div class="ml ${d.mood > 0 ? 'pos' : 'neg'}" title="${left} h left">${d.icon} ${d.label} <b>${d.mood > 0 ? '+' : ''}${d.mood}</b></div>`; }).join('') || '<div class="dim small">No moodlets right now.</div>';
-    h = `<div class="cols"><div><div class="moodbig"><div class="mm"><i style="left:${(s.mood + 100) / 2}%"></i></div><span>${moodLabel(s.mood)}</span></div>${ml}</div>
+    const wl = (s.wants || []).map((w) => `<div>${wantIcon(w)} ${esc(wantLabel(s, w))}</div>`).join('');
+    h = `<div class="cols"><div>${wl ? `<div class="wantsL"><b class="small dim">WANTS</b>${wl}</div>` : ''}<div class="moodbig"><div class="mm"><i style="left:${(s.mood + 100) / 2}%"></i></div><span>${moodLabel(s.mood)}</span></div>${ml}</div>
       <div>${TRAITS.map((t) => `<div class="trait" title="${esc(t.tip)}"><span>${t.lo}</span><div class="pips">${pips(s.pers[t.id])}</div><span>${t.hi}</span></div>`).join('')}
       <div class="ints">${s.interests.map((i) => `<span class="chip">${INTEREST[i].icon} ${INTEREST[i].label}</span>`).join('')}</div>
       ${s.household ? `<button class="mini" id="renameBtn">✏️ Rename</button>` : ''}</div></div>`;

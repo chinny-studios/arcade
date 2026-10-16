@@ -135,7 +135,8 @@ function buildWallGroup(o, x, z, w) {
       if (D.glass) { for (const yy of [0.7, 1.45]) { const gl = new THREE.Mesh(boxGeo(0.6, 0.55, 0.05), new THREE.MeshLambertMaterial({ color: 0xa8d0e8, transparent: true, opacity: 0.5 })); gl.position.set(0.41, yy, 0); hinge.add(gl); } }
       else for (const yy of [0.55, 1.45]) for (const ss of [-1, 1]) { const p = new THREE.Mesh(boxGeo(0.66, 0.6, 0.012), mat(shadeHex(D.color, 0.93))); p.position.set(0.41, yy, ss * 0.026); hinge.add(p); }
       const kn = new THREE.Mesh(sphGeo(0.03, 8, 6), mat(0xd8b048)); kn.position.set(0.74, 1.0, 0.04); hinge.add(kn);
-      g.userData.hinge = hinge; g.userData.open = 0;
+      g.userData.hinge = hinge; g.userData.open = 0; hinge.userData.live = true;
+      mergeStatic(hinge);
     }
   } else {
     const Wd = WINDOW[op.style] || WINDOWS[0];
@@ -149,6 +150,7 @@ function buildWallGroup(o, x, z, w) {
     if (!Wd.round) { const m1 = new THREE.Mesh(boxGeo(0.03, h, 0.05), frameM); m1.position.set(0, cy, 0); g.add(m1); const m2 = new THREE.Mesh(boxGeo(0.84, 0.03, 0.05), frameM); m2.position.set(0, cy, 0); g.add(m2); }
     const sill = new THREE.Mesh(boxGeo(0.96, 0.04, WALL_T + 0.12), frameM); sill.position.set(0, Wd.y0 - 0.02, 0); g.add(sill);
   }
+  if (op) mergeStatic(g, true);
   if (o === 'h') g.position.set(x + 0.5, 0, z);
   else { g.position.set(x, 0, z + 0.5); g.rotation.y = Math.PI / 2; }
   g.userData.pick = { type: 'wall', o, x, z, key: wkey(o, x, z) };
@@ -160,7 +162,7 @@ function rebuildLot() {
   if (!LOT.group) { LOT.group = new THREE.Group(); R.scene.add(LOT.group); }
   for (const g of LOT.wallObjs.values()) LOT.group.remove(g);
   LOT.wallObjs.clear();
-  for (const p of LOT.posts) LOT.group.remove(p);
+  if (LOT.postMesh) { LOT.group.remove(LOT.postMesh); LOT.postMesh.dispose && LOT.postMesh.dispose(); LOT.postMesh = null; }
   LOT.posts = [];
   if (LOT.floorMesh) { LOT.group.remove(LOT.floorMesh); LOT.floorMesh.geometry.dispose(); }
   // the glass materials are recreated, so drop the old ones from the night glow list
@@ -191,19 +193,68 @@ function rebuildLot() {
   // corner posts
   const vertex = new Set();
   for (const k of LOT.walls.keys()) { const [o, xs, zs] = k.split(':'); const x = +xs, z = +zs; if (o === 'h') { vertex.add(x + ',' + z); vertex.add(x + 1 + ',' + z); } else { vertex.add(x + ',' + z); vertex.add(x + ',' + (z + 1)); } }
-  const postM = mat(TRIM);
-  for (const v of vertex) {
-    const [x, z] = v.split(',').map(Number);
-    const p = new THREE.Mesh(boxGeo(WALL_T + 0.03, WALL_H + 0.01, WALL_T + 0.03), postM);
-    p.position.set(x, WALL_H / 2, z); p.castShadow = true; p.userData.vx = x; p.userData.vz = z;
-    LOT.group.add(p); LOT.posts.push(p);
+  // corner posts: one instanced mesh, a unit-high box scaled per post by the cutaway
+  if (vertex.size) {
+    const geo = new THREE.BoxGeometry(WALL_T + 0.03, 1, WALL_T + 0.03); geo.translate(0, 0.5, 0);
+    LOT.postMesh = new THREE.InstancedMesh(geo, mat(TRIM), vertex.size); LOT.postMesh.castShadow = true;
+    for (const v of vertex) { const [x, z] = v.split(',').map(Number); LOT.posts.push({ x, z }); }
+    LOT.group.add(LOT.postMesh);
   }
   computeRooms();
+  buildRoof();
   for (const o of G.objects) o.room = roomAt(o.x + 0.5, o.z + 0.5);
   for (const it of G.items) it.room = roomAt(it.x, it.z);
   updateRoomScores();
   LOT.dirty = false;
   LOT.cutKey = '';
+}
+
+// A hip roof over every indoor tile, shown in walls-up view. Each corner's height grows with its
+// (chessboard) distance from the outdoors, which gives ridges and hips for any floor plan.
+const ROOF_PITCH = 0.55;
+function buildRoof() {
+  if (LOT.roof) { LOT.group.remove(LOT.roof); LOT.roof.geometry.dispose(); LOT.roof = null; }
+  const VW = LOT_W + 1, VD = LOT_D + 1, dist = new Float32Array(VW * VD).fill(1e9), q = [];
+  const outside = (x, z) => !inLot(x, z) || LOT.room[tidx(x, z)] === 0;
+  for (let z = 0; z <= LOT_D; z++) for (let x = 0; x <= LOT_W; x++) {
+    if (outside(x - 1, z - 1) || outside(x, z - 1) || outside(x - 1, z) || outside(x, z)) { dist[z * VW + x] = 0; q.push(x, z); }
+  }
+  for (let i = 0; i < q.length; i += 2) {
+    const x = q[i], z = q[i + 1], d = dist[z * VW + x];
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx, nz = z + dz; if (nx < 0 || nz < 0 || nx > LOT_W || nz > LOT_D) continue;
+      if (dist[nz * VW + nx] > d + 1) { dist[nz * VW + nx] = d + 1; q.push(nx, nz); }
+    }
+  }
+  const pos = [];
+  const H = (x, z) => WALL_H + 0.02 + Math.min(dist[z * VW + x], 7) * ROOF_PITCH;
+  for (let z = 0; z < LOT_D; z++) for (let x = 0; x < LOT_W; x++) {
+    if (outside(x, z)) continue;
+    const v = [[x, z], [x + 1, z], [x + 1, z + 1], [x, z + 1]].map(([a, b]) => [a, H(a, b), b]);
+    const tri = (a, b, c) => pos.push(...v[a], ...v[b], ...v[c]);
+    // split along the diagonal with the bigger rise, so hips and valleys stay sharp
+    if (Math.abs(v[0][1] - v[2][1]) >= Math.abs(v[1][1] - v[3][1])) { tri(0, 2, 1); tri(0, 3, 2); } else { tri(0, 3, 1); tri(1, 3, 2); }
+  }
+  if (!pos.length) return;
+  // shingle rows run parallel to each face's eave: map v along the downhill direction
+  const uv = [];
+  for (let i = 0; i < pos.length; i += 9) {
+    const ax = pos[i], ay = pos[i + 1], az = pos[i + 2], bx = pos[i + 3], by = pos[i + 4], bz = pos[i + 5], cx = pos[i + 6], cy = pos[i + 7], cz = pos[i + 8];
+    const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
+    let nx = uy * vz - uz * vy, nz = ux * vy - uy * vx; const L = Math.hypot(nx, nz) || 1; nx /= L; nz /= L;
+    for (let k = 0; k < 9; k += 3) { const x = pos[i + k], z = pos[i + k + 2]; uv.push((x * -nz + z * nx) * 0.5, (x * nx + z * nz) * 1.25); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+  if (!TEX.shingle) {
+    TEX.shingle = canvasTex(64, 64, (c, w, h) => {
+      c.fillStyle = '#9a4e3c'; c.fillRect(0, 0, w, h);
+      for (let r = 0; r < 4; r++) for (let k = -1; k < 3; k++) { c.fillStyle = cssHex(shadeHex(0x9a4e3c, 0.85 + Math.random() * 0.25)); c.fillRect(k * 32 + (r % 2) * 16 + 1, r * 16, 30, 15); }
+      c.fillStyle = 'rgba(40,10,5,.45)'; for (let r = 0; r < 4; r++) c.fillRect(0, r * 16 + 14, w, 2);
+    }, true);
+    TEX.roofMat = new THREE.MeshLambertMaterial({ map: TEX.shingle });
+  }
+  LOT.roof = new THREE.Mesh(g, TEX.roofMat); LOT.roof.castShadow = true; LOT.roof.visible = false;
+  LOT.group.add(LOT.roof);
 }
 
 // Lower walls that hide the inside of a room from the camera ('cut'), or all of them ('down').
@@ -226,13 +277,16 @@ function updateCutaway(force) {
     g.userData.low = low;
     g.scale.y = low ? WALL_LOW / WALL_H : 1;
   }
-  for (const p of LOT.posts) {
-    const x = p.userData.vx, z = p.userData.vz;
+  const M = new THREE.Matrix4();
+  LOT.posts.forEach(({ x, z }, i) => {
     let up = false;
     for (const k of [wkey('h', x - 1, z), wkey('h', x, z), wkey('v', x, z - 1), wkey('v', x, z)]) { const g = LOT.wallObjs.get(k); if (g && !g.userData.low) up = true; }
-    p.scale.y = up ? 1 : WALL_LOW / WALL_H; p.position.y = (up ? WALL_H : WALL_LOW) / 2;
-  }
+    M.makeScale(1, (up ? WALL_H : WALL_LOW) + 0.01, 1); M.setPosition(x, 0, z);
+    LOT.postMesh.setMatrixAt(i, M);
+  });
+  if (LOT.postMesh) LOT.postMesh.instanceMatrix.needsUpdate = true;
   for (const o of G.objects) if (o.def.wall && o.model) { const g = LOT.wallObjs.get(o.wallKey); o.model.visible = !(g && g.userData.low); }
+  if (LOT.roof) LOT.roof.visible = mode === 'up' && G.mode === 'live';
 }
 const wallIsLow = (k) => { const g = LOT.wallObjs.get(k); return !!(g && g.userData.low); };
 

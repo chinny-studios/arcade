@@ -243,6 +243,10 @@ function makeTreeModel(s = 1, kind = 0) {
 function buildObjectModel(id) {
   const g = new THREE.Group();
   (MODELS[id] || MODELS.end_table)(g);
+  // leaves merge into one mesh per colour that keeps the leaf tag (for wilting)
+  const leaves = new THREE.Group(); leaves.userData.leaves = true;
+  for (const m of g.children.slice()) if (m.userData.leaf) { g.remove(m); leaves.add(m); m.userData = {}; }
+  if (leaves.children.length) { mergeStatic(leaves); leaves.children.forEach((m) => { m.userData.leaf = true; }); g.add(leaves); }
   return mergeStatic(g);
 }
 
@@ -307,6 +311,8 @@ function buildSimModel(s) {
     J.leg.push(hp); J.knee.push(kn);
   }
   root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+  // fewer draw calls: merge the meshes hanging directly off each joint
+  for (const g of [J.torso, J.head, J.hips, ...J.arm, ...J.elbow, ...J.leg, ...J.knee]) mergeStatic(g, true);
   // an invisible, generous click target
   const hit = new THREE.Mesh(cylGeo(0.36, 0.36, 1.8, 8), mat(0xffffff)); hit.position.y = 0.9; hit.visible = false; hit.castShadow = false; root.add(hit);
   const sc = AGES[s.age].scale;
@@ -325,7 +331,7 @@ function face(head, r, L) {
   }
   // a smile: half a torus whose y-scale flips to a frown when the mood sinks
   const mouth = new THREE.Mesh(new THREE.TorusGeometry(r * 0.2, r * 0.045, 5, 10, Math.PI), mat(0x8a3a3a));
-  mouth.rotation.z = Math.PI; mouth.position.set(0, -r * 0.36, r * 0.9); head.add(mouth);
+  mouth.rotation.z = Math.PI; mouth.position.set(0, -r * 0.36, r * 0.9); mouth.userData.live = true; head.add(mouth);
   head.userData.mouth = mouth;
   const nose = sph(head, r * 0.13, mat(shadeHex(L.skin, 0.94)), 0, -r * 0.1, r * 0.97, 6); nose.scale.set(0.8, 1, 0.8);
 }
@@ -516,13 +522,14 @@ function buildItemModel(it) {
 
 // Merge a model's static meshes into one mesh per material to save draw calls.
 // Meshes carrying userData (screens, lamp shades, swings, leaves…) and their subtrees stay separate.
-function mergeStatic(root) {
+function mergeStatic(root, shallow) {
   root.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
   const buckets = new Map(), remove = [];
   const live = (o) => { for (let p = o; p && p !== root; p = p.parent) if (Object.keys(p.userData).length) return true; return false; };
-  root.traverse((m) => {
-    if (!m.isMesh || Array.isArray(m.material) || live(m) || m.material.transparent) return;
+  const visit = shallow ? (f) => root.children.slice().forEach(f) : (f) => root.traverse(f);
+  visit((m) => {
+    if (!m.isMesh || Array.isArray(m.material) || live(m) || m.material.transparent || !m.visible) return;
     const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
     g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
     const key = m.material.uuid;

@@ -61,6 +61,7 @@ function meetsReq(s, job, level) {
 function takeJob(s, track) {
   s.job = { track, level: 0, perf: 0, missed: 0 };
   const L = careerLevel(s.job);
+  bus.emit('did', s, 'job', { track });
   notify(`${s.first} joined the ${CAREER[track].label} career as a ${L.title}. Work is ${L.start}:00–${(L.start + L.hours) % 24}:00 on weekdays, ${fmtMoney(L.pay)} a day.`, CAREER[track].icon, s, true);
   bus.emit('household');
 }
@@ -167,7 +168,7 @@ function returnHome(s) {
       s.job.level++; s.job.perf = 10; G.stats.promotions++;
       const NL = careerLevel(s.job);
       notify(`${s.first} was promoted to ${NL.title}! The pay is now ${fmtMoney(NL.pay)} a day, ${NL.start}:00–${(NL.start + NL.hours) % 24}:00.`, '🎉', s, true);
-      addMoodlet(s, 'promoted'); sfx('fanfare'); confetti(s.x, 2, s.z);
+      addMoodlet(s, 'promoted'); sfx('fanfare'); confetti(s.x, 2, s.z); bus.emit('did', s, 'promoted', {});
     } else if (s.job.perf <= -80) {
       notify(`${s.first} was fired for poor performance.`, '📉', s, true); addMoodlet(s, 'fired'); s.job = null;
     } else floatText(s, '+' + fmtMoney(L.pay), '#8af0a0');
@@ -177,6 +178,7 @@ function returnHome(s) {
     s.school.perf = 0;
     s.school.grade = clamp(s.school.grade + delta, 0, 12);
     s.school.homework = true;
+    bus.emit('did', s, 'grade', { grade: s.school.grade });
     if (s.school.grade !== before) notify(`${s.first}’s grade went ${s.school.grade > before ? 'up' : 'down'} to ${GRADES[s.school.grade]}.`, s.school.grade > before ? '📈' : '📉', s);
     if (s.school.grade >= 11 && before < 11) { addMoodlet(s, 'goodGrades'); earn(100, s); notify(`${s.first}’s grandparents sent ${fmtMoney(100)} for the A on the report card.`, '💌', s); }
     addNeeds(s, { social: 15 }, 60);
@@ -192,11 +194,11 @@ function spawnAtEdge(s) {
   for (const n of NEEDS) s.needs[n.id] = Math.max(s.needs[n.id], rrange(55, 90));
   if (!s.model) makeSimModel(s); else s.model.visible = true;
 }
-function scheduleVisit(p, t, host) { G.flags.visits = G.flags.visits || []; G.flags.visits.push({ id: p.id, t, host: host ? host.id : 0, invited: true }); }
-function startVisit(p, kind, invited) {
+function scheduleVisit(p, t, host, party) { G.flags.visits = G.flags.visits || []; G.flags.visits.push({ id: p.id, t, host: host ? host.id : 0, invited: true, party: !!party }); }
+function startVisit(p, kind, invited, party) {
   if (p.onLot || !p.alive || p.household) return;
   spawnAtEdge(p);
-  p.visit = { state: kind === 'pass' ? 'passing' : 'coming', since: G.t, until: G.t + rint(150, 300), invited };
+  p.visit = { state: kind === 'pass' ? 'passing' : 'coming', since: G.t, until: party && G.flags.party ? G.flags.party.until : G.t + rint(150, 300), invited, party };
   if (kind === 'pass') queueAct(p, 'walkBy', null, null, false);
   else queueAct(p, 'visitDoor', null, null, false);
 }
@@ -246,7 +248,7 @@ function despawn(s) {
 function tickVisitors() {
   const h = hourF();
   // scheduled visits (invites)
-  if (G.flags.visits) for (const v of G.flags.visits.slice()) if (G.t >= v.t) { G.flags.visits = G.flags.visits.filter((x) => x !== v); const p = simById(v.id); if (p) startVisit(p, 'visit', true); }
+  if (G.flags.visits) for (const v of G.flags.visits.slice()) if (G.t >= v.t) { G.flags.visits = G.flags.visits.filter((x) => x !== v); const p = simById(v.id); if (p) startVisit(p, 'visit', v.invited, v.party); }
   // walk-bys and drop-ins during the day
   if (hourIn(h, 8, 20) && chance(1 / 110)) {
     const free = G.sims.filter((p) => p.alive && !p.household && !p.service && !p.onLot);
@@ -266,7 +268,7 @@ function tickVisitors() {
   for (const s of G.sims) {
     if (!s.onLot || s.household || !s.visit) continue;
     if (s.visit.state === 'in') {
-      const late = hourF() >= 23.5 || hourF() < 6;
+      const late = (hourF() >= 23.5 || hourF() < 6) && !(s.visit.party && G.flags.party);
       if ((G.t >= s.visit.until || late || calcMood(s) < -45 || s.needs.energy < 12) && !s.leaving) {
         if (s.cur && s.cur.id === 'beSocial') continue;
         cancelAll(s, false); queueAct(s, 'leaveLot', null, null, false, true);
@@ -274,6 +276,18 @@ function tickVisitors() {
       }
     } else if (s.visit.state === 'door' && G.t >= s.visit.until && !s.leaving) { cancelAll(s, false); queueAct(s, 'leaveLot', null, null, false, true); }
   }
+}
+
+// ---------- parties ----------
+function tickParty() {
+  const P = G.flags.party; if (!P || G.t < P.until) return;
+  G.flags.party = null;
+  const guests = G.sims.filter((s) => s.onLot && s.visit && s.visit.party);
+  const mood = guests.length ? guests.reduce((a, s) => a + calcMood(s), 0) / guests.length : -50;
+  const hit = guests.length >= 3 && mood > 20;
+  for (const h of household()) if (h.onLot && h.age !== 'baby') { addMoodlet(h, hit ? 'greatParty' : 'lameParty'); bus.emit('did', h, 'party', { hit }); }
+  for (const g of guests) { g.visit.until = G.t; g.visit.party = false; for (const h of household()) relAdd(g, h, hit ? 6 : -3); }
+  notify(hit ? 'The party was a hit! Everyone had a great time.' : guests.length < 3 ? 'Hardly anyone came to the party…' : 'The party fizzled out. Better music next time?', hit ? '🎊' : '😬', simById(P.host), true);
 }
 
 // ---------- service visits: pizza, adoption, social worker, repo ----------
@@ -320,7 +334,7 @@ IX.serviceDoor = { label: 'Working', icon: '🧾', keep: true, run: function* (s
     const by = simById(G.flags.adoptBy) || household().find(isGrown);
     const baby = makeBaby(by, partnerOf(by) && partnerOf(by).household ? partnerOf(by) : null, true);
     notify(`The agency brought ${baby.first} home. Welcome to the family!`, '🍼', baby, true);
-    for (const p of household()) if (isGrown(p)) addMoodlet(p, 'newBaby');
+    for (const p of household()) if (isGrown(p)) { addMoodlet(p, 'newBaby'); bus.emit('did', p, 'baby', { baby }); }
     bus.emit('household');
   } else if (s.service === 'social') {
     sfx('doorbell'); yield* wait(s, act, 8, 'talk');

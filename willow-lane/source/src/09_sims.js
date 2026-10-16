@@ -110,6 +110,7 @@ function gainSkill(s, id, minutes) {
   const need = skillNeed(sk.lv);
   if (sk.xp >= need) {
     sk.xp -= need; sk.lv++;
+    bus.emit('did', s, 'skill', { skill: id, level: sk.lv });
     if (s.household) { notify(`${s.first} reached ${SKILL[id].label} level ${sk.lv}!`, SKILL[id].icon, s); floatText(s, '+' + SKILL[id].icon, '#8af0a0'); sfx('skill'); }
   }
 }
@@ -129,7 +130,7 @@ function relAdd(a, b, df, dr = 0) {
   if (dr) { ra.r = clamp(ra.r + dr, 0, 100); rb.r = clamp(rb.r + dr * 0.9, 0, 100); }
   if (dr < 0) { ra.r = clamp(ra.r, 0, 100); }
   ra.met = rb.met = true;
-  if (before < 50 && ra.f >= 50 && !ra.family) { addMoodlet(a, 'newFriend'); addMoodlet(b, 'newFriend'); if (a.household || b.household) notify(`${a.first} and ${b.first} are now friends.`, '🤝', a.household ? a : b); }
+  if (before < 50 && ra.f >= 50 && !ra.family) { addMoodlet(a, 'newFriend'); addMoodlet(b, 'newFriend'); bus.emit('did', a, 'friend', { target: b }); bus.emit('did', b, 'friend', { target: a }); if (a.household || b.household) notify(`${a.first} and ${b.first} are now friends.`, '🤝', a.household ? a : b); }
   if (before > -50 && ra.f <= -50 && (a.household || b.household)) notify(`${a.first} and ${b.first} have become enemies.`, '😠', a.household ? a : b);
 }
 function relLabel(a, b) {
@@ -179,6 +180,7 @@ function simPortrait(s) {
 function syncSimModel(s) {
   const m = s.model; if (!m) return;
   m.visible = s.onLot && !s.away && s.alive;
+  if (!m.visible) return;
   m.position.set(s.x, s.y || 0, s.z);
   m.rotation.y = s.dir;
   poseSim(m, s.anim, s.animT, { talk: s.talking, mood: s.mood, seatH: s.seatH });
