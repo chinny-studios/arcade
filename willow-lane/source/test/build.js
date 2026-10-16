@@ -1,0 +1,42 @@
+// Build a small shed in the back yard with the real tools, buy a fridge into it, undo, save and load
+const B = WL.BUILD, rep = {};
+const ev = (x = 400, y = 300, extra = {}) => Object.assign({ clientX: x, clientY: y, button: 0, shiftKey: false }, extra);
+const P = (x, z) => ({ x, z });
+const m0 = G.money;
+F.setMode('build');
+F.setTool('wall');
+F.buildPointer('down', P(22, 1), ev()); F.buildPointer('move', P(27, 1.2), ev()); F.buildPointer('up', P(27, 1.2), ev());
+F.buildPointer('down', P(27, 1), ev()); F.buildPointer('move', P(27, 5), ev()); F.buildPointer('up', P(27, 5), ev());
+F.buildPointer('down', P(27, 5), ev()); F.buildPointer('move', P(22, 5), ev()); F.buildPointer('up', P(22, 5), ev());
+F.buildPointer('down', P(22, 5), ev()); F.buildPointer('move', P(22, 1), ev()); F.buildPointer('up', P(22, 1), ev());
+rep.walls = WL.LOT.walls.size; rep.spentWalls = m0 - G.money;
+rep.rooms = WL.LOT.rooms.length;
+F.setTool('door', 1); F.buildPointer('down', P(24.5, 5.05), ev());
+F.setTool('window', 1); F.buildPointer('down', P(22.02, 3.5), ev());
+F.setTool('floor', 3); F.buildPointer('down', P(22.5, 1.5), ev()); F.buildPointer('move', P(26.5, 4.5), ev()); F.buildPointer('up', P(26.5, 4.5), ev());
+rep.afterDoor = WL.LOT.walls.get('h:24:5');
+rep.floor = WL.LOT.floor[2 * 30 + 23];
+const shed = WL.LOT.room[2 * 30 + 23];
+rep.shedRoom = shed; rep.shedScore = Math.round(WL.LOT.rooms[shed].score);
+F.setMode('buy');
+F.setTool('place', null, 'fridge');
+F.buildPointer('move', P(23.5, 1.5), ev()); F.buildPointer('down', P(23.5, 1.5), ev());
+rep.fridges = G.objects.filter(o => o.type === 'fridge').length;
+rep.money = [m0, G.money];
+WL.f.setMode('live');
+WL.cam(24.5, 3, 16, Math.PI / 4);
+WL.render();
+out.rep = rep;
+//--- shot shed
+const B = WL.BUILD; F.setMode("build");
+const undoN = B.undo.length;
+for (let i = 0; i < 3; i++) document.getElementById('undoBtn') && document.getElementById('undoBtn').click();
+const r2 = { undoN, fridgesAfterUndo: G.objects.filter(o => o.type === 'fridge').length, wallsAfterUndo: WL.LOT.walls.size };
+F.setMode('live');
+// save & load
+const ok = F.saveGame(true);
+const before = { money: G.money, objs: G.objects.length, sims: WL.sims().map(s => s.first + s.age), walls: WL.LOT.walls.size };
+F.loadGame();
+const after = { money: G.money, objs: G.objects.length, sims: WL.sims().map(s => s.first + s.age), walls: WL.LOT.walls.size };
+WL.sim(30);
+return { rep: out.rep, r2, ok, before, after, state: G.state, sel: G.selected && G.selected.first };
