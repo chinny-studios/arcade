@@ -29,7 +29,7 @@ campaign: for (const area of ['forest', 'caves', 'mines', 'ruins']) for (const f
     const o = VB.GAME.botReached; VB.GAME.botReached = null;
     if (o && ((o.kind === 'next' && !o.locked) || o.kind === 'home')) done = true;
   }
-  const minHp = null;
+  if (!done) { const P = VB.PL, g = P.ai && P.ai.goal; log.push(`  stuck at ${P.x.toFixed(1)},${P.z.toFixed(1)} room ${VB.GAME.curRoom && VB.GAME.curRoom.type} goal ${g ? JSON.stringify({ x: g.x, z: g.z, room: g.room && g.room.type, loot: !!g.loot, obj: g.obj && g.obj.kind }) : '-'} target ${P.ai && P.ai.target && P.ai.target.name} enemies ${VB.ENTS.filter((e) => e.team === 1 && !e.dead && !e.box).map((e) => e.name + '@' + e.x.toFixed(0) + ',' + e.z.toFixed(0) + (e.untargetable ? 'U' : '')).join(' ')} uncleared ${VB.LV.rooms.filter((r) => !r.cleared && r.type !== 'start').map((r) => r.type + (r.locked ? '(locked)' : '')).join(' ')} downed ${P.downed}`); }
   log.push(`${area} ${fl === 2 ? 'boss' : 'F' + (fl + 1)}: ${done ? 'done' : 'STUCK'} in ${simT}s · Lv ${lv0}→${c.level} · downs ${c.stats.deaths - d0} · wipes ${wipes} · kills ${c.stats.kills - k0} · medgels ${['medgel1', 'medgel2', 'medgel3'].map((id) => window.invCount_(c.inv, id)).join('/')} · ${c.credits} cr · ${window.itemName_(c.equip.weapon)} (ilvl ${c.equip.weapon.ilvl})`);
   if (!done) break campaign;
 }

@@ -151,8 +151,8 @@ const UNIQUE_TITLE = ['the Hungering', 'the Hollow', 'Bloodmoss', 'the Unseen', 
 
 // ---------- bosses ----------
 const BOSSES = {
-  vharn: { name: 'Vharn, the Rotwing', title: 'Corrupted Forest Dragon', hp: 95, atk: 1.7, xp: 30, area: 'forest', size: 3.2, color: 0x5a7a3a, color2: 0xd0ff60, elem: 'fire', res: { fire: 0.5, ice: -0.3 } },
-  maw: { name: 'The Maw Below', title: 'Burrowing Horror of the Hollows', hp: 110, atk: 1.8, xp: 34, area: 'caves', size: 2.6, color: 0x5a3020, color2: 0xff7020, elem: 'fire', res: { fire: 0.6, ice: -0.3 } },
+  vharn: { name: 'Vharn, the Rotwing', title: 'Corrupted Forest Dragon', hp: 125, atk: 1.7, xp: 30, area: 'forest', size: 3.2, color: 0x5a7a3a, color2: 0xd0ff60, elem: 'fire', res: { fire: 0.5, ice: -0.3 } },
+  maw: { name: 'The Maw Below', title: 'Burrowing Horror of the Hollows', hp: 140, atk: 1.8, xp: 34, area: 'caves', size: 2.6, color: 0x5a3020, color2: 0xff7020, elem: 'fire', res: { fire: 0.6, ice: -0.3 } },
   custodian: { name: 'CUSTODIAN-7', title: 'Rogue Mining Intelligence', hp: 120, atk: 1.8, xp: 38, area: 'mines', size: 3, color: 0x5a6470, color2: 0xff3040, elem: 'bolt', res: { bolt: -0.3, ice: 0.2 } },
   sleeper: { name: 'Kharzael, the Sleeper', title: 'That Which Was Buried', hp: 150, atk: 1.9, xp: 60, area: 'ruins', size: 3.4, color: 0x2a1a38, color2: 0xc060ff, elem: 'dark', res: { dark: 0.5, light: -0.35 } },
 };

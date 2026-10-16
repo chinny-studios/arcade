@@ -73,8 +73,11 @@ function botUpdate(a, dt) {
     if (g.loot && !GROUND.includes(g.loot)) ai.goal = null;
     else if (g.loot && d2 < 1.6 * 1.6) { if (!pickUp(g.loot)) ai.skip.add(g.loot); else botGearUp(c); ai.goal = null; }
     if (g.obj && d2 < 1.6 * 1.6) { GAME.botReached = g.obj; }
-    // give up on goals we can't reach
-    if (!GAME.inCombat) { ai.progT = (ai.progT || 0) + dt; if (ai.lastGoalD !== undefined && d2 < ai.lastGoalD - 0.5) { ai.progT = 0; ai.lastGoalD = d2; } if (ai.lastGoalD === undefined || ai.goal !== ai._lastGoal) { ai.lastGoalD = d2; ai._lastGoal = ai.goal; } if (ai.progT > 25) { ai.skip.add(g.room || g.loot || g.obj); ai.progT = 0; ai.goal = null; } }
+    // give up on goals we can't reach (in or out of combat), and on targets we can't hurt
+    ai.progT = (ai.progT || 0) + dt;
+    if (ai._lastGoal !== g.room && ai._lastGoal !== g.loot && ai._lastGoal !== g.obj) { ai._lastGoal = g.room || g.loot || g.obj; ai.bestD = d2; ai.progT = 0; }
+    if (d2 < ai.bestD - 1 || GAME.char.stats.kills !== ai.lastKills) { ai.bestD = Math.min(ai.bestD, d2); ai.progT = 0; ai.lastKills = GAME.char.stats.kills; }
+    if (ai.progT > 40) { ai.skip.add(g.room || g.loot || g.obj); ai.progT = 0; ai.goal = null; GAME.botSkips = (GAME.botSkips || 0) + 1; }
   }
   updateAlly(a, dt);
 }
