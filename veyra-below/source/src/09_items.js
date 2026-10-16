@@ -174,7 +174,7 @@ function rollDrop(ctx, rng = rnd) {
   const src = ctx.source || 'monster';
   const ilvl = ctx.ilvl, mf = (ctx.mf || 0) + (DIFFS[ctx.diff || 0].drop - 1);
   // category
-  const cats = [['tool', 30], ['weapon', 19], ['frame', 8], ['barrier', 7], ['unit', 8], ['disc', 8], ['gem', 3.5], ['hone1', 2], ['mat', 0.6]];
+  const cats = [['tool', 22], ['weapon', 19], ['frame', 8], ['barrier', 7], ['unit', 8], ['disc', 8], ['gem', 3.5], ['hone1', 2], ['mat', 0.6]];
   if (src === 'boss' || src === 'unique') { cats[0][1] = 12; cats[1][1] = 34; }
   const cat = rng.wpick(cats, (c) => c[1])[0];
   if (cat === 'tool') return rollTool(ilvl, rng);

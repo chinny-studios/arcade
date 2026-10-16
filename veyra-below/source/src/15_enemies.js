@@ -3,7 +3,7 @@
 function enemyLevelStats(def, lvl, o = {}) {
   const D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
   let hp = def.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party;
-  let atk = def.atk * ECURVE(lvl) * D.dmg;
+  let atk = def.atk * ECURVE(lvl) * D.dmg * 1.25;
   let xp = (def.xp || 1) * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp;
   if (o.elite) { hp *= 2.6; atk *= 1.25; xp *= 3; if (o.elite.includes('strong')) atk *= 1.4; }
   if (o.unique) { hp *= 4.5; atk *= 1.4; xp *= 6; }

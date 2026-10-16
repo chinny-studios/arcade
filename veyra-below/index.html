@@ -2498,7 +2498,7 @@ function rollDrop(ctx, rng = rnd) {
   const src = ctx.source || 'monster';
   const ilvl = ctx.ilvl, mf = (ctx.mf || 0) + (DIFFS[ctx.diff || 0].drop - 1);
   // category
-  const cats = [['tool', 30], ['weapon', 19], ['frame', 8], ['barrier', 7], ['unit', 8], ['disc', 8], ['gem', 3.5], ['hone1', 2], ['mat', 0.6]];
+  const cats = [['tool', 22], ['weapon', 19], ['frame', 8], ['barrier', 7], ['unit', 8], ['disc', 8], ['gem', 3.5], ['hone1', 2], ['mat', 0.6]];
   if (src === 'boss' || src === 'unique') { cats[0][1] = 12; cats[1][1] = 34; }
   const cat = rng.wpick(cats, (c) => c[1])[0];
   if (cat === 'tool') return rollTool(ilvl, rng);
@@ -3935,7 +3935,7 @@ function castAllyTech(a, id, aim) {
 function enemyLevelStats(def, lvl, o = {}) {
   const D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
   let hp = def.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party;
-  let atk = def.atk * ECURVE(lvl) * D.dmg;
+  let atk = def.atk * ECURVE(lvl) * D.dmg * 1.25;
   let xp = (def.xp || 1) * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp;
   if (o.elite) { hp *= 2.6; atk *= 1.25; xp *= 3; if (o.elite.includes('strong')) atk *= 1.4; }
   if (o.unique) { hp *= 4.5; atk *= 1.4; xp *= 6; }
@@ -6509,7 +6509,7 @@ function installDebug() {
     press(act) { Input.acts.add(act); frame(1 / 30, false); },
     stats() { return { mode: GAME.mode, area: GAME.area, floor: GAME.floorIdx, lvl: GAME.char && GAME.char.level, hp: PL && Math.round(PL.hp), maxHp: PL && PL.maxHp, tp: PL && Math.round(PL.tp), enemies: ENTS.filter((e) => e.team === 1 && !e.dead && !e.box).length, allies: ALLIES.length, ground: GROUND.length, credits: GAME.char && GAME.char.credits, room: GAME.curRoom && GAME.curRoom.type }; },
   };
-  Object.assign(window, { ROLES_: ROLES, RACES_: RACES, TECHS_: TECHS, SKILLS_: SKILLS, WTYPES_: WTYPES, STAR_SIGNS_: STAR_SIGNS, techLevelCap_: techLevelCap, refreshPartyActor_: refreshPartyActor, tooltipHTML_: tooltipHTML, itemName_: itemName, invAdd_: invAdd, spriteLevel_: spriteLevel, SAVE_: SAVE, weaponDamage_: weaponDamage, TOOLS_: TOOLS, invCount_: invCount, itemValue_: itemValue, techPower_: techPower, LCURVE_: LCURVE, ECURVE_: ECURVE });
+  Object.assign(window, { ROLES_: ROLES, RACES_: RACES, TECHS_: TECHS, SKILLS_: SKILLS, WTYPES_: WTYPES, STAR_SIGNS_: STAR_SIGNS, techLevelCap_: techLevelCap, refreshPartyActor_: refreshPartyActor, tooltipHTML_: tooltipHTML, itemName_: itemName, invAdd_: invAdd, spriteLevel_: spriteLevel, SAVE_: SAVE, weaponDamage_: weaponDamage, TOOLS_: TOOLS, botScore_: botScore, invCount_: invCount, itemValue_: itemValue, techPower_: techPower, LCURVE_: LCURVE, ECURVE_: ECURVE });
   window.VB = VB;
 }
 boot();

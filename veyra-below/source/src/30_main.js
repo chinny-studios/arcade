@@ -86,7 +86,7 @@ function installDebug() {
     press(act) { Input.acts.add(act); frame(1 / 30, false); },
     stats() { return { mode: GAME.mode, area: GAME.area, floor: GAME.floorIdx, lvl: GAME.char && GAME.char.level, hp: PL && Math.round(PL.hp), maxHp: PL && PL.maxHp, tp: PL && Math.round(PL.tp), enemies: ENTS.filter((e) => e.team === 1 && !e.dead && !e.box).length, allies: ALLIES.length, ground: GROUND.length, credits: GAME.char && GAME.char.credits, room: GAME.curRoom && GAME.curRoom.type }; },
   };
-  Object.assign(window, { ROLES_: ROLES, RACES_: RACES, TECHS_: TECHS, SKILLS_: SKILLS, WTYPES_: WTYPES, STAR_SIGNS_: STAR_SIGNS, techLevelCap_: techLevelCap, refreshPartyActor_: refreshPartyActor, tooltipHTML_: tooltipHTML, itemName_: itemName, invAdd_: invAdd, spriteLevel_: spriteLevel, SAVE_: SAVE, weaponDamage_: weaponDamage, TOOLS_: TOOLS, invCount_: invCount, itemValue_: itemValue, techPower_: techPower, LCURVE_: LCURVE, ECURVE_: ECURVE });
+  Object.assign(window, { ROLES_: ROLES, RACES_: RACES, TECHS_: TECHS, SKILLS_: SKILLS, WTYPES_: WTYPES, STAR_SIGNS_: STAR_SIGNS, techLevelCap_: techLevelCap, refreshPartyActor_: refreshPartyActor, tooltipHTML_: tooltipHTML, itemName_: itemName, invAdd_: invAdd, spriteLevel_: spriteLevel, SAVE_: SAVE, weaponDamage_: weaponDamage, TOOLS_: TOOLS, botScore_: botScore, invCount_: invCount, itemValue_: itemValue, techPower_: techPower, LCURVE_: LCURVE, ECURVE_: ECURVE });
   window.VB = VB;
 }
 boot();
