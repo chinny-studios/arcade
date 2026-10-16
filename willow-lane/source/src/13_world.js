@@ -369,7 +369,7 @@ IX.serviceDoor = { label: 'Working', icon: '🧾', keep: true, run: function* (s
 IX.payPizza = {
   label: 'Pay for the pizza ($40)', icon: '🍕', test: (s, p) => (p.service === 'pizza' && p.visit && p.visit.state === 'door' && !p.paid && canAdult(s) ? (moneyOK(40) ? true : 'Not enough money') : false),
   run: function* (s, p, act) {
-    const i = yield* walkNear(s, act, p.x, p.z, 1); if (i < 0 || p.paid) return;
+    const i = yield* walkToSim(s, act, p); if (i < 0 || p.paid) return;
     yield* faceSim(s, p); p.paid = true; spend(40); yield* wait(s, act, 2, 'talk');
     carry(s, 'pizza');
     const spot = eatingSeats(s)[0];

@@ -156,6 +156,13 @@ function moveAlong(s, dt, speed) {
   }
   return true;
 }
+// walk next to another sim (any free neighbouring tile, never onto theirs)
+function* walkToSim(s, act, b) {
+  const bx = Math.floor(b.x), bz = Math.floor(b.z), goals = [];
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) goals.push([bx + dx, bz + dz]);
+  goals.sort((p, q) => Math.hypot(p[0] + 0.5 - s.x, p[1] + 0.5 - s.z) - Math.hypot(q[0] + 0.5 - s.x, q[1] + 0.5 - s.z));
+  return yield* walkTo(s, act, goals);
+}
 function* walkNear(s, act, x, z, r = 1) {
   const goals = [];
   for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) goals.push([Math.floor(x) + dx, Math.floor(z) + dz]);
@@ -211,9 +218,11 @@ function* goLie(s, act, o, spot) {
 }
 // step into an object's own tile (shower, tub)
 function* goInside(s, act, o, lie) {
-  if (o.users.in && o.users.in !== s.id) { if (s.household) thought(s, '🚫', 2.5, 'Occupied'); return null; }
   const fronts = standSpots(o);
   if (!fronts.length) return null;
+  // occupied: wait outside for a bit
+  for (let w = 0; o.users.in && o.users.in !== s.id && w < 20 && !act.cancel;) { if (w === 0) yield* walkNear(s, act, fronts[0].x, fronts[0].z, 2); w += yield; s.anim = 'idle'; }
+  if (o.users.in && o.users.in !== s.id) { if (s.household) thought(s, '🚫', 2.5, 'Occupied'); return null; }
   const i = yield* walkTo(s, act, fronts.map((sp) => [sp.tx, sp.tz]));
   if (i < 0 || (o.users.in && o.users.in !== s.id)) return null;
   o.users.in = s.id; s.seat = { o, key: 'in' }; s.seatAp = [fronts[i].x, fronts[i].z];
@@ -525,7 +534,7 @@ IX.blowCandles = {
     ageUp(s);
   },
 };
-IX.cheerFor = { label: 'Celebrate', icon: '🎉', run: function* (s, who, act) { const i = yield* walkNear(s, act, who.x, who.z, 2); yield* faceSim(s, who); yield* wait(s, act, 6, 'cheer'); } };
+IX.cheerFor = { label: 'Celebrate', icon: '🎉', run: function* (s, who, act) { if (Math.hypot(who.x - s.x, who.z - s.z) > 3) yield* walkToSim(s, act, who); yield* faceSim(s, who); yield* wait(s, act, 6, 'cheer'); } };
 
 // ----- kitchen & cleaning -----
 IX.washDishes = {

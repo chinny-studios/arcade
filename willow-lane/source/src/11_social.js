@@ -84,7 +84,7 @@ IX.social = {
     // approach
     let tries = 0;
     while (!act.cancel && Math.hypot(b.x - a.x, b.z - a.z) > 1.6 && tries++ < 4) {
-      const i = yield* walkNear(a, act, b.x, b.z, 1);
+      const i = yield* walkToSim(a, act, b);
       if (i < 0) return;
       if (socialAvailable(b) !== true) { thought(a, '❓', 2); return; }
     }

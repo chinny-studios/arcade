@@ -1,5 +1,5 @@
 // A hungry child alone at home: does she feed herself? What does she do all afternoon?
-const G = WL.G, [maya, ben, jun] = WL.sims();
+const [maya, ben, jun] = S;
 WL.time(1, 15);
 for (const s of [maya, ben]) { s.onLot = false; s.away = { kind: 'work', until: G.t + 9999 }; }
 WL.needs(2, { hunger: 25, fun: 50, energy: 70, bladder: 60 });
