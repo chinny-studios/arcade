@@ -443,10 +443,10 @@ const UNIQUE_TITLE = ['the Hungering', 'the Hollow', 'Bloodmoss', 'the Unseen', 
 
 // ---------- bosses ----------
 const BOSSES = {
-  vharn: { name: 'Vharn, the Rotwing', title: 'Corrupted Forest Dragon', hp: 95, atk: 1.7, xp: 30, area: 'forest', size: 3.2, color: 0x5a7a3a, color2: 0xd0ff60, elem: 'fire', res: { fire: 0.5, ice: -0.3 } },
-  maw: { name: 'The Maw Below', title: 'Burrowing Horror of the Hollows', hp: 110, atk: 1.8, xp: 34, area: 'caves', size: 2.6, color: 0x5a3020, color2: 0xff7020, elem: 'fire', res: { fire: 0.6, ice: -0.3 } },
+  vharn: { name: 'Vharn, the Rotwing', title: 'Corrupted Forest Dragon', hp: 125, atk: 1.7, xp: 30, area: 'forest', size: 3.2, color: 0x5a7a3a, color2: 0xd0ff60, elem: 'fire', res: { fire: 0.5, ice: -0.3 } },
+  maw: { name: 'The Maw Below', title: 'Burrowing Horror of the Hollows', hp: 140, atk: 1.8, xp: 34, area: 'caves', size: 2.6, color: 0x5a3020, color2: 0xff7020, elem: 'fire', res: { fire: 0.6, ice: -0.3 } },
   custodian: { name: 'CUSTODIAN-7', title: 'Rogue Mining Intelligence', hp: 120, atk: 1.8, xp: 38, area: 'mines', size: 3, color: 0x5a6470, color2: 0xff3040, elem: 'bolt', res: { bolt: -0.3, ice: 0.2 } },
-  sleeper: { name: 'Kharzael, the Sleeper', title: 'That Which Was Buried', hp: 150, atk: 1.9, xp: 60, area: 'ruins', size: 3.4, color: 0x2a1a38, color2: 0xc060ff, elem: 'dark', res: { dark: 0.5, light: -0.35 } },
+  sleeper: { name: 'Kharzael, the Sleeper', title: 'That Which Was Buried', hp: 260, atk: 1.95, xp: 60, area: 'ruins', size: 3.4, color: 0x2a1a38, color2: 0xc060ff, elem: 'dark', res: { dark: 0.5, light: -0.35 } },
 };
 
 // ---------- psionic arts ----------
@@ -500,7 +500,7 @@ const SKILLS = {
   overcharge: { role: 'marksman', tier: 2, name: 'Overcharge', type: 'passive', max: 5, icon: 'bolt', desc: (r) => `Ranged hits restore ${(0.4 * r).toFixed(1)} PSI, and your sprite's overdrive charges ${10 * r}% faster.` },
   // Psion
   techmastery: { role: 'psion', tier: 0, name: 'Art Mastery', type: 'passive', max: 5, icon: 'tech', desc: (r) => `+${7 * r}% psionic art damage and healing.` },
-  psibolt: { role: 'psion', tier: 0, name: 'Psi Bolt', type: 'active', max: 5, tp: 3, cd: 0.7, icon: 'bolts', desc: (r) => `Loose 3 seeking psi bolts, each for ${45 + 10 * r}% of Ember's power at your level.` },
+  psibolt: { role: 'psion', tier: 0, name: 'Psi Bolt', type: 'active', max: 5, tp: 4, cd: 0.9, icon: 'bolts', desc: (r) => `Loose 3 seeking psi bolts, each for ${25 + 5 * r}% of Ember's power at your level.` },
   manafont: { role: 'psion', tier: 0, name: 'Mana Font', type: 'passive', max: 5, icon: 'font', desc: (r) => `+${15 * r}% PSI regeneration and +${4 * r}% max PSI.` },
   chaincast: { role: 'psion', tier: 1, name: 'Chain Cast', type: 'passive', max: 5, icon: 'chain', desc: (r) => `Attack arts have a ${4 * r}% chance to cast again for free.` },
   barrier: { role: 'psion', tier: 1, name: 'Psi Barrier', type: 'active', max: 5, tp: 15, cd: 16, icon: 'bubble', desc: (r) => `A shield that absorbs damage up to ${20 + 8 * r}% of your max HP for 10 s.` },
@@ -1435,7 +1435,7 @@ let LV = null; // the level the party is standing in
 
 function newLevel(w, h, kind) {
   return { w, h, kind, cells: new Uint8Array(w * h), room: new Int16Array(w * h).fill(-1), block: new Uint8Array(w * h), seen: new Uint8Array(w * h),
-    rooms: [], start: { x: 0, z: 0 }, colliders: [], walls: [], wallAt: null, objects: [], fences: [], flow: null, flowFrom: -1, group: null };
+    rooms: [], start: { x: 0, z: 0 }, colliders: [], walls: [], wallAt: null, objects: [], fences: [], flows: null, flowVer: 0, group: null };
 }
 const tIdx = (L, i, j) => j * L.w + i;
 const tileOf = (x) => Math.floor(x / T);
@@ -1559,6 +1559,7 @@ function genBossLayout(areaId, seed) {
   roomGraph(L, [[0, 1]]);
   findDoors(L);
   a.type = 'start'; b.type = 'boss';
+  L.start = { x: tileCenter(a.ci), z: tileCenter(a.cj) };
   return { L, rng };
 }
 
@@ -1793,35 +1794,40 @@ function los(ax, az, bx, bz, L = LV) {
   for (let k = 1; k < n; k++) { const t = k / n; if (solidAt(lerp(ax, bx, t), lerp(az, bz, t), L)) return false; }
   return true;
 }
-// distance along open tiles from the target's tile (a flow field), recomputed when the target changes tile
-function updateFlow(L, x, z) {
-  const ti = tileOf(x), tj = tileOf(z), src = tIdx(L, ti, tj);
-  if (L.flowFrom === src && L.flow) return;
-  L.flowFrom = src;
-  const f = L.flow || (L.flow = new Uint16Array(L.w * L.h));
+// Distance along open tiles from a target tile (a flow field). Fields are cached per target tile, so monsters
+// chasing different party members don't keep recomputing each other's field.
+function updateFlow(L, x, z, cap = 60) {
+  const ti = clamp(tileOf(x), 0, L.w - 1), tj = clamp(tileOf(z), 0, L.h - 1), src = tIdx(L, ti, tj);
+  const cache = L.flows || (L.flows = new Map());
+  let e = cache.get(src);
+  if (e && e.ver === L.flowVer && e.cap >= cap) { e.used = GAME.time; return e.f; }
+  if (!e && cache.size >= 8) { let old = null; for (const [k, v] of cache) if (!old || v.used < old[1].used) old = [k, v]; cache.delete(old[0]); }
+  const f = e ? e.f : new Uint16Array(L.w * L.h);
   f.fill(65535);
-  const q = new Int32Array(L.w * L.h); let h = 0, t = 0;
+  const q = L._flowQ || (L._flowQ = new Int32Array(L.w * L.h)); let h = 0, t = 0;
   f[src] = 0; q[t++] = src;
   while (h < t) {
     const k = q[h++], i = k % L.w, j = (k / L.w) | 0, d = f[k];
-    if (d > 60) continue;
+    if (d > cap) continue;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ni = i + di, nj = j + dj; if (solidTile(L, ni, nj)) continue;
       const nk = nj * L.w + ni; if (f[nk] !== 65535) continue;
       f[nk] = d + 1; q[t++] = nk;
     }
   }
+  cache.set(src, { f, ver: L.flowVer, cap, used: GAME.time });
+  return f;
 }
-// best direction to step along the flow field from (x,z); null if unreachable
-function flowDir(L, x, z) {
-  if (!L.flow) return null;
+// best direction to step along a flow field from (x,z); null if unreachable
+function flowDir(L, f, x, z) {
+  if (!f) return null;
   const i = tileOf(x), j = tileOf(z); if (i < 0 || j < 0 || i >= L.w || j >= L.h) return null;
-  const here = L.flow[tIdx(L, i, j)];
+  const here = f[tIdx(L, i, j)];
   let best = here, bx = 0, bz = 0;
   for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
     const ni = i + di, nj = j + dj; if (solidTile(L, ni, nj)) continue;
     if (di && dj && (solidTile(L, i + di, j) || solidTile(L, i, j + dj))) continue;
-    const v = L.flow[tIdx(L, ni, nj)] + (di && dj ? 0.4 : 0);
+    const v = f[tIdx(L, ni, nj)] + (di && dj ? 0.4 : 0);
     if (v < best) { best = v; bx = tileCenter(ni) - x; bz = tileCenter(nj) - z; }
   }
   if (best === here || best >= 65535) return null;
@@ -1853,7 +1859,7 @@ function setFences(L, rm, on) {
   // a door tile shared with another locked room stays blocked
   if (!on) for (const o of L.rooms) if (o !== rm && o.locked) for (const d of o.doors) L.block[tIdx(L, d.i, d.j)] = 1;
   if (rm.fenceObjs) rm.fenceObjs.forEach((f) => { f.visible = on; });
-  L.flowFrom = -1;
+  L.flowVer++;
 }
 
 // Veyra Below — the Meridian deck: shops, artificer, bureau, lab and the teleporter down
@@ -2492,7 +2498,7 @@ function rollDrop(ctx, rng = rnd) {
   const src = ctx.source || 'monster';
   const ilvl = ctx.ilvl, mf = (ctx.mf || 0) + (DIFFS[ctx.diff || 0].drop - 1);
   // category
-  const cats = [['tool', 44], ['weapon', 19], ['frame', 8], ['barrier', 7], ['unit', 8], ['disc', 8], ['gem', 3.5], ['hone1', 2], ['mat', 0.6]];
+  const cats = [['tool', 22], ['weapon', 19], ['frame', 8], ['barrier', 7], ['unit', 8], ['disc', 8], ['gem', 3.5], ['hone1', 2], ['mat', 0.6]];
   if (src === 'boss' || src === 'unique') { cats[0][1] = 12; cats[1][1] = 34; }
   const cat = rng.wpick(cats, (c) => c[1])[0];
   if (cat === 'tool') return rollTool(ilvl, rng);
@@ -2534,7 +2540,7 @@ function rollTool(ilvl, rng) {
   const opts = [['medgel1', 30], ['psicell1', 22], ['medgel2', ilvl >= 8 ? 14 : 0], ['psicell2', ilvl >= 8 ? 10 : 0], ['medgel3', ilvl >= 22 ? 5 : 0], ['psicell3', ilvl >= 22 ? 4 : 0],
     ['purgeSpray', 6], ['reviveShot', 5], ['restorer', ilvl >= 15 ? 1 : 0], ['beacon', 8], ['lifeCharm', 0.25]];
   const id = rng.wpick(opts, (o) => o[1])[0];
-  return makeTool(id, id.endsWith('medgel') || id.endsWith('fluid') ? rng.int(1, 2) : 1);
+  return makeTool(id, 1);
 }
 function rollDisc(ilvl, rng, role) {
   const techs = TECH_ORDER.filter((t) => t !== 'recall' || rng() < 0.5);
@@ -2689,7 +2695,7 @@ function computeStats(c) {
   for (const [sid, n] of Object.entries(sets)) for (const [need, b] of Object.entries(SETS[sid].bonus)) if (n >= +need) for (const [k, v] of Object.entries(b)) S[k] = (S[k] || 0) + v;
   // sprite
   const m = c.sprite;
-  if (m) { S.dfp += Math.floor(m.def) * 2; S.atp += Math.floor(m.pow) * 2; S.ata += Math.floor(m.dex); S.evp += Math.floor(m.dex) * 0.5; S.mst += Math.floor(m.mind) * 2; }
+  if (m) { S.dfp += Math.floor(m.def) * 1.5; S.atp += Math.floor(m.pow) * 1.5; S.ata += Math.floor(m.dex); S.evp += Math.floor(m.dex) * 0.5; S.mst += Math.floor(m.mind) * 1.5; }
   // passive skills
   const r = (id) => c.skills[id] || 0;
   S.dfpPct += 0.06 * r('ironhide'); S.hpPct += 0.04 * r('ironhide');
@@ -2840,6 +2846,7 @@ function dealDamage(src, tgt, amount, o = {}) {
   // a lethal blow on a vanguard with Last Stand
   if (tgt === PL && tgt.hp - dmg <= 0 && tgt.S && tgt.S.lastStand && !GAME.lastStandUsed) { GAME.lastStandUsed = true; dmg = tgt.hp - 1; tgt.inv = 2; tgt.blink = 2; HUD.float(tgt.x, 2.4, tgt.z, 'LAST STAND', '#ffd060', 18); AUDIO.sfx('buff'); }
   tgt.hp -= dmg;
+  if (DEBUG && tgt.boss) { const k = (src && (src.name || src.kind) || '?') + ':' + (o.kind || '') + (o.elem && o.elem !== 'phys' ? ':' + o.elem : ''); const L_ = GAME.dmgLog || (GAME.dmgLog = {}); L_[k] = (L_[k] || 0) + dmg; }
   tgt.flash = 0.12; tgt.lastHurt = 0;
   if (!o.noNumber) {
     const big = o.crit || dmg > tgt.maxHp * 0.25;
@@ -3437,7 +3444,7 @@ function useSkillEffect(a, id, rank, aim) {
       for (let k = 0; k < 3; k++) {
         const yy = yaw + (k - 1) * 0.35, tgt = techTarget(a, aim, 14);
         shootProj(a, { x: a.x, z: a.z, y: 1.3, dx: Math.sin(yy), dz: Math.cos(yy), speed: 16, life: 1.4, r: 0.35, team: a.team, color: 0xc0a0ff, kind: 'orb', homing: 7, target: tgt,
-          onHit: (e) => partyHit(a, e, { kind: 'tech', power: techUnit(a) * (0.9 + 0.2 * rank) }) });
+          onHit: (e) => partyHit(a, e, { kind: 'tech', power: techUnit(a) * (0.5 + 0.1 * rank) }) });
       }
       AUDIO.sfx('orb', a.x, a.z);
       break;
@@ -3894,6 +3901,8 @@ function updateAlly(a, dt) {
       const known = Object.entries(a.char.skills).filter(([id, r]) => r > 0 && SKILLS[id].type === 'active' && (a.cd['s_' + id] || 0) <= 0 && a.tp >= (SKILLS[id].tp || 0) + 8);
       if (known.length && d < (cls === 'melee' ? 4 : 10)) { const [id] = rnd.pick(known); if (id !== 'familiar' || !ENTS.some((e) => e.summon && e.owner === a)) { startSkill(a, id, { x: t.x, z: t.z }); } ai.skillCd = rnd.range(2, 5); }
     }
+  } else if (a === PL) {
+    if (ai.explore) goal = ai.explore;
   } else if (P) {
     // follow in formation behind the player
     const idx = ALLIES.indexOf(a), ang = P.yaw + Math.PI + (idx - (ALLIES.length - 1) / 2) * 0.9;
@@ -3905,8 +3914,7 @@ function updateAlly(a, dt) {
     const d = Math.sqrt(dist2(a.x, a.z, goal.x, goal.z));
     let dx = goal.x - a.x, dz = goal.z - a.z;
     if ((d > 3 && !los(a.x, a.z, goal.x, goal.z)) || ai.stuckT > 0.8) {
-      updateFlow(LV, PL.x, PL.z);
-      const f = flowDir(LV, a.x, a.z); if (f) { dx = f.x; dz = f.z; }
+      const f = flowDir(LV, updateFlow(LV, goal.x, goal.z, a === PL ? 400 : 60), a.x, a.z); if (f) { dx = f.x; dz = f.z; }
     }
     const l = Math.hypot(dx, dz) || 1;
     ctrl.mx = dx / l; ctrl.mz = dz / l;
@@ -3926,10 +3934,10 @@ function castAllyTech(a, id, aim) {
 // Veyra Below — monsters: spawning, champion and unique packs, generic attack AI
 
 function enemyLevelStats(def, lvl, o = {}) {
-  const D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
+  const D = DIFFS[GAME.diff], party = 1 + 0.45 * ALLIES.length;
   let hp = def.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party;
-  let atk = def.atk * ECURVE(lvl) * D.dmg;
-  let xp = (def.xp || 1) * (5 + 2 * lvl) * (1 + lvl / 40) * D.xp;
+  let atk = def.atk * ECURVE(lvl) * D.dmg * 1.4;
+  let xp = (def.xp || 1) * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp;
   if (o.elite) { hp *= 2.6; atk *= 1.25; xp *= 3; if (o.elite.includes('strong')) atk *= 1.4; }
   if (o.unique) { hp *= 4.5; atk *= 1.4; xp *= 6; }
   if (o.variant) { hp *= RARE_VARIANT.hp; xp *= RARE_VARIANT.xp; }
@@ -4081,7 +4089,7 @@ function updateEnemy(e, dt) {
     let mx = 0, mz = 0;
     if (!see || d > want + 0.5) {
       if (see && d < 14) { mx = dx / d; mz = dz / d; }
-      else { updateFlow(LV, tgt.x, tgt.z); const f = flowDir(LV, e.x, e.z); if (f) { mx = f.x; mz = f.z; } }
+      else { const f = flowDir(LV, updateFlow(LV, tgt.x, tgt.z), e.x, e.z); if (f) { mx = f.x; mz = f.z; } }
     } else if (def.move === 'kite' && d < want - 2) { mx = -dx / d; mz = -dz / d; }
     else if (def.move === 'kite') { const s = Math.sin(e.t * 0.7 + e.id) > 0 ? 1 : -1; mx = -dz / d * s * 0.6; mz = dx / d * s * 0.6; }
     if (mx || mz) { const sp = e.speed * speedMul(e) * (e.sleep ? 0 : 1); moveCircle(e, mx * sp * dt, mz * sp * dt, e.r); move = 1; }
@@ -4274,10 +4282,10 @@ const BOSS_MODELS = {
 };
 
 function spawnBoss(id, x, z, lvl) {
-  const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
+  const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.75 * ALLIES.length;
   const hp = Math.round(B.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party);
   const e = makeActor('enemy', x, z, { team: 1, boss: true, bossId: id, def: { name: B.name, family: AREAS[B.area].family, attacks: [], color: B.color, color2: B.color2 }, lvl, hp, maxHp: hp,
-    atk: B.atk * ECURVE(lvl) * D.dmg, xp: Math.round(B.xp * (5 + 2 * lvl) * (1 + lvl / 40) * D.xp), ata: 40 + lvl * 2.4, evp: 20 + lvl * 1.6, res: B.res, r: B.size * 0.55, area: B.area,
+    atk: B.atk * ECURVE(lvl) * D.dmg, xp: Math.round(B.xp * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp), ata: 40 + lvl * 2.4, evp: 20 + lvl * 1.6, res: B.res, r: B.size * 0.55, area: B.area,
     name: B.name, phase: 1, timer: 2, cds: {}, aggro: null, cx: x, cz: z });
   e.rig = BOSS_MODELS[id](B); e.model = e.rig.g; e.h = e.rig.h;
   e.model.position.set(x, 0, z); R.root.add(e.model);
@@ -4297,7 +4305,7 @@ function spawnPods(e) {
   e.pods = [];
   for (let i = 0; i < 3; i++) {
     const a = i / 3 * TAU + Math.PI / 6, x = e.cx + Math.cos(a) * 8, z = e.cz + Math.sin(a) * 8;
-    const p = makeActor('enemy', x, z, { team: 1, def: { name: 'Turret Pod', family: 'machine', attacks: [], color2: 0xff3040 }, lvl: e.lvl, hp: Math.round(e.maxHp * 0.07), maxHp: Math.round(e.maxHp * 0.07), atk: e.atk * 0.45, xp: Math.round(e.xp * 0.05), ata: e.ata, evp: e.evp * 0.6, res: { bolt: -0.3 }, r: 0.8, static: true, name: 'Turret Pod', pod: true, owner: e, cd: rnd.range(1, 2.5), area: 'mines', noDrop: true });
+    const p = makeActor('enemy', x, z, { team: 1, def: { name: 'Turret Pod', family: 'machine', attacks: [], color2: 0xff3040 }, lvl: e.lvl, hp: Math.round(e.maxHp * 0.05), maxHp: Math.round(e.maxHp * 0.05), atk: e.atk * 0.45, xp: Math.round(e.xp * 0.05), ata: e.ata, evp: e.evp * 0.6, res: { bolt: -0.3 }, r: 0.8, static: true, name: 'Turret Pod', pod: true, owner: e, cd: rnd.range(1, 2.5), area: 'mines', noDrop: true });
     p.rig = BOSS_MODELS.pod({}); p.model = p.rig.g; p.h = 2; p.model.position.set(x, 0, z); R.root.add(p.model); FX.teleIn(x, z, 0xff3040);
     e.pods.push(p);
   }
@@ -4515,7 +4523,7 @@ const BOSS_AI = {
     // pods fire lasers on their own
     for (const p of e.pods) {
       p.cd -= dt; faceTo(p, tgt.x, tgt.z, 4, dt);
-      if (p.cd <= 0 && los(p.x, p.z, tgt.x, tgt.z)) { p.cd = rnd.range(1.6, 2.6); for (let k = 0; k < 3; k++) GAME.later(k * 0.12, () => { if (!p.dead && alive(tgt)) bossShot(p, tgt, { speed: 16, mult: 0.7, color: 0xff3040, kind: 'laser', y: 1.4, off: 1, elem: 'bolt' }); }); AUDIO.sfx('laser', p.x, p.z, 0.5); }
+      if (p.cd <= 0 && los(p.x, p.z, tgt.x, tgt.z)) { p.cd = rnd.range(2.4, 3.6); for (let k = 0; k < 2; k++) GAME.later(k * 0.15, () => { if (!p.dead && alive(tgt)) bossShot(p, tgt, { speed: 14, mult: 0.35, color: 0xff3040, kind: 'laser', y: 1.4, off: 1, elem: 'bolt' }); }); AUDIO.sfx('laser', p.x, p.z, 0.5); }
       p.model.position.set(p.x, 0, p.z); p.model.rotation.y = p.yaw;
     }
     if (e.mode === 'shield' && !e.pods.length) { e.mode = 'exposed'; e.st = 0; e.bossShield = false; HUD.toast('The Custodian\'s shield is down!', '#60e0ff'); AUDIO.sfx('open'); }
@@ -4534,14 +4542,14 @@ const BOSS_AI = {
       }
       if (pick === 'floor') for (let k = 0; k < 6; k++) { const a = rnd() * TAU, r = rnd.range(2, 12), x = e.cx + Math.cos(a) * r, z = e.cz + Math.sin(a) * r; bossZone(e, { x, z, r: 2.4, delay: 1.2, mult: 0.9, elem: 'bolt', status: { type: 'shock', dur: 1.5, chance: 0.3 }, color: 0x40e0ff, fx: (q) => { FX.bolt(q.x, 6, q.z, q.x, 0, q.z, 0x80f0ff); FX.ring(q.x, q.z, 0x40e0ff, 0.5, 2.4, 0.3); AUDIO.sfx('zap', q.x, q.z, 0.5); } }); }
       if (pick === 'drones') for (let k = 0; k < 2; k++) { const a = rnd() * TAU, x = e.x + Math.cos(a) * 4, z = e.z + Math.sin(a) * 4; if (!solidAt(x, z)) { const m = spawnEnemy('gundrone', x, z, { lvl: e.lvl - 2, teleIn: true, summoner: e }); m.aggro = tgt; m.noDrop = true; m.xp = Math.round(m.xp * 0.3); } }
-      if (pick === 'missiles') for (let k = 0; k < 8; k++) GAME.later(k * 0.1, () => { if (e.dead) return; const yy = k / 8 * TAU; shootProj(e, { x: e.x, z: e.z, y: 3.5, dx: Math.sin(yy), dz: Math.cos(yy), speed: 7, life: 4, r: 0.45, team: 1, color: 0xff6040, kind: 'tempest', homing: 1.6, target: tgt, payload: { dmg: e.atk * 0.6, elem: 'fire' } }); });
+      if (pick === 'missiles') for (let k = 0; k < 8; k++) GAME.later(k * 0.1, () => { if (e.dead) return; const yy = k / 8 * TAU; shootProj(e, { x: e.x, z: e.z, y: 3.5, dx: Math.sin(yy), dz: Math.cos(yy), speed: 7, life: 4, r: 0.45, team: 1, color: 0xff6040, kind: 'tempest', homing: 1.6, target: tgt, payload: { dmg: e.atk * 0.45, elem: 'fire' } }); });
     }
     if (e.sweepL) {
       const s = e.sweepL; s.t += dt; s.yaw += s.dir * dt * 1.5; e.lookYaw = s.yaw;
       let ex = e.x, ez = e.z; for (let k = 0; k < 18; k += 0.5) { const x = e.x + Math.sin(s.yaw) * k, z = e.z + Math.cos(s.yaw) * k; if (solidAt(x, z)) break; ex = x; ez = z; }
       FX.beam(e.x, 3, e.z, ex, 0.6, ez, 0xff3040, 0.45, 0.06);
       s.tick = (s.tick || 0) - dt;
-      if (s.tick <= 0) { s.tick = 0.12; const z = { x: e.x, z: e.z, r: 0.7, shape: 'line', len: Math.hypot(ex - e.x, ez - e.z), yaw: s.yaw }; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.45, elem: 'bolt', sure: true }); }
+      if (s.tick <= 0) { s.tick = 0.15; const z = { x: e.x, z: e.z, r: 0.7, shape: 'line', len: Math.hypot(ex - e.x, ez - e.z), yaw: s.yaw }; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.35, elem: 'bolt', sure: true }); }
       if (s.t > TAU / 1.5) e.sweepL = null;
     }
   },
@@ -4576,7 +4584,7 @@ const BOSS_AI = {
           FX.beam(e.x, 2.6, e.z, ex, 0.5, ez, 0xc060ff, 0.5, 0.06);
           const z = { x: e.x, z: e.z, r: 0.7, shape: 'line', len: Math.hypot(ex - e.x, ez - e.z), yaw: yy };
           e.btick = e.btick || {}; e.btick[k] = (e.btick[k] || 0) - dt;
-          if (e.btick[k] <= 0) { e.btick[k] = 0.15; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.4, elem: 'dark', sure: true }); }
+          if (e.btick[k] <= 0) { e.btick[k] = 0.15; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.28, elem: 'dark', sure: true }); }
         }
       }
       if (e.timer <= 0) {
@@ -4587,7 +4595,7 @@ const BOSS_AI = {
           for (let k = 0; k < n; k++) FX.tele(e.x, e.z, 0.7, 1, 0xc060ff, 'line', 16, e.beamYaw + 0.55 * rage + k * TAU / n);
           GAME.later(1, () => { e.beamsOn = true; e.beamsPending = false; }); GAME.later(7, () => { e.beamsOn = false; });
         }
-        if (pick === 'wave') { shockwave(e, e.x, e.z, 7, 15, 1.0, 0xc060ff); GAME.later(1.2, () => !e.dead && shockwave(e, e.x, e.z, 7, 15, 1.0, 0xc060ff)); AUDIO.sfx('dark', e.x, e.z); }
+        if (pick === 'wave') { shockwave(e, e.x, e.z, 7, 15, 0.8, 0xc060ff); GAME.later(1.2, () => !e.dead && shockwave(e, e.x, e.z, 7, 15, 0.8, 0xc060ff)); AUDIO.sfx('dark', e.x, e.z); }
         if (pick === 'rain') for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon) for (let k = 0; k < 3; k++) bossZone(e, { x: p.x + rnd.range(-2.5, 2.5), z: p.z + rnd.range(-2.5, 2.5), r: 2.2, delay: 1.1 + k * 0.35, mult: 1.0, elem: 'dark', color: 0xa040ff, fx: (q) => { FX.pillar(q.x, q.z, 1.8, 6, 0xa040ff, 0.5); AUDIO.sfx('dark', q.x, q.z, 0.4); } });
         if (pick === 'eyes' && ENTS.filter((o) => o.summoner === e && !o.dead).length < 4) for (let k = 0; k < 2; k++) { const a = rnd() * TAU, x = e.x + Math.cos(a) * 5, z = e.z + Math.sin(a) * 5; if (!solidAt(x, z)) { const m = spawnEnemy('eye', x, z, { lvl: e.lvl - 3, teleIn: true, summoner: e }); m.aggro = tgt; m.noDrop = true; m.xp = Math.round(m.xp * 0.3); } }
       }
@@ -5251,7 +5259,7 @@ const Input = (() => {
     addEventListener('gamepadconnected', (e) => { pad.idx = e.gamepad.index; });
     // touch controls
     const tz = $('#tStick');
-    tz.addEventListener('pointerdown', (e) => { AUDIO.init(); setMode('touch'); stick.id = e.pointerId; stick.x0 = e.clientX; stick.y0 = e.clientY; stick.x = 0; stick.y = 0; tz.setPointerCapture(e.pointerId); showStick(true); e.preventDefault(); });
+    tz.addEventListener('pointerdown', (e) => { AUDIO.init(); setMode('touch'); stick.id = e.pointerId; stick.x0 = e.clientX; stick.y0 = e.clientY; stick.x = 0; stick.y = 0; try { tz.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ } showStick(true); e.preventDefault(); });
     tz.addEventListener('pointermove', (e) => { if (e.pointerId !== stick.id) return; const dx = e.clientX - stick.x0, dy = e.clientY - stick.y0, l = Math.hypot(dx, dy), m = 55; stick.x = dx / Math.max(m, l); stick.y = dy / Math.max(m, l); if (l > m * 1.6) { stick.x0 = e.clientX - dx / l * m * 1.6; stick.y0 = e.clientY - dy / l * m * 1.6; } showStick(true); });
     const endStick = (e) => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; showStick(false); };
     tz.addEventListener('pointerup', endStick); tz.addEventListener('pointercancel', endStick);
@@ -5339,6 +5347,7 @@ function bestTool(c, ids, missingFrac) {
   return have[have.length - 1];
 }
 function updatePlayer(dt) {
+  if (GAME.bot) { botUpdate(PL, dt); PL.aimPt = PL.ai && PL.ai.target ? { x: PL.ai.target.x, z: PL.ai.target.z } : null; return; }
   const a = PL, c = GAME.char;
   const ctrl = { mx: 0, mz: 0, aim: null, atk: null, atkHeld: false, dodge: false, slot: null, walk: false };
   const blocked = UI.isOpen();
@@ -6010,7 +6019,7 @@ const UI = (() => {
     const feedable = Object.keys(SPRITE_FEED).filter((id) => invCount(c.inv, id) > 0);
     return `<div class="cols"><div><div class="hdr">Your sprite</div><div style="font-size:22px;font-weight:700;color:${hexCss(f.color)}">${f.name} <span style="color:var(--dim);font-size:15px">Level ${lv}</span></div>
       <div class="stats" style="margin-top:6px">${['def', 'pow', 'dex', 'mind'].map(bar).join('')}<span class="k">Bond</span><span class="v">${Math.round(m.syn)}%</span><span class="k">Wit</span><span class="v">${Math.round(m.iq)}</span></div>
-      <div style="color:var(--dim);font-size:13px;margin-top:6px">Each point of Guard adds 2 DEF, Might 2 ATK, Agility 1 ACC and ½ EVA, Insight 2 PSY. Bond makes the overdrive charge faster.${next ? ` Evolves at level ${next}.` : ' Fully evolved.'}</div>
+      <div style="color:var(--dim);font-size:13px;margin-top:6px">Each point of Guard adds 1.5 DEF, Might 1.5 ATK, Agility 1 ACC and ½ EVA, Insight 1.5 PSY. Bond makes the overdrive charge faster.${next ? ` Evolves at level ${next}.` : ' Fully evolved.'}</div>
       <div class="hdr">Overdrive</div>${m.pbs.length ? m.pbs.map((p, i) => `<div class="row ${m.pbSel % m.pbs.length === i ? 'sel' : ''}" data-nav data-a="pbsel:${i}"><span class="nm">${PBS[p].name}</span><span class="r">${PBS[p].desc}</span></div>`).join('') : '<div style="color:var(--dim);font-size:13px">Your sprite learns its first overdrive when it evolves at level 10.</div>'}</div>
       <div><div class="hdr">Feed ${m.feedT > 0 ? `<span style="color:var(--dim)">(hungry again in ${Math.ceil(m.feedT)}s)</span>` : '<span style="color:var(--green)">(hungry)</span>'}</div>
       <div class="list">${feedable.length ? feedable.map((id) => `<div class="row" data-nav data-a="feedid:${id}"><span class="ic">${toolIconSVG(id)}</span><span class="nm">${TOOLS[id].name} ×${invCount(c.inv, id)}</span><span class="r">${['def', 'pow', 'dex', 'mind'].map((k, i) => SPRITE_FEED[id][i] ? `${SPRITE_STAT_NAMES[k]} +${SPRITE_FEED[id][i]}` : '').filter(Boolean).join(', ')}</span></div>`).join('') : '<div style="color:var(--dim)">Sprites eat medgels, psi cells and other consumables. You have nothing it likes.</div>'}</div></div></div>`;
@@ -6332,6 +6341,90 @@ function migrate(c) {
   return c;
 }
 
+// Veyra Below — autoplay bot for tests (#debug only): plays the player like an ally, explores, loots and gears up
+
+function botEnsureAI(a) {
+  return a.ai || (a.ai = { think: 0, target: null, chatT: 1e9, moon: 0, reviveT: 0, healCd: 0, buffCd: 0, skillCd: 1, techCd: 0, stuckT: 0, lastPos: { x: a.x, z: a.z }, explore: null, goalT: 0, skip: new Set() });
+}
+// how good a piece of gear is for the bot, compared within a slot
+function botScore(c, it) {
+  if (!it || it.unid || canEquip(c, it)) return -1;
+  const st = itemStats(it);
+  if (it.kind === 'weapon') {
+    const d = weaponDamage(it), wt = WTYPES[it.base];
+    const speed = wt.cls === 'melee' ? wt.speed : wt.speed * 0.9;
+    let v = (d.min + d.max) / 2 * speed * (wt.hits || 1) * (wt.pellets ? 2.2 : 1) * (wt.burst || 1) * (1 + (st.dmgPct || 0));
+    if (c.role === 'psion') v = v * 0.3 + (st.techPct || 0) * 400 + (st.mst || 0) * 3;
+    return v;
+  }
+  return (st.dfp || 0) * 2 + (st.hp || 0) + (st.atp || 0) * 2 + (st.mst || 0) * (c.role === 'psion' ? 3 : 0.5) + (st.evp || 0) + (st.resAll || 0) * 200 + (st.hpPct || 0) * 400;
+}
+function botGearUp(c) {
+  let changed = false;
+  for (const it of [...c.inv]) {
+    if (!isEquip(it) || it.unid || canEquip(c, it)) continue;
+    const slot = it.kind === 'unit' ? (!c.equip.unit1 ? 'unit1' : !c.equip.unit2 ? 'unit2' : botScore(c, c.equip.unit1) < botScore(c, c.equip.unit2) ? 'unit1' : 'unit2') : it.kind;
+    if (botScore(c, it) > botScore(c, c.equip[slot]) * 1.02) { invRemove(c.inv, it); const old = c.equip[slot]; c.equip[slot] = it; if (old) c.inv.push(old); changed = true; }
+  }
+  // learn arts and spend skill points
+  for (const it of [...c.inv]) if (it.kind === 'disc' && !discProblem(c, it)) { c.techs[it.base] = it.lv; invRemove(c.inv, it); }
+  for (let k = 0; k < 20 && c.skillPts > 0; k++) {
+    const opts = classSkills(c).filter(([id, s]) => skillTierOpen(c, s) && (c.skills[id] || 0) < s.max).sort((p, q) => (p[1].type === 'active' ? 0 : 1) - (q[1].type === 'active' ? 0 : 1) || (c.skills[p[0]] || 0) - (c.skills[q[0]] || 0));
+    if (!opts.length) break;
+    c.skills[opts[0][0]] = (c.skills[opts[0][0]] || 0) + 1; c.skillPts--; changed = true;
+  }
+  // drop what isn't useful so the bag never fills
+  for (const it of [...c.inv]) if (isEquip(it) && !it.unid && it.rar < 2) { c.credits += sellPrice(it); invRemove(c.inv, it); }
+  if (changed && PL) refreshPartyActor(PL, false);
+}
+function botPickGoal(a) {
+  const L = LV, ai = a.ai;
+  // loot first, when nothing is fighting us
+  const loot = GROUND.filter((d) => !d.credits && dist2(d.x, d.z, a.x, a.z) < 14 * 14 && !ai.skip.has(d));
+  if (loot.length && !GAME.inCombat) { const d = loot.sort((p, q) => dist2(p.x, p.z, a.x, a.z) - dist2(q.x, q.z, a.x, a.z))[0]; return { x: d.x, z: d.z, loot: d }; }
+  if (L.kind === 'boss') {
+    const home = L.objects.find((o) => o.kind === 'home' && o.after);
+    if (home) return { x: home.x, z: home.z, obj: home };
+    return { x: L.bossCenter.x, z: L.bossCenter.z };
+  }
+  // the nearest room that isn't cleared yet (by walking distance)
+  const f = updateFlow(L, a.x, a.z, 400);
+  let best = null, bd = Infinity;
+  for (const rm of L.rooms) {
+    if (rm.cleared || rm.type === 'start' || ai.skip.has(rm)) continue;
+    if (rm.type === 'exit' && L.rooms.some((r) => r !== rm && !r.cleared && r.type !== 'start' && !ai.skip.has(r))) continue;
+    const d = f[tIdx(L, rm.ci, rm.cj)]; if (d < bd) { bd = d; best = rm; }
+  }
+  if (best) return { x: tileCenter(best.ci), z: tileCenter(best.cj), room: best };
+  const ex = L.objects.find((o) => o.kind === 'next');
+  if (ex) return { x: ex.x, z: ex.z, obj: ex };
+  return null;
+}
+function botUpdate(a, dt) {
+  const ai = botEnsureAI(a), c = GAME.char;
+  if (a.downed) { if (invCount(c.inv, 'reviveShot')) selfRevive(a); updateAlly(a, dt); return; }
+  if (!a.act) {
+    if (a.hp < a.maxHp * 0.4) { const id = bestTool(c, ['medgel1', 'medgel2', 'medgel3'], 1 - a.hp / a.maxHp); if (id) startItem(a, id); }
+    else if (a.tp < a.maxTp * 0.2 && a.role === 'psion') { const id = bestTool(c, ['psicell1', 'psicell2', 'psicell3'], 1 - a.tp / a.maxTp); if (id) startItem(a, id); }
+  }
+  if (c.sprite.pbCharge >= 100 && GAME.inCombat) usePB(a);
+  ai.goalT -= dt;
+  if (ai.goalT <= 0 || !ai.goal) { ai.goalT = 0.5; ai.goal = botPickGoal(a); ai.explore = ai.goal; }
+  const g = ai.goal;
+  if (g) {
+    const d2 = dist2(a.x, a.z, g.x, g.z);
+    if (g.loot && !GROUND.includes(g.loot)) ai.goal = null;
+    else if (g.loot && d2 < 1.6 * 1.6) { if (!pickUp(g.loot)) ai.skip.add(g.loot); else botGearUp(c); ai.goal = null; }
+    if (g.obj && d2 < 1.6 * 1.6) { GAME.botReached = g.obj; }
+    // give up on goals we can't reach (in or out of combat), and on targets we can't hurt
+    ai.progT = (ai.progT || 0) + dt;
+    if (ai._lastGoal !== g.room && ai._lastGoal !== g.loot && ai._lastGoal !== g.obj) { ai._lastGoal = g.room || g.loot || g.obj; ai.bestD = d2; ai.progT = 0; }
+    if (d2 < ai.bestD - 1 || GAME.char.stats.kills !== ai.lastKills) { ai.bestD = Math.min(ai.bestD, d2); ai.progT = 0; ai.lastKills = GAME.char.stats.kills; }
+    if (ai.progT > 40) { ai.skip.add(g.room || g.loot || g.obj); ai.progT = 0; ai.goal = null; GAME.botSkips = (GAME.botSkips || 0) + 1; }
+  }
+  updateAlly(a, dt);
+}
+
 // Veyra Below — boot, main loop and the #debug hook
 
 let lastT = 0, autoSaveT = 0;
@@ -6396,7 +6489,7 @@ function frame(dt, draw) {
 function installDebug() {
   const VB = {
     GAME, ENTS, R, CAM, UI, HUD, Input, FX, get PL() { return PL; }, get LV() { return LV; }, get ALLIES() { return ALLIES; },
-    f: { spawnEnemy, spawnBoss, makeEquip, makeTool, makeDisc, makeGem, makeRelic, rollDrop, computeStats, gainXP, buildFloor, enterHub, descend, roomAt, tileCenter, feedSprite, partyHit, dealDamage, startTech, startSkill, useSlot, usePB, GROUND, ZONES, PROJ, interact, nearestInteract, restoreField, stashField, genQuest, equipItem },
+    f: { botGearUp, appraiseAll: (c) => { for (const it of c.inv) it.unid = false; }, spawnEnemy, spawnBoss, makeEquip, makeTool, makeDisc, makeGem, makeRelic, rollDrop, computeStats, gainXP, buildFloor, enterHub, descend, roomAt, tileCenter, feedSprite, partyHit, dealDamage, startTech, startSkill, useSlot, usePB, GROUND, ZONES, PROJ, interact, nearestInteract, restoreField, stashField, genQuest, equipItem },
     // start({ role, race, name, level, allies: n, area, floor, diff })
     start(o = {}) {
       const c = newCharacter(o.name || 'Tester', o.role || 'vanguard', o.race || 'human', { suit: SUIT_COLORS[o.suit || 1], suit2: 0x2a2e38, hair: HAIR_COLORS[2], build: 0, glow: 0x60e0ff });
@@ -6420,7 +6513,7 @@ function installDebug() {
     press(act) { Input.acts.add(act); frame(1 / 30, false); },
     stats() { return { mode: GAME.mode, area: GAME.area, floor: GAME.floorIdx, lvl: GAME.char && GAME.char.level, hp: PL && Math.round(PL.hp), maxHp: PL && PL.maxHp, tp: PL && Math.round(PL.tp), enemies: ENTS.filter((e) => e.team === 1 && !e.dead && !e.box).length, allies: ALLIES.length, ground: GROUND.length, credits: GAME.char && GAME.char.credits, room: GAME.curRoom && GAME.curRoom.type }; },
   };
-  Object.assign(window, { ROLES_: ROLES, RACES_: RACES, TECHS_: TECHS, SKILLS_: SKILLS, WTYPES_: WTYPES, STAR_SIGNS_: STAR_SIGNS, techLevelCap_: techLevelCap, refreshPartyActor_: refreshPartyActor, tooltipHTML_: tooltipHTML, itemName_: itemName, invAdd_: invAdd, spriteLevel_: spriteLevel, SAVE_: SAVE, weaponDamage_: weaponDamage, techPower_: techPower, LCURVE_: LCURVE, ECURVE_: ECURVE });
+  Object.assign(window, { ROLES_: ROLES, RACES_: RACES, TECHS_: TECHS, SKILLS_: SKILLS, WTYPES_: WTYPES, STAR_SIGNS_: STAR_SIGNS, techLevelCap_: techLevelCap, refreshPartyActor_: refreshPartyActor, tooltipHTML_: tooltipHTML, itemName_: itemName, invAdd_: invAdd, spriteLevel_: spriteLevel, SAVE_: SAVE, weaponDamage_: weaponDamage, TOOLS_: TOOLS, botScore_: botScore, invCount_: invCount, itemValue_: itemValue, techPower_: techPower, LCURVE_: LCURVE, ECURVE_: ECURVE });
   window.VB = VB;
 }
 boot();

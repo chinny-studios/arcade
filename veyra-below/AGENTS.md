@@ -17,7 +17,12 @@ procedural floors each plus a boss arena, and four difficulties (Initiate, Veter
   and skills, every weapon type, 3,000 loot rolls with tooltips, sprite evolution, all four bosses, every menu and
   ship service, a portal round trip and a save round trip. `test/play.js` fights through a room, `test/visual.js` is a
   screenshot tour (use `--no-start`), `test/balance.js` prints hits-to-kill and damage taken by level.
-  `node test/live.mjs` plays the title → new character → ship → teleporter → floor flow with real key presses and clicks.
+  `node test/live.mjs` plays the title → new character → ship → teleporter → floor flow with real key presses and clicks,
+  and `node test/inputs.mjs` checks a mocked gamepad (move, attack, roll, menu focus and tabs) and touch (stick, buttons).
+  `test/autoplay.js` (use `--no-start`) lets a bot play the whole campaign with two recruited wardens and no god mode,
+  buying supplies between floors, and prints time, levels, downs and wipes per floor: run it after balance changes.
+  Set `window.__role`, `__diff` or `__lvl` in a wrapper steps file to try other classes. `test/perf.js` prints draw calls.
+  The bot is `23_bot.js`; `GAME.bot = true` hands the player to it.
   `--start '{"role":"psion","area":"ruins"}'` passes options to `VB.start`.
 - **Gotchas:** generated names are all original. Don't bring in names from other games. Internal stat keys
   (`atp`, `dfp`, `mst`, `ata`, `evp`, `lck`, `tp`) are shown as ATK, DEF, PSY, ACC, EVA, LUK and PSI. Equipment kinds

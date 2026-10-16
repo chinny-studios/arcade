@@ -63,10 +63,10 @@ const BOSS_MODELS = {
 };
 
 function spawnBoss(id, x, z, lvl) {
-  const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
+  const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.75 * ALLIES.length;
   const hp = Math.round(B.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party);
   const e = makeActor('enemy', x, z, { team: 1, boss: true, bossId: id, def: { name: B.name, family: AREAS[B.area].family, attacks: [], color: B.color, color2: B.color2 }, lvl, hp, maxHp: hp,
-    atk: B.atk * ECURVE(lvl) * D.dmg, xp: Math.round(B.xp * (5 + 2 * lvl) * (1 + lvl / 40) * D.xp), ata: 40 + lvl * 2.4, evp: 20 + lvl * 1.6, res: B.res, r: B.size * 0.55, area: B.area,
+    atk: B.atk * ECURVE(lvl) * D.dmg, xp: Math.round(B.xp * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp), ata: 40 + lvl * 2.4, evp: 20 + lvl * 1.6, res: B.res, r: B.size * 0.55, area: B.area,
     name: B.name, phase: 1, timer: 2, cds: {}, aggro: null, cx: x, cz: z });
   e.rig = BOSS_MODELS[id](B); e.model = e.rig.g; e.h = e.rig.h;
   e.model.position.set(x, 0, z); R.root.add(e.model);
@@ -86,7 +86,7 @@ function spawnPods(e) {
   e.pods = [];
   for (let i = 0; i < 3; i++) {
     const a = i / 3 * TAU + Math.PI / 6, x = e.cx + Math.cos(a) * 8, z = e.cz + Math.sin(a) * 8;
-    const p = makeActor('enemy', x, z, { team: 1, def: { name: 'Turret Pod', family: 'machine', attacks: [], color2: 0xff3040 }, lvl: e.lvl, hp: Math.round(e.maxHp * 0.07), maxHp: Math.round(e.maxHp * 0.07), atk: e.atk * 0.45, xp: Math.round(e.xp * 0.05), ata: e.ata, evp: e.evp * 0.6, res: { bolt: -0.3 }, r: 0.8, static: true, name: 'Turret Pod', pod: true, owner: e, cd: rnd.range(1, 2.5), area: 'mines', noDrop: true });
+    const p = makeActor('enemy', x, z, { team: 1, def: { name: 'Turret Pod', family: 'machine', attacks: [], color2: 0xff3040 }, lvl: e.lvl, hp: Math.round(e.maxHp * 0.05), maxHp: Math.round(e.maxHp * 0.05), atk: e.atk * 0.45, xp: Math.round(e.xp * 0.05), ata: e.ata, evp: e.evp * 0.6, res: { bolt: -0.3 }, r: 0.8, static: true, name: 'Turret Pod', pod: true, owner: e, cd: rnd.range(1, 2.5), area: 'mines', noDrop: true });
     p.rig = BOSS_MODELS.pod({}); p.model = p.rig.g; p.h = 2; p.model.position.set(x, 0, z); R.root.add(p.model); FX.teleIn(x, z, 0xff3040);
     e.pods.push(p);
   }
@@ -304,7 +304,7 @@ const BOSS_AI = {
     // pods fire lasers on their own
     for (const p of e.pods) {
       p.cd -= dt; faceTo(p, tgt.x, tgt.z, 4, dt);
-      if (p.cd <= 0 && los(p.x, p.z, tgt.x, tgt.z)) { p.cd = rnd.range(1.6, 2.6); for (let k = 0; k < 3; k++) GAME.later(k * 0.12, () => { if (!p.dead && alive(tgt)) bossShot(p, tgt, { speed: 16, mult: 0.7, color: 0xff3040, kind: 'laser', y: 1.4, off: 1, elem: 'bolt' }); }); AUDIO.sfx('laser', p.x, p.z, 0.5); }
+      if (p.cd <= 0 && los(p.x, p.z, tgt.x, tgt.z)) { p.cd = rnd.range(2.4, 3.6); for (let k = 0; k < 2; k++) GAME.later(k * 0.15, () => { if (!p.dead && alive(tgt)) bossShot(p, tgt, { speed: 14, mult: 0.35, color: 0xff3040, kind: 'laser', y: 1.4, off: 1, elem: 'bolt' }); }); AUDIO.sfx('laser', p.x, p.z, 0.5); }
       p.model.position.set(p.x, 0, p.z); p.model.rotation.y = p.yaw;
     }
     if (e.mode === 'shield' && !e.pods.length) { e.mode = 'exposed'; e.st = 0; e.bossShield = false; HUD.toast('The Custodian\'s shield is down!', '#60e0ff'); AUDIO.sfx('open'); }
@@ -323,14 +323,14 @@ const BOSS_AI = {
       }
       if (pick === 'floor') for (let k = 0; k < 6; k++) { const a = rnd() * TAU, r = rnd.range(2, 12), x = e.cx + Math.cos(a) * r, z = e.cz + Math.sin(a) * r; bossZone(e, { x, z, r: 2.4, delay: 1.2, mult: 0.9, elem: 'bolt', status: { type: 'shock', dur: 1.5, chance: 0.3 }, color: 0x40e0ff, fx: (q) => { FX.bolt(q.x, 6, q.z, q.x, 0, q.z, 0x80f0ff); FX.ring(q.x, q.z, 0x40e0ff, 0.5, 2.4, 0.3); AUDIO.sfx('zap', q.x, q.z, 0.5); } }); }
       if (pick === 'drones') for (let k = 0; k < 2; k++) { const a = rnd() * TAU, x = e.x + Math.cos(a) * 4, z = e.z + Math.sin(a) * 4; if (!solidAt(x, z)) { const m = spawnEnemy('gundrone', x, z, { lvl: e.lvl - 2, teleIn: true, summoner: e }); m.aggro = tgt; m.noDrop = true; m.xp = Math.round(m.xp * 0.3); } }
-      if (pick === 'missiles') for (let k = 0; k < 8; k++) GAME.later(k * 0.1, () => { if (e.dead) return; const yy = k / 8 * TAU; shootProj(e, { x: e.x, z: e.z, y: 3.5, dx: Math.sin(yy), dz: Math.cos(yy), speed: 7, life: 4, r: 0.45, team: 1, color: 0xff6040, kind: 'tempest', homing: 1.6, target: tgt, payload: { dmg: e.atk * 0.6, elem: 'fire' } }); });
+      if (pick === 'missiles') for (let k = 0; k < 8; k++) GAME.later(k * 0.1, () => { if (e.dead) return; const yy = k / 8 * TAU; shootProj(e, { x: e.x, z: e.z, y: 3.5, dx: Math.sin(yy), dz: Math.cos(yy), speed: 7, life: 4, r: 0.45, team: 1, color: 0xff6040, kind: 'tempest', homing: 1.6, target: tgt, payload: { dmg: e.atk * 0.45, elem: 'fire' } }); });
     }
     if (e.sweepL) {
       const s = e.sweepL; s.t += dt; s.yaw += s.dir * dt * 1.5; e.lookYaw = s.yaw;
       let ex = e.x, ez = e.z; for (let k = 0; k < 18; k += 0.5) { const x = e.x + Math.sin(s.yaw) * k, z = e.z + Math.cos(s.yaw) * k; if (solidAt(x, z)) break; ex = x; ez = z; }
       FX.beam(e.x, 3, e.z, ex, 0.6, ez, 0xff3040, 0.45, 0.06);
       s.tick = (s.tick || 0) - dt;
-      if (s.tick <= 0) { s.tick = 0.12; const z = { x: e.x, z: e.z, r: 0.7, shape: 'line', len: Math.hypot(ex - e.x, ez - e.z), yaw: s.yaw }; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.45, elem: 'bolt', sure: true }); }
+      if (s.tick <= 0) { s.tick = 0.15; const z = { x: e.x, z: e.z, r: 0.7, shape: 'line', len: Math.hypot(ex - e.x, ez - e.z), yaw: s.yaw }; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.35, elem: 'bolt', sure: true }); }
       if (s.t > TAU / 1.5) e.sweepL = null;
     }
   },
@@ -365,7 +365,7 @@ const BOSS_AI = {
           FX.beam(e.x, 2.6, e.z, ex, 0.5, ez, 0xc060ff, 0.5, 0.06);
           const z = { x: e.x, z: e.z, r: 0.7, shape: 'line', len: Math.hypot(ex - e.x, ez - e.z), yaw: yy };
           e.btick = e.btick || {}; e.btick[k] = (e.btick[k] || 0) - dt;
-          if (e.btick[k] <= 0) { e.btick[k] = 0.15; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.4, elem: 'dark', sure: true }); }
+          if (e.btick[k] <= 0) { e.btick[k] = 0.15; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.28, elem: 'dark', sure: true }); }
         }
       }
       if (e.timer <= 0) {
@@ -376,7 +376,7 @@ const BOSS_AI = {
           for (let k = 0; k < n; k++) FX.tele(e.x, e.z, 0.7, 1, 0xc060ff, 'line', 16, e.beamYaw + 0.55 * rage + k * TAU / n);
           GAME.later(1, () => { e.beamsOn = true; e.beamsPending = false; }); GAME.later(7, () => { e.beamsOn = false; });
         }
-        if (pick === 'wave') { shockwave(e, e.x, e.z, 7, 15, 1.0, 0xc060ff); GAME.later(1.2, () => !e.dead && shockwave(e, e.x, e.z, 7, 15, 1.0, 0xc060ff)); AUDIO.sfx('dark', e.x, e.z); }
+        if (pick === 'wave') { shockwave(e, e.x, e.z, 7, 15, 0.8, 0xc060ff); GAME.later(1.2, () => !e.dead && shockwave(e, e.x, e.z, 7, 15, 0.8, 0xc060ff)); AUDIO.sfx('dark', e.x, e.z); }
         if (pick === 'rain') for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon) for (let k = 0; k < 3; k++) bossZone(e, { x: p.x + rnd.range(-2.5, 2.5), z: p.z + rnd.range(-2.5, 2.5), r: 2.2, delay: 1.1 + k * 0.35, mult: 1.0, elem: 'dark', color: 0xa040ff, fx: (q) => { FX.pillar(q.x, q.z, 1.8, 6, 0xa040ff, 0.5); AUDIO.sfx('dark', q.x, q.z, 0.4); } });
         if (pick === 'eyes' && ENTS.filter((o) => o.summoner === e && !o.dead).length < 4) for (let k = 0; k < 2; k++) { const a = rnd() * TAU, x = e.x + Math.cos(a) * 5, z = e.z + Math.sin(a) * 5; if (!solidAt(x, z)) { const m = spawnEnemy('eye', x, z, { lvl: e.lvl - 3, teleIn: true, summoner: e }); m.aggro = tgt; m.noDrop = true; m.xp = Math.round(m.xp * 0.3); } }
       }

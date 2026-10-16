@@ -36,7 +36,7 @@ const Input = (() => {
     addEventListener('gamepadconnected', (e) => { pad.idx = e.gamepad.index; });
     // touch controls
     const tz = $('#tStick');
-    tz.addEventListener('pointerdown', (e) => { AUDIO.init(); setMode('touch'); stick.id = e.pointerId; stick.x0 = e.clientX; stick.y0 = e.clientY; stick.x = 0; stick.y = 0; tz.setPointerCapture(e.pointerId); showStick(true); e.preventDefault(); });
+    tz.addEventListener('pointerdown', (e) => { AUDIO.init(); setMode('touch'); stick.id = e.pointerId; stick.x0 = e.clientX; stick.y0 = e.clientY; stick.x = 0; stick.y = 0; try { tz.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ } showStick(true); e.preventDefault(); });
     tz.addEventListener('pointermove', (e) => { if (e.pointerId !== stick.id) return; const dx = e.clientX - stick.x0, dy = e.clientY - stick.y0, l = Math.hypot(dx, dy), m = 55; stick.x = dx / Math.max(m, l); stick.y = dy / Math.max(m, l); if (l > m * 1.6) { stick.x0 = e.clientX - dx / l * m * 1.6; stick.y0 = e.clientY - dy / l * m * 1.6; } showStick(true); });
     const endStick = (e) => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; showStick(false); };
     tz.addEventListener('pointerup', endStick); tz.addEventListener('pointercancel', endStick);
@@ -124,6 +124,7 @@ function bestTool(c, ids, missingFrac) {
   return have[have.length - 1];
 }
 function updatePlayer(dt) {
+  if (GAME.bot) { botUpdate(PL, dt); PL.aimPt = PL.ai && PL.ai.target ? { x: PL.ai.target.x, z: PL.ai.target.z } : null; return; }
   const a = PL, c = GAME.char;
   const ctrl = { mx: 0, mz: 0, aim: null, atk: null, atkHeld: false, dodge: false, slot: null, walk: false };
   const blocked = UI.isOpen();

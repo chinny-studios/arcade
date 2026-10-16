@@ -480,7 +480,7 @@ function useSkillEffect(a, id, rank, aim) {
       for (let k = 0; k < 3; k++) {
         const yy = yaw + (k - 1) * 0.35, tgt = techTarget(a, aim, 14);
         shootProj(a, { x: a.x, z: a.z, y: 1.3, dx: Math.sin(yy), dz: Math.cos(yy), speed: 16, life: 1.4, r: 0.35, team: a.team, color: 0xc0a0ff, kind: 'orb', homing: 7, target: tgt,
-          onHit: (e) => partyHit(a, e, { kind: 'tech', power: techUnit(a) * (0.9 + 0.2 * rank) }) });
+          onHit: (e) => partyHit(a, e, { kind: 'tech', power: techUnit(a) * (0.5 + 0.1 * rank) }) });
       }
       AUDIO.sfx('orb', a.x, a.z);
       break;

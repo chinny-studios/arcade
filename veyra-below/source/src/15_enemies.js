@@ -1,10 +1,10 @@
 // Veyra Below — monsters: spawning, champion and unique packs, generic attack AI
 
 function enemyLevelStats(def, lvl, o = {}) {
-  const D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
+  const D = DIFFS[GAME.diff], party = 1 + 0.45 * ALLIES.length;
   let hp = def.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party;
-  let atk = def.atk * ECURVE(lvl) * D.dmg;
-  let xp = (def.xp || 1) * (5 + 2 * lvl) * (1 + lvl / 40) * D.xp;
+  let atk = def.atk * ECURVE(lvl) * D.dmg * 1.4;
+  let xp = (def.xp || 1) * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp;
   if (o.elite) { hp *= 2.6; atk *= 1.25; xp *= 3; if (o.elite.includes('strong')) atk *= 1.4; }
   if (o.unique) { hp *= 4.5; atk *= 1.4; xp *= 6; }
   if (o.variant) { hp *= RARE_VARIANT.hp; xp *= RARE_VARIANT.xp; }
@@ -156,7 +156,7 @@ function updateEnemy(e, dt) {
     let mx = 0, mz = 0;
     if (!see || d > want + 0.5) {
       if (see && d < 14) { mx = dx / d; mz = dz / d; }
-      else { updateFlow(LV, tgt.x, tgt.z); const f = flowDir(LV, e.x, e.z); if (f) { mx = f.x; mz = f.z; } }
+      else { const f = flowDir(LV, updateFlow(LV, tgt.x, tgt.z), e.x, e.z); if (f) { mx = f.x; mz = f.z; } }
     } else if (def.move === 'kite' && d < want - 2) { mx = -dx / d; mz = -dz / d; }
     else if (def.move === 'kite') { const s = Math.sin(e.t * 0.7 + e.id) > 0 ? 1 : -1; mx = -dz / d * s * 0.6; mz = dx / d * s * 0.6; }
     if (mx || mz) { const sp = e.speed * speedMul(e) * (e.sleep ? 0 : 1); moveCircle(e, mx * sp * dt, mz * sp * dt, e.r); move = 1; }
