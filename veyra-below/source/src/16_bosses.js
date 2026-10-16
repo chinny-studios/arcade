@@ -66,7 +66,7 @@ function spawnBoss(id, x, z, lvl) {
   const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
   const hp = Math.round(B.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party);
   const e = makeActor('enemy', x, z, { team: 1, boss: true, bossId: id, def: { name: B.name, family: AREAS[B.area].family, attacks: [], color: B.color, color2: B.color2 }, lvl, hp, maxHp: hp,
-    atk: B.atk * ECURVE(lvl) * D.dmg, xp: Math.round(B.xp * (5 + 2 * lvl) * (1 + lvl / 40) * D.xp), ata: 40 + lvl * 2.4, evp: 20 + lvl * 1.6, res: B.res, r: B.size * 0.55, area: B.area,
+    atk: B.atk * ECURVE(lvl) * D.dmg, xp: Math.round(B.xp * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp), ata: 40 + lvl * 2.4, evp: 20 + lvl * 1.6, res: B.res, r: B.size * 0.55, area: B.area,
     name: B.name, phase: 1, timer: 2, cds: {}, aggro: null, cx: x, cz: z });
   e.rig = BOSS_MODELS[id](B); e.model = e.rig.g; e.h = e.rig.h;
   e.model.position.set(x, 0, z); R.root.add(e.model);

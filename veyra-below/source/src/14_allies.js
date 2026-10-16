@@ -119,6 +119,8 @@ function updateAlly(a, dt) {
       const known = Object.entries(a.char.skills).filter(([id, r]) => r > 0 && SKILLS[id].type === 'active' && (a.cd['s_' + id] || 0) <= 0 && a.tp >= (SKILLS[id].tp || 0) + 8);
       if (known.length && d < (cls === 'melee' ? 4 : 10)) { const [id] = rnd.pick(known); if (id !== 'familiar' || !ENTS.some((e) => e.summon && e.owner === a)) { startSkill(a, id, { x: t.x, z: t.z }); } ai.skillCd = rnd.range(2, 5); }
     }
+  } else if (a === PL) {
+    if (ai.explore) goal = ai.explore;
   } else if (P) {
     // follow in formation behind the player
     const idx = ALLIES.indexOf(a), ang = P.yaw + Math.PI + (idx - (ALLIES.length - 1) / 2) * 0.9;
@@ -130,8 +132,7 @@ function updateAlly(a, dt) {
     const d = Math.sqrt(dist2(a.x, a.z, goal.x, goal.z));
     let dx = goal.x - a.x, dz = goal.z - a.z;
     if ((d > 3 && !los(a.x, a.z, goal.x, goal.z)) || ai.stuckT > 0.8) {
-      updateFlow(LV, PL.x, PL.z);
-      const f = flowDir(LV, a.x, a.z); if (f) { dx = f.x; dz = f.z; }
+      const f = flowDir(LV, updateFlow(LV, goal.x, goal.z, a === PL ? 400 : 60), a.x, a.z); if (f) { dx = f.x; dz = f.z; }
     }
     const l = Math.hypot(dx, dz) || 1;
     ctrl.mx = dx / l; ctrl.mz = dz / l;

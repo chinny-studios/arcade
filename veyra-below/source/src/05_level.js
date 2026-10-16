@@ -5,7 +5,7 @@ let LV = null; // the level the party is standing in
 
 function newLevel(w, h, kind) {
   return { w, h, kind, cells: new Uint8Array(w * h), room: new Int16Array(w * h).fill(-1), block: new Uint8Array(w * h), seen: new Uint8Array(w * h),
-    rooms: [], start: { x: 0, z: 0 }, colliders: [], walls: [], wallAt: null, objects: [], fences: [], flow: null, flowFrom: -1, group: null };
+    rooms: [], start: { x: 0, z: 0 }, colliders: [], walls: [], wallAt: null, objects: [], fences: [], flows: null, flowVer: 0, group: null };
 }
 const tIdx = (L, i, j) => j * L.w + i;
 const tileOf = (x) => Math.floor(x / T);
@@ -129,6 +129,7 @@ function genBossLayout(areaId, seed) {
   roomGraph(L, [[0, 1]]);
   findDoors(L);
   a.type = 'start'; b.type = 'boss';
+  L.start = { x: tileCenter(a.ci), z: tileCenter(a.cj) };
   return { L, rng };
 }
 
@@ -363,35 +364,40 @@ function los(ax, az, bx, bz, L = LV) {
   for (let k = 1; k < n; k++) { const t = k / n; if (solidAt(lerp(ax, bx, t), lerp(az, bz, t), L)) return false; }
   return true;
 }
-// distance along open tiles from the target's tile (a flow field), recomputed when the target changes tile
-function updateFlow(L, x, z) {
-  const ti = tileOf(x), tj = tileOf(z), src = tIdx(L, ti, tj);
-  if (L.flowFrom === src && L.flow) return;
-  L.flowFrom = src;
-  const f = L.flow || (L.flow = new Uint16Array(L.w * L.h));
+// Distance along open tiles from a target tile (a flow field). Fields are cached per target tile, so monsters
+// chasing different party members don't keep recomputing each other's field.
+function updateFlow(L, x, z, cap = 60) {
+  const ti = clamp(tileOf(x), 0, L.w - 1), tj = clamp(tileOf(z), 0, L.h - 1), src = tIdx(L, ti, tj);
+  const cache = L.flows || (L.flows = new Map());
+  let e = cache.get(src);
+  if (e && e.ver === L.flowVer && e.cap >= cap) { e.used = GAME.time; return e.f; }
+  if (!e && cache.size >= 8) { let old = null; for (const [k, v] of cache) if (!old || v.used < old[1].used) old = [k, v]; cache.delete(old[0]); }
+  const f = e ? e.f : new Uint16Array(L.w * L.h);
   f.fill(65535);
-  const q = new Int32Array(L.w * L.h); let h = 0, t = 0;
+  const q = L._flowQ || (L._flowQ = new Int32Array(L.w * L.h)); let h = 0, t = 0;
   f[src] = 0; q[t++] = src;
   while (h < t) {
     const k = q[h++], i = k % L.w, j = (k / L.w) | 0, d = f[k];
-    if (d > 60) continue;
+    if (d > cap) continue;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ni = i + di, nj = j + dj; if (solidTile(L, ni, nj)) continue;
       const nk = nj * L.w + ni; if (f[nk] !== 65535) continue;
       f[nk] = d + 1; q[t++] = nk;
     }
   }
+  cache.set(src, { f, ver: L.flowVer, cap, used: GAME.time });
+  return f;
 }
-// best direction to step along the flow field from (x,z); null if unreachable
-function flowDir(L, x, z) {
-  if (!L.flow) return null;
+// best direction to step along a flow field from (x,z); null if unreachable
+function flowDir(L, f, x, z) {
+  if (!f) return null;
   const i = tileOf(x), j = tileOf(z); if (i < 0 || j < 0 || i >= L.w || j >= L.h) return null;
-  const here = L.flow[tIdx(L, i, j)];
+  const here = f[tIdx(L, i, j)];
   let best = here, bx = 0, bz = 0;
   for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
     const ni = i + di, nj = j + dj; if (solidTile(L, ni, nj)) continue;
     if (di && dj && (solidTile(L, i + di, j) || solidTile(L, i, j + dj))) continue;
-    const v = L.flow[tIdx(L, ni, nj)] + (di && dj ? 0.4 : 0);
+    const v = f[tIdx(L, ni, nj)] + (di && dj ? 0.4 : 0);
     if (v < best) { best = v; bx = tileCenter(ni) - x; bz = tileCenter(nj) - z; }
   }
   if (best === here || best >= 65535) return null;
@@ -423,5 +429,5 @@ function setFences(L, rm, on) {
   // a door tile shared with another locked room stays blocked
   if (!on) for (const o of L.rooms) if (o !== rm && o.locked) for (const d of o.doors) L.block[tIdx(L, d.i, d.j)] = 1;
   if (rm.fenceObjs) rm.fenceObjs.forEach((f) => { f.visible = on; });
-  L.flowFrom = -1;
+  L.flowVer++;
 }

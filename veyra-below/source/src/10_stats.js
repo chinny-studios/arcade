@@ -44,7 +44,7 @@ function computeStats(c) {
   for (const [sid, n] of Object.entries(sets)) for (const [need, b] of Object.entries(SETS[sid].bonus)) if (n >= +need) for (const [k, v] of Object.entries(b)) S[k] = (S[k] || 0) + v;
   // sprite
   const m = c.sprite;
-  if (m) { S.dfp += Math.floor(m.def) * 2; S.atp += Math.floor(m.pow) * 2; S.ata += Math.floor(m.dex); S.evp += Math.floor(m.dex) * 0.5; S.mst += Math.floor(m.mind) * 2; }
+  if (m) { S.dfp += Math.floor(m.def) * 1.5; S.atp += Math.floor(m.pow) * 1.5; S.ata += Math.floor(m.dex); S.evp += Math.floor(m.dex) * 0.5; S.mst += Math.floor(m.mind) * 1.5; }
   // passive skills
   const r = (id) => c.skills[id] || 0;
   S.dfpPct += 0.06 * r('ironhide'); S.hpPct += 0.04 * r('ironhide');
