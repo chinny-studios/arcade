@@ -63,7 +63,7 @@ const BOSS_MODELS = {
 };
 
 function spawnBoss(id, x, z, lvl) {
-  const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
+  const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.75 * ALLIES.length;
   const hp = Math.round(B.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party);
   const e = makeActor('enemy', x, z, { team: 1, boss: true, bossId: id, def: { name: B.name, family: AREAS[B.area].family, attacks: [], color: B.color, color2: B.color2 }, lvl, hp, maxHp: hp,
     atk: B.atk * ECURVE(lvl) * D.dmg, xp: Math.round(B.xp * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp), ata: 40 + lvl * 2.4, evp: 20 + lvl * 1.6, res: B.res, r: B.size * 0.55, area: B.area,
@@ -365,7 +365,7 @@ const BOSS_AI = {
           FX.beam(e.x, 2.6, e.z, ex, 0.5, ez, 0xc060ff, 0.5, 0.06);
           const z = { x: e.x, z: e.z, r: 0.7, shape: 'line', len: Math.hypot(ex - e.x, ez - e.z), yaw: yy };
           e.btick = e.btick || {}; e.btick[k] = (e.btick[k] || 0) - dt;
-          if (e.btick[k] <= 0) { e.btick[k] = 0.15; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.4, elem: 'dark', sure: true }); }
+          if (e.btick[k] <= 0) { e.btick[k] = 0.15; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.28, elem: 'dark', sure: true }); }
         }
       }
       if (e.timer <= 0) {
@@ -376,7 +376,7 @@ const BOSS_AI = {
           for (let k = 0; k < n; k++) FX.tele(e.x, e.z, 0.7, 1, 0xc060ff, 'line', 16, e.beamYaw + 0.55 * rage + k * TAU / n);
           GAME.later(1, () => { e.beamsOn = true; e.beamsPending = false; }); GAME.later(7, () => { e.beamsOn = false; });
         }
-        if (pick === 'wave') { shockwave(e, e.x, e.z, 7, 15, 1.0, 0xc060ff); GAME.later(1.2, () => !e.dead && shockwave(e, e.x, e.z, 7, 15, 1.0, 0xc060ff)); AUDIO.sfx('dark', e.x, e.z); }
+        if (pick === 'wave') { shockwave(e, e.x, e.z, 7, 15, 0.8, 0xc060ff); GAME.later(1.2, () => !e.dead && shockwave(e, e.x, e.z, 7, 15, 0.8, 0xc060ff)); AUDIO.sfx('dark', e.x, e.z); }
         if (pick === 'rain') for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon) for (let k = 0; k < 3; k++) bossZone(e, { x: p.x + rnd.range(-2.5, 2.5), z: p.z + rnd.range(-2.5, 2.5), r: 2.2, delay: 1.1 + k * 0.35, mult: 1.0, elem: 'dark', color: 0xa040ff, fx: (q) => { FX.pillar(q.x, q.z, 1.8, 6, 0xa040ff, 0.5); AUDIO.sfx('dark', q.x, q.z, 0.4); } });
         if (pick === 'eyes' && ENTS.filter((o) => o.summoner === e && !o.dead).length < 4) for (let k = 0; k < 2; k++) { const a = rnd() * TAU, x = e.x + Math.cos(a) * 5, z = e.z + Math.sin(a) * 5; if (!solidAt(x, z)) { const m = spawnEnemy('eye', x, z, { lvl: e.lvl - 3, teleIn: true, summoner: e }); m.aggro = tgt; m.noDrop = true; m.xp = Math.round(m.xp * 0.3); } }
       }

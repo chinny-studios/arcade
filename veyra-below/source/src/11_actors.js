@@ -81,6 +81,7 @@ function dealDamage(src, tgt, amount, o = {}) {
   // a lethal blow on a vanguard with Last Stand
   if (tgt === PL && tgt.hp - dmg <= 0 && tgt.S && tgt.S.lastStand && !GAME.lastStandUsed) { GAME.lastStandUsed = true; dmg = tgt.hp - 1; tgt.inv = 2; tgt.blink = 2; HUD.float(tgt.x, 2.4, tgt.z, 'LAST STAND', '#ffd060', 18); AUDIO.sfx('buff'); }
   tgt.hp -= dmg;
+  if (DEBUG && tgt.boss) { const k = (src && (src.name || src.kind) || '?') + ':' + (o.kind || '') + (o.elem && o.elem !== 'phys' ? ':' + o.elem : ''); const L_ = GAME.dmgLog || (GAME.dmgLog = {}); L_[k] = (L_[k] || 0) + dmg; }
   tgt.flash = 0.12; tgt.lastHurt = 0;
   if (!o.noNumber) {
     const big = o.crit || dmg > tgt.maxHp * 0.25;

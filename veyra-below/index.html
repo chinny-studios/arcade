@@ -446,7 +446,7 @@ const BOSSES = {
   vharn: { name: 'Vharn, the Rotwing', title: 'Corrupted Forest Dragon', hp: 125, atk: 1.7, xp: 30, area: 'forest', size: 3.2, color: 0x5a7a3a, color2: 0xd0ff60, elem: 'fire', res: { fire: 0.5, ice: -0.3 } },
   maw: { name: 'The Maw Below', title: 'Burrowing Horror of the Hollows', hp: 140, atk: 1.8, xp: 34, area: 'caves', size: 2.6, color: 0x5a3020, color2: 0xff7020, elem: 'fire', res: { fire: 0.6, ice: -0.3 } },
   custodian: { name: 'CUSTODIAN-7', title: 'Rogue Mining Intelligence', hp: 120, atk: 1.8, xp: 38, area: 'mines', size: 3, color: 0x5a6470, color2: 0xff3040, elem: 'bolt', res: { bolt: -0.3, ice: 0.2 } },
-  sleeper: { name: 'Kharzael, the Sleeper', title: 'That Which Was Buried', hp: 240, atk: 2.1, xp: 60, area: 'ruins', size: 3.4, color: 0x2a1a38, color2: 0xc060ff, elem: 'dark', res: { dark: 0.5, light: -0.35 } },
+  sleeper: { name: 'Kharzael, the Sleeper', title: 'That Which Was Buried', hp: 260, atk: 1.95, xp: 60, area: 'ruins', size: 3.4, color: 0x2a1a38, color2: 0xc060ff, elem: 'dark', res: { dark: 0.5, light: -0.35 } },
 };
 
 // ---------- psionic arts ----------
@@ -500,7 +500,7 @@ const SKILLS = {
   overcharge: { role: 'marksman', tier: 2, name: 'Overcharge', type: 'passive', max: 5, icon: 'bolt', desc: (r) => `Ranged hits restore ${(0.4 * r).toFixed(1)} PSI, and your sprite's overdrive charges ${10 * r}% faster.` },
   // Psion
   techmastery: { role: 'psion', tier: 0, name: 'Art Mastery', type: 'passive', max: 5, icon: 'tech', desc: (r) => `+${7 * r}% psionic art damage and healing.` },
-  psibolt: { role: 'psion', tier: 0, name: 'Psi Bolt', type: 'active', max: 5, tp: 3, cd: 0.7, icon: 'bolts', desc: (r) => `Loose 3 seeking psi bolts, each for ${45 + 10 * r}% of Ember's power at your level.` },
+  psibolt: { role: 'psion', tier: 0, name: 'Psi Bolt', type: 'active', max: 5, tp: 4, cd: 0.9, icon: 'bolts', desc: (r) => `Loose 3 seeking psi bolts, each for ${25 + 5 * r}% of Ember's power at your level.` },
   manafont: { role: 'psion', tier: 0, name: 'Mana Font', type: 'passive', max: 5, icon: 'font', desc: (r) => `+${15 * r}% PSI regeneration and +${4 * r}% max PSI.` },
   chaincast: { role: 'psion', tier: 1, name: 'Chain Cast', type: 'passive', max: 5, icon: 'chain', desc: (r) => `Attack arts have a ${4 * r}% chance to cast again for free.` },
   barrier: { role: 'psion', tier: 1, name: 'Psi Barrier', type: 'active', max: 5, tp: 15, cd: 16, icon: 'bubble', desc: (r) => `A shield that absorbs damage up to ${20 + 8 * r}% of your max HP for 10 s.` },
@@ -2846,6 +2846,7 @@ function dealDamage(src, tgt, amount, o = {}) {
   // a lethal blow on a vanguard with Last Stand
   if (tgt === PL && tgt.hp - dmg <= 0 && tgt.S && tgt.S.lastStand && !GAME.lastStandUsed) { GAME.lastStandUsed = true; dmg = tgt.hp - 1; tgt.inv = 2; tgt.blink = 2; HUD.float(tgt.x, 2.4, tgt.z, 'LAST STAND', '#ffd060', 18); AUDIO.sfx('buff'); }
   tgt.hp -= dmg;
+  if (DEBUG && tgt.boss) { const k = (src && (src.name || src.kind) || '?') + ':' + (o.kind || '') + (o.elem && o.elem !== 'phys' ? ':' + o.elem : ''); const L_ = GAME.dmgLog || (GAME.dmgLog = {}); L_[k] = (L_[k] || 0) + dmg; }
   tgt.flash = 0.12; tgt.lastHurt = 0;
   if (!o.noNumber) {
     const big = o.crit || dmg > tgt.maxHp * 0.25;
@@ -3443,7 +3444,7 @@ function useSkillEffect(a, id, rank, aim) {
       for (let k = 0; k < 3; k++) {
         const yy = yaw + (k - 1) * 0.35, tgt = techTarget(a, aim, 14);
         shootProj(a, { x: a.x, z: a.z, y: 1.3, dx: Math.sin(yy), dz: Math.cos(yy), speed: 16, life: 1.4, r: 0.35, team: a.team, color: 0xc0a0ff, kind: 'orb', homing: 7, target: tgt,
-          onHit: (e) => partyHit(a, e, { kind: 'tech', power: techUnit(a) * (0.9 + 0.2 * rank) }) });
+          onHit: (e) => partyHit(a, e, { kind: 'tech', power: techUnit(a) * (0.5 + 0.1 * rank) }) });
       }
       AUDIO.sfx('orb', a.x, a.z);
       break;
@@ -3933,7 +3934,7 @@ function castAllyTech(a, id, aim) {
 // Veyra Below — monsters: spawning, champion and unique packs, generic attack AI
 
 function enemyLevelStats(def, lvl, o = {}) {
-  const D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
+  const D = DIFFS[GAME.diff], party = 1 + 0.45 * ALLIES.length;
   let hp = def.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party;
   let atk = def.atk * ECURVE(lvl) * D.dmg * 1.4;
   let xp = (def.xp || 1) * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp;
@@ -4281,7 +4282,7 @@ const BOSS_MODELS = {
 };
 
 function spawnBoss(id, x, z, lvl) {
-  const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
+  const B = BOSSES[id], D = DIFFS[GAME.diff], party = 1 + 0.75 * ALLIES.length;
   const hp = Math.round(B.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party);
   const e = makeActor('enemy', x, z, { team: 1, boss: true, bossId: id, def: { name: B.name, family: AREAS[B.area].family, attacks: [], color: B.color, color2: B.color2 }, lvl, hp, maxHp: hp,
     atk: B.atk * ECURVE(lvl) * D.dmg, xp: Math.round(B.xp * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp), ata: 40 + lvl * 2.4, evp: 20 + lvl * 1.6, res: B.res, r: B.size * 0.55, area: B.area,
@@ -4583,7 +4584,7 @@ const BOSS_AI = {
           FX.beam(e.x, 2.6, e.z, ex, 0.5, ez, 0xc060ff, 0.5, 0.06);
           const z = { x: e.x, z: e.z, r: 0.7, shape: 'line', len: Math.hypot(ex - e.x, ez - e.z), yaw: yy };
           e.btick = e.btick || {}; e.btick[k] = (e.btick[k] || 0) - dt;
-          if (e.btick[k] <= 0) { e.btick[k] = 0.15; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.4, elem: 'dark', sure: true }); }
+          if (e.btick[k] <= 0) { e.btick[k] = 0.15; for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon && inZone(z, p)) enemyHit(e, p, { dmg: e.atk * 0.28, elem: 'dark', sure: true }); }
         }
       }
       if (e.timer <= 0) {
@@ -4594,7 +4595,7 @@ const BOSS_AI = {
           for (let k = 0; k < n; k++) FX.tele(e.x, e.z, 0.7, 1, 0xc060ff, 'line', 16, e.beamYaw + 0.55 * rage + k * TAU / n);
           GAME.later(1, () => { e.beamsOn = true; e.beamsPending = false; }); GAME.later(7, () => { e.beamsOn = false; });
         }
-        if (pick === 'wave') { shockwave(e, e.x, e.z, 7, 15, 1.0, 0xc060ff); GAME.later(1.2, () => !e.dead && shockwave(e, e.x, e.z, 7, 15, 1.0, 0xc060ff)); AUDIO.sfx('dark', e.x, e.z); }
+        if (pick === 'wave') { shockwave(e, e.x, e.z, 7, 15, 0.8, 0xc060ff); GAME.later(1.2, () => !e.dead && shockwave(e, e.x, e.z, 7, 15, 0.8, 0xc060ff)); AUDIO.sfx('dark', e.x, e.z); }
         if (pick === 'rain') for (const p of ENTS) if (p.team === 0 && alive(p) && !p.summon) for (let k = 0; k < 3; k++) bossZone(e, { x: p.x + rnd.range(-2.5, 2.5), z: p.z + rnd.range(-2.5, 2.5), r: 2.2, delay: 1.1 + k * 0.35, mult: 1.0, elem: 'dark', color: 0xa040ff, fx: (q) => { FX.pillar(q.x, q.z, 1.8, 6, 0xa040ff, 0.5); AUDIO.sfx('dark', q.x, q.z, 0.4); } });
         if (pick === 'eyes' && ENTS.filter((o) => o.summoner === e && !o.dead).length < 4) for (let k = 0; k < 2; k++) { const a = rnd() * TAU, x = e.x + Math.cos(a) * 5, z = e.z + Math.sin(a) * 5; if (!solidAt(x, z)) { const m = spawnEnemy('eye', x, z, { lvl: e.lvl - 3, teleIn: true, summoner: e }); m.aggro = tgt; m.noDrop = true; m.xp = Math.round(m.xp * 0.3); } }
       }

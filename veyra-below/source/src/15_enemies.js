@@ -1,7 +1,7 @@
 // Veyra Below — monsters: spawning, champion and unique packs, generic attack AI
 
 function enemyLevelStats(def, lvl, o = {}) {
-  const D = DIFFS[GAME.diff], party = 1 + 0.32 * ALLIES.length;
+  const D = DIFFS[GAME.diff], party = 1 + 0.45 * ALLIES.length;
   let hp = def.hp * LCURVE(lvl) * (1 + lvl / 80) * D.hp * party;
   let atk = def.atk * ECURVE(lvl) * D.dmg * 1.4;
   let xp = (def.xp || 1) * (3 + 1.2 * lvl) * (1 + lvl / 40) * D.xp;

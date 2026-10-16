@@ -43,8 +43,8 @@ sealed rooms, collect randomly rolled loot and work your way down to Kharzael, t
 - Damage: weapon roll × (1 + ATK/400) × attack multipliers × family tuning × crits. Arts scale with art level and PSY
   (`techPower`): an art of level *lv* hits like the monster curve at level (lv−1)×2.5+1, times PSY over the PSY a
   character of that level is expected to have. Arts cost about two casts per standard monster for a Psion at any level.
-- Monster numbers: HP = def.hp × `LCURVE`(lvl) × (1 + lvl/80), attack = def.atk × `ECURVE`(lvl), with difficulty and
-  party-size multipliers (+32% HP per ally). `test/balance.js` prints the curves.
+- Monster numbers: HP = def.hp × `LCURVE`(lvl) × (1 + lvl/80), attack = def.atk × `ECURVE`(lvl) × 1.4, with difficulty and
+  party-size multipliers (+45% HP per ally, +75% for bosses). `test/autoplay.js` plays the campaign to check the result. `test/balance.js` prints the curves.
 - Status effects: burn and poison tick, freeze/paralysis/stun stop actions, slow, mark (+damage taken), enfeeble and
   expose. Bosses take a quarter of the duration of hard crowd control and get a few seconds of immunity after.
 - Enemy attacks are data (`ENEMIES[id].attacks`): melee cones, pounces, charges, slams, projectiles, lobbed shots with

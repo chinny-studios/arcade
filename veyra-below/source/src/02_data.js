@@ -154,7 +154,7 @@ const BOSSES = {
   vharn: { name: 'Vharn, the Rotwing', title: 'Corrupted Forest Dragon', hp: 125, atk: 1.7, xp: 30, area: 'forest', size: 3.2, color: 0x5a7a3a, color2: 0xd0ff60, elem: 'fire', res: { fire: 0.5, ice: -0.3 } },
   maw: { name: 'The Maw Below', title: 'Burrowing Horror of the Hollows', hp: 140, atk: 1.8, xp: 34, area: 'caves', size: 2.6, color: 0x5a3020, color2: 0xff7020, elem: 'fire', res: { fire: 0.6, ice: -0.3 } },
   custodian: { name: 'CUSTODIAN-7', title: 'Rogue Mining Intelligence', hp: 120, atk: 1.8, xp: 38, area: 'mines', size: 3, color: 0x5a6470, color2: 0xff3040, elem: 'bolt', res: { bolt: -0.3, ice: 0.2 } },
-  sleeper: { name: 'Kharzael, the Sleeper', title: 'That Which Was Buried', hp: 240, atk: 2.1, xp: 60, area: 'ruins', size: 3.4, color: 0x2a1a38, color2: 0xc060ff, elem: 'dark', res: { dark: 0.5, light: -0.35 } },
+  sleeper: { name: 'Kharzael, the Sleeper', title: 'That Which Was Buried', hp: 260, atk: 1.95, xp: 60, area: 'ruins', size: 3.4, color: 0x2a1a38, color2: 0xc060ff, elem: 'dark', res: { dark: 0.5, light: -0.35 } },
 };
 
 // ---------- psionic arts ----------
@@ -208,7 +208,7 @@ const SKILLS = {
   overcharge: { role: 'marksman', tier: 2, name: 'Overcharge', type: 'passive', max: 5, icon: 'bolt', desc: (r) => `Ranged hits restore ${(0.4 * r).toFixed(1)} PSI, and your sprite's overdrive charges ${10 * r}% faster.` },
   // Psion
   techmastery: { role: 'psion', tier: 0, name: 'Art Mastery', type: 'passive', max: 5, icon: 'tech', desc: (r) => `+${7 * r}% psionic art damage and healing.` },
-  psibolt: { role: 'psion', tier: 0, name: 'Psi Bolt', type: 'active', max: 5, tp: 3, cd: 0.7, icon: 'bolts', desc: (r) => `Loose 3 seeking psi bolts, each for ${45 + 10 * r}% of Ember's power at your level.` },
+  psibolt: { role: 'psion', tier: 0, name: 'Psi Bolt', type: 'active', max: 5, tp: 4, cd: 0.9, icon: 'bolts', desc: (r) => `Loose 3 seeking psi bolts, each for ${25 + 5 * r}% of Ember's power at your level.` },
   manafont: { role: 'psion', tier: 0, name: 'Mana Font', type: 'passive', max: 5, icon: 'font', desc: (r) => `+${15 * r}% PSI regeneration and +${4 * r}% max PSI.` },
   chaincast: { role: 'psion', tier: 1, name: 'Chain Cast', type: 'passive', max: 5, icon: 'chain', desc: (r) => `Attack arts have a ${4 * r}% chance to cast again for free.` },
   barrier: { role: 'psion', tier: 1, name: 'Psi Barrier', type: 'active', max: 5, tp: 15, cd: 16, icon: 'bubble', desc: (r) => `A shield that absorbs damage up to ${20 + 8 * r}% of your max HP for 10 s.` },
