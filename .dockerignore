@@ -1,0 +1,10 @@
+# The image build only needs what tools/offline/vendor.py copies, plus the script itself.
+.git
+.github
+**/source
+**/node_modules
+**/dist
+**/test/out
+tools/covers
+midnight-in-the-sprawl/midnight-in-the-sprawl.html
+*:Zone.Identifier

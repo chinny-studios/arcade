@@ -1,8 +1,8 @@
 # Chinny's Arcade: notes for coding agents
 
 A static site of experimental browser games, published from this repo with GitHub Pages at
-https://chinny-studios.github.io/arcade/. There is no backend, no package manager at the root and no CI:
-every game is a folder whose `index.html` is a complete, self-contained page.
+https://chinny-studios.github.io/arcade/. There is no backend and no package manager at the root: every game is a
+folder whose `index.html` is a complete, self-contained page. The only CI is the offline container image (below).
 
 **Before working on a game, read its `<game>/AGENTS.md`.** It has that game's build command, debug hook,
 tests and gotchas. This file covers what is shared.
@@ -16,6 +16,8 @@ index.html            the arcade list (GAMES array in its script); see "The arca
 <game>/AGENTS.md      per-game notes for agents
 <game>/source/        build.py, src/ (numbered NN_name.js files + page.html), vendor/three.min.js, test/, DESIGN.md
 tools/covers/         headless screenshot tool that makes cover.webp files (see its README)
+tools/offline/        vendor.py and nginx.conf for the offline container image (Dockerfile at the root)
+.github/workflows/    offline-image.yml builds, tests and publishes that image to ghcr.io
 README.md             human-facing list of games and rebuild commands; keep its table in sync
 THIRD_PARTY.md        licenses for three.js, fonts and music
 ```
@@ -66,6 +68,19 @@ chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-
 - Some sandboxes block CDNs (cdnjs, jsDelivr, unpkg) but allow `registry.npmjs.org`. Older games that load three.js
   from a CDN show "3D engine did not load" there. `tools/covers/capture.mjs` shows how to serve the same build from the
   npm tarball instead.
+
+## The offline container image
+
+`Dockerfile` runs `tools/offline/vendor.py`, which copies the playable files (each game's `index.html`, cover, music
+and other media, but not `source/`, `src/` or `*.md`) and downloads every Google Fonts, jsDelivr, unpkg and cdnjs
+three.js URL into `_vendor/`, rewriting the pages to use relative paths. It then fails the build if any page still
+references an external URL. The workflow builds the image on every PR and publishes it from `main`.
+
+- Try it locally without Docker: `python3 tools/offline/vendor.py . /tmp/site && cd /tmp/site && python3 -m http.server`.
+- A game that fetches from any other host breaks the image build. Vendor the file into the game instead, or add a
+  mapping in `vendor.py` (an npm package is easiest: it is downloaded from the registry and checked against its
+  integrity hash).
+- A new kind of media file (say `.ktx2`) must be added to `ASSET_EXTS` in `vendor.py`, or it won't be copied.
 
 ## Adding a new game
 
