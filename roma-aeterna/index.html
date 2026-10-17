@@ -486,7 +486,7 @@ const K = {
       P.push([F.wx(uu, vv), F.y + y + ly, F.wz(uu, vv)]);
     }
     const ref = [F.wx(u, v), F.y + y + h / 2, F.wz(u, v)];
-    const skip = (o && o.skip) || 'b';
+    const skip = o && o.skip != null ? o.skip : 'b'; // skip: '' draws every face, including the underside
     const top = o && o.top != null ? o.top : hex;
     gb.quad(P[4], P[5], P[7], P[6], top, ref);
     if (skip.indexOf('b') < 0) gb.quad(P[0], P[1], P[3], P[2], hex, ref);
