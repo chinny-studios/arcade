@@ -56,12 +56,13 @@ function startMCI(o = {}) {
     id: 'mci' + Date.now().toString(36), tpl: MCI_TPL, type: 'mci', nature: MCI_TPL.nature, pri: 1, place, addr: place.addr, district: d,
     P: main, patients: pts, t: 0, stage: 'pending', times: { dispatch: 0 }, acts: new Set(), actT: {}, actN: {}, log: [], harms: [], notes: [],
     ls: { enroute: false, transport: false }, hazard: null, pdCleared: true, mvc: true, dest: null, prealert: null, ppe: false, devices: {},
-    crashes0: RIG ? RIG.crashes : 0, startClock: G.clockT, mci: { pts, tags: new Map(), done: false, sent: false }, fireEta: r.range(2, 4) * 60,
+    crashes0: RIG ? RIG.crashes : 0, startClock: G.clockT, mci: { pts, tags: new Map(), done: false, sent: false },
   };
   C.dispatchText = `Medic 12, respond priority 1 to ${place.addr}. A bus has collided with several cars, multiple patients. You're first in: take medical command and triage.`;
   G.call = C; G.shift.callsN++; G.shift.mciDone = true;
   buildMCIScene(C, r);
   radioTone(); radio('Dispatch', C.dispatchText, 'dispatch');
+  dispatchResponders(C, r);
   bus.emit('dispatch', C);
   return C;
 }

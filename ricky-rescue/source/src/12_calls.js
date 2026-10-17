@@ -351,7 +351,7 @@ function roadPlaces(d, r) {
     if (districtAt(mx, mz) !== d) continue;
     const dir = r.chance(0.5) ? 1 : -1;
     const p = edgePos(e, dir, CP / 2 + r.range(-10, 10), laneOff(e.lanes - 1));
-    const curb = edgePos(e, dir, CP / 2 - 22, parkOff(e.line));
+    const curb = edgePos(e, dir, CP / 2 - 13, parkOff(e.line)); // between the wreck and where the engine blocks the lane
     out.push({ kind: 'road', district: d, x: p.x, z: p.z, yaw: p.yaw, edge: e, dir, highway: e.line === 0 || e.line === CN, curb: { x: curb.x, z: curb.z, yaw: curb.yaw }, addr: (e.line === 0 || e.line === CN ? e.name : e.name + ' near ' + crossName(e, dir)), outdoor: true, floors: 0, access: 'ground' });
   }
   return out;

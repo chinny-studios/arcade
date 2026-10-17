@@ -2,7 +2,7 @@
 // radio squelch and dispatch tones, crashes, UI clicks. Spoken AED prompts use speech synthesis when available.
 
 const AUDIO = (() => {
-  let ctx = null, master, sfx, sirenG, sirenOsc, sirenOsc2, sirenF, hornG, hornO, engG, engO, engF, noiseBuf, ambG;
+  let ctx = null, master, sfx, sirenG, sirenOsc, sirenOsc2, sirenF, hornG, hornO, engG, engO, engF, noiseBuf, ambG, oSirG, oSirO, oSirF;
   let sirenT = 0;
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -20,6 +20,11 @@ const AUDIO = (() => {
     sirenG = ctx.createGain(); sirenG.gain.value = 0;
     sirenOsc.connect(sirenF); sirenOsc2.connect(s2g); s2g.connect(sirenF); sirenF.connect(sirenG); sirenG.connect(sfx);
     sirenOsc.start(); sirenOsc2.start();
+    // the nearest other unit's siren: a growling mechanical wail for engines, a yelp for police
+    oSirO = ctx.createOscillator(); oSirO.type = 'sawtooth';
+    oSirF = ctx.createBiquadFilter(); oSirF.type = 'lowpass'; oSirF.frequency.value = 1800;
+    oSirG = ctx.createGain(); oSirG.gain.value = 0;
+    oSirO.connect(oSirF); oSirF.connect(oSirG); oSirG.connect(sfx); oSirO.start();
     // air horn
     hornG = ctx.createGain(); hornG.gain.value = 0;
     const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 1400;
@@ -71,6 +76,18 @@ const AUDIO = (() => {
     else { f = (sirenT % 1.2) < 0.6 ? 960 : 770; }
     sirenOsc.frequency.setTargetAtTime(f, now, 0.01); sirenOsc2.frequency.setTargetAtTime(f * 0.5, now, 0.01);
     sirenG.gain.setTargetAtTime(sv * OPTS.sirenVol, now, 0.05); sirenF.frequency.setTargetAtTime(cut, now, 0.1);
+    // other units: loudness by distance from the listener, muffled inside
+    let near = null, nd = 260;
+    const lx = G.where === 'foot' ? PLAYER.x : A ? A.x : 0, lz = G.where === 'foot' ? PLAYER.z : A ? A.z : 0;
+    if (playing) for (const u of RESP.units) if (u.siren && u.state === 'enroute') { const d = dist(u.x, u.z, lx, lz); if (d < nd) { nd = d; near = u; } }
+    if (near) {
+      const muff = R.env === 'interior' ? 0.15 : G.where === 'cab' ? 0.55 : G.where === 'back' ? 0.35 : 1;
+      const t = performance.now() / 1000 + near.lightT;
+      const of = near.kind === 'fire' ? 380 + 520 * (0.5 + 0.5 * Math.sin(t * 1.4)) : (() => { const p = (t % 0.32) / 0.32; return 760 + 760 * (p < 0.5 ? p * 2 : 2 - p * 2); })();
+      oSirO.frequency.setTargetAtTime(of, now, 0.02);
+      oSirG.gain.setTargetAtTime(0.07 * muff * OPTS.sirenVol / (1 + nd * 0.045), now, 0.1);
+      oSirF.frequency.setTargetAtTime(G.where === 'foot' ? 2200 : 1000, now, 0.1);
+    } else oSirG.gain.setTargetAtTime(0, now, 0.15);
     const horn = A && A.horn && playing && G.where === 'cab';
     hornG.gain.setTargetAtTime(horn ? 0.07 : 0, now, 0.02);
     const inRig = A && playing && (G.where === 'cab' || G.where === 'back');

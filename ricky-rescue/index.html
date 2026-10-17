@@ -53,7 +53,7 @@
   body[data-where="foot"] #radio, body[data-where="back"] #radio { bottom: 14px; }
   .rm { background: rgba(8,12,20,.8); border-left: 3px solid var(--faint); border-radius: 0 8px 8px 0; padding: 5px 9px; font-size: 13.5px; line-height: 1.3; transition: opacity 1s; }
   .rm b { color: var(--amber); margin-right: 4px; } .rm.dispatch { border-color: var(--red); } .rm.crew b { color: var(--blue); } .rm.partner b { color: #ff9ad0; } .rm.bystander b { color: #c8f080; }
-  .rm.old { opacity: .45; }
+  .rm.medic b { color: #ffb08a; } .rm.old { opacity: .45; }
   #toasts { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(560px, 92vw); }
   .toast { background: rgba(10,14,22,.9); border: 1px solid var(--line2); padding: 8px 14px; border-radius: 10px; font-weight: 600; text-align: center; transition: opacity .6s, transform .6s; }
   .toast.bad { border-color: rgba(255,74,74,.7); color: #ffd0d0; } .toast.good { border-color: rgba(74,216,138,.7); }
@@ -113,7 +113,8 @@
   #v-hr b { color: #4af07a; } #v-spo2 b { color: #50d8ff; } #v-bp b { color: #f0f0f0; } #v-rr b { color: #ffe080; }
   .vb.warn b { color: #ff5a5a !important; animation: low 1s infinite; } @keyframes low { 50% { opacity: .55; } }
   #v-rhythm { font-family: var(--head); font-size: 15px; color: #4af07a; align-self: center; text-align: right; min-width: 120px; } #v-rhythm.warn { color: #ff5a5a; }
-  #workers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 12px 4px; }
+  #workers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 12px 4px; } #workers.three { grid-template-columns: 1fr 1fr 1fr; }
+  .wk.medic { border-color: rgba(255,120,80,.45); } .wk.medic b { color: #ffb08a; }
   .wk { position: relative; background: #182030; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px 8px; cursor: pointer; overflow: hidden; }
   .wk.on { border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); }
   .wk b { font-size: 13px; } .wk span { display: block; font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 30px; }
@@ -240,6 +241,7 @@
     <div id="workers">
       <div class="wk btn" id="w-ricky" data-who="ricky"><span class="who">does next</span><b>Ricky</b><span>Ready</span><button class="stop btn">Stop</button><div class="bar"><i></i></div></div>
       <div class="wk btn" id="w-partner" data-who="partner"><span class="who">does next</span><b>Marisol</b><span>Ready</span><button class="stop btn">Stop</button><div class="bar"><i></i></div></div>
+      <div class="wk btn medic" id="w-medic" data-who="medic" hidden><span class="who">does next</span><b>Medic</b><span>Ready</span><button class="stop btn">Stop</button><div class="bar"><i></i></div></div>
     </div>
     <div id="careTabs"></div>
     <div id="careActs"></div>
@@ -254,7 +256,7 @@
     <div class="lab">Destination</div><div id="tpHosp"></div>
     <div id="tpDrive"><div class="lab">Who drives</div><div class="rowb"><button class="chip btn" id="tpPartner"></button><button class="chip btn" id="tpRicky"></button></div></div>
     <div class="lab">Radio ahead</div><div class="rowb" id="tpAlerts"></div>
-    <div class="rowb"><button class="chip btn" id="tpLS"></button></div>
+    <div class="rowb"><button class="chip btn" id="tpLS"></button><button class="chip btn" id="tpMedic" hidden></button></div>
     <div class="rowb"><button class="big go btn" id="tpGo">Go</button></div>
   </div>
   <!-- handoff -->
@@ -989,7 +991,7 @@ function buildCity() {
   for (let i = 0; i <= CN; i++) for (let j = 0; j < CN; j++) addEdge(nodeId(i, j), nodeId(i, j + 1), 'z', i);
   // blocks
   const special = {
-    '2,8': 'station', '4,10': 'hosp:brigid', '8,7': 'hosp:mercy', '7,4': 'hosp:general',
+    '2,8': 'station', '10,4': 'fire:7', '1,3': 'fire:3', '10,8': 'fire:5', '4,10': 'hosp:brigid', '8,7': 'hosp:mercy', '7,4': 'hosp:general',
     '1,10': 'park', '4,7': 'park', '10,10': 'park', '9,1': 'plaza', '3,1': 'park', '7,10': 'gas', '11,6': 'park',
   };
   for (let bj = 0; bj < CN; bj++) for (let bi = 0; bi < CN; bi++) {
@@ -1124,6 +1126,7 @@ function buildBlock(b, M, cr) {
   else if (k === 'park' || k === 'plaza') buildPark(b, M, cr);
   else if (k === 'gas') buildGas(b, M, cr);
   else if (k === 'station') buildStation(b, M, cr);
+  else if (k.startsWith('fire:')) buildFirehouse(b, M, cr, +k.slice(5));
   else if (k.startsWith('hosp:')) buildHospital(b, M, cr, k.slice(5));
 }
 function gable(m, x0, z0, x1, z1, y, rise, col, over = 0.5) {
@@ -1328,23 +1331,32 @@ function buildGas(b, M, cr) {
   for (const [px, pz] of [[-9, -5], [9, -5], [-9, 5], [9, 5]]) { M.solid.box(cx + px, CURB, cz + pz, 0.5, 5, 0.5, 0xd8d8d8); addPost(cx + px, cz + pz, 0.4, 5); }
   for (const px of [-4, 4]) for (const pz of [-2.5, 2.5]) { M.solid.box(cx + px, CURB, cz + pz, 0.9, 1.6, 0.6, 0x3a3a40); addSolid(cx + px - 0.5, cz + pz - 0.35, cx + px + 0.5, cz + pz + 0.35, 1.6); }
 }
-function buildStation(b, M, cr) {
+// a firehouse: brick, two bay doors onto an apron that meets the street on the south side, an engine parked out front
+const ENGINE_MEDICS = { 12: 'Theo Brandt', 7: 'Imani Cole', 3: 'Sam Okoro', 5: 'Rosa Delgado' };
+function buildFirehouse(b, M, cr, num) {
   const { x0, x1, z0, z1 } = b;
   lawn(M, b, x0, z0, x1, z1);
-  // apron to the avenue on the south side
   const bx0 = b.cx - 15, bx1 = b.cx + 15, bz1 = z1 - 14, bz0 = bz1 - 18;
   paved(M, bx0 - 2, bz1, bx1 + 2, b.sz1);
-  towerBox(M, 'brick', bx0, bz0, bx1, bz1, 8.5, 0xb05a48, 4, 4.25, 0x5a5a5a);
+  towerBox(M, 'brick', bx0, bz0, bx1, bz1, 8.5, num === 12 ? 0xb05a48 : 0xa85040, 4, 4.25, 0x5a5a5a);
   for (const dx of [-7, 7]) { M.solid.box(b.cx + dx, CURB, bz1 + 0.06, 5.2, 5.2, 0.12, 0xd8d8d8); for (let y = 0.6; y < 5; y += 0.65) M.solid.box(b.cx + dx, CURB + y, bz1 + 0.14, 5.2, 0.05, 0.05, 0x9a9a9a); }
-  M.solid.box(b.cx, CURB + 6.2, bz1 + 0.1, 12, 1.4, 0.2, 0x1a2040);
-  sign(b.cx, CURB + 6.9, bz1 + 0.22, 0, 'STATION 12', 11.5, 1.2, '#ffffff', '#1a2040');
-  // flag pole
+  M.solid.box(b.cx, CURB + 6.2, bz1 + 0.1, 12, 1.4, 0.2, num === 12 ? 0x1a2040 : 0x8a1a1a);
+  sign(b.cx, CURB + 6.9, bz1 + 0.22, 0, num === 12 ? 'STATION 12' : 'FIRE STATION ' + num, 11.5, 1.2, '#ffffff', num === 12 ? '#1a2040' : '#8a1a1a');
   M.solid.box(bx1 + 4, CURB, bz1 + 6, 0.15, 9, 0.15, 0xd0d0d0);
   M.solid.box(bx1 + 4.9, CURB + 7.6, bz1 + 6, 1.6, 1.0, 0.04, 0x2a4ac0);
   addPost(bx1 + 4, bz1 + 6, 0.3, 9);
-  // the rig waits on the apron side-on to the doors, so the chase camera has room behind it
-  CITY.station = { x: b.cx - 4, z: bz1 + 8.5, yaw: Math.PI / 2, door: { x: b.cx, z: bz1 + 1 }, bayX: b.cx - 7, bayZ: bz1 + 6, block: b, addr: '900 Lincoln Ave' };
   CITY.trees.push({ x: x0 + 6, z: z1 - 6, s: 1.2, type: 1 }, { x: x1 - 6, z: z1 - 6, s: 1.2, type: 1 }, { x: x0 + 8, z: z0 + 8, s: 1.3, type: 0 });
+  // the engine waits nose-out in front of the right-hand bay
+  const ex = b.cx + 7, ez = bz1 + 4.6;
+  const home = { x: ex, z: ez, yaw: 0, solid: addSolid(ex - 1.35, ez - 4.9, ex + 1.35, ez + 4.9, 3, 'engine') };
+  CITY.firehouses = CITY.firehouses || [];
+  CITY.firehouses.push({ num, name: 'Engine ' + num, medic: ENGINE_MEDICS[num], home, block: b, district: b.district });
+  return { bz1 };
+}
+function buildStation(b, M, cr) {
+  const { bz1 } = buildFirehouse(b, M, cr, 12);
+  // Medic 12 waits on the apron side-on to the doors, nose away from Engine 12, so the chase camera has room behind it
+  CITY.station = { x: b.cx - 2, z: bz1 + 8.5, yaw: -Math.PI / 2, door: { x: b.cx, z: bz1 + 1 }, bayX: b.cx - 7, bayZ: bz1 + 6, block: b, addr: '900 Lincoln Ave' };
 }
 function buildHospital(b, M, cr, id) {
   const H = HOSPITALS[id];
@@ -1732,6 +1744,13 @@ function animRigLights(rig, on, t, night) {
   return { a, b };
 }
 
+// a glow sprite for a flashing light; k is which half of the pattern it belongs to
+function lightHalo(g, col, x, y, z, k) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
+  s.position.set(x, y, z); s.scale.setScalar(1.4); g.add(s);
+  return { s, k };
+}
+
 // ---------- traffic cars (instanced) ----------
 // each type: body (tinted per instance), dark trim (glass, tyres, bumpers), lights (always lit)
 const CAR_TYPES = { // cab: the cabin's rear and front as fractions of the length (null = one-box van)
@@ -1783,6 +1802,7 @@ function buildCar(type, color, o = {}) {
     const a = basic(0xff2a2a), b = basic(0x3a6aff);
     g.add(mesh(GM.box(), a, T.wid * 0.2, T.h + 0.16, -0.1, T.wid * 0.36, 0.12, 0.28), mesh(GM.box(), b, -T.wid * 0.2, T.h + 0.16, -0.1, T.wid * 0.36, 0.12, 0.28));
     g.userData.bar = [a, b];
+    g.userData.halos = [lightHalo(g, 0xff2a2a, T.wid * 0.2, T.h + 0.2, -0.1, 0), lightHalo(g, 0x3a6aff, -T.wid * 0.2, T.h + 0.2, -0.1, 1)];
     for (const sx of [-1, 1]) g.add(decal(textDecal('POLICE', '#14244a'), 1.6, 0.3, sx * (T.wid / 2 + 0.02), T.h * 0.52 - 0.12, -0.1, sx * Math.PI / 2));
   }
   if (o.wreck) { // crumpled nose: push the front of the body down and tilt
@@ -1973,8 +1993,13 @@ function buildFireEngine() {
   g.add(mesh(GM.box(), lam(0xc0c4c8), 0, 3.0, -1, 1.2, 0.3, 7));
   for (const z of [3.3, -2.2, -3.6]) for (const sx of [-1, 1]) g.add(mesh(GM.wheel(), d, sx * 1.1, 0.5, z, 0.35, 1.0, 1.0));
   const a = basic(0xff2a2a), b = basic(0xffffff);
+  // a light bar over the cab, corner lights on the body and a pair at the back
   g.add(mesh(GM.box(), a, 0.6, 2.9, 4.0, 0.9, 0.15, 0.3), mesh(GM.box(), b, -0.6, 2.9, 4.0, 0.9, 0.15, 0.3));
+  g.add(mesh(GM.box(), a, 1.2, 2.6, 4.75, 0.12, 0.2, 0.06), mesh(GM.box(), b, -1.2, 2.6, 4.75, 0.12, 0.2, 0.06));
+  g.add(mesh(GM.box(), b, 1.26, 2.6, -4.6, 0.06, 0.25, 0.3), mesh(GM.box(), a, -1.26, 2.6, -4.6, 0.06, 0.25, 0.3));
+  g.add(mesh(GM.box(), a, 1.0, 2.75, -4.76, 0.3, 0.25, 0.06), mesh(GM.box(), b, -1.0, 2.75, -4.76, 0.3, 0.25, 0.06));
   g.userData.bar = [a, b];
+  g.userData.halos = [lightHalo(g, 0xff2a2a, 0.6, 3.0, 4.0, 0), lightHalo(g, 0xffffff, -0.6, 3.0, 4.0, 1), lightHalo(g, 0xff2a2a, -1.0, 2.75, -4.85, 0), lightHalo(g, 0xffffff, 1.0, 2.75, -4.85, 1)];
   shadowy(g, true, false);
   return g;
 }
@@ -2135,7 +2160,12 @@ function endTurn(c) {
 
 // is the rig a threat that this car should yield to?
 function sirenYield(c) {
-  const A = RIG; if (!A || !A.siren || !A.active) return 0;
+  let best = 0;
+  for (const A of sirenVehicles()) { const y = yieldTo(c, A); if (y === 2 || y === 1) return y; if (y) best = y; }
+  return best;
+}
+// how car c should react to one emergency vehicle A: 2 pull over (behind), 1 pull over (oncoming), 3 hold (crossing)
+function yieldTo(c, A) {
   const dx = A.x - c.x, dz = A.z - c.z, d = Math.hypot(dx, dz);
   if (d > 70) return 0;
   const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
@@ -2162,6 +2192,7 @@ function carAhead(c) {
   for (const o of TRAFFIC.cars) if (o !== c && Math.abs(o.x - c.x) < 60 && Math.abs(o.z - c.z) < 60) test(o.x, o.z, o.len, o.v);
   rig = true;
   for (const b of SCENE.blockers) test(b.x, b.z, b.len, 0);
+  for (const u of RESP.units) if (u.state === 'enroute' || u.state === 'returning' || u.state === 'leaving') test(u.x, u.z, u.kind === 'fire' ? 9.5 : 4.6, u.v);
   if (RIG && RIG.active) test(RIG.x, RIG.z, RIG.len, Math.max(0, RIG.v * (Math.sin(RIG.yaw) * fx + Math.cos(RIG.yaw) * fz)));
   return best;
 }
@@ -2691,7 +2722,7 @@ function routeLength(goal) { return computeRoute(goal).length; }
 // radio squelch and dispatch tones, crashes, UI clicks. Spoken AED prompts use speech synthesis when available.
 
 const AUDIO = (() => {
-  let ctx = null, master, sfx, sirenG, sirenOsc, sirenOsc2, sirenF, hornG, hornO, engG, engO, engF, noiseBuf, ambG;
+  let ctx = null, master, sfx, sirenG, sirenOsc, sirenOsc2, sirenF, hornG, hornO, engG, engO, engF, noiseBuf, ambG, oSirG, oSirO, oSirF;
   let sirenT = 0;
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -2709,6 +2740,11 @@ const AUDIO = (() => {
     sirenG = ctx.createGain(); sirenG.gain.value = 0;
     sirenOsc.connect(sirenF); sirenOsc2.connect(s2g); s2g.connect(sirenF); sirenF.connect(sirenG); sirenG.connect(sfx);
     sirenOsc.start(); sirenOsc2.start();
+    // the nearest other unit's siren: a growling mechanical wail for engines, a yelp for police
+    oSirO = ctx.createOscillator(); oSirO.type = 'sawtooth';
+    oSirF = ctx.createBiquadFilter(); oSirF.type = 'lowpass'; oSirF.frequency.value = 1800;
+    oSirG = ctx.createGain(); oSirG.gain.value = 0;
+    oSirO.connect(oSirF); oSirF.connect(oSirG); oSirG.connect(sfx); oSirO.start();
     // air horn
     hornG = ctx.createGain(); hornG.gain.value = 0;
     const hf = ctx.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 1400;
@@ -2760,6 +2796,18 @@ const AUDIO = (() => {
     else { f = (sirenT % 1.2) < 0.6 ? 960 : 770; }
     sirenOsc.frequency.setTargetAtTime(f, now, 0.01); sirenOsc2.frequency.setTargetAtTime(f * 0.5, now, 0.01);
     sirenG.gain.setTargetAtTime(sv * OPTS.sirenVol, now, 0.05); sirenF.frequency.setTargetAtTime(cut, now, 0.1);
+    // other units: loudness by distance from the listener, muffled inside
+    let near = null, nd = 260;
+    const lx = G.where === 'foot' ? PLAYER.x : A ? A.x : 0, lz = G.where === 'foot' ? PLAYER.z : A ? A.z : 0;
+    if (playing) for (const u of RESP.units) if (u.siren && u.state === 'enroute') { const d = dist(u.x, u.z, lx, lz); if (d < nd) { nd = d; near = u; } }
+    if (near) {
+      const muff = R.env === 'interior' ? 0.15 : G.where === 'cab' ? 0.55 : G.where === 'back' ? 0.35 : 1;
+      const t = performance.now() / 1000 + near.lightT;
+      const of = near.kind === 'fire' ? 380 + 520 * (0.5 + 0.5 * Math.sin(t * 1.4)) : (() => { const p = (t % 0.32) / 0.32; return 760 + 760 * (p < 0.5 ? p * 2 : 2 - p * 2); })();
+      oSirO.frequency.setTargetAtTime(of, now, 0.02);
+      oSirG.gain.setTargetAtTime(0.07 * muff * OPTS.sirenVol / (1 + nd * 0.045), now, 0.1);
+      oSirF.frequency.setTargetAtTime(G.where === 'foot' ? 2200 : 1000, now, 0.1);
+    } else oSirG.gain.setTargetAtTime(0, now, 0.15);
     const horn = A && A.horn && playing && G.where === 'cab';
     hornG.gain.setTargetAtTime(horn ? 0.07 : 0, now, 0.02);
     const inRig = A && playing && (G.where === 'cab' || G.where === 'back');
@@ -3823,7 +3871,7 @@ function roadPlaces(d, r) {
     if (districtAt(mx, mz) !== d) continue;
     const dir = r.chance(0.5) ? 1 : -1;
     const p = edgePos(e, dir, CP / 2 + r.range(-10, 10), laneOff(e.lanes - 1));
-    const curb = edgePos(e, dir, CP / 2 - 22, parkOff(e.line));
+    const curb = edgePos(e, dir, CP / 2 - 13, parkOff(e.line)); // between the wreck and where the engine blocks the lane
     out.push({ kind: 'road', district: d, x: p.x, z: p.z, yaw: p.yaw, edge: e, dir, highway: e.line === 0 || e.line === CN, curb: { x: curb.x, z: curb.z, yaw: curb.yaw }, addr: (e.line === 0 || e.line === CN ? e.name : e.name + ' near ' + crossName(e, dir)), outdoor: true, floors: 0, access: 'ground' });
   }
   return out;
@@ -3865,7 +3913,7 @@ function startShift(o = {}) {
   G.shift = { startH, hours: o.hours || 8, endT: (startH + (o.hours || 8)) * 3600, cover: o.cover || [...C.districts], results: [], nextCallT: G.clockT + (o.firstCall !== undefined ? o.firstCall : 45) * TIME_SCALE, earnings: 0, xp: 0, over: false, callsN: 0 };
   G.call = null;
   setEnv('city'); setTimeOfDay(startH);
-  clearTraffic(); clearRoute(); clearScene();
+  clearTraffic(); clearRoute(); clearScene(); resetResponders();
   const st = CITY.station;
   createRig(C.rig, st.x, st.z, st.yaw);
   RIG.siren = false;
@@ -3921,12 +3969,11 @@ function startCall(tpl, place, r = RNG(), o = {}) {
   if (m.bys) C.bystander = { rel: relFor(r, P), name: r.pick(P.sex === 'F' ? FIRST_NAMES_M : FIRST_NAMES_F) };
   if (C.hazard) C.dispatchText += ' Caution: scene not secure. Stage until PD advises.';
   if (tpl.arrest && P.arrest) C.firstShockable = SHOCKABLE(P.arrest.rhythm);
-  // first responders: police for unsafe scenes, the engine company for arrests, crashes and priority-1 calls
-  if (C.hazard) C.pdEta = r.range(3, 6) * 60;
-  if (tpl.arrest || C.mvc || (tpl.pri === 1 && r.chance(0.4))) C.fireEta = r.range(3.5, 7) * 60;
   G.call = C;
   G.shift.callsN++;
   buildScene(C, r);
+  // the engine company and police drive in as well when the call needs them
+  dispatchResponders(C, r);
   radioTone();
   radio('Dispatch', C.dispatchText, 'dispatch');
   bus.emit('dispatch', C);
@@ -3960,10 +4007,6 @@ function tickCall(gdt) {
   const ctx = careContext(C);
   for (const P of C.patients) tickPatient(P, gdt, ctx);
   updateWorkers(gdt);
-  // first responders
-  if (C.fireEta !== undefined && !C.fireOn && C.t >= C.fireEta) { C.fireOn = true; spawnFireEngine(C); radio('Engine 12', C.P.arrest ? 'Engine 12 on scene, we have CPR in progress.' : 'Engine 12 on scene, standing by for Medic 12.'); }
-  if (C.pdEta !== undefined && !C.pdOn && C.t >= C.pdEta) { C.pdOn = true; spawnPolice(C); }
-  if (C.pdOn && !C.pdCleared && C.t >= C.pdEta + 60) { C.pdCleared = true; radio('PD', 'Scene is secure, Medic 12 can come in.'); if (C.stage === 'staging' || C.stage === 'enroute') buildRoute(Object.assign({ ls: RIG.siren }, C.place.curb), C.addr); }
   // stage changes from where the rig is
   if (C.stage === 'enroute' && RIG) {
     const tgt = C.hazard && !C.pdCleared ? stagingPoint(C) : C.place.curb;
@@ -4030,6 +4073,7 @@ function backInService() {
   }
   if (R.env !== 'city') setEnv('city');
   leaveRigBack();
+  releaseUnits();
   clearScene();
   resetCrewAfterCall();
   G.call = null;
@@ -4135,55 +4179,16 @@ function sceneSideSpot(C, back = 14) {
   const c = p.curb, fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
   return { x: c.x - fx * back, z: c.z - fz * back, yaw: c.yaw };
 }
-function spawnPolice(C) {
-  const s = C.place.kind === 'road' ? sceneSideSpot(C, 4) : (() => { const c = C.place.curb, fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); return { x: c.x + fx * 12, z: c.z + fz * 12, yaw: c.yaw }; })();
-  const car = buildCar('sedan', 0x111418, { police: true }); car.position.set(s.x, 0, s.z); car.rotation.y = s.yaw; sceneAdd(car);
-  sceneSolid(s.x - 2.3, s.z - 2.3, s.x + 2.3, s.z + 2.3, 1.5); SCENE.blockers.push({ x: s.x, z: s.z, len: 4.6 });
-  SCENE.cops.push(car);
-  const p = C.place;
-  const ox = p.x + (p.nx || 0) * 2.5 + 1.5, oz = p.z + (p.nz || 0) * 2.5;
-  const o = scenePerson(COP, ox, oz, p.yaw || 0, 'arms', 'cop'); SCENE.cop = o;
-}
-function spawnFireEngine(C) {
-  const s = sceneSideSpot(C, 16);
-  const fe = buildFireEngine(); fe.position.set(s.x, 0, s.z); fe.rotation.y = s.yaw; sceneAdd(fe);
-  const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
-  sceneSolid(Math.min(s.x - fx * 5, s.x + fx * 5) - 1.4, Math.min(s.z - fz * 5, s.z + fz * 5) - 1.4, Math.max(s.x - fx * 5, s.x + fx * 5) + 1.4, Math.max(s.z - fz * 5, s.z + fz * 5) + 1.4, 3);
-  SCENE.blockers.push({ x: s.x, z: s.z, len: 10 });
-  SCENE.fire.push(fe);
-  // two firefighters go to the patient; in an arrest one takes over compressions
-  const P = C.P;
-  const W = P.where || {};
-  if (W.scene === 'interior' && SCENE.int) {
-    const I = SCENE.int;
-    const f1 = scenePerson(FIREFIGHTER, I.pat.x - 0.7, I.pat.z + 0.6, Math.PI / 2, P.arrest ? 'cpr' : 'arms', 'ff', { y: 0 });
-    const f2 = scenePerson(FIREFIGHTER, I.pat.x + 1.6, I.pat.z + 1.4, -2.4, 'arms', 'ff', { y: 0 });
-    SCENE.ffs = [f1, f2];
-  } else {
-    const bx = W.x !== undefined ? W.x : C.place.x, bz = W.z !== undefined ? W.z : C.place.z;
-    const f1 = scenePerson(FIREFIGHTER, bx - 0.75, bz + 0.3, Math.PI / 2, P.arrest ? 'cpr' : 'arms', 'ff');
-    const f2 = scenePerson(FIREFIGHTER, bx + 2.0, bz - 1.5, -2.2, 'arms', 'ff');
-    SCENE.ffs = [f1, f2];
-    if (C.mvc && SCENE.wreck) for (let k = 0; k < 4; k++) { const c = buildCone(); c.position.set(SCENE.wreck.x + Math.sin(s.yaw) * (-8 - k * 3), 0, SCENE.wreck.z + Math.cos(s.yaw) * (-8 - k * 3)); sceneAdd(c); }
-  }
-  // the bystander stops CPR when the firefighters take over
-  if (SCENE.bys && SCENE.bys.pose === 'cpr') setPose(SCENE.bys, 'arms', 1.2);
-  if (SCENE.bysCPR) setPose(SCENE.bysCPR, 'arms', 1.4);
-  C.bystCPR = false;
-}
 function setPose(p, pose, back = 0) {
   p.pose = pose;
   if (back) { const a = p.m.root.rotation.y; p.x -= Math.sin(a) * back; p.z -= Math.cos(a) * back; p.m.root.position.x = p.x; p.m.root.position.z = p.z; }
 }
 function updateScenePeople(dt) {
   const C = G.call;
-  const ffCPR = C && C.fireOn && C.P.arrest && !workerOn('cpr', 'ricky') && !workerOn('cpr', 'partner');
-  if (SCENE.ffs) SCENE.ffs[0].pose = ffCPR ? 'cpr' : 'arms';
   for (const p of SCENE.people) {
     if (p.role === 'patient' && p.P) p.pose = patientPose(p.P);
-    if (p.role === 'cop' && C) p.pose = C.pdCleared ? 'wave' : 'arms';
     if (p.role === 'bystander' && p.inside === false && C && C.stage !== 'enroute' && C.stage !== 'pending' && dist(PLAYER.x, PLAYER.z, p.x, p.z) < 6) p.pose = 'arms';
-    posePerson(p.m, p.pose, dt);
+    posePerson(p.m, p.pose, dt, (p.v || 0) / 3);
   }
   if (C) for (const P of C.patients) if (P.model && P.carried) posePerson(P.model, patientPose(P), dt);
 }
@@ -4463,17 +4468,17 @@ function moveHarm(P, m, C) {
   if (P.conds.fracture && !P.conds.fracture.splinted && (m.id !== 'walk')) { P.conds.fracture.moved = true; return null; }
   return null;
 }
-function nearPartner(P) { return PARTNER.sp === (P.where.scene === 'interior' ? 'int' : 'city') && dist(PARTNER.x, PARTNER.z, P.where.x, P.where.z) < 4 && PARTNER.task !== 'fetch'; }
+function nearPartner(P) { return (PARTNER.sp === (P.where.scene === 'interior' ? 'int' : 'city') && dist(PARTNER.x, PARTNER.z, P.where.x, P.where.z) < 4 && PARTNER.task !== 'fetch') || medicCanReach(P); }
 // start the timed move; finishes in completeMove
 function startMove(P, id) {
   const m = MOVES.find((q) => q.id === id), C = G.call;
   const why = moveNeed(P, m); if (why) { toast(why, 'bad'); return; }
   const h = moveHarm(P, m, C); if (h) addHarm(C, h);
   if (P.spine.risk && P.spine.injured && !P.spine.collar) P.spine.violated = true;
-  stopWorker('ricky'); stopWorker('partner', true);
+  stopWorker('ricky'); stopWorker('partner', true); stopWorker('medic', true);
   if (!C.moveDevice) C.moveDevice = m.dev || 'walk';
   startWork('ricky', { id: 'move:' + id, name: m.name, dur: m.dur, move: m });
-  if (m.dev && m.dev !== 'stretcher') startWork('partner', { id: 'assist', name: 'Helping lift', dur: m.dur });
+  if (m.dev && m.dev !== 'stretcher') { const helper = partnerCanReach(P) ? 'partner' : 'medic'; startWork(helper, { id: 'assist', name: 'Helping lift', dur: m.dur }); }
 }
 function completeMove(P, m) {
   const C = G.call;
@@ -4742,10 +4747,14 @@ function climbInBack() {
   enterRigBack();
 }
 
-// Ricky Rescue — patient care: two workers (Ricky and Marisol) doing timed actions in parallel, continuous jobs
-// (CPR, BVM, direct pressure), Ricky's CPR rhythm, Marisol's own initiative, and the care panel with its monitor.
+// Ricky Rescue — patient care: up to three workers (Ricky, Marisol and an engine company's firefighter-paramedic)
+// doing timed actions in parallel, continuous jobs (CPR, BVM, direct pressure), Ricky's CPR rhythm, the others' own
+// initiative, and the care panel with its monitor.
 
-const WORK = { ricky: null, partner: null, queue: { ricky: null, partner: null } };
+const WORKERS = ['ricky', 'partner', 'medic'];
+const WORK = { ricky: null, partner: null, medic: null, queue: { ricky: null, partner: null, medic: null } };
+const workerName = (who) => (who === 'ricky' ? 'Ricky' : who === 'partner' ? PARTNER_SHORT : MEDIC.first || 'Medic');
+const workerBody = (who) => (who === 'ricky' ? PLAYER : who === 'partner' ? PARTNER : MEDIC);
 const CPRQ = { taps: [], q: 0, last: 0, rate: 0 };
 const CARE = { open: false, P: null, tab: 'assess', who: 'ricky', logN: 0, sel: null };
 
@@ -4754,20 +4763,21 @@ function startWork(who, job) {
   if (WORK[who] && WORK[who].cont) stopWorker(who, true);
   job.t = 0; job.started = G.call ? G.call.t : 0;
   WORK[who] = job;
-  if (who === 'ricky') { PLAYER.busy = job.cont ? 0 : 1; PLAYER.workPose = job.pose || 'kneel'; }
-  else { PARTNER.busy = 1; PARTNER.workPose = job.pose || 'kneel'; if (PARTNER.task !== 'drive' && PARTNER.task !== 'back') PARTNER.task = 'kneel'; }
+  const B = workerBody(who);
+  B.busy = who === 'ricky' && job.cont ? 0 : 1; B.workPose = job.pose || 'kneel';
+  if (who === 'partner' && PARTNER.task !== 'drive' && PARTNER.task !== 'back') PARTNER.task = 'kneel';
   CARE.dirty = true;
 }
 function stopWorker(who, quiet) {
   const j = WORK[who]; if (!j) return;
   WORK[who] = null;
-  if (who === 'ricky') { PLAYER.busy = 0; PLAYER.workPose = null; } else { PARTNER.busy = 0; PARTNER.workPose = null; }
-  if (j.cont && !quiet && G.call) callLog(G.call, who === 'ricky' ? 'Ricky' : PARTNER_SHORT, 'Stopped ' + j.name.toLowerCase() + '.');
+  const B = workerBody(who); B.busy = 0; B.workPose = null;
+  if (j.cont && !quiet && G.call) callLog(G.call, workerName(who), 'Stopped ' + j.name.toLowerCase() + '.');
   if (j.act && j.act.id === 'bvm' && G.call && !workerOn('bvm')) { const P = G.call.P; if (P.o2 === 'bvm') P.o2 = null; }
   CARE.dirty = true;
 }
-function stopAllWork() { stopWorker('ricky', true); stopWorker('partner', true); WORK.queue.ricky = WORK.queue.partner = null; }
-function workerOn(id, who) { const w = who ? [WORK[who]] : [WORK.ricky, WORK.partner]; return w.some((j) => j && j.act && j.act.id === id && (j.on || !j.cont)); }
+function stopAllWork() { for (const w of WORKERS) { stopWorker(w, true); WORK.queue[w] = null; } }
+function workerOn(id, who) { const w = who ? [WORK[who]] : WORKERS.map((k) => WORK[k]); return w.some((j) => j && j.act && j.act.id === id && (j.on || !j.cont)); }
 function rickyCanReach(P) {
   if (G.where === 'back') return P.where && P.where.scene === 'rig';
   if (G.where !== 'foot' || !P.where || P.carried) return false;
@@ -4780,6 +4790,15 @@ function partnerCanReach(P) {
   const sp = P.where.scene === 'interior' ? 'int' : 'city';
   return sp === PARTNER.sp && dist(PARTNER.x, PARTNER.z, P.where.x, P.where.z) < 6;
 }
+// the engine medic: on scene beside the patient, or riding in the back with them
+function medicCanReach(P) {
+  if (!MEDIC.on || !P.where) return false;
+  if (MEDIC.task === 'ride') return P.where.scene === 'rig';
+  if (P.carried || !MEDIC.person) return false;
+  const sp = P.where.scene === 'interior' ? 'int' : 'city';
+  return sp === MEDIC.sp && dist(MEDIC.x, MEDIC.z, P.where.x, P.where.z) < 6;
+}
+const canReach = (who, P) => (who === 'ricky' ? rickyCanReach(P) : who === 'partner' ? partnerCanReach(P) : medicCanReach(P));
 // why an action can't be done by `who` right now (null = OK)
 function actionBlock(a, P, who) {
   const C = G.call, rank = G.career.rank;
@@ -4788,16 +4807,20 @@ function actionBlock(a, P, who) {
     if (a.who === 'ricky') return 'Only Ricky can do this';
     if (a.rank) return PARTNER_SHORT + ' is an EMT';
     if (!partnerCanReach(P)) return PARTNER_SHORT + ' isn\'t with the patient';
+  } else if (who === 'medic') {
+    // a paramedic: everything up to paramedic level, whatever Ricky's own certification; the crew's decisions stay Ricky's
+    if (a.id === 'refusal' || a.id === 'terminate' || a.id === 'sample' || a.id === 'opqrst') return 'Ricky leads this call';
+    if ((a.rank || 0) > 2) return 'Beyond a paramedic';
+    if (!medicCanReach(P)) return (MEDIC.first || 'The medic') + ' isn\'t with the patient';
   } else {
     if ((a.rank || 0) > rank) return 'Needs ' + RANKS[a.rank].long;
     if (!rickyCanReach(P)) return 'Get next to the patient';
   }
   if (a.use && RIG && (RIG.stock[a.use] || 0) <= 0) return 'Out of ' + SUPPLIES[a.use].name.toLowerCase();
   if (a.need) { const n = a.need(P, C); if (n) return n; }
-  if (WORK[who] && !WORK[who].cont && !actionBlock.ignoreBusy) return (who === 'ricky' ? 'Ricky' : PARTNER_SHORT) + ' is busy';
+  if (WORK[who] && !WORK[who].cont && !actionBlock.ignoreBusy) return workerName(who) + ' is busy';
   if (a.cont && workerOn(a.id)) return 'Already being done';
-  const other = who === 'ricky' ? 'partner' : 'ricky';
-  if (!a.cont && WORK[other] && WORK[other].act && WORK[other].act.id === a.id) return 'Already being done';
+  for (const other of WORKERS) if (other !== who && !a.cont && WORK[other] && WORK[other].act && WORK[other].act.id === a.id) return 'Already being done';
   return null;
 }
 function actionBlockIgnoringBusy(a, P, who) { actionBlock.ignoreBusy = true; try { return actionBlock(a, P, who); } finally { actionBlock.ignoreBusy = false; } }
@@ -4809,12 +4832,13 @@ function doAction(id, who = CARE.who, P = G.call && G.call.P) {
   if (why) { toast(why, 'bad'); return false; }
   if (a.use && RIG && a.use !== 'o2') RIG.stock[a.use]--;
   if (a.use === 'o2' && RIG) RIG.stock.o2 = Math.max(0, RIG.stock.o2 - 2);
-  if (!C.ppe && id !== 'ppe' && !C.ppeWarn) { C.ppeWarn = true; addHarm(C, 'Touched the patient before gloves and PPE'); }
+  if (who === 'ricky' && !C.ppe && id !== 'ppe' && !C.ppeWarn) { C.ppeWarn = true; addHarm(C, 'Touched the patient before gloves and PPE'); }
   if (C.actT[id] === undefined) C.actT[id] = C.t;
   if (!C.times.contact) C.times.contact = C.t;
   const h = a.harm && a.harm(P, C); if (h) addHarm(C, h);
   let dur = a.dur;
   if (who === 'partner' && G.career.rank >= 3) dur *= 0.8;
+  if (who === 'medic') dur *= 0.9;
   const pose = id === 'cpr' ? 'cpr' : id === 'bvm' ? 'kneel' : (P.pose === 'sit' || P.pose === 'chestSit') && G.where !== 'back' ? 'crouch' : 'kneel';
   startWork(who, { act: a, id, name: a.name, dur, cont: !!a.cont, pose, P });
   bus.emit('action', id, who);
@@ -4822,11 +4846,11 @@ function doAction(id, who = CARE.who, P = G.call && G.call.P) {
 }
 function updateWorkers(gdt) {
   const C = G.call; if (!C) return;
-  for (const who of ['ricky', 'partner']) {
+  for (const who of WORKERS) {
     const j = WORK[who]; if (!j) continue;
     const P = j.P || C.P;
     // a worker who has walked off (or the patient was moved) loses the job
-    if (j.act && !(who === 'ricky' ? rickyCanReach(P) : partnerCanReach(P))) { stopWorker(who); continue; }
+    if (j.act && !canReach(who, P)) { stopWorker(who); continue; }
     let rate = 1;
     if (RIG && P.where && P.where.scene === 'rig' && Math.abs(RIG.v) > 1) rate = 1 / (1 + RIG.rough * 0.8 / RIGS[RIG.type].ride);
     j.t += gdt * rate;
@@ -4834,12 +4858,12 @@ function updateWorkers(gdt) {
       if (j.act) {
         const line = j.act.done(P, C, who);
         C.acts.add(j.id); C.actN[j.id] = (C.actN[j.id] || 0) + 1;
-        if (line) callLog(C, who === 'ricky' ? 'Ricky' : PARTNER_SHORT, line);
+        if (line) callLog(C, workerName(who), line);
         bus.emit('actionDone', j.id, who, line);
       } else if (j.move) completeMove(P, j.move);
       else if (j.fn) j.fn();
       if (j.cont) { j.on = true; if (who === 'ricky') { PLAYER.busy = 0; } }
-      else { WORK[who] = null; if (who === 'ricky') { PLAYER.busy = 0; PLAYER.workPose = null; } else { PARTNER.busy = 0; PARTNER.workPose = null; } }
+      else { WORK[who] = null; const B = workerBody(who); B.busy = 0; B.workPose = null; }
       CARE.dirty = true;
     }
     // continuous jobs end themselves when no longer needed
@@ -4850,24 +4874,26 @@ function updateWorkers(gdt) {
     }
   }
   // queued actions start when their worker is free
-  for (const who of ['ricky', 'partner']) {
+  for (const who of WORKERS) {
     const q = WORK.queue[who];
     if (q && (!WORK[who] || WORK[who].cont)) { WORK.queue[who] = null; if (!actionBlock(ACT[q], C.P, who)) doAction(q, who); CARE.dirty = true; }
   }
   partnerInitiative(C);
+  medicInitiative(C);
 }
 // CPR quality from whoever is doing it; Ricky's follows the player's rhythm
 function careContext(C) {
   const P = C.P;
   let cpr = 0;
-  const analysing = WORK.ricky && (WORK.ricky.id === 'aed' || WORK.ricky.id === 'analyse') || WORK.partner && (WORK.partner.id === 'aed' || WORK.partner.id === 'analyse');
+  const analysing = WORKERS.some((w) => WORK[w] && (WORK[w].id === 'aed' || WORK[w].id === 'analyse'));
   if (WORK.ricky && WORK.ricky.id === 'cpr') cpr = Math.max(cpr, OPTS.autoCPR || !G.live ? 0.8 : CPRQ.q);
   if (WORK.partner && WORK.partner.id === 'cpr') { const j = WORK.partner; cpr = Math.max(cpr, 0.82 - Math.min(0.2, (C.t - j.started) / 1500)); }
+  if (WORK.medic && WORK.medic.id === 'cpr') cpr = Math.max(cpr, 0.84);
   if (C.fireOn && P.arrest && !P.carried && P.where && P.where.scene !== 'rig') cpr = Math.max(cpr, 0.8);
   if (C.bystCPR && P.arrest && !C.times.contact) cpr = Math.max(cpr, 0.45);
   if (analysing) cpr = 0;
   if (P.carried && (PLAYER.v > 0.3)) cpr *= 0.3;
-  return { cpr, bvm: workerOn('bvm') || (P.arrest && C.fireOn && !!P.airway.adjunct), pressure: workerOn('pressure'), t: C.t };
+  return { cpr, bvm: workerOn('bvm') || (P.arrest && C.fireOn && !!P.airway.adjunct), pressure: workerOn('pressure') || !!C.ffPressure, t: C.t };
 }
 // Marisol does sensible things on her own: compressions in an arrest, vitals every few minutes
 function partnerInitiative(C) {
@@ -4885,6 +4911,27 @@ function partnerInitiative(C) {
     if (old(key) && !actionBlock(ACT[id], P, 'partner')) { doAction(id, 'partner'); return; }
   }
   if (!P.monitor && C.times.contact && C.t - C.times.contact > 60 && !actionBlock(ACT.monitor, P, 'partner')) doAction('monitor', 'partner');
+}
+// the engine medic works the advanced side of an arrest and puts the monitor on; anything else is Ricky's call
+function medicInitiative(C) {
+  if (!OPTS.partnerAuto || !MEDIC.on || WORK.medic || WORK.queue.medic) return;
+  const P = C.P;
+  if (!medicCanReach(P) || C.times.contact === undefined || !C.ppe) return;
+  if (C.t - (C.medicT || -999) < 15) return;
+  C.medicT = C.t;
+  const tryDo = (id) => { if (!actionBlock(ACT[id], P, 'medic')) { doAction(id, 'medic'); return true; } return false; };
+  if (P.arrest) {
+    if (C.shockReady) { tryDo('shock'); return; }
+    if (!P.pads && tryDo('aed')) return;
+    if (P.pads && P.arrest.t - (C.lastAnalyse || 0) > 120 && !workerOn('analyse') && tryDo('analyse')) { C.lastAnalyse = P.arrest.t; return; }
+    if (!P.airway.adjunct && tryDo('igel')) return;
+    if (!P.iv && tryDo('iv')) return;
+    if (P.arrest.t - P.arrest.lastEpi > 240) tryDo('epi');
+    return;
+  }
+  const wb = worstBleed(P);
+  if (wb && wb.kind === 'arterial' && wb.limb && wb.ctrl !== 'tq' && tryDo('tq')) return;
+  if (!P.monitor) tryDo('monitor');
 }
 // Ricky's compressions: one press per push, aim for 100–120 a minute
 function cprTap() {
@@ -4930,7 +4977,8 @@ function renderCare() {
     tabs.appendChild(b);
   }
   // who does it
-  for (const w of ['ricky', 'partner']) $('#w-' + w).classList.toggle('on', CARE.who === w);
+  if (CARE.who === 'medic' && !MEDIC.on) CARE.who = 'ricky';
+  for (const w of WORKERS) $('#w-' + w).classList.toggle('on', CARE.who === w);
   // actions
   const list = $('#careActs'); list.innerHTML = '';
   if (CARE.tab === 'move') renderMoveTab(list, P, C);
@@ -5027,9 +5075,11 @@ function updateCarePanel(dt) {
   rh.classList.toggle('warn', !!P.arrest && live);
   drawECG(dt, P, live);
   // workers
-  for (const who of ['ricky', 'partner']) {
+  $('#w-medic').hidden = !MEDIC.on;
+  $('#workers').classList.toggle('three', MEDIC.on);
+  for (const who of WORKERS) {
     const j = WORK[who], e = $('#w-' + who);
-    const name = who === 'ricky' ? 'Ricky' : PARTNER_SHORT;
+    const name = who === 'medic' ? `${workerName(who)} · ${MEDIC.unit ? MEDIC.unit.short : ''} medic` : workerName(who);
     const where = who === 'partner' ? ({ fetch: 'fetching', drive: 'driving', cab: 'in the cab', carry: 'carrying' }[PARTNER.task] || '') : '';
     e.querySelector('b').textContent = name;
     const q = WORK.queue[who];
@@ -5111,6 +5161,8 @@ function openTransportPanel(midway) {
   const C = G.call; if (!C) return;
   TP.midway = !!midway;
   TP.dest = C.dest || null; TP.alert = C.prealert || 'none'; TP.ls = RIG.siren; TP.driver = C.driver || 'partner';
+  // the engine medic comes along for anyone sick enough to need a second pair of advanced hands
+  if (!midway) TP.medic = MEDIC.on && !!(C.P.arrest || C.P.rosc || C.tpl.transportLS(C, C.P));
   for (const id of Object.keys(HOSPITALS)) TP.lens[id] = routeLength(Object.assign({}, CITY.hospitals[id].bay));
   if (!TP.dest) TP.dest = Object.keys(HOSPITALS).sort((a, b) => TP.lens[a] - TP.lens[b])[0];
   renderTransport();
@@ -5131,6 +5183,8 @@ function renderTransport() {
   opt('tpPartner', TP.driver === 'partner', `Ride in back, ${PARTNER_SHORT} drives`);
   opt('tpRicky', TP.driver === 'ricky', `I'll drive, ${PARTNER_SHORT} rides in back`);
   opt('tpLS', TP.ls, TP.ls ? 'Lights & sirens: ON' : 'Lights & sirens: off');
+  $('#tpMedic').hidden = !MEDIC.on || TP.midway;
+  if (MEDIC.on) opt('tpMedic', TP.medic, TP.medic ? `${MEDIC.first} (${MEDIC.unit.name}) rides in` : `${MEDIC.first} stays with ${MEDIC.unit.name}`);
   const al = $('#tpAlerts'); al.innerHTML = '';
   for (const [id, name] of [['none', 'Routine report'], ['stemi', 'STEMI alert'], ['stroke', 'Stroke alert'], ['trauma', 'Trauma alert']]) {
     const b = el('button', 'chip btn' + (TP.alert === id ? ' on' : ''), name);
@@ -5159,7 +5213,11 @@ function confirmTransport() {
   }
   buildRoute(Object.assign({ ls: TP.ls }, H.bay), H.short);
   if (!first) { if (RIG.auto) RIG.auto = { pts: ROUTE.pts, i: 0 }; return; }
-  // everyone aboard
+  // everyone aboard; the engine medic too, if asked
+  if (MEDIC.on) {
+    if (TP.medic) { MEDIC.task = 'ride'; radio(MEDIC.first, 'I\'ll ride in with you.', 'medic'); }
+    else { stopWorker('medic', true); MEDIC.on = false; MEDIC.task = 'leave'; }
+  }
   PLAYER.push = false; PLAYER.carry = null;
   for (const e of Object.values(EQ)) if (e.at !== 'rig' && !e.P) { e.at = 'rig'; e.by = null; e.model.g.visible = false; }
   if (TP.driver === 'partner') {
@@ -5214,9 +5272,11 @@ function buildRigBox() {
   const rk = makePerson(Object.assign({}, C.look, { shirt: U.shirt, pants: U.pants, uniform: true, gloves: true }));
   // Ricky in the captain's chair at the patient's head
   rk.root.position.set(0, 0.0, -L / 2 + 0.42); rk.root.rotation.y = 0; snapPose(rk, 'sit'); g.add(rk.root);
+  // the engine medic on the bench, when one rides along
+  const md = makePerson(ENGINE_MEDIC); md.root.position.set(W / 2 - 0.42, 0.06, -L / 2 + 1.35); md.root.rotation.y = -Math.PI / 2; snapPose(md, 'sit'); md.root.visible = false; g.add(md.root);
   shadowy(g, false, true);
   R.scene.add(g);
-  Object.assign(RIGBOX, { g, type: RIG.type, str: st, ricky: rk, L, W, H });
+  Object.assign(RIGBOX, { g, type: RIG.type, str: st, ricky: rk, medic: md, L, W, H });
 }
 function enterRigBack() {
   const C = G.call, P = C.P;
@@ -5240,6 +5300,7 @@ function leaveRigBack() {
 // the camera in the back sways with the rig
 function camRigBack(dt) {
   const A = RIG, sw = clamp(A.accLat * 0.012, -0.08, 0.08), sp = clamp(A.accLong * 0.008, -0.05, 0.05);
+  if (RIGBOX.medic) RIGBOX.medic.root.visible = MEDIC.on && MEDIC.task === 'ride';
   RIGBOX.sway = lerp(RIGBOX.sway || 0, sw, 1 - Math.exp(-dt * 5));
   // from the rear corner on the bench side, looking along the stretcher to Ricky at the head
   const yaw = clamp(CAM.userYaw * 0.3, -0.5, 0.5), x = RIGBOX_X + RIGBOX.W / 2 - 0.3, z = RIGBOX_Z + RIGBOX.L / 2 - 0.2;
@@ -5259,6 +5320,8 @@ function arriveHospital(C) {
   if (G.where === 'back') { leaveRigBack(); closeCare(); fade(() => unloadPatient()); }
   else { toast('Get out and unload the patient at the back doors.'); }
   if (PARTNER.task === 'back') { stopWorker('partner', true); }
+  // the engine medic hands over with us, then heads back to quarters
+  if (MEDIC.on && MEDIC.task === 'ride') { stopWorker('medic', true); MEDIC.on = false; MEDIC.task = 'none'; setTimeout(() => radio(MEDIC.first, `Good work. I'll get a ride back to ${MEDIC.unit ? MEDIC.unit.name : 'quarters'}.`, 'medic'), DEBUG ? 0 : 3000); }
   bus.emit('atHospital', C);
 }
 
@@ -5546,12 +5609,13 @@ function startMCI(o = {}) {
     id: 'mci' + Date.now().toString(36), tpl: MCI_TPL, type: 'mci', nature: MCI_TPL.nature, pri: 1, place, addr: place.addr, district: d,
     P: main, patients: pts, t: 0, stage: 'pending', times: { dispatch: 0 }, acts: new Set(), actT: {}, actN: {}, log: [], harms: [], notes: [],
     ls: { enroute: false, transport: false }, hazard: null, pdCleared: true, mvc: true, dest: null, prealert: null, ppe: false, devices: {},
-    crashes0: RIG ? RIG.crashes : 0, startClock: G.clockT, mci: { pts, tags: new Map(), done: false, sent: false }, fireEta: r.range(2, 4) * 60,
+    crashes0: RIG ? RIG.crashes : 0, startClock: G.clockT, mci: { pts, tags: new Map(), done: false, sent: false },
   };
   C.dispatchText = `Medic 12, respond priority 1 to ${place.addr}. A bus has collided with several cars, multiple patients. You're first in: take medical command and triage.`;
   G.call = C; G.shift.callsN++; G.shift.mciDone = true;
   buildMCIScene(C, r);
   radioTone(); radio('Dispatch', C.dispatchText, 'dispatch');
+  dispatchResponders(C, r);
   bus.emit('dispatch', C);
   return C;
 }
@@ -5732,6 +5796,13 @@ function drawMinimap(cvId, big) {
   const C = G.call;
   if (C && C.place && C.stage !== 'done') { g.fillStyle = '#ff4a4a'; g.beginPath(); g.arc(P(C.place.x), P(C.place.z), big ? 6 : 4, 0, TAU); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); }
   if (C && C.staging && C.stage === 'enroute' && !C.pdCleared) { g.fillStyle = '#ffd040'; g.beginPath(); g.arc(P(C.staging.x), P(C.staging.z), 4, 0, TAU); g.fill(); }
+  // fire engines and police cars out on the road, flashing while they run hot
+  const flash = Math.floor(performance.now() / 280) % 2;
+  for (const u of RESP.units) {
+    if (u.state === 'home' || u.state === 'gone') continue;
+    g.fillStyle = u.kind === 'fire' ? (u.siren && flash ? '#ffffff' : '#ff3a2a') : (u.siren && flash ? '#ff3a3a' : '#4a8aff');
+    const s = big ? 5 : 3.2; g.fillRect(P(u.x) - s / 2, P(u.z) - s / 2, s, s);
+  }
   // traffic dots when zoomed in
   if (!big) { g.fillStyle = 'rgba(255,255,255,.45)'; for (const c of TRAFFIC.cars) g.fillRect(P(c.x) - 1, P(c.z) - 1, 2, 2); }
   // us
@@ -5758,6 +5829,7 @@ function updateHUD(dt) {
     else if (C.stage === 'transport') st = pri + 'Transporting to ' + esc(HOSPITALS[C.dest].short);
     else if (C.stage === 'hospital') st = 'At ' + esc(HOSPITALS[C.dest].short) + ': unload and hand off';
     sub = C.stage === 'enroute' ? 'Call time ' + fmtDur(C.t) : C.times.arrive !== undefined ? 'On scene ' + fmtDur(C.t - C.times.arrive) : '';
+    const ul = unitsLine(C); if (ul) sub += (sub ? ' · ' : '') + ul;
     if (C.mci && !C.mci.sent && C.stage === 'onscene') sub = `Triaged ${C.mci.tags.size} of ${C.mci.pts.length}` + (C.mci.tags.size === C.mci.pts.length ? ' · radio your report (R)' : '');
   } else if (S && !S.over && S.nextCallT > G.clockT) sub = 'Press T to skip ahead to the next call';
   if (st !== HUD.lastStatus) { $('#status').innerHTML = st; HUD.lastStatus = st; }
@@ -6048,7 +6120,7 @@ bus.on('atHospital', () => tip('hospital', 'Push the stretcher to the ER doors u
 function wireUI() {
   for (const b of $$('[data-close]')) b.onclick = () => { UI.hide(b.dataset.close); };
   $('#careX').onclick = () => closeCare();
-  for (const w of ['ricky', 'partner']) {
+  for (const w of WORKERS) {
     $('#w-' + w).onclick = (e) => { if (e.target.classList.contains('stop')) return; CARE.who = w; renderCare(); };
     $('#w-' + w + ' .stop').onclick = (e) => { e.stopPropagation(); stopWorker(w); renderCare(); };
   }
@@ -6057,6 +6129,7 @@ function wireUI() {
   $('#tpPartner').onclick = () => { TP.driver = 'partner'; renderTransport(); };
   $('#tpRicky').onclick = () => { TP.driver = 'ricky'; renderTransport(); };
   $('#tpLS').onclick = () => { TP.ls = !TP.ls; renderTransport(); };
+  $('#tpMedic').onclick = () => { TP.medic = !TP.medic; renderTransport(); };
   $('#tpGo').onclick = () => confirmTransport();
   $('#rvOk').onclick = () => { UI.hide('review'); backInService(); if (G.shift.over) showShiftOver(); };
   $('#soOk').onclick = () => { UI.hide('shiftOver'); G.shift = null; G.call = null; clearScene(); clearRoute(); showStation(); };
@@ -6226,6 +6299,356 @@ function loadGame() {
 }
 addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
 
+// Ricky Rescue — responding units. Fire engines from the four firehouses and police cars on patrol drive to the scene
+// with lights and sirens (traffic yields to them as it does to Medic 12), park where they protect the scene, and put
+// their crews to work: a firefighter takes compressions or holds pressure, police clear unsafe scenes and direct
+// traffic at crashes, and the first engine's firefighter-paramedic joins Ricky and Marisol as a third crew member
+// who can ride in the ambulance to the hospital.
+
+const RESP = { units: [], radioT: 0 };
+const MEDIC = { on: false, unit: null, name: '', first: '', person: null, x: 0, z: 0, sp: 'city', task: 'none', busy: 0, workPose: null, said: false };
+const POLICE_UNITS = [14, 23, 31, 42, 56, 68, 71, 85];
+
+function initResponders() {
+  for (const F of CITY.firehouses) {
+    const m = buildFireEngine(); m.position.set(F.home.x, CURB, F.home.z); m.rotation.y = F.home.yaw; R.scene.add(m);
+    RESP.units.push({ kind: 'fire', name: F.name, short: 'E' + F.num, F, model: m, x: F.home.x, z: F.home.z, yaw: F.home.yaw, v: 0, state: 'home', siren: false, lightT: Math.random(), barCols: m.userData.bar.map((b) => b.color.clone()) });
+  }
+}
+// at the start of a shift every engine is back in quarters and no police are out
+function resetResponders() {
+  for (const u of [...RESP.units]) {
+    if (u.kind === 'police') { R.scene.remove(u.model); RESP.units.splice(RESP.units.indexOf(u), 1); continue; }
+    parkHome(u);
+  }
+  Object.assign(MEDIC, { on: false, unit: null, person: null, task: 'none', busy: 0, workPose: null, said: false });
+}
+function parkHome(u) {
+  const h = u.F.home;
+  Object.assign(u, { x: h.x, z: h.z, yaw: h.yaw, v: 0, state: 'home', siren: false, call: null, route: null, crew: [] });
+  u.model.position.set(h.x, CURB, h.z); u.model.rotation.y = h.yaw; u.model.visible = true;
+  h.solid.h = 3;
+}
+
+// ---------- who goes ----------
+function dispatchResponders(C, r = rnd) {
+  const tpl = C.tpl, mci = !!C.mci;
+  const nFire = mci ? 2 : (tpl.arrest || C.mvc || (tpl.pri === 1 && r.chance(0.55)) || (tpl.id === 'lift' && r.chance(0.5))) ? 1 : 0;
+  const nPD = mci ? 2 : (C.hazard || C.mvc || tpl.id === 'stab' || (tpl.id === 'overdose' && r.chance(0.6)) || (tpl.arrest && r.chance(0.35))) ? 1 : 0;
+  C.units = [];
+  // nearest free engines (one already heading home can be turned round)
+  const free = RESP.units.filter((u) => u.kind === 'fire' && (u.state === 'home' || u.state === 'returning'));
+  free.sort((a, b) => dist(a.x, a.z, C.place.x, C.place.z) - dist(b.x, b.z, C.place.x, C.place.z));
+  for (let k = 0; k < nFire && k < free.length; k++) {
+    const u = free[k];
+    u.call = C; u.slot = k; u.crew = [];
+    if (k === 0 && !mci) { C.medicUnit = u; Object.assign(MEDIC, { on: false, unit: u, name: u.F.medic, first: u.F.medic.split(' ')[0], task: 'none', person: null, said: false }); }
+    C.units.push(u);
+    sendToScene(u, C);
+  }
+  for (let k = 0; k < nPD; k++) {
+    const u = spawnPolice(C, r); if (!u) continue;
+    u.call = C; u.slot = k; u.crew = [];
+    C.units.push(u);
+    sendToScene(u, C);
+  }
+  if (C.units.length) {
+    const names = C.units.map((u) => u.name);
+    setTimeout(() => radio('Dispatch', `${names.join(', ')} also responding.`, 'dispatch'), DEBUG ? 0 : 2200);
+  }
+}
+function spawnPolice(C, r) {
+  const used = new Set(RESP.units.filter((u) => u.kind === 'police').map((u) => u.num));
+  const num = POLICE_UNITS.find((n) => !used.has(n)); if (!num) return null;
+  // a patrol car somewhere 250–450 m out, not right next to the player
+  let pick = null;
+  for (let tries = 0; tries < 80 && !pick; tries++) {
+    const e = CITY.edges[Math.floor(r() * CITY.edges.length)], dir = r() < 0.5 ? 1 : -1;
+    const p = edgePos(e, dir, CP / 2, laneOff(0)), d = dist(p.x, p.z, C.place.x, C.place.z);
+    if (d > 250 && d < 450 && (!RIG || dist(p.x, p.z, RIG.x, RIG.z) > 150)) pick = p;
+  }
+  if (!pick) return null;
+  const m = buildCar('sedan', 0x111418, { police: true }); R.scene.add(m);
+  const u = { kind: 'police', num, name: 'Car ' + num, short: 'PD', model: m, x: pick.x, z: pick.z, yaw: pick.yaw, v: 6, state: 'out', siren: true, lightT: Math.random(), barCols: m.userData.bar.map((b) => b.color.clone()) };
+  RESP.units.push(u);
+  return u;
+}
+// where each unit parks: engines block upstream of a crash, police protect the far side or stand off at the curb
+function respSpot(C, u) {
+  const p = C.place, k = u.slot || 0;
+  if (p.kind === 'road') {
+    const e = p.edge, dir = p.dir;
+    if (u.kind === 'fire') return edgePos(e, dir, k ? CP / 2 + 28 : CP / 2 - 30, laneOff(e.lanes - 1));
+    return C.mci ? edgePos(e, dir, k ? CP / 2 + 28 : CP / 2 - 30, laneOff(0)) : edgePos(e, dir, CP / 2 + 20, laneOff(e.lanes - 1));
+  }
+  const c = p.curb, fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
+  const back = u.kind === 'fire' ? -16 - k * 13 : 12 + k * 8;
+  return { x: c.x + fx * back, z: c.z + fz * back, yaw: c.yaw };
+}
+function sendToScene(u, C) {
+  // unsafe scene: the engine stages with Medic 12 until police clear it
+  const stage = u.kind === 'fire' && C.hazard && !C.pdCleared;
+  driveUnit(u, stage ? stageSpot(C) : respSpot(C, u), true, 'scene');
+  u.staging = stage;
+}
+function stageSpot(C) { const s = stagingPoint(C), fx = Math.sin(s.yaw), fz = Math.cos(s.yaw); return { x: s.x - fx * 16, z: s.z - fz * 16, yaw: s.yaw }; }
+
+// ---------- driving ----------
+function driveUnit(u, goal, siren, purpose) {
+  let from = u, pre = [];
+  // back to quarters: along the street in front of the firehouse, then onto the apron
+  if (purpose === 'home') goal = { x: u.F.home.x + 8, z: lineAt(u.F.block.bj + 1) - laneOff(0), yaw: -Math.PI / 2 };
+  // leaving quarters: nose out onto the street in front of the firehouse first
+  if (u.state === 'home' && u.F) {
+    const b = u.F.block, ly = lineAt(b.bj + 1) - laneOff(0);
+    from = { x: u.x - 6, z: ly, yaw: -Math.PI / 2 };
+    pre = [{ x: u.x, z: u.z }, { x: u.x, z: ly - 3 }];
+    u.F.home.solid.h = 0;
+  }
+  const r = computeRoute(Object.assign({ ls: siren }, goal), from);
+  let pts = pre.concat(r.pts);
+  if (purpose === 'home') { const h = u.F.home; pts = pts.concat([{ x: h.x, z: lineAt(u.F.block.bj + 1) - laneOff(0) - 4 }, { x: h.x, z: h.z }]); }
+  const cum = [0]; for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + dist(pts[k].x, pts[k].z, pts[k - 1].x, pts[k - 1].z));
+  // speed limit at each point from the turn around it, then braking distance backwards along the path
+  const vmax = siren ? 15.5 : 11;
+  const ang = (k) => Math.atan2(pts[k + 1].x - pts[k].x, pts[k + 1].z - pts[k].z);
+  const vl = pts.map((p, k) => {
+    if (k < 1 || k > pts.length - 2) return vmax;
+    let turn = 0; for (let q = Math.max(0, k - 2); q < Math.min(pts.length - 2, k + 2); q++) turn += Math.abs(angWrap(ang(q + 1) - ang(q)));
+    return turn > 0.3 ? lerp(13, 4.5, clamp((turn - 0.3) / 1.2, 0, 1)) : vmax;
+  });
+  vl[vl.length - 1] = 0;
+  for (let k = vl.length - 2; k >= 0; k--) vl[k] = Math.min(vl[k], Math.sqrt(vl[k + 1] ** 2 + 2 * 5.5 * (cum[k + 1] - cum[k])));
+  Object.assign(u, { route: { pts, cum, len: cum[cum.length - 1], vl }, s: 0, i: 0, goal, siren, purpose, state: purpose === 'scene' ? 'enroute' : purpose === 'home' ? 'returning' : 'leaving', blockT: 0, ghostT: 0 });
+  unparkUnit(u);
+}
+function stepUnit(u, dt) {
+  const Rt = u.route, P = Rt.pts, cum = Rt.cum;
+  let i = u.i; while (i < cum.length - 2 && cum[i + 1] <= u.s) i++; u.i = i;
+  const seg = Math.max(1e-6, cum[i + 1] - cum[i]), f = clamp((u.s - cum[i]) / seg, 0, 1);
+  let vt = lerp(Rt.vl[i], Rt.vl[i + 1], f);
+  // something stopped in the way (Medic 12, a car that hasn't pulled over): wait, then ease past
+  u.ghostT = Math.max(0, u.ghostT - dt);
+  const fx = Math.sin(u.yaw), fz = Math.cos(u.yaw);
+  let blocked = false;
+  if (u.ghostT <= 0) {
+    const test = (x, z, len) => { const ox = x - u.x, oz = z - u.z, al = ox * fx + oz * fz, lat = Math.abs(-ox * fz + oz * fx); if (al > 0 && al < 16 && lat < 2.4) { const v = Math.max(0, (al - len / 2 - 5) * 0.8); if (v < 0.5) blocked = true; vt = Math.min(vt, v); } };
+    if (RIG && RIG.active) test(RIG.x, RIG.z, RIG.len);
+    for (const c of TRAFFIC.cars) if (Math.abs(c.x - u.x) < 18 && Math.abs(c.z - u.z) < 18) test(c.x, c.z, c.len);
+    for (const o of RESP.units) if (o !== u && o.state !== 'home' && o.state !== 'gone' && Math.abs(o.x - u.x) < 18 && Math.abs(o.z - u.z) < 18 && (o.state !== 'enroute' || o.s > u.s)) test(o.x, o.z, o.kind === 'fire' ? 9.5 : 4.6);
+  }
+  u.blockT = blocked && u.v < 0.5 ? u.blockT + dt : 0;
+  if (u.blockT > 2.2) { u.ghostT = 4; u.blockT = 0; }
+  if (u.ghostT > 0) vt = Math.min(vt, 4);
+  u.v = u.v < vt ? Math.min(vt, u.v + (u.kind === 'fire' ? 2.6 : 3.4) * dt) : Math.max(vt, u.v - 7 * dt);
+  u.s = Math.min(Rt.len, u.s + u.v * dt);
+  // place on the path; the body turns a little behind the path so corners look driven
+  let k = u.i; while (k < cum.length - 2 && cum[k + 1] <= u.s) k++;
+  const g = clamp((u.s - cum[k]) / Math.max(1e-6, cum[k + 1] - cum[k]), 0, 1);
+  u.x = lerp(P[k].x, P[k + 1].x, g); u.z = lerp(P[k].z, P[k + 1].z, g);
+  const ty = Math.atan2(P[k + 1].x - P[k].x, P[k + 1].z - P[k].z);
+  u.yaw = angTo(u.yaw, ty, dt * (2 + u.v * 0.25));
+  if (u.s >= Rt.len - 0.3 && u.v < 0.6) arriveUnit(u);
+}
+function arriveUnit(u) {
+  const C = u.call;
+  if (u.purpose === 'home') { parkHome(u); return; }
+  if (u.purpose === 'away') { R.scene.remove(u.model); u.state = 'gone'; RESP.units.splice(RESP.units.indexOf(u), 1); return; }
+  // at the scene (or the staging spot)
+  u.v = 0; u.state = 'scene';
+  if (u.goal) u.yaw = u.goal.yaw;
+  if (!C || G.call !== C) { leaveScene(u); return; }
+  // Medic 12 already on the spot: park a little further back
+  if (RIG && dist(RIG.x, RIG.z, u.x, u.z) < 8) { const fx = Math.sin(u.yaw), fz = Math.cos(u.yaw); u.x -= fx * 11; u.z -= fz * 11; }
+  parkUnit(u);
+  if (u.staging && !C.pdCleared) { radio(u.name, `${u.name} staged with Medic 12.`); return; }
+  if (u.staging) { u.staging = false; unparkUnit(u); driveUnit(u, respSpot(C, u), false, 'scene'); return; }
+  radio(u.name, u.kind === 'police' ? `${u.name} on scene.` : C.P.arrest && !C.times.contact ? `${u.name} on scene, going in with the AED.` : `${u.name} on scene.`);
+  dismount(u, C);
+}
+function parkUnit(u) {
+  const fx = Math.sin(u.yaw), fz = Math.cos(u.yaw), hl = u.kind === 'fire' ? 4.9 : 2.4, hw = u.kind === 'fire' ? 1.35 : 1.0;
+  const ax = Math.abs(fx) * hl + Math.abs(fz) * hw, az = Math.abs(fz) * hl + Math.abs(fx) * hw;
+  u.solid = sceneSolid(u.x - ax, u.z - az, u.x + ax, u.z + az, u.kind === 'fire' ? 3 : 1.5);
+  u.blocker = { x: u.x, z: u.z, len: hl * 2 }; SCENE.blockers.push(u.blocker);
+}
+function unparkUnit(u) {
+  if (u.solid) { const s = u.solid, i = CITY.solids.indexOf(s); if (i >= 0) CITY.solids.splice(i, 1); for (const l of CITY.grid.values()) { const k = l.indexOf(s); if (k >= 0) l.splice(k, 1); } const j = (SCENE.solids || []).indexOf(s); if (j >= 0) SCENE.solids.splice(j, 1); u.solid = null; }
+  if (u.blocker) { const i = SCENE.blockers.indexOf(u.blocker); if (i >= 0) SCENE.blockers.splice(i, 1); u.blocker = null; }
+}
+function leaveScene(u) {
+  unparkUnit(u);
+  for (const p of u.crew || []) { R.scene.remove(p.m.root); const i = SCENE.people.indexOf(p); if (i >= 0) SCENE.people.splice(i, 1); }
+  u.crew = []; u.call = null;
+  if (u.kind === 'fire') driveUnit(u, null, false, 'home');
+  else {
+    // police drive off somewhere far and disappear
+    const far = CITY.edges.filter((e) => { const A = CITY.nodes[e.a]; return dist(A.x, A.z, u.x, u.z) > 350; });
+    const e = far[Math.floor(Math.random() * far.length)] || CITY.edges[0];
+    driveUnit(u, edgePos(e, 1, CP / 2, laneOff(0)), false, 'away');
+  }
+}
+// clear the scene: everyone packs up (called when the call ends)
+function releaseUnits() {
+  for (const u of RESP.units) if (u.call && (u.state === 'scene' || u.state === 'enroute')) leaveScene(u);
+  if (!MEDIC.on || MEDIC.task !== 'ride') Object.assign(MEDIC, { on: false, unit: null, person: null, task: 'none' });
+}
+
+// ---------- crews ----------
+const ENGINE_FF = Object.assign({}, FIREFIGHTER);
+const ENGINE_MEDIC = Object.assign({}, FIREFIGHTER, { vest: 0x2a62c8, hat: 0x1a1a1a });
+function dismount(u, C) {
+  const fx = Math.sin(u.yaw), fz = Math.cos(u.yaw), rx = -fz, rz = fx;
+  const at = (side, fwd) => ({ x: u.x + rx * side + fx * fwd, z: u.z + rz * side + fz * fwd });
+  const mk = (look, role, side, fwd) => { const q = at(side, fwd); const p = scenePerson(look, q.x, q.z, u.yaw + side * Math.PI / 2, 'stand', role, { sp: 'city', v: 0, unit: u }); u.crew.push(p); return p; };
+  if (u.kind === 'police') { mk(COP, 'cop', -1.6, 0.4); return; }
+  if (u === C.medicUnit) { const m = mk(ENGINE_MEDIC, 'medic', -2, 2); MEDIC.person = m; MEDIC.task = 'walk'; }
+  mk(ENGINE_FF, 'ff', 2, 2);
+  if (C.mvc || C.mci) mk(ENGINE_FF, 'ff2', -2, -1);
+  if (C.mvc && SCENE.wreck) for (let k = 0; k < 4; k++) { const c = buildCone(); const q = at(-0.5, 7 + k * 3.5); c.position.set(q.x, 0, q.z); sceneAdd(c); }
+}
+// where a crew member wants to be: { x, z, sp, face }
+function crewGoal(p, C) {
+  const P = C.P, W = P.where || {}, u = p.unit;
+  const pSp = W.scene === 'interior' ? 'int' : W.scene === 'city' ? 'city' : null;
+  const home = { x: u.x + Math.cos(u.yaw) * 2, z: u.z - Math.sin(u.yaw) * 2, sp: 'city' };
+  if (p.role === 'ff2') return SCENE.wreck ? { x: SCENE.wreck.x + 2.5, z: SCENE.wreck.z + 2.5, sp: 'city', face: SCENE.wreck } : home;
+  if (p.role === 'cop') {
+    if (C.mvc || C.mci) { const fx = Math.sin(u.yaw), fz = Math.cos(u.yaw); return { x: u.x + fx * 8, z: u.z + fz * 8, sp: 'city', yaw: u.yaw }; }
+    const door = C.indoor && SCENE.int ? { x: SCENE.int.door.x + 1.2, z: SCENE.int.door.z - 1.2, sp: 'int' } : null;
+    if (C.hazard && !C.pdCleared) return C.indoor && door ? door : { x: C.place.x + 2, z: C.place.z + 1.5, sp: 'city' };
+    if (pSp) return { x: W.x + 2.6, z: W.z - 1.8, sp: pSp, face: W };
+    return home;
+  }
+  if (!pSp || P.carried) {
+    // the patient is on the move or gone: the medic stays with Ricky, the firefighter heads back to the engine
+    if (p.role === 'medic' && MEDIC.task !== 'leave' && G.call && G.call.stage !== 'transport' && G.call.stage !== 'done') return { x: PLAYER.x - Math.sin(PLAYER.yaw) * 2 - Math.cos(PLAYER.yaw) * 1.3, z: PLAYER.z - Math.cos(PLAYER.yaw) * 2 + Math.sin(PLAYER.yaw) * 1.3, sp: PLAYER.sp };
+    return home;
+  }
+  if (p.role === 'medic') return { x: W.x + 0.9, z: W.z - 0.9, sp: pSp, face: W };
+  return { x: W.x - 0.75, z: W.z + 0.3, sp: pSp, face: W };
+}
+function updateCrew(p, dt, C) {
+  const g = crewGoal(p, C);
+  let tx = g.x, tz = g.z;
+  // between the street and a building: walk to the door first
+  if (g.sp !== p.sp) {
+    const I = SCENE.int, d = placeDoor();
+    if (!I || !d) { p.sp = g.sp; }
+    else if (p.sp === 'city') { tx = d.x; tz = d.z; if (dist(p.x, p.z, tx, tz) < 1.0) { p.sp = 'int'; p.x = I.door.x; p.z = I.door.z - 0.5; } }
+    else { tx = I.door.x; tz = I.door.z; if (dist(p.x, p.z, tx, tz) < 0.8) { p.sp = 'city'; p.x = d.x; p.z = d.z; } }
+  }
+  const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+  const hurry = C.P.arrest || C.tpl.pri === 1;
+  if (d > 0.25) {
+    const sp = Math.min(d * 3, hurry ? 4.2 : 3);
+    p.yaw = angTo(p.yaw === undefined ? 0 : p.yaw, Math.atan2(dx, dz), dt * 8);
+    let nx = p.x + dx / d * sp * dt, nz = p.z + dz / d * sp * dt;
+    if (p.sp === 'int') { const q = collideInterior(nx, nz, 0.3); nx = q.x; nz = q.z; } else { const q = collideCircle(nx, nz, 0.3, 0.4); nx = q.x; nz = q.z; const q2 = collideRigBody(nx, nz, 0.3); nx = q2.x; nz = q2.z; }
+    p.v = Math.hypot(nx - p.x, nz - p.z) / dt; p.x = nx; p.z = nz;
+  } else {
+    p.v = 0;
+    const face = g.face ? Math.atan2(g.face.x - p.x, g.face.z - p.z) : g.yaw;
+    if (face !== undefined) p.yaw = angTo(p.yaw, face, dt * 6);
+  }
+  p.atGoal = d < 0.6 && g.sp === p.sp;
+  const y = p.sp === 'int' ? 0 : groundY(p.x, p.z);
+  p.m.root.position.set(p.x, y, p.z); p.m.root.rotation.y = p.yaw;
+  p.m.root.visible = !(p.role === 'medic' && MEDIC.task === 'ride');
+}
+// poses and the jobs firefighters and police take on by themselves
+function crewWork(C, dt) {
+  const P = C.P;
+  C.ffPressure = false;
+  let ffAt = false;
+  for (const u of C.units || []) for (const p of u.crew || []) {
+    updateCrew(p, dt, C);
+    let pose = p.v > 0.3 ? 'stand' : 'arms';
+    if (p.role === 'ff' && p.atGoal && P.where && P.where.scene !== 'rig' && !P.carried) {
+      ffAt = true;
+      const wb = worstBleed(P);
+      if (P.arrest && !workerOn('cpr', 'ricky') && !workerOn('cpr', 'partner') && !workerOn('cpr', 'medic')) pose = 'cpr';
+      else if (wb && wb.kind === 'arterial' && wb.ctrl !== 'tq' && wb.ctrl !== 'gauze' && !workerOn('pressure')) { pose = 'kneel'; C.ffPressure = true; }
+      else pose = 'crouch';
+    }
+    if (p.role === 'medic') {
+      MEDIC.x = p.x; MEDIC.z = p.z; MEDIC.sp = p.sp;
+      const W = P.where || {};
+      const near = W.x !== undefined && !P.carried && (W.scene === 'interior' ? 'int' : 'city') === p.sp && dist(p.x, p.z, W.x, W.z) < 2.5;
+      if (near && MEDIC.task === 'walk') { MEDIC.task = 'patient'; MEDIC.on = true; if (C.times.contact !== undefined) medicIntro(C); }
+      if (MEDIC.task === 'patient' && !near && !P.carried && P.where.scene !== 'rig') MEDIC.task = 'walk';
+      if (P.carried && MEDIC.task === 'patient') MEDIC.task = 'walk';
+      if (MEDIC.task === 'walk' && P.carried) MEDIC.on = true; // still part of the crew while the patient moves
+      pose = MEDIC.workPose && p.atGoal ? MEDIC.workPose : p.v > 0.3 ? 'stand' : near ? 'kneel' : 'arms';
+    }
+    if (p.role === 'cop') pose = p.v > 0.3 ? 'stand' : C.mvc || C.mci ? 'wave' : 'arms';
+    if (p.role === 'ff2') pose = p.v > 0.3 ? 'stand' : 'arms';
+    p.pose = pose;
+  }
+  // firefighters at the patient take over from a bystander doing CPR
+  if (ffAt && !C.fireOn) {
+    C.fireOn = true;
+    if (SCENE.bys && SCENE.bys.pose === 'cpr') setPose(SCENE.bys, 'arms', 1.2);
+    if (SCENE.bysCPR) setPose(SCENE.bysCPR, 'arms', 1.4);
+    C.bystCPR = false;
+    if (P.arrest && !C.times.contact) radio(C.units.find((u) => u.kind === 'fire').name, 'We have CPR in progress, AED going on.');
+  }
+  if (!ffAt) C.fireOn = false;
+  // police at an unsafe scene: in, look round, then clear it
+  const cop = (C.units || []).find((u) => u.kind === 'police' && u.crew && u.crew[0]);
+  if (C.hazard && !C.pdCleared && cop && cop.crew[0].atGoal) {
+    if (C.clearAt === undefined) { C.clearAt = C.t + 45; C.pdOn = true; }
+    else if (C.t >= C.clearAt) sceneCleared(C);
+  }
+}
+function medicIntro(C) {
+  if (MEDIC.said) return; MEDIC.said = true;
+  radio(MEDIC.first, `${MEDIC.name}, ${MEDIC.unit.name}'s medic. I can start lines and push meds. Tell me what you need.`, 'medic');
+}
+function sceneCleared(C) {
+  C.pdCleared = true;
+  radio(C.units.find((u) => u.kind === 'police').name, 'Scene is secure, Medic 12 can come in.');
+  if ((C.stage === 'staging' || C.stage === 'enroute') && RIG) buildRoute(Object.assign({ ls: RIG.siren }, C.place.curb), C.addr);
+  // staged engines move up
+  for (const u of C.units) if (u.kind === 'fire' && u.staging && (u.state === 'scene' || u.state === 'enroute')) { u.staging = false; driveUnit(u, respSpot(C, u), u.state === 'enroute', 'scene'); }
+}
+
+// ---------- per frame ----------
+function updateResponders(dt) {
+  const C = G.call;
+  for (const u of [...RESP.units]) {
+    if (u.route && (u.state === 'enroute' || u.state === 'returning' || u.state === 'leaving')) stepUnit(u, dt);
+    if (u.state === 'home' || u.state === 'gone') continue;
+    u.model.position.set(u.x, groundY(u.x, u.z), u.z); u.model.rotation.y = u.yaw;
+    // lights: running to the call and at the scene
+    const lit = u.siren || u.state === 'scene';
+    u.lightT += dt;
+    const ph = (u.lightT % 0.6) < 0.3;
+    u.model.userData.bar.forEach((m, k) => { m.color.copy(u.barCols[k]).multiplyScalar(lit && (ph === (k === 0)) ? 1 : 0.25); });
+    for (const h of u.model.userData.halos || []) h.s.material.opacity = lit && (ph === (h.k === 0)) ? 0.25 + R.night * 0.5 : 0;
+  }
+  if (C && C.units) {
+    crewWork(C, dt);
+    // packing up once Medic 12 has gone (the medic rides along if asked)
+    if ((C.stage === 'transport' || C.stage === 'hospital') && !C.unitsLeft) {
+      C.unitsLeftT = (C.unitsLeftT || 0) + dt;
+      if (C.unitsLeftT > 6) { C.unitsLeft = true; for (const u of C.units) if (u.state === 'scene' || u.state === 'enroute') leaveScene(u); }
+    }
+  }
+}
+// the next arrival, for the HUD
+function unitsLine(C) {
+  if (!C || !C.units || !C.units.length || C.stage === 'done') return '';
+  return C.units.filter((u) => u.call === C).map((u) => u.state === 'scene' ? `${u.short === 'PD' ? u.name : u.name} on scene` : u.state === 'enroute' ? `${u.name} ${Math.max(1, Math.round((u.route.len - u.s) / 11 * TIME_SCALE / 60))} min` : '').filter(Boolean).join(' · ');
+}
+// everything with lights and sirens running, for traffic to yield to
+function sirenVehicles() {
+  const out = [];
+  if (RIG && RIG.active && RIG.siren) out.push(RIG);
+  for (const u of RESP.units) if (u.siren && (u.state === 'enroute') && u.v > 0.5) out.push(u);
+  return out;
+}
+
 // Ricky Rescue — boot, the frame loop, reactions to game events, and the #debug hook (window.RR)
 
 let lastT = 0;
@@ -6234,7 +6657,7 @@ function boot() {
   loadOpts();
   try { initRender(); } catch (e) { console.error(e); return; }
   makeTextures(); R.sunDisc.material.map = TEX.glow;
-  buildCity(); initTraffic(); buildMinimap();
+  buildCity(); initTraffic(); initResponders(); buildMinimap();
   Input.init(); wireUI();
   setQuality(OPTS.quality); AUDIO.setVolume(OPTS.volume);
   G.live = true;
@@ -6269,6 +6692,7 @@ function frame(dt, draw) {
     if (G.where === 'cab' && PARTNER.task === 'back' && C && C.stage === 'transport') C.roughSum = (C.roughSum || 0) + RIG.rough * sdt;
     updateGame(sdt);
     updateTraffic(sdt, focusX(), focusZ());
+    updateResponders(sdt);
     updateRoute(sdt);
     if (G.where === 'foot' || G.where === 'cab') updatePartner(sdt);
     updateMCI(sdt);
@@ -6376,7 +6800,7 @@ bus.on('enterCab', () => { if (G.call && G.call.stage === 'onscene' && RIG.loade
 function installDebug() {
   const step = 1 / 30;
   const RR = {
-    G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS,
+    G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC,
     get C() { return G.call; }, get P() { return G.call && G.call.P; }, get RIG() { return RIG; },
     f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv },
     // start({ rank, rig, hour, hours, xp, money }) — a throwaway career (never saved) and a shift, no calls until asked
@@ -6448,9 +6872,9 @@ function installDebug() {
       loadPatient(); for (let i = 0; i < 2000 && WORK.ricky; i++) frame(step, false);
       return { carried: P.carried, loaded: !!RIG.loaded, transportOpen: UI.isOpen('transport') };
     },
-    transport(dest, driver = 'partner', alert = 'none', ls = false) {
+    transport(dest, driver = 'partner', alert = 'none', ls = false, medic) {
       if (!UI.isOpen('transport')) openTransportPanel();
-      TP.dest = dest; TP.driver = driver; TP.alert = alert; TP.ls = ls; confirmTransport();
+      TP.dest = dest; TP.driver = driver; TP.alert = alert; TP.ls = ls; if (medic !== undefined) TP.medic = medic; confirmTransport();
       return { stage: G.call.stage, where: G.where, len: Math.round(ROUTE.length) };
     },
     // jump the rig into the hospital bay
@@ -6467,6 +6891,14 @@ function installDebug() {
       while (UI.isOpen('handoff')) { const q = HQ.qs[HQ.i]; const want = allRight ? q.ans : q.opts.find((o) => o !== q.ans) || q.ans; const b = $$('#hoOpts button').find((x) => x.textContent === want) || $$('#hoOpts button')[0]; b.click(); }
       return G.lastCall && { grade: G.lastCall.grade, total: G.lastCall.total, outcome: G.lastCall.out.text, harms: G.lastCall.harms.map((h) => h.text), missed: G.lastCall.items.filter((i) => i.kind !== 'good').map((i) => i.text) };
     },
+    // every responding unit for the current call arrives now; crews walk to their spots
+    respArrive() {
+      const C = G.call; if (!C || !C.units) return [];
+      for (const u of C.units) if (u.state === 'enroute') { u.s = u.route.len; u.v = 0; const p = u.route.pts[u.route.pts.length - 1]; u.x = p.x; u.z = p.z; arriveUnit(u); }
+      for (let i = 0; i < 300; i++) frame(step, false);
+      return C.units.map((u) => ({ name: u.name, state: u.state, crew: (u.crew || []).map((p) => p.role + (p.atGoal ? '@' : '')) }));
+    },
+    units() { return RESP.units.filter((u) => u.state !== 'home').map((u) => ({ name: u.name, kind: u.kind, state: u.state, x: Math.round(u.x), z: Math.round(u.z), v: +u.v.toFixed(1), left: u.route ? Math.round(u.route.len - u.s) : 0 })); },
     press(a) { Input.acts.add(a); frame(step, false); },
     tp(x, z) { if (G.where === 'cab') { RIG.x = x; RIG.z = z; placeRigModel(0); } else { PLAYER.x = x; PLAYER.z = z; } snapCam(); frame(step, false); },
     time(h) { G.clockT = h * 3600; setTimeOfDay(h); },

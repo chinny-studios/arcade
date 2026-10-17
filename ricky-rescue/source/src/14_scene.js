@@ -85,55 +85,16 @@ function sceneSideSpot(C, back = 14) {
   const c = p.curb, fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
   return { x: c.x - fx * back, z: c.z - fz * back, yaw: c.yaw };
 }
-function spawnPolice(C) {
-  const s = C.place.kind === 'road' ? sceneSideSpot(C, 4) : (() => { const c = C.place.curb, fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); return { x: c.x + fx * 12, z: c.z + fz * 12, yaw: c.yaw }; })();
-  const car = buildCar('sedan', 0x111418, { police: true }); car.position.set(s.x, 0, s.z); car.rotation.y = s.yaw; sceneAdd(car);
-  sceneSolid(s.x - 2.3, s.z - 2.3, s.x + 2.3, s.z + 2.3, 1.5); SCENE.blockers.push({ x: s.x, z: s.z, len: 4.6 });
-  SCENE.cops.push(car);
-  const p = C.place;
-  const ox = p.x + (p.nx || 0) * 2.5 + 1.5, oz = p.z + (p.nz || 0) * 2.5;
-  const o = scenePerson(COP, ox, oz, p.yaw || 0, 'arms', 'cop'); SCENE.cop = o;
-}
-function spawnFireEngine(C) {
-  const s = sceneSideSpot(C, 16);
-  const fe = buildFireEngine(); fe.position.set(s.x, 0, s.z); fe.rotation.y = s.yaw; sceneAdd(fe);
-  const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
-  sceneSolid(Math.min(s.x - fx * 5, s.x + fx * 5) - 1.4, Math.min(s.z - fz * 5, s.z + fz * 5) - 1.4, Math.max(s.x - fx * 5, s.x + fx * 5) + 1.4, Math.max(s.z - fz * 5, s.z + fz * 5) + 1.4, 3);
-  SCENE.blockers.push({ x: s.x, z: s.z, len: 10 });
-  SCENE.fire.push(fe);
-  // two firefighters go to the patient; in an arrest one takes over compressions
-  const P = C.P;
-  const W = P.where || {};
-  if (W.scene === 'interior' && SCENE.int) {
-    const I = SCENE.int;
-    const f1 = scenePerson(FIREFIGHTER, I.pat.x - 0.7, I.pat.z + 0.6, Math.PI / 2, P.arrest ? 'cpr' : 'arms', 'ff', { y: 0 });
-    const f2 = scenePerson(FIREFIGHTER, I.pat.x + 1.6, I.pat.z + 1.4, -2.4, 'arms', 'ff', { y: 0 });
-    SCENE.ffs = [f1, f2];
-  } else {
-    const bx = W.x !== undefined ? W.x : C.place.x, bz = W.z !== undefined ? W.z : C.place.z;
-    const f1 = scenePerson(FIREFIGHTER, bx - 0.75, bz + 0.3, Math.PI / 2, P.arrest ? 'cpr' : 'arms', 'ff');
-    const f2 = scenePerson(FIREFIGHTER, bx + 2.0, bz - 1.5, -2.2, 'arms', 'ff');
-    SCENE.ffs = [f1, f2];
-    if (C.mvc && SCENE.wreck) for (let k = 0; k < 4; k++) { const c = buildCone(); c.position.set(SCENE.wreck.x + Math.sin(s.yaw) * (-8 - k * 3), 0, SCENE.wreck.z + Math.cos(s.yaw) * (-8 - k * 3)); sceneAdd(c); }
-  }
-  // the bystander stops CPR when the firefighters take over
-  if (SCENE.bys && SCENE.bys.pose === 'cpr') setPose(SCENE.bys, 'arms', 1.2);
-  if (SCENE.bysCPR) setPose(SCENE.bysCPR, 'arms', 1.4);
-  C.bystCPR = false;
-}
 function setPose(p, pose, back = 0) {
   p.pose = pose;
   if (back) { const a = p.m.root.rotation.y; p.x -= Math.sin(a) * back; p.z -= Math.cos(a) * back; p.m.root.position.x = p.x; p.m.root.position.z = p.z; }
 }
 function updateScenePeople(dt) {
   const C = G.call;
-  const ffCPR = C && C.fireOn && C.P.arrest && !workerOn('cpr', 'ricky') && !workerOn('cpr', 'partner');
-  if (SCENE.ffs) SCENE.ffs[0].pose = ffCPR ? 'cpr' : 'arms';
   for (const p of SCENE.people) {
     if (p.role === 'patient' && p.P) p.pose = patientPose(p.P);
-    if (p.role === 'cop' && C) p.pose = C.pdCleared ? 'wave' : 'arms';
     if (p.role === 'bystander' && p.inside === false && C && C.stage !== 'enroute' && C.stage !== 'pending' && dist(PLAYER.x, PLAYER.z, p.x, p.z) < 6) p.pose = 'arms';
-    posePerson(p.m, p.pose, dt);
+    posePerson(p.m, p.pose, dt, (p.v || 0) / 3);
   }
   if (C) for (const P of C.patients) if (P.model && P.carried) posePerson(P.model, patientPose(P), dt);
 }

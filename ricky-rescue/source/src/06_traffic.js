@@ -154,7 +154,12 @@ function endTurn(c) {
 
 // is the rig a threat that this car should yield to?
 function sirenYield(c) {
-  const A = RIG; if (!A || !A.siren || !A.active) return 0;
+  let best = 0;
+  for (const A of sirenVehicles()) { const y = yieldTo(c, A); if (y === 2 || y === 1) return y; if (y) best = y; }
+  return best;
+}
+// how car c should react to one emergency vehicle A: 2 pull over (behind), 1 pull over (oncoming), 3 hold (crossing)
+function yieldTo(c, A) {
   const dx = A.x - c.x, dz = A.z - c.z, d = Math.hypot(dx, dz);
   if (d > 70) return 0;
   const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
@@ -181,6 +186,7 @@ function carAhead(c) {
   for (const o of TRAFFIC.cars) if (o !== c && Math.abs(o.x - c.x) < 60 && Math.abs(o.z - c.z) < 60) test(o.x, o.z, o.len, o.v);
   rig = true;
   for (const b of SCENE.blockers) test(b.x, b.z, b.len, 0);
+  for (const u of RESP.units) if (u.state === 'enroute' || u.state === 'returning' || u.state === 'leaving') test(u.x, u.z, u.kind === 'fire' ? 9.5 : 4.6, u.v);
   if (RIG && RIG.active) test(RIG.x, RIG.z, RIG.len, Math.max(0, RIG.v * (Math.sin(RIG.yaw) * fx + Math.cos(RIG.yaw) * fz)));
   return best;
 }

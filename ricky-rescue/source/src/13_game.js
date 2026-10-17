@@ -33,7 +33,7 @@ function startShift(o = {}) {
   G.shift = { startH, hours: o.hours || 8, endT: (startH + (o.hours || 8)) * 3600, cover: o.cover || [...C.districts], results: [], nextCallT: G.clockT + (o.firstCall !== undefined ? o.firstCall : 45) * TIME_SCALE, earnings: 0, xp: 0, over: false, callsN: 0 };
   G.call = null;
   setEnv('city'); setTimeOfDay(startH);
-  clearTraffic(); clearRoute(); clearScene();
+  clearTraffic(); clearRoute(); clearScene(); resetResponders();
   const st = CITY.station;
   createRig(C.rig, st.x, st.z, st.yaw);
   RIG.siren = false;
@@ -89,12 +89,11 @@ function startCall(tpl, place, r = RNG(), o = {}) {
   if (m.bys) C.bystander = { rel: relFor(r, P), name: r.pick(P.sex === 'F' ? FIRST_NAMES_M : FIRST_NAMES_F) };
   if (C.hazard) C.dispatchText += ' Caution: scene not secure. Stage until PD advises.';
   if (tpl.arrest && P.arrest) C.firstShockable = SHOCKABLE(P.arrest.rhythm);
-  // first responders: police for unsafe scenes, the engine company for arrests, crashes and priority-1 calls
-  if (C.hazard) C.pdEta = r.range(3, 6) * 60;
-  if (tpl.arrest || C.mvc || (tpl.pri === 1 && r.chance(0.4))) C.fireEta = r.range(3.5, 7) * 60;
   G.call = C;
   G.shift.callsN++;
   buildScene(C, r);
+  // the engine company and police drive in as well when the call needs them
+  dispatchResponders(C, r);
   radioTone();
   radio('Dispatch', C.dispatchText, 'dispatch');
   bus.emit('dispatch', C);
@@ -128,10 +127,6 @@ function tickCall(gdt) {
   const ctx = careContext(C);
   for (const P of C.patients) tickPatient(P, gdt, ctx);
   updateWorkers(gdt);
-  // first responders
-  if (C.fireEta !== undefined && !C.fireOn && C.t >= C.fireEta) { C.fireOn = true; spawnFireEngine(C); radio('Engine 12', C.P.arrest ? 'Engine 12 on scene, we have CPR in progress.' : 'Engine 12 on scene, standing by for Medic 12.'); }
-  if (C.pdEta !== undefined && !C.pdOn && C.t >= C.pdEta) { C.pdOn = true; spawnPolice(C); }
-  if (C.pdOn && !C.pdCleared && C.t >= C.pdEta + 60) { C.pdCleared = true; radio('PD', 'Scene is secure, Medic 12 can come in.'); if (C.stage === 'staging' || C.stage === 'enroute') buildRoute(Object.assign({ ls: RIG.siren }, C.place.curb), C.addr); }
   // stage changes from where the rig is
   if (C.stage === 'enroute' && RIG) {
     const tgt = C.hazard && !C.pdCleared ? stagingPoint(C) : C.place.curb;
@@ -198,6 +193,7 @@ function backInService() {
   }
   if (R.env !== 'city') setEnv('city');
   leaveRigBack();
+  releaseUnits();
   clearScene();
   resetCrewAfterCall();
   G.call = null;

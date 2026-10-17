@@ -18,7 +18,7 @@ RR.time(21.5); RR.RIG.siren = true; RR.sim(6); RR.render(); await wait(800);
 //--- shot v07_drive_night
 RR.time(16.5); RR.UI.hide('review');
 RR.G.call = null; RR.f.backInService(); RR.sim(0.5);
-RR.call('mvc'); RR.toScene(); RR.C.fireEta = 0; RR.sim(1); RR.f.exitCab();
+RR.call('mvc'); RR.toScene(); RR.respArrive(); RR.sim(1); RR.f.exitCab();
 RR.PLAYER.x = RR.P.where.x + 3; RR.PLAYER.z = RR.P.where.z + 3; RR.sim(1.5); RR.render(); await wait(800);
 //--- shot v08_mvc
 RR.toPatient(); RR.act('ppe'); RR.act('impression'); RR.act('abc'); RR.act('collar', 'partner', false); RR.sim(1); RR.render(); await wait(800);

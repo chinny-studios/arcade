@@ -191,17 +191,17 @@ function moveHarm(P, m, C) {
   if (P.conds.fracture && !P.conds.fracture.splinted && (m.id !== 'walk')) { P.conds.fracture.moved = true; return null; }
   return null;
 }
-function nearPartner(P) { return PARTNER.sp === (P.where.scene === 'interior' ? 'int' : 'city') && dist(PARTNER.x, PARTNER.z, P.where.x, P.where.z) < 4 && PARTNER.task !== 'fetch'; }
+function nearPartner(P) { return (PARTNER.sp === (P.where.scene === 'interior' ? 'int' : 'city') && dist(PARTNER.x, PARTNER.z, P.where.x, P.where.z) < 4 && PARTNER.task !== 'fetch') || medicCanReach(P); }
 // start the timed move; finishes in completeMove
 function startMove(P, id) {
   const m = MOVES.find((q) => q.id === id), C = G.call;
   const why = moveNeed(P, m); if (why) { toast(why, 'bad'); return; }
   const h = moveHarm(P, m, C); if (h) addHarm(C, h);
   if (P.spine.risk && P.spine.injured && !P.spine.collar) P.spine.violated = true;
-  stopWorker('ricky'); stopWorker('partner', true);
+  stopWorker('ricky'); stopWorker('partner', true); stopWorker('medic', true);
   if (!C.moveDevice) C.moveDevice = m.dev || 'walk';
   startWork('ricky', { id: 'move:' + id, name: m.name, dur: m.dur, move: m });
-  if (m.dev && m.dev !== 'stretcher') startWork('partner', { id: 'assist', name: 'Helping lift', dur: m.dur });
+  if (m.dev && m.dev !== 'stretcher') { const helper = partnerCanReach(P) ? 'partner' : 'medic'; startWork(helper, { id: 'assist', name: 'Helping lift', dur: m.dur }); }
 }
 function completeMove(P, m) {
   const C = G.call;

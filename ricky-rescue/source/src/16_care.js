@@ -1,7 +1,11 @@
-// Ricky Rescue — patient care: two workers (Ricky and Marisol) doing timed actions in parallel, continuous jobs
-// (CPR, BVM, direct pressure), Ricky's CPR rhythm, Marisol's own initiative, and the care panel with its monitor.
+// Ricky Rescue — patient care: up to three workers (Ricky, Marisol and an engine company's firefighter-paramedic)
+// doing timed actions in parallel, continuous jobs (CPR, BVM, direct pressure), Ricky's CPR rhythm, the others' own
+// initiative, and the care panel with its monitor.
 
-const WORK = { ricky: null, partner: null, queue: { ricky: null, partner: null } };
+const WORKERS = ['ricky', 'partner', 'medic'];
+const WORK = { ricky: null, partner: null, medic: null, queue: { ricky: null, partner: null, medic: null } };
+const workerName = (who) => (who === 'ricky' ? 'Ricky' : who === 'partner' ? PARTNER_SHORT : MEDIC.first || 'Medic');
+const workerBody = (who) => (who === 'ricky' ? PLAYER : who === 'partner' ? PARTNER : MEDIC);
 const CPRQ = { taps: [], q: 0, last: 0, rate: 0 };
 const CARE = { open: false, P: null, tab: 'assess', who: 'ricky', logN: 0, sel: null };
 
@@ -10,20 +14,21 @@ function startWork(who, job) {
   if (WORK[who] && WORK[who].cont) stopWorker(who, true);
   job.t = 0; job.started = G.call ? G.call.t : 0;
   WORK[who] = job;
-  if (who === 'ricky') { PLAYER.busy = job.cont ? 0 : 1; PLAYER.workPose = job.pose || 'kneel'; }
-  else { PARTNER.busy = 1; PARTNER.workPose = job.pose || 'kneel'; if (PARTNER.task !== 'drive' && PARTNER.task !== 'back') PARTNER.task = 'kneel'; }
+  const B = workerBody(who);
+  B.busy = who === 'ricky' && job.cont ? 0 : 1; B.workPose = job.pose || 'kneel';
+  if (who === 'partner' && PARTNER.task !== 'drive' && PARTNER.task !== 'back') PARTNER.task = 'kneel';
   CARE.dirty = true;
 }
 function stopWorker(who, quiet) {
   const j = WORK[who]; if (!j) return;
   WORK[who] = null;
-  if (who === 'ricky') { PLAYER.busy = 0; PLAYER.workPose = null; } else { PARTNER.busy = 0; PARTNER.workPose = null; }
-  if (j.cont && !quiet && G.call) callLog(G.call, who === 'ricky' ? 'Ricky' : PARTNER_SHORT, 'Stopped ' + j.name.toLowerCase() + '.');
+  const B = workerBody(who); B.busy = 0; B.workPose = null;
+  if (j.cont && !quiet && G.call) callLog(G.call, workerName(who), 'Stopped ' + j.name.toLowerCase() + '.');
   if (j.act && j.act.id === 'bvm' && G.call && !workerOn('bvm')) { const P = G.call.P; if (P.o2 === 'bvm') P.o2 = null; }
   CARE.dirty = true;
 }
-function stopAllWork() { stopWorker('ricky', true); stopWorker('partner', true); WORK.queue.ricky = WORK.queue.partner = null; }
-function workerOn(id, who) { const w = who ? [WORK[who]] : [WORK.ricky, WORK.partner]; return w.some((j) => j && j.act && j.act.id === id && (j.on || !j.cont)); }
+function stopAllWork() { for (const w of WORKERS) { stopWorker(w, true); WORK.queue[w] = null; } }
+function workerOn(id, who) { const w = who ? [WORK[who]] : WORKERS.map((k) => WORK[k]); return w.some((j) => j && j.act && j.act.id === id && (j.on || !j.cont)); }
 function rickyCanReach(P) {
   if (G.where === 'back') return P.where && P.where.scene === 'rig';
   if (G.where !== 'foot' || !P.where || P.carried) return false;
@@ -36,6 +41,15 @@ function partnerCanReach(P) {
   const sp = P.where.scene === 'interior' ? 'int' : 'city';
   return sp === PARTNER.sp && dist(PARTNER.x, PARTNER.z, P.where.x, P.where.z) < 6;
 }
+// the engine medic: on scene beside the patient, or riding in the back with them
+function medicCanReach(P) {
+  if (!MEDIC.on || !P.where) return false;
+  if (MEDIC.task === 'ride') return P.where.scene === 'rig';
+  if (P.carried || !MEDIC.person) return false;
+  const sp = P.where.scene === 'interior' ? 'int' : 'city';
+  return sp === MEDIC.sp && dist(MEDIC.x, MEDIC.z, P.where.x, P.where.z) < 6;
+}
+const canReach = (who, P) => (who === 'ricky' ? rickyCanReach(P) : who === 'partner' ? partnerCanReach(P) : medicCanReach(P));
 // why an action can't be done by `who` right now (null = OK)
 function actionBlock(a, P, who) {
   const C = G.call, rank = G.career.rank;
@@ -44,16 +58,20 @@ function actionBlock(a, P, who) {
     if (a.who === 'ricky') return 'Only Ricky can do this';
     if (a.rank) return PARTNER_SHORT + ' is an EMT';
     if (!partnerCanReach(P)) return PARTNER_SHORT + ' isn\'t with the patient';
+  } else if (who === 'medic') {
+    // a paramedic: everything up to paramedic level, whatever Ricky's own certification; the crew's decisions stay Ricky's
+    if (a.id === 'refusal' || a.id === 'terminate' || a.id === 'sample' || a.id === 'opqrst') return 'Ricky leads this call';
+    if ((a.rank || 0) > 2) return 'Beyond a paramedic';
+    if (!medicCanReach(P)) return (MEDIC.first || 'The medic') + ' isn\'t with the patient';
   } else {
     if ((a.rank || 0) > rank) return 'Needs ' + RANKS[a.rank].long;
     if (!rickyCanReach(P)) return 'Get next to the patient';
   }
   if (a.use && RIG && (RIG.stock[a.use] || 0) <= 0) return 'Out of ' + SUPPLIES[a.use].name.toLowerCase();
   if (a.need) { const n = a.need(P, C); if (n) return n; }
-  if (WORK[who] && !WORK[who].cont && !actionBlock.ignoreBusy) return (who === 'ricky' ? 'Ricky' : PARTNER_SHORT) + ' is busy';
+  if (WORK[who] && !WORK[who].cont && !actionBlock.ignoreBusy) return workerName(who) + ' is busy';
   if (a.cont && workerOn(a.id)) return 'Already being done';
-  const other = who === 'ricky' ? 'partner' : 'ricky';
-  if (!a.cont && WORK[other] && WORK[other].act && WORK[other].act.id === a.id) return 'Already being done';
+  for (const other of WORKERS) if (other !== who && !a.cont && WORK[other] && WORK[other].act && WORK[other].act.id === a.id) return 'Already being done';
   return null;
 }
 function actionBlockIgnoringBusy(a, P, who) { actionBlock.ignoreBusy = true; try { return actionBlock(a, P, who); } finally { actionBlock.ignoreBusy = false; } }
@@ -65,12 +83,13 @@ function doAction(id, who = CARE.who, P = G.call && G.call.P) {
   if (why) { toast(why, 'bad'); return false; }
   if (a.use && RIG && a.use !== 'o2') RIG.stock[a.use]--;
   if (a.use === 'o2' && RIG) RIG.stock.o2 = Math.max(0, RIG.stock.o2 - 2);
-  if (!C.ppe && id !== 'ppe' && !C.ppeWarn) { C.ppeWarn = true; addHarm(C, 'Touched the patient before gloves and PPE'); }
+  if (who === 'ricky' && !C.ppe && id !== 'ppe' && !C.ppeWarn) { C.ppeWarn = true; addHarm(C, 'Touched the patient before gloves and PPE'); }
   if (C.actT[id] === undefined) C.actT[id] = C.t;
   if (!C.times.contact) C.times.contact = C.t;
   const h = a.harm && a.harm(P, C); if (h) addHarm(C, h);
   let dur = a.dur;
   if (who === 'partner' && G.career.rank >= 3) dur *= 0.8;
+  if (who === 'medic') dur *= 0.9;
   const pose = id === 'cpr' ? 'cpr' : id === 'bvm' ? 'kneel' : (P.pose === 'sit' || P.pose === 'chestSit') && G.where !== 'back' ? 'crouch' : 'kneel';
   startWork(who, { act: a, id, name: a.name, dur, cont: !!a.cont, pose, P });
   bus.emit('action', id, who);
@@ -78,11 +97,11 @@ function doAction(id, who = CARE.who, P = G.call && G.call.P) {
 }
 function updateWorkers(gdt) {
   const C = G.call; if (!C) return;
-  for (const who of ['ricky', 'partner']) {
+  for (const who of WORKERS) {
     const j = WORK[who]; if (!j) continue;
     const P = j.P || C.P;
     // a worker who has walked off (or the patient was moved) loses the job
-    if (j.act && !(who === 'ricky' ? rickyCanReach(P) : partnerCanReach(P))) { stopWorker(who); continue; }
+    if (j.act && !canReach(who, P)) { stopWorker(who); continue; }
     let rate = 1;
     if (RIG && P.where && P.where.scene === 'rig' && Math.abs(RIG.v) > 1) rate = 1 / (1 + RIG.rough * 0.8 / RIGS[RIG.type].ride);
     j.t += gdt * rate;
@@ -90,12 +109,12 @@ function updateWorkers(gdt) {
       if (j.act) {
         const line = j.act.done(P, C, who);
         C.acts.add(j.id); C.actN[j.id] = (C.actN[j.id] || 0) + 1;
-        if (line) callLog(C, who === 'ricky' ? 'Ricky' : PARTNER_SHORT, line);
+        if (line) callLog(C, workerName(who), line);
         bus.emit('actionDone', j.id, who, line);
       } else if (j.move) completeMove(P, j.move);
       else if (j.fn) j.fn();
       if (j.cont) { j.on = true; if (who === 'ricky') { PLAYER.busy = 0; } }
-      else { WORK[who] = null; if (who === 'ricky') { PLAYER.busy = 0; PLAYER.workPose = null; } else { PARTNER.busy = 0; PARTNER.workPose = null; } }
+      else { WORK[who] = null; const B = workerBody(who); B.busy = 0; B.workPose = null; }
       CARE.dirty = true;
     }
     // continuous jobs end themselves when no longer needed
@@ -106,24 +125,26 @@ function updateWorkers(gdt) {
     }
   }
   // queued actions start when their worker is free
-  for (const who of ['ricky', 'partner']) {
+  for (const who of WORKERS) {
     const q = WORK.queue[who];
     if (q && (!WORK[who] || WORK[who].cont)) { WORK.queue[who] = null; if (!actionBlock(ACT[q], C.P, who)) doAction(q, who); CARE.dirty = true; }
   }
   partnerInitiative(C);
+  medicInitiative(C);
 }
 // CPR quality from whoever is doing it; Ricky's follows the player's rhythm
 function careContext(C) {
   const P = C.P;
   let cpr = 0;
-  const analysing = WORK.ricky && (WORK.ricky.id === 'aed' || WORK.ricky.id === 'analyse') || WORK.partner && (WORK.partner.id === 'aed' || WORK.partner.id === 'analyse');
+  const analysing = WORKERS.some((w) => WORK[w] && (WORK[w].id === 'aed' || WORK[w].id === 'analyse'));
   if (WORK.ricky && WORK.ricky.id === 'cpr') cpr = Math.max(cpr, OPTS.autoCPR || !G.live ? 0.8 : CPRQ.q);
   if (WORK.partner && WORK.partner.id === 'cpr') { const j = WORK.partner; cpr = Math.max(cpr, 0.82 - Math.min(0.2, (C.t - j.started) / 1500)); }
+  if (WORK.medic && WORK.medic.id === 'cpr') cpr = Math.max(cpr, 0.84);
   if (C.fireOn && P.arrest && !P.carried && P.where && P.where.scene !== 'rig') cpr = Math.max(cpr, 0.8);
   if (C.bystCPR && P.arrest && !C.times.contact) cpr = Math.max(cpr, 0.45);
   if (analysing) cpr = 0;
   if (P.carried && (PLAYER.v > 0.3)) cpr *= 0.3;
-  return { cpr, bvm: workerOn('bvm') || (P.arrest && C.fireOn && !!P.airway.adjunct), pressure: workerOn('pressure'), t: C.t };
+  return { cpr, bvm: workerOn('bvm') || (P.arrest && C.fireOn && !!P.airway.adjunct), pressure: workerOn('pressure') || !!C.ffPressure, t: C.t };
 }
 // Marisol does sensible things on her own: compressions in an arrest, vitals every few minutes
 function partnerInitiative(C) {
@@ -141,6 +162,27 @@ function partnerInitiative(C) {
     if (old(key) && !actionBlock(ACT[id], P, 'partner')) { doAction(id, 'partner'); return; }
   }
   if (!P.monitor && C.times.contact && C.t - C.times.contact > 60 && !actionBlock(ACT.monitor, P, 'partner')) doAction('monitor', 'partner');
+}
+// the engine medic works the advanced side of an arrest and puts the monitor on; anything else is Ricky's call
+function medicInitiative(C) {
+  if (!OPTS.partnerAuto || !MEDIC.on || WORK.medic || WORK.queue.medic) return;
+  const P = C.P;
+  if (!medicCanReach(P) || C.times.contact === undefined || !C.ppe) return;
+  if (C.t - (C.medicT || -999) < 15) return;
+  C.medicT = C.t;
+  const tryDo = (id) => { if (!actionBlock(ACT[id], P, 'medic')) { doAction(id, 'medic'); return true; } return false; };
+  if (P.arrest) {
+    if (C.shockReady) { tryDo('shock'); return; }
+    if (!P.pads && tryDo('aed')) return;
+    if (P.pads && P.arrest.t - (C.lastAnalyse || 0) > 120 && !workerOn('analyse') && tryDo('analyse')) { C.lastAnalyse = P.arrest.t; return; }
+    if (!P.airway.adjunct && tryDo('igel')) return;
+    if (!P.iv && tryDo('iv')) return;
+    if (P.arrest.t - P.arrest.lastEpi > 240) tryDo('epi');
+    return;
+  }
+  const wb = worstBleed(P);
+  if (wb && wb.kind === 'arterial' && wb.limb && wb.ctrl !== 'tq' && tryDo('tq')) return;
+  if (!P.monitor) tryDo('monitor');
 }
 // Ricky's compressions: one press per push, aim for 100–120 a minute
 function cprTap() {
@@ -186,7 +228,8 @@ function renderCare() {
     tabs.appendChild(b);
   }
   // who does it
-  for (const w of ['ricky', 'partner']) $('#w-' + w).classList.toggle('on', CARE.who === w);
+  if (CARE.who === 'medic' && !MEDIC.on) CARE.who = 'ricky';
+  for (const w of WORKERS) $('#w-' + w).classList.toggle('on', CARE.who === w);
   // actions
   const list = $('#careActs'); list.innerHTML = '';
   if (CARE.tab === 'move') renderMoveTab(list, P, C);
@@ -283,9 +326,11 @@ function updateCarePanel(dt) {
   rh.classList.toggle('warn', !!P.arrest && live);
   drawECG(dt, P, live);
   // workers
-  for (const who of ['ricky', 'partner']) {
+  $('#w-medic').hidden = !MEDIC.on;
+  $('#workers').classList.toggle('three', MEDIC.on);
+  for (const who of WORKERS) {
     const j = WORK[who], e = $('#w-' + who);
-    const name = who === 'ricky' ? 'Ricky' : PARTNER_SHORT;
+    const name = who === 'medic' ? `${workerName(who)} · ${MEDIC.unit ? MEDIC.unit.short : ''} medic` : workerName(who);
     const where = who === 'partner' ? ({ fetch: 'fetching', drive: 'driving', cab: 'in the cab', carry: 'carrying' }[PARTNER.task] || '') : '';
     e.querySelector('b').textContent = name;
     const q = WORK.queue[who];

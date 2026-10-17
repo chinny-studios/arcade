@@ -22,6 +22,7 @@ keyboard and mouse, gamepad and touch.
 | **Calls** | 17 types (`12_calls.js`) plus the bus-crash MCI (`19_mci.js`). Chest pain/STEMI, cardiac arrest, stroke (with a hypoglycaemia mimic), diabetic, asthma, CHF, anaphylaxis, opioid overdose (sometimes with police staging), seizure (status at random), traffic collision, elderly fall with hip fracture (and head injury on thinners), arterial bleed, sports fracture, stabbing, childbirth, lift assist/refusal, heat stroke. |
 | **Patient model** | Conditions push vitals around (`10_patient.js`); vitals ease toward a target, so treatment works over a minute or two. Blood loss and fluids, ventilation deficit and oxygen, airway states (snoring, gurgling, stridor), pain and anxiety, medications with onset times, cardiac arrest with viability, CPR quality, shocks and ROSC, and re-arrest after ROSC if the pressure is left low. |
 | **Care** | 76 actions in seven tabs (`11_actions.js`), each with a duration, who can do it, the rank needed, a supply, requirements and contraindications. Mistakes are allowed and recorded. Ricky and Marisol work in parallel; a busy worker queues the next action. CPR, BVM and direct pressure are continuous. Ricky's compressions follow a tap rhythm (or an option). The fire engine helps with CPR on arrests. |
+| **Responders** | Four firehouses (Engine 12 shares Station 12; Engines 7, 3 and 5 elsewhere) and patrol cars. Engines go to arrests, crashes, MCIs and about half of priority-1 calls; police to unsafe scenes, crashes, stabbings, MCIs and some overdoses and arrests. They drive the road network with lights and sirens (traffic yields to them as to Medic 12), park where they protect the scene (engines block upstream of a crash, with cones), and their crews walk in: a firefighter takes compressions or holds pressure on an arterial bleed, police clear unsafe scenes before anyone goes in and direct traffic at crashes. The first engine's firefighter-paramedic joins as a third crew member who can do anything up to paramedic level, whatever Ricky's rank, works an arrest's advanced side on their own, and rides in the ambulance on serious calls. Units go back in service once Medic 12 leaves. |
 | **Moving** | Stretcher (pushed, can't go up walk-ups), stair chair, scoop and long board (carried by both), assisted walking. Device choice is scored (spinal precautions, walking a broken leg, chair for a hip). Load at the rear doors, or pull the stretcher out there with a carried patient. |
 | **Transport** | Choose the hospital (St. Brigid: basic and close; Mercy: cath lab, stroke center, L&D; Harbor General: Level I trauma, L&D), the pre-alert, lights and sirens, and who drives. Riding in back shows the patient compartment with sway and fast-forward; driving leaves Marisol caring and reporting by radio. |
 | **Handoff and review** | Three or four multiple-choice handoff questions from what you actually found and did. The review scores response, assessment, protocol checks, destination and alert, scene time, driving, handoff and errors, and tells the patient's outcome. |
@@ -46,7 +47,11 @@ keyboard and mouse, gamepad and touch.
   company comes to arrests, crashes and some priority-1 calls.
 - **Scenes** (`14_scene.js`). Indoor calls build a doll-house room (single-sided walls facing in) at x = −5000, entered
   through the place's front door. The patient compartment is built at x = −5000, z = 600.
-- **Workers** (`16_care.js`). `WORK.ricky` and `WORK.partner` each run one job; `careContext` turns them into CPR
+- **Responders** (`24_responders.js`). Each unit follows a route polyline kinematically with a speed profile from its
+  corners and braking distance; it waits behind anything stopped in its lane, then eases past. Traffic yields to every
+  vehicle in `sirenVehicles()`. Parked units become scene solids and traffic blockers. Crews are scene people with a goal
+  (`crewGoal`) that walk between the street and a building's room through the front door.
+- **Workers** (`16_care.js`). `WORK.ricky`, `WORK.partner` and `WORK.medic` each run one job; `careContext` turns them into CPR
   quality, ventilation and pressure for the patient tick. Marisol takes vitals every few minutes and starts CPR on an
   arrest unless `partnerAuto` is off.
 - **Scoring** (`18_review.js`). 10 response, 20 assessment, 35 protocol (critical checks count double), 10 destination
@@ -58,7 +63,7 @@ keyboard and mouse, gamepad and touch.
 `01_core` helpers, RNG, clock · `02_data` ranks, rigs, cosmetics, districts, hospitals, supplies, names · `03_render`
 renderer, materials, merging, textures, sky, cameras · `04_city` · `05_models` rigs, cars, people and poses, stretcher
 and gear · `06_traffic` · `07_vehicle` physics and autopilot · `08_route` · `09_audio` · `10_patient` · `11_actions` ·
-`12_calls` · `13_game` shift, dispatch, call stages · `14_scene` · `15_crew` Ricky, Marisol, equipment, moving,
+`12_calls` · `13_game` shift, dispatch, call stages · `24_responders` engines, police, crews and the engine medic · `14_scene` · `15_crew` Ricky, Marisol, equipment, moving,
 interactions · `16_care` workers and the care panel · `17_transport` rear doors, hospital choice, the back of the rig,
 handoff · `18_review` · `19_mci` · `20_hud` · `21_ui` menus · `22_input` · `23_save` · `30_main` loop and `window.RR`.
 

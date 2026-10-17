@@ -227,7 +227,7 @@ bus.on('atHospital', () => tip('hospital', 'Push the stretcher to the ER doors u
 function wireUI() {
   for (const b of $$('[data-close]')) b.onclick = () => { UI.hide(b.dataset.close); };
   $('#careX').onclick = () => closeCare();
-  for (const w of ['ricky', 'partner']) {
+  for (const w of WORKERS) {
     $('#w-' + w).onclick = (e) => { if (e.target.classList.contains('stop')) return; CARE.who = w; renderCare(); };
     $('#w-' + w + ' .stop').onclick = (e) => { e.stopPropagation(); stopWorker(w); renderCare(); };
   }
@@ -236,6 +236,7 @@ function wireUI() {
   $('#tpPartner').onclick = () => { TP.driver = 'partner'; renderTransport(); };
   $('#tpRicky').onclick = () => { TP.driver = 'ricky'; renderTransport(); };
   $('#tpLS').onclick = () => { TP.ls = !TP.ls; renderTransport(); };
+  $('#tpMedic').onclick = () => { TP.medic = !TP.medic; renderTransport(); };
   $('#tpGo').onclick = () => confirmTransport();
   $('#rvOk').onclick = () => { UI.hide('review'); backInService(); if (G.shift.over) showShiftOver(); };
   $('#soOk').onclick = () => { UI.hide('shiftOver'); G.shift = null; G.call = null; clearScene(); clearRoute(); showStation(); };

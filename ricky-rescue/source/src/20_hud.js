@@ -72,6 +72,13 @@ function drawMinimap(cvId, big) {
   const C = G.call;
   if (C && C.place && C.stage !== 'done') { g.fillStyle = '#ff4a4a'; g.beginPath(); g.arc(P(C.place.x), P(C.place.z), big ? 6 : 4, 0, TAU); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); }
   if (C && C.staging && C.stage === 'enroute' && !C.pdCleared) { g.fillStyle = '#ffd040'; g.beginPath(); g.arc(P(C.staging.x), P(C.staging.z), 4, 0, TAU); g.fill(); }
+  // fire engines and police cars out on the road, flashing while they run hot
+  const flash = Math.floor(performance.now() / 280) % 2;
+  for (const u of RESP.units) {
+    if (u.state === 'home' || u.state === 'gone') continue;
+    g.fillStyle = u.kind === 'fire' ? (u.siren && flash ? '#ffffff' : '#ff3a2a') : (u.siren && flash ? '#ff3a3a' : '#4a8aff');
+    const s = big ? 5 : 3.2; g.fillRect(P(u.x) - s / 2, P(u.z) - s / 2, s, s);
+  }
   // traffic dots when zoomed in
   if (!big) { g.fillStyle = 'rgba(255,255,255,.45)'; for (const c of TRAFFIC.cars) g.fillRect(P(c.x) - 1, P(c.z) - 1, 2, 2); }
   // us
@@ -98,6 +105,7 @@ function updateHUD(dt) {
     else if (C.stage === 'transport') st = pri + 'Transporting to ' + esc(HOSPITALS[C.dest].short);
     else if (C.stage === 'hospital') st = 'At ' + esc(HOSPITALS[C.dest].short) + ': unload and hand off';
     sub = C.stage === 'enroute' ? 'Call time ' + fmtDur(C.t) : C.times.arrive !== undefined ? 'On scene ' + fmtDur(C.t - C.times.arrive) : '';
+    const ul = unitsLine(C); if (ul) sub += (sub ? ' · ' : '') + ul;
     if (C.mci && !C.mci.sent && C.stage === 'onscene') sub = `Triaged ${C.mci.tags.size} of ${C.mci.pts.length}` + (C.mci.tags.size === C.mci.pts.length ? ' · radio your report (R)' : '');
   } else if (S && !S.over && S.nextCallT > G.clockT) sub = 'Press T to skip ahead to the next call';
   if (st !== HUD.lastStatus) { $('#status').innerHTML = st; HUD.lastStatus = st; }

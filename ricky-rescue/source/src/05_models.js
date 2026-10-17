@@ -169,6 +169,13 @@ function animRigLights(rig, on, t, night) {
   return { a, b };
 }
 
+// a glow sprite for a flashing light; k is which half of the pattern it belongs to
+function lightHalo(g, col, x, y, z, k) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
+  s.position.set(x, y, z); s.scale.setScalar(1.4); g.add(s);
+  return { s, k };
+}
+
 // ---------- traffic cars (instanced) ----------
 // each type: body (tinted per instance), dark trim (glass, tyres, bumpers), lights (always lit)
 const CAR_TYPES = { // cab: the cabin's rear and front as fractions of the length (null = one-box van)
@@ -220,6 +227,7 @@ function buildCar(type, color, o = {}) {
     const a = basic(0xff2a2a), b = basic(0x3a6aff);
     g.add(mesh(GM.box(), a, T.wid * 0.2, T.h + 0.16, -0.1, T.wid * 0.36, 0.12, 0.28), mesh(GM.box(), b, -T.wid * 0.2, T.h + 0.16, -0.1, T.wid * 0.36, 0.12, 0.28));
     g.userData.bar = [a, b];
+    g.userData.halos = [lightHalo(g, 0xff2a2a, T.wid * 0.2, T.h + 0.2, -0.1, 0), lightHalo(g, 0x3a6aff, -T.wid * 0.2, T.h + 0.2, -0.1, 1)];
     for (const sx of [-1, 1]) g.add(decal(textDecal('POLICE', '#14244a'), 1.6, 0.3, sx * (T.wid / 2 + 0.02), T.h * 0.52 - 0.12, -0.1, sx * Math.PI / 2));
   }
   if (o.wreck) { // crumpled nose: push the front of the body down and tilt
@@ -410,8 +418,13 @@ function buildFireEngine() {
   g.add(mesh(GM.box(), lam(0xc0c4c8), 0, 3.0, -1, 1.2, 0.3, 7));
   for (const z of [3.3, -2.2, -3.6]) for (const sx of [-1, 1]) g.add(mesh(GM.wheel(), d, sx * 1.1, 0.5, z, 0.35, 1.0, 1.0));
   const a = basic(0xff2a2a), b = basic(0xffffff);
+  // a light bar over the cab, corner lights on the body and a pair at the back
   g.add(mesh(GM.box(), a, 0.6, 2.9, 4.0, 0.9, 0.15, 0.3), mesh(GM.box(), b, -0.6, 2.9, 4.0, 0.9, 0.15, 0.3));
+  g.add(mesh(GM.box(), a, 1.2, 2.6, 4.75, 0.12, 0.2, 0.06), mesh(GM.box(), b, -1.2, 2.6, 4.75, 0.12, 0.2, 0.06));
+  g.add(mesh(GM.box(), b, 1.26, 2.6, -4.6, 0.06, 0.25, 0.3), mesh(GM.box(), a, -1.26, 2.6, -4.6, 0.06, 0.25, 0.3));
+  g.add(mesh(GM.box(), a, 1.0, 2.75, -4.76, 0.3, 0.25, 0.06), mesh(GM.box(), b, -1.0, 2.75, -4.76, 0.3, 0.25, 0.06));
   g.userData.bar = [a, b];
+  g.userData.halos = [lightHalo(g, 0xff2a2a, 0.6, 3.0, 4.0, 0), lightHalo(g, 0xffffff, -0.6, 3.0, 4.0, 1), lightHalo(g, 0xff2a2a, -1.0, 2.75, -4.85, 0), lightHalo(g, 0xffffff, 1.0, 2.75, -4.85, 1)];
   shadowy(g, true, false);
   return g;
 }

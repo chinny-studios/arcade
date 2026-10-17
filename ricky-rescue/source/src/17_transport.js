@@ -24,6 +24,8 @@ function openTransportPanel(midway) {
   const C = G.call; if (!C) return;
   TP.midway = !!midway;
   TP.dest = C.dest || null; TP.alert = C.prealert || 'none'; TP.ls = RIG.siren; TP.driver = C.driver || 'partner';
+  // the engine medic comes along for anyone sick enough to need a second pair of advanced hands
+  if (!midway) TP.medic = MEDIC.on && !!(C.P.arrest || C.P.rosc || C.tpl.transportLS(C, C.P));
   for (const id of Object.keys(HOSPITALS)) TP.lens[id] = routeLength(Object.assign({}, CITY.hospitals[id].bay));
   if (!TP.dest) TP.dest = Object.keys(HOSPITALS).sort((a, b) => TP.lens[a] - TP.lens[b])[0];
   renderTransport();
@@ -44,6 +46,8 @@ function renderTransport() {
   opt('tpPartner', TP.driver === 'partner', `Ride in back, ${PARTNER_SHORT} drives`);
   opt('tpRicky', TP.driver === 'ricky', `I'll drive, ${PARTNER_SHORT} rides in back`);
   opt('tpLS', TP.ls, TP.ls ? 'Lights & sirens: ON' : 'Lights & sirens: off');
+  $('#tpMedic').hidden = !MEDIC.on || TP.midway;
+  if (MEDIC.on) opt('tpMedic', TP.medic, TP.medic ? `${MEDIC.first} (${MEDIC.unit.name}) rides in` : `${MEDIC.first} stays with ${MEDIC.unit.name}`);
   const al = $('#tpAlerts'); al.innerHTML = '';
   for (const [id, name] of [['none', 'Routine report'], ['stemi', 'STEMI alert'], ['stroke', 'Stroke alert'], ['trauma', 'Trauma alert']]) {
     const b = el('button', 'chip btn' + (TP.alert === id ? ' on' : ''), name);
@@ -72,7 +76,11 @@ function confirmTransport() {
   }
   buildRoute(Object.assign({ ls: TP.ls }, H.bay), H.short);
   if (!first) { if (RIG.auto) RIG.auto = { pts: ROUTE.pts, i: 0 }; return; }
-  // everyone aboard
+  // everyone aboard; the engine medic too, if asked
+  if (MEDIC.on) {
+    if (TP.medic) { MEDIC.task = 'ride'; radio(MEDIC.first, 'I\'ll ride in with you.', 'medic'); }
+    else { stopWorker('medic', true); MEDIC.on = false; MEDIC.task = 'leave'; }
+  }
   PLAYER.push = false; PLAYER.carry = null;
   for (const e of Object.values(EQ)) if (e.at !== 'rig' && !e.P) { e.at = 'rig'; e.by = null; e.model.g.visible = false; }
   if (TP.driver === 'partner') {
@@ -127,9 +135,11 @@ function buildRigBox() {
   const rk = makePerson(Object.assign({}, C.look, { shirt: U.shirt, pants: U.pants, uniform: true, gloves: true }));
   // Ricky in the captain's chair at the patient's head
   rk.root.position.set(0, 0.0, -L / 2 + 0.42); rk.root.rotation.y = 0; snapPose(rk, 'sit'); g.add(rk.root);
+  // the engine medic on the bench, when one rides along
+  const md = makePerson(ENGINE_MEDIC); md.root.position.set(W / 2 - 0.42, 0.06, -L / 2 + 1.35); md.root.rotation.y = -Math.PI / 2; snapPose(md, 'sit'); md.root.visible = false; g.add(md.root);
   shadowy(g, false, true);
   R.scene.add(g);
-  Object.assign(RIGBOX, { g, type: RIG.type, str: st, ricky: rk, L, W, H });
+  Object.assign(RIGBOX, { g, type: RIG.type, str: st, ricky: rk, medic: md, L, W, H });
 }
 function enterRigBack() {
   const C = G.call, P = C.P;
@@ -153,6 +163,7 @@ function leaveRigBack() {
 // the camera in the back sways with the rig
 function camRigBack(dt) {
   const A = RIG, sw = clamp(A.accLat * 0.012, -0.08, 0.08), sp = clamp(A.accLong * 0.008, -0.05, 0.05);
+  if (RIGBOX.medic) RIGBOX.medic.root.visible = MEDIC.on && MEDIC.task === 'ride';
   RIGBOX.sway = lerp(RIGBOX.sway || 0, sw, 1 - Math.exp(-dt * 5));
   // from the rear corner on the bench side, looking along the stretcher to Ricky at the head
   const yaw = clamp(CAM.userYaw * 0.3, -0.5, 0.5), x = RIGBOX_X + RIGBOX.W / 2 - 0.3, z = RIGBOX_Z + RIGBOX.L / 2 - 0.2;
@@ -172,6 +183,8 @@ function arriveHospital(C) {
   if (G.where === 'back') { leaveRigBack(); closeCare(); fade(() => unloadPatient()); }
   else { toast('Get out and unload the patient at the back doors.'); }
   if (PARTNER.task === 'back') { stopWorker('partner', true); }
+  // the engine medic hands over with us, then heads back to quarters
+  if (MEDIC.on && MEDIC.task === 'ride') { stopWorker('medic', true); MEDIC.on = false; MEDIC.task = 'none'; setTimeout(() => radio(MEDIC.first, `Good work. I'll get a ride back to ${MEDIC.unit ? MEDIC.unit.name : 'quarters'}.`, 'medic'), DEBUG ? 0 : 3000); }
   bus.emit('atHospital', C);
 }
 

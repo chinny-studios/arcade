@@ -112,7 +112,7 @@ function buildCity() {
   for (let i = 0; i <= CN; i++) for (let j = 0; j < CN; j++) addEdge(nodeId(i, j), nodeId(i, j + 1), 'z', i);
   // blocks
   const special = {
-    '2,8': 'station', '4,10': 'hosp:brigid', '8,7': 'hosp:mercy', '7,4': 'hosp:general',
+    '2,8': 'station', '10,4': 'fire:7', '1,3': 'fire:3', '10,8': 'fire:5', '4,10': 'hosp:brigid', '8,7': 'hosp:mercy', '7,4': 'hosp:general',
     '1,10': 'park', '4,7': 'park', '10,10': 'park', '9,1': 'plaza', '3,1': 'park', '7,10': 'gas', '11,6': 'park',
   };
   for (let bj = 0; bj < CN; bj++) for (let bi = 0; bi < CN; bi++) {
@@ -247,6 +247,7 @@ function buildBlock(b, M, cr) {
   else if (k === 'park' || k === 'plaza') buildPark(b, M, cr);
   else if (k === 'gas') buildGas(b, M, cr);
   else if (k === 'station') buildStation(b, M, cr);
+  else if (k.startsWith('fire:')) buildFirehouse(b, M, cr, +k.slice(5));
   else if (k.startsWith('hosp:')) buildHospital(b, M, cr, k.slice(5));
 }
 function gable(m, x0, z0, x1, z1, y, rise, col, over = 0.5) {
@@ -451,23 +452,32 @@ function buildGas(b, M, cr) {
   for (const [px, pz] of [[-9, -5], [9, -5], [-9, 5], [9, 5]]) { M.solid.box(cx + px, CURB, cz + pz, 0.5, 5, 0.5, 0xd8d8d8); addPost(cx + px, cz + pz, 0.4, 5); }
   for (const px of [-4, 4]) for (const pz of [-2.5, 2.5]) { M.solid.box(cx + px, CURB, cz + pz, 0.9, 1.6, 0.6, 0x3a3a40); addSolid(cx + px - 0.5, cz + pz - 0.35, cx + px + 0.5, cz + pz + 0.35, 1.6); }
 }
-function buildStation(b, M, cr) {
+// a firehouse: brick, two bay doors onto an apron that meets the street on the south side, an engine parked out front
+const ENGINE_MEDICS = { 12: 'Theo Brandt', 7: 'Imani Cole', 3: 'Sam Okoro', 5: 'Rosa Delgado' };
+function buildFirehouse(b, M, cr, num) {
   const { x0, x1, z0, z1 } = b;
   lawn(M, b, x0, z0, x1, z1);
-  // apron to the avenue on the south side
   const bx0 = b.cx - 15, bx1 = b.cx + 15, bz1 = z1 - 14, bz0 = bz1 - 18;
   paved(M, bx0 - 2, bz1, bx1 + 2, b.sz1);
-  towerBox(M, 'brick', bx0, bz0, bx1, bz1, 8.5, 0xb05a48, 4, 4.25, 0x5a5a5a);
+  towerBox(M, 'brick', bx0, bz0, bx1, bz1, 8.5, num === 12 ? 0xb05a48 : 0xa85040, 4, 4.25, 0x5a5a5a);
   for (const dx of [-7, 7]) { M.solid.box(b.cx + dx, CURB, bz1 + 0.06, 5.2, 5.2, 0.12, 0xd8d8d8); for (let y = 0.6; y < 5; y += 0.65) M.solid.box(b.cx + dx, CURB + y, bz1 + 0.14, 5.2, 0.05, 0.05, 0x9a9a9a); }
-  M.solid.box(b.cx, CURB + 6.2, bz1 + 0.1, 12, 1.4, 0.2, 0x1a2040);
-  sign(b.cx, CURB + 6.9, bz1 + 0.22, 0, 'STATION 12', 11.5, 1.2, '#ffffff', '#1a2040');
-  // flag pole
+  M.solid.box(b.cx, CURB + 6.2, bz1 + 0.1, 12, 1.4, 0.2, num === 12 ? 0x1a2040 : 0x8a1a1a);
+  sign(b.cx, CURB + 6.9, bz1 + 0.22, 0, num === 12 ? 'STATION 12' : 'FIRE STATION ' + num, 11.5, 1.2, '#ffffff', num === 12 ? '#1a2040' : '#8a1a1a');
   M.solid.box(bx1 + 4, CURB, bz1 + 6, 0.15, 9, 0.15, 0xd0d0d0);
   M.solid.box(bx1 + 4.9, CURB + 7.6, bz1 + 6, 1.6, 1.0, 0.04, 0x2a4ac0);
   addPost(bx1 + 4, bz1 + 6, 0.3, 9);
-  // the rig waits on the apron side-on to the doors, so the chase camera has room behind it
-  CITY.station = { x: b.cx - 4, z: bz1 + 8.5, yaw: Math.PI / 2, door: { x: b.cx, z: bz1 + 1 }, bayX: b.cx - 7, bayZ: bz1 + 6, block: b, addr: '900 Lincoln Ave' };
   CITY.trees.push({ x: x0 + 6, z: z1 - 6, s: 1.2, type: 1 }, { x: x1 - 6, z: z1 - 6, s: 1.2, type: 1 }, { x: x0 + 8, z: z0 + 8, s: 1.3, type: 0 });
+  // the engine waits nose-out in front of the right-hand bay
+  const ex = b.cx + 7, ez = bz1 + 4.6;
+  const home = { x: ex, z: ez, yaw: 0, solid: addSolid(ex - 1.35, ez - 4.9, ex + 1.35, ez + 4.9, 3, 'engine') };
+  CITY.firehouses = CITY.firehouses || [];
+  CITY.firehouses.push({ num, name: 'Engine ' + num, medic: ENGINE_MEDICS[num], home, block: b, district: b.district });
+  return { bz1 };
+}
+function buildStation(b, M, cr) {
+  const { bz1 } = buildFirehouse(b, M, cr, 12);
+  // Medic 12 waits on the apron side-on to the doors, nose away from Engine 12, so the chase camera has room behind it
+  CITY.station = { x: b.cx - 2, z: bz1 + 8.5, yaw: -Math.PI / 2, door: { x: b.cx, z: bz1 + 1 }, bayX: b.cx - 7, bayZ: bz1 + 6, block: b, addr: '900 Lincoln Ave' };
 }
 function buildHospital(b, M, cr, id) {
   const H = HOSPITALS[id];

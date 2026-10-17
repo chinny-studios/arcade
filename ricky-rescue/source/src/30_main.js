@@ -6,7 +6,7 @@ function boot() {
   loadOpts();
   try { initRender(); } catch (e) { console.error(e); return; }
   makeTextures(); R.sunDisc.material.map = TEX.glow;
-  buildCity(); initTraffic(); buildMinimap();
+  buildCity(); initTraffic(); initResponders(); buildMinimap();
   Input.init(); wireUI();
   setQuality(OPTS.quality); AUDIO.setVolume(OPTS.volume);
   G.live = true;
@@ -41,6 +41,7 @@ function frame(dt, draw) {
     if (G.where === 'cab' && PARTNER.task === 'back' && C && C.stage === 'transport') C.roughSum = (C.roughSum || 0) + RIG.rough * sdt;
     updateGame(sdt);
     updateTraffic(sdt, focusX(), focusZ());
+    updateResponders(sdt);
     updateRoute(sdt);
     if (G.where === 'foot' || G.where === 'cab') updatePartner(sdt);
     updateMCI(sdt);
@@ -148,7 +149,7 @@ bus.on('enterCab', () => { if (G.call && G.call.stage === 'onscene' && RIG.loade
 function installDebug() {
   const step = 1 / 30;
   const RR = {
-    G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS,
+    G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC,
     get C() { return G.call; }, get P() { return G.call && G.call.P; }, get RIG() { return RIG; },
     f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv },
     // start({ rank, rig, hour, hours, xp, money }) — a throwaway career (never saved) and a shift, no calls until asked
@@ -220,9 +221,9 @@ function installDebug() {
       loadPatient(); for (let i = 0; i < 2000 && WORK.ricky; i++) frame(step, false);
       return { carried: P.carried, loaded: !!RIG.loaded, transportOpen: UI.isOpen('transport') };
     },
-    transport(dest, driver = 'partner', alert = 'none', ls = false) {
+    transport(dest, driver = 'partner', alert = 'none', ls = false, medic) {
       if (!UI.isOpen('transport')) openTransportPanel();
-      TP.dest = dest; TP.driver = driver; TP.alert = alert; TP.ls = ls; confirmTransport();
+      TP.dest = dest; TP.driver = driver; TP.alert = alert; TP.ls = ls; if (medic !== undefined) TP.medic = medic; confirmTransport();
       return { stage: G.call.stage, where: G.where, len: Math.round(ROUTE.length) };
     },
     // jump the rig into the hospital bay
@@ -239,6 +240,14 @@ function installDebug() {
       while (UI.isOpen('handoff')) { const q = HQ.qs[HQ.i]; const want = allRight ? q.ans : q.opts.find((o) => o !== q.ans) || q.ans; const b = $$('#hoOpts button').find((x) => x.textContent === want) || $$('#hoOpts button')[0]; b.click(); }
       return G.lastCall && { grade: G.lastCall.grade, total: G.lastCall.total, outcome: G.lastCall.out.text, harms: G.lastCall.harms.map((h) => h.text), missed: G.lastCall.items.filter((i) => i.kind !== 'good').map((i) => i.text) };
     },
+    // every responding unit for the current call arrives now; crews walk to their spots
+    respArrive() {
+      const C = G.call; if (!C || !C.units) return [];
+      for (const u of C.units) if (u.state === 'enroute') { u.s = u.route.len; u.v = 0; const p = u.route.pts[u.route.pts.length - 1]; u.x = p.x; u.z = p.z; arriveUnit(u); }
+      for (let i = 0; i < 300; i++) frame(step, false);
+      return C.units.map((u) => ({ name: u.name, state: u.state, crew: (u.crew || []).map((p) => p.role + (p.atGoal ? '@' : '')) }));
+    },
+    units() { return RESP.units.filter((u) => u.state !== 'home').map((u) => ({ name: u.name, kind: u.kind, state: u.state, x: Math.round(u.x), z: Math.round(u.z), v: +u.v.toFixed(1), left: u.route ? Math.round(u.route.len - u.s) : 0 })); },
     press(a) { Input.acts.add(a); frame(step, false); },
     tp(x, z) { if (G.where === 'cab') { RIG.x = x; RIG.z = z; placeRigModel(0); } else { PLAYER.x = x; PLAYER.z = z; } snapCam(); frame(step, false); },
     time(h) { G.clockT = h * 3600; setTimeOfDay(h); },
