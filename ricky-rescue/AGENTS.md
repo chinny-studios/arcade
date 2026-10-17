@@ -11,14 +11,17 @@ and hand off. Shift-based career with ranks, districts, rigs and cosmetics.
   respond })` dispatches a call (`type` is a key of `RR.CALL`, or `'mci'`) and responds to it. `RR.toScene()` parks the
   rig at the curb (`{ waitPD: true }` waits out police on unsafe scenes), `RR.toPatient()` puts Ricky and Marisol next
   to the patient (inside if need be) and opens care, `RR.act(id, 'ricky'|'partner')` does one action and waits for it
-  (ids are keys of `RR.ACT`), `RR.pack(device)` packages and loads, `RR.transport(hospital, driver, alert, ls)`,
-  `RR.arrive()` jumps into the bay and unloads, `RR.handoff(allRight)` answers the report and returns the review.
-  Also `sim(seconds)` (fast-forward without rendering), `render()`, `press(action)`, `tp(x, z)`, `time(hour)`,
+  (ids are keys of `RR.ACT`; `'medic'` is the engine's firefighter-paramedic once on scene), `RR.pack(device)`
+  packages and loads, `RR.transport(hospital, driver, alert, ls, medicRides)`, `RR.arrive()` jumps into the bay and
+  unloads, `RR.handoff(allRight)` answers the report and returns the review. `RR.respArrive()` puts every dispatched
+  fire engine and police car on scene with its crew dismounted, `RR.units()` lists them, and `RR.RESP` / `RR.MEDIC`
+  are the unit list and the engine medic's state. Also `sim(seconds)` (fast-forward without rendering), `render()`, `press(action)`, `tp(x, z)`, `time(hour)`,
   `hideHUD()`, `stats()`, getters `C` (the call), `P` (its patient), `RIG`, and internals on `RR.f`.
 - **Tests (in `source/`):** `node test/smoke.mjs --steps test/play.js` runs one chest-pain call end to end with
   screenshots. `test/systems.js` runs every call type at a sensible standard of care and prints grades, outcomes and
   anything missed (add `--start '{"rank":2}'` for the advanced calls and skills). `test/mci.js` (with `--start
-  '{"rank":2}'`) triages and runs a bus crash. `test/career.js` (with `--no-start`) checks promotions, the garage, the
+  '{"rank":2}'`) triages and runs a bus crash. `test/responders.js` checks that engines and police are sent when they
+  should be, drive in, and that the engine medic works the patient and rides in. `test/career.js` (with `--no-start`) checks promotions, the garage, the
   save and the end of a shift. `test/visual.js` (with `--no-start`) is a screenshot tour, `test/mobile.js` (with
   `--w 390 --h 844` or `--w 844 --h 390`) checks phone layouts, `test/perf.js` prints draw calls. `node test/live.mjs`
   plays with real key presses and clicks; `node test/inputs.mjs` checks a mocked gamepad and touch.
