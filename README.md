@@ -63,6 +63,54 @@ Some games load their soundtrack via a relative path, so serve the folder rather
 python3 -m http.server 8000   # then open http://localhost:8000/<game>/
 ```
 
+## Play offline with Docker
+
+Every push to `main` publishes a container image with all the games, plus the fonts and three.js builds they would
+otherwise fetch from Google Fonts and CDNs, served by nginx. Once pulled it needs no network at all.
+
+```sh
+docker run -d --name arcade -p 8080:8080 --restart unless-stopped ghcr.io/chinny-studios/arcade:latest
+# then open http://localhost:8080/
+```
+
+It runs as a non-root user on port 8080 and only writes to `/tmp`, so it also runs locked down:
+`docker run --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges -p 8080:8080 ...`
+
+For a machine with no internet, move the image across as a file. Pick the architecture of the target machine:
+
+```sh
+docker pull --platform linux/amd64 ghcr.io/chinny-studios/arcade:latest     # or linux/arm64
+docker save ghcr.io/chinny-studios/arcade:latest -o arcade.tar
+# copy arcade.tar over, then:
+docker load -i arcade.tar
+```
+
+Or with Compose:
+
+```yaml
+services:
+  arcade:
+    image: ghcr.io/chinny-studios/arcade:latest
+    ports: ["8080:8080"]
+    read_only: true
+    tmpfs: [/tmp]
+    restart: unless-stopped
+```
+
+Images are tagged `latest` and `sha-<commit>`, built for amd64 and arm64, and signed with cosign. To check one came
+from this repo's workflow:
+
+```sh
+cosign verify ghcr.io/chinny-studios/arcade:latest \
+  --certificate-identity-regexp '^https://github.com/chinny-studios/arcade/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+To build it yourself, run `docker build -t arcade .` at the repo root. It needs internet access while building.
+`tools/offline/vendor.py` copies the playable files, downloads the fonts and libraries, and rewrites the pages to
+use local copies. `_vendor/MANIFEST.txt` in the image lists each downloaded file with its source URL and SHA-256.
+The workflow is `.github/workflows/offline-image.yml`.
+
 ## License
 
 The code is [MIT](LICENSE), © 2026 Jeffrey Chin. The music files are **not** covered by it, and three.js and the fonts have their own licenses: see [THIRD_PARTY.md](THIRD_PARTY.md).
