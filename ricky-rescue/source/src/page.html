@@ -1,0 +1,274 @@
+<title>Ricky Rescue</title>
+<meta name="description" content="An EMT and paramedic simulator. Drive the ambulance through a living city, assess and treat patients, load them up and get them to the right hospital.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #eef3f8; --dim: #9fb0c2; --faint: #66778a; --red: #ff4a4a; --red2: #d8262e; --blue: #4aa8ff; --green: #4ad88a; --amber: #ffbf3a;
+    --panel: rgba(12,17,26,.94); --panel2: rgba(22,30,44,.96); --line: rgba(255,255,255,.12); --line2: rgba(74,168,255,.45);
+    --head: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif; --sans: 'Barlow', 'Segoe UI', system-ui, sans-serif; }
+  html, body { margin: 0; height: 100%; background: #05070b; overflow: hidden; color: var(--ink); font-family: var(--sans); font-size: 15px; -webkit-user-select: none; user-select: none; touch-action: none; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  button { font-family: var(--sans); color: var(--ink); cursor: pointer; }
+  .btn:focus-visible, .btn.focus { outline: 2px solid var(--amber); outline-offset: 2px; }
+  #fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 50; }
+  #fade.on { opacity: 1; }
+  #nogl { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; padding: 20px; text-align: center; }
+  /* ---------- HUD ---------- */
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud { display: block; }
+  #topLeft { position: absolute; left: 14px; top: 12px; max-width: min(520px, 60vw); }
+  #clockRow { display: flex; align-items: baseline; gap: 10px; }
+  #clock { font-family: var(--head); font-size: 30px; font-weight: 800; letter-spacing: .02em; text-shadow: 0 2px 6px #000; }
+  #shiftEnd { color: var(--dim); font-size: 13px; text-shadow: 0 1px 3px #000; }
+  #status { font-weight: 700; font-size: 16px; text-shadow: 0 1px 4px #000; margin-top: 2px; }
+  #statusSub { color: var(--dim); font-size: 13px; text-shadow: 0 1px 3px #000; }
+  .pri { display: inline-block; padding: 0 6px; border-radius: 4px; font-family: var(--head); font-size: 14px; margin-right: 2px; }
+  .pri.p1 { background: var(--red2); } .pri.p2 { background: #c87a10; } .pri.p3 { background: #3a6a9a; }
+  #mapWrap { position: absolute; right: 14px; top: 12px; width: 170px; height: 170px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,.25); box-shadow: 0 4px 18px rgba(0,0,0,.5); pointer-events: auto; cursor: pointer; background: #10181a; }
+  #minimap { width: 100%; height: 100%; display: block; }
+  #topBtns { position: absolute; right: 196px; top: 14px; display: flex; gap: 6px; pointer-events: auto; }
+  .hbtn { min-width: 40px; height: 40px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); display: grid; place-items: center; padding: 0 10px; font-weight: 700; font-size: 13px; }
+  #gps { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line2); border-radius: 12px; padding: 7px 14px 7px 10px; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+  #gps .arrow { width: 30px; height: 30px; position: relative; }
+  #gps .arrow::before { content: ''; position: absolute; left: 13px; top: 6px; width: 4px; height: 20px; background: var(--blue); border-radius: 2px; }
+  #gps .arrow::after { content: ''; position: absolute; left: 7px; top: 1px; border: 8px solid transparent; border-bottom: 10px solid var(--blue); border-top: 0; }
+  #gps .arrow.left { transform: rotate(-90deg); } #gps .arrow.right { transform: rotate(90deg); }
+  #gpsText { font-weight: 700; font-size: 16px; } #gpsDist { color: var(--dim); font-size: 13px; }
+  #drive { position: absolute; left: 14px; bottom: 14px; display: flex; align-items: flex-end; gap: 10px; }
+  #speedBox { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 6px 14px; text-align: center; min-width: 74px; }
+  #speed { font-family: var(--head); font-size: 40px; font-weight: 800; line-height: 1; } #speedU { color: var(--dim); font-size: 12px; }
+  #dmg { height: 4px; background: rgba(255,255,255,.12); border-radius: 2px; margin-top: 5px; overflow: hidden; } #dmg i { display: block; height: 100%; background: var(--green); }
+  #lsBtn { pointer-events: auto; height: 46px; padding: 0 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); font-weight: 700; }
+  #lsBtn.on { background: linear-gradient(90deg, #b01818, #2850c8); animation: ls .7s infinite steps(2); border-color: #fff; }
+  @keyframes ls { 50% { background: linear-gradient(90deg, #2850c8, #b01818); } }
+  #radio { position: absolute; left: 14px; bottom: 96px; width: min(470px, 70vw); display: flex; flex-direction: column; gap: 4px; }
+  body[data-where="foot"] #radio, body[data-where="back"] #radio { bottom: 14px; }
+  .rm { background: rgba(8,12,20,.8); border-left: 3px solid var(--faint); border-radius: 0 8px 8px 0; padding: 5px 9px; font-size: 13.5px; line-height: 1.3; transition: opacity 1s; }
+  .rm b { color: var(--amber); margin-right: 4px; } .rm.dispatch { border-color: var(--red); } .rm.crew b { color: var(--blue); } .rm.partner b { color: #ff9ad0; } .rm.bystander b { color: #c8f080; }
+  .rm.old { opacity: .45; }
+  #toasts { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(560px, 92vw); }
+  .toast { background: rgba(10,14,22,.9); border: 1px solid var(--line2); padding: 8px 14px; border-radius: 10px; font-weight: 600; text-align: center; transition: opacity .6s, transform .6s; }
+  .toast.bad { border-color: rgba(255,74,74,.7); color: #ffd0d0; } .toast.good { border-color: rgba(74,216,138,.7); }
+  .toast.out { opacity: 0; transform: translateY(-10px); }
+  #prompt { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; align-items: center; pointer-events: auto; }
+  .pp { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px 6px 8px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; opacity: .75; }
+  .pp.on { opacity: 1; border-color: var(--amber); }
+  .pp .k { min-width: 22px; height: 22px; border-radius: 5px; background: var(--amber); color: #111; font-weight: 800; display: grid; place-items: center; font-size: 12px; padding: 0 4px; }
+  .pp .k:empty { background: transparent; }
+  #prompt .hint { font-size: 11px; color: var(--dim); }
+  #miniMon { position: absolute; right: 14px; top: 196px; width: 170px; background: rgba(4,10,8,.9); border: 1px solid rgba(74,240,122,.35); border-radius: 10px; padding: 6px 10px; font-family: var(--head); }
+  #miniMon.alarm { border-color: var(--red); animation: alarm 0.8s infinite; } @keyframes alarm { 50% { box-shadow: 0 0 18px rgba(255,60,60,.7); } }
+  #miniMon .row { display: flex; justify-content: space-between; align-items: baseline; }
+  #miniMon .l { color: #6a9a7a; font-size: 12px; } #mmHR { color: #4af07a; font-size: 24px; } #mmSp { color: #50d8ff; font-size: 24px; } #mmBP { color: #f0f0f0; font-size: 18px; }
+  #mmWho { font-family: var(--sans); font-size: 11px; color: var(--dim); }
+  #dispatch { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); width: min(560px, 92vw); background: var(--panel2); border: 2px solid var(--red2); border-radius: 14px; padding: 14px 16px; pointer-events: auto; box-shadow: 0 10px 40px rgba(0,0,0,.6); animation: pop .3s; }
+  @keyframes pop { from { transform: translate(-50%, -10px); opacity: 0; } }
+  #dispatch h3 { margin: 0 0 6px; font-family: var(--head); font-size: 22px; letter-spacing: .04em; color: #ff8a8a; }
+  #dispText { font-size: 16px; line-height: 1.4; }
+  #dispatch .row { display: flex; gap: 8px; margin-top: 12px; }
+  .big { height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: #2a3446; font-weight: 700; font-size: 15px; }
+  .big.go { background: var(--red2); border-color: #ff8080; } .big.blue { background: #1f5fd0; border-color: #6aa0ff; }
+  /* ---------- touch controls ---------- */
+  .touch { display: none; }
+  body[data-input="touch"][data-state="play"] .touch { display: block; }
+  #tSteer { position: absolute; left: 12px; bottom: 16px; display: flex; gap: 10px; pointer-events: auto; }
+  #tPedals { position: absolute; right: 12px; bottom: 16px; display: flex; gap: 10px; pointer-events: auto; }
+  .tb { width: 76px; height: 76px; border-radius: 18px; background: rgba(20,28,40,.72); border: 1px solid rgba(255,255,255,.2); font-size: 26px; font-weight: 800; display: grid; place-items: center; touch-action: none; }
+  .tb.on { background: rgba(74,168,255,.5); } .tb.sm { width: 60px; height: 50px; font-size: 13px; border-radius: 12px; }
+  #tGas { height: 110px; background: rgba(30,90,50,.72); } #tBrake { background: rgba(110,30,30,.72); }
+  #tStick { position: absolute; left: 0; bottom: 0; width: 45%; height: 55%; pointer-events: auto; }
+  #tStickBase { position: absolute; left: 90px; bottom: 90px; width: 110px; height: 110px; margin: -55px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); background: rgba(255,255,255,.06); opacity: .35; }
+  #tStickKnob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.4); transform: translate(-50%,-50%); }
+  #tFoot { position: absolute; right: 12px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: auto; }
+  #tTop { position: absolute; right: 196px; top: 60px; display: flex; gap: 6px; pointer-events: auto; }
+  body[data-where="cab"] #tStick, body[data-where="cab"] #tFoot { display: none; }
+  body:not([data-where="cab"]) #tSteer, body:not([data-where="cab"]) #tPedals { display: none; }
+  body[data-where="back"] #tStick, body[data-where="back"] #tFoot { display: none; }
+  body[data-input="touch"] #drive { bottom: 110px; } body[data-input="touch"] #radio { bottom: 210px !important; }
+  /* ---------- panels ---------- */
+  .panel { position: absolute; z-index: 20; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 14px 50px rgba(0,0,0,.6); pointer-events: auto; }
+  .panel h2 { font-family: var(--head); font-size: 26px; margin: 0; letter-spacing: .03em; }
+  .panel .x { position: absolute; right: 10px; top: 10px; width: 34px; height: 34px; border-radius: 9px; background: #222c3c; border: 1px solid var(--line); font-size: 18px; }
+  .dim { color: var(--dim); }
+  .act { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; padding: 8px 10px; border-radius: 10px; background: #1c2636; border: 1px solid var(--line); min-height: 48px; }
+  .act b { font-size: 14px; font-weight: 700; } .act span { font-size: 11.5px; color: var(--dim); } .act i { font-size: 11px; color: #ff9a9a; font-style: normal; }
+  .act:hover { background: #26324a; } .act.dis { opacity: .5; } .act.lock { opacity: .35; } .act.danger { background: #5a1a1a; border-color: #ff6a6a; } .act.info { background: #1a3050; }
+  /* care */
+  #care { right: 12px; top: 12px; bottom: 12px; width: min(560px, calc(100vw - 24px)); display: flex; flex-direction: column; overflow: hidden; }
+  #careHead { padding: 12px 52px 8px 14px; border-bottom: 1px solid var(--line); }
+  #careName { font-family: var(--head); font-size: 24px; font-weight: 800; } #careSub { color: var(--dim); font-size: 13px; } #careClock { color: var(--amber); font-size: 12px; font-weight: 600; }
+  #monitor { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 12px; background: #050b07; border-bottom: 1px solid var(--line); }
+  #ecg { width: 100%; height: 64px; display: block; border-radius: 6px; background: #071008; }
+  #vitals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; grid-column: 1 / -1; }
+  .vb { background: #0a140e; border-radius: 6px; padding: 3px 7px; font-family: var(--head); }
+  .vb span { font-size: 11px; color: #6a9a7a; letter-spacing: .05em; } .vb b { display: block; font-size: 24px; line-height: 1; } .vb i { font-size: 10px; color: #4a6a5a; font-style: normal; font-family: var(--sans); }
+  #v-hr b { color: #4af07a; } #v-spo2 b { color: #50d8ff; } #v-bp b { color: #f0f0f0; } #v-rr b { color: #ffe080; }
+  .vb.warn b { color: #ff5a5a !important; animation: low 1s infinite; } @keyframes low { 50% { opacity: .55; } }
+  #v-rhythm { font-family: var(--head); font-size: 15px; color: #4af07a; align-self: center; text-align: right; min-width: 120px; } #v-rhythm.warn { color: #ff5a5a; }
+  #workers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 12px 4px; }
+  .wk { position: relative; background: #182030; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px 8px; cursor: pointer; overflow: hidden; }
+  .wk.on { border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); }
+  .wk b { font-size: 13px; } .wk span { display: block; font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 30px; }
+  .wk .bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; } .wk .bar i { display: block; height: 100%; background: var(--amber); }
+  .wk .stop { position: absolute; right: 6px; top: 8px; height: 24px; border-radius: 6px; background: #3a2020; border: 1px solid #a04040; font-size: 11px; padding: 0 6px; }
+  .wk .who { font-size: 10px; color: var(--amber); float: right; } .wk:not(.on) .who { visibility: hidden; }
+  #careTabs { display: flex; gap: 4px; padding: 4px 12px; overflow-x: auto; scrollbar-width: none; }
+  .tab { padding: 6px 10px; border-radius: 8px; background: transparent; border: 1px solid transparent; font-weight: 700; font-size: 13px; white-space: nowrap; color: var(--dim); }
+  .tab.on { background: #26324a; border-color: var(--line2); color: var(--ink); }
+  #careActs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; padding: 6px 12px; overflow-y: auto; flex: 1 1 auto; min-height: 120px; align-content: start; }
+  #careBottom { display: grid; grid-template-columns: 1.1fr 1fr; gap: 8px; padding: 8px 12px 12px; border-top: 1px solid var(--line); max-height: 30%; }
+  #careChart, #careLog { overflow-y: auto; font-size: 12px; line-height: 1.35; }
+  #careChart div { margin-bottom: 3px; } #careChart span { color: var(--dim); margin-right: 5px; } #careChart b { font-weight: 600; }
+  #careLog div { margin-bottom: 3px; color: #c8d4e0; } #careLog span { color: var(--faint); font-family: var(--head); }
+  #cprPad { position: absolute; left: 50%; bottom: 28%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: auto; }
+  #cprBtn { --p: 0; width: 140px; height: 140px; border-radius: 50%; border: 3px solid #fff; background: radial-gradient(circle, rgba(255,80,80,calc(.5 + var(--p) * .5)), rgba(140,20,20,.8)); font-family: var(--head); font-size: 26px; font-weight: 800; transform: scale(calc(1 - var(--p) * .08)); touch-action: none; }
+  #cprPad { --p: 0; } #cprPad #cprBtn { transform: scale(calc(1 - var(--p) * 0.08)); }
+  #cprRate { font-weight: 700; text-shadow: 0 1px 4px #000; } #cprQ { width: 160px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.15); overflow: hidden; } #cprQ i { display: block; height: 100%; background: linear-gradient(90deg, #ff4a4a, #ffd040, #4ad88a); }
+  .cprHint { font-size: 12px; color: var(--dim); text-shadow: 0 1px 3px #000; }
+  /* centred dialogs */
+  .dlg { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(620px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow-y: auto; padding: 16px 18px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; margin: 10px 0; }
+  .hosp { text-align: left; padding: 10px 12px; border-radius: 12px; background: #1c2636; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; width: 100%; margin-bottom: 6px; }
+  .hosp.on { border-color: var(--blue); background: #1a3050; } .hosp b { font-size: 15px; } .hosp span { font-size: 12px; color: var(--dim); }
+  .hosp em { font-style: normal; display: flex; gap: 4px; flex-wrap: wrap; } .hosp u { text-decoration: none; font-size: 11px; padding: 1px 6px; border-radius: 5px; background: #2a3446; }
+  .cap-trauma { background: #6a2020 !important; } .cap-cardiac { background: #6a2050 !important; } .cap-stroke { background: #3a2a7a !important; } .cap-ob { background: #206a5a !important; }
+  .chip { padding: 6px 12px; border-radius: 18px; background: #1c2636; border: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+  .chip.on { background: #1f5fd0; border-color: #6aa0ff; }
+  .rowb { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .lab { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-top: 10px; }
+  /* review */
+  #review .grade { font-family: var(--head); font-size: 74px; font-weight: 800; line-height: .9; float: right; margin-left: 12px; }
+  .gA { color: #4ad88a; } .gB { color: #8ad84a; } .gC { color: #ffd040; } .gD { color: #ff9a3a; } .gF { color: #ff4a4a; }
+  #rvScore { font-family: var(--head); font-size: 22px; color: var(--dim); }
+  #rvOutcome { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: #1a2638; border-left: 3px solid var(--blue); line-height: 1.4; }
+  #rvItems h4 { margin: 12px 0 4px; font-family: var(--head); font-size: 16px; letter-spacing: .05em; color: var(--dim); text-transform: uppercase; }
+  .ri { font-size: 13.5px; padding: 2px 0; display: flex; gap: 8px; } .ri span { width: 14px; text-align: center; font-weight: 800; }
+  .ri.good span { color: var(--green); } .ri.bad span { color: var(--red); } .ri.meh span { color: var(--amber); } .ri em { color: var(--red); font-style: normal; font-size: 11px; margin-left: auto; }
+  #rvPay { margin-top: 12px; font-weight: 700; font-size: 17px; color: var(--amber); } #rvPay .up { margin-top: 6px; color: var(--green); font-size: 14px; }
+  .xpbar { position: relative; height: 22px; border-radius: 11px; background: #1c2636; overflow: hidden; margin: 10px 0; } .xpbar i { display: block; height: 100%; background: linear-gradient(90deg, #1f5fd0, #4aa8ff); } .xpbar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+  /* triage */
+  .tagb { --c: #888; flex: 1; height: 46px; border-radius: 10px; border: 2px solid var(--c); background: rgba(0,0,0,.3); font-weight: 800; }
+  .tagb.on, .tagb:hover { background: var(--c); color: #111; }
+  #triRes { background: #10161e; border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 14px; line-height: 1.5; min-height: 40px; }
+  /* big map */
+  #mapBig { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(90vh, 94vw); height: min(90vh, 94vw); padding: 0; overflow: hidden; }
+  #bigmap { width: 100%; height: 100%; display: block; }
+  /* ---------- menus ---------- */
+  .screen { position: absolute; inset: 0; z-index: 30; display: none; }
+  body[data-state="title"] #title, body[data-state="station"] #station, body[data-state="create"] #create { display: block; }
+  #title { background: linear-gradient(90deg, rgba(5,8,14,.92) 0%, rgba(5,8,14,.55) 45%, rgba(5,8,14,0) 75%); }
+  .tbox { position: absolute; left: max(24px, 6vw); top: 50%; transform: translateY(-50%); width: min(420px, 88vw); }
+  .logo { font-family: var(--head); font-weight: 800; font-size: clamp(54px, 9vw, 96px); line-height: .85; letter-spacing: .01em; }
+  .logo em { font-style: normal; color: var(--red); display: block; }
+  .logo small { display: block; font-size: 16px; color: var(--dim); font-family: var(--sans); font-weight: 600; letter-spacing: .25em; margin-top: 12px; text-transform: uppercase; }
+  .menu { display: flex; flex-direction: column; gap: 8px; margin-top: 26px; }
+  .mb { height: 50px; border-radius: 12px; border: 1px solid var(--line); background: rgba(24,32,46,.9); font-weight: 700; font-size: 17px; text-align: left; padding: 0 18px; }
+  .mb:hover, .mb.focus { background: #26324a; border-color: var(--line2); } .mb.go { background: var(--red2); border-color: #ff8080; }
+  .mb small { font-weight: 500; color: var(--dim); font-size: 12px; margin-left: 8px; }
+  #station, #create { background: rgba(5,8,14,.55); }
+  .sbox { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(880px, calc(100vw - 20px)); height: min(640px, calc(100vh - 20px)); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
+  .shead { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .shead h2 { font-family: var(--head); font-size: 30px; margin: 0; } .money { margin-left: auto; font-family: var(--head); font-size: 22px; color: var(--amber); }
+  .stabs { display: flex; gap: 6px; padding: 8px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .sbody { flex: 1; overflow-y: auto; padding: 14px 18px; }
+  .card { background: #182030; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 4px; }
+  .card.on { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); } .card b { font-size: 15px; } .card span { font-size: 12.5px; color: var(--dim); line-height: 1.35; } .card .price { color: var(--amber); font-weight: 700; font-size: 13px; }
+  .card.locked { opacity: .5; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; } .sw.on { border-color: #fff; }
+  .stat { display: inline-block; margin: 0 16px 8px 0; } .stat b { display: block; font-family: var(--head); font-size: 26px; } .stat span { font-size: 12px; color: var(--dim); }
+  .opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .opt input[type=range] { width: 160px; }
+  .help h3 { font-family: var(--head); margin: 14px 0 6px; } .help p, .help li { font-size: 14px; line-height: 1.45; color: #d0d8e4; }
+  .kbd { display: inline-block; padding: 0 6px; border-radius: 4px; background: #2a3446; border: 1px solid var(--line); font-size: 12px; font-weight: 700; }
+  @media (max-height: 520px) {
+    #ecg, #careBottom { display: none; }
+    #monitor { padding: 4px 10px; } .vb b { font-size: 18px; } #v-rhythm { font-size: 13px; }
+    #careHead { padding: 6px 46px 4px 10px; } #careName { font-size: 18px; } #careSub { font-size: 12px; }
+    #workers { padding: 4px 10px; } .wk { padding: 3px 8px 5px; } #careActs { min-height: 60px; } .act { min-height: 40px; padding: 5px 8px; }
+    #radio, body[data-input="touch"] #radio { top: 76px; bottom: auto !important; width: 40vw; } .rm:nth-last-child(n+3) { display: none; } .rm { font-size: 12px; padding: 3px 7px; }
+    #mapWrap { width: 110px; height: 110px; } #topBtns { right: 132px; } #miniMon { top: 128px; width: 130px; } #tTop { right: 132px; top: 58px; }
+    .tb { width: 64px; height: 64px; } #tGas { height: 90px; }
+  }
+  @media (max-width: 700px) {
+    #tTop { right: 8px; top: 124px; flex-direction: column; } #miniMon { top: auto; bottom: 200px; right: 8px; }
+    body[data-input="touch"] #miniMon { bottom: 300px; }
+    #care { left: 6px; right: 6px; top: auto; bottom: 6px; width: auto; height: 62vh; }
+    #careBottom { display: none; }
+    #topBtns { right: 120px; } #mapWrap { width: 104px; height: 104px; } #miniMon { top: 124px; width: 130px; }
+    #gps { top: 96px; left: 10px; transform: none; max-width: calc(100vw - 80px); } #topLeft { max-width: calc(100vw - 240px); } #clock { font-size: 24px; }
+  }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="nogl" hidden>WebGL isn't available in this browser, so Ricky Rescue can't run here.</div>
+  <div class="hud">
+    <div id="topLeft"><div id="clockRow"><span id="clock">07:00</span><span id="shiftEnd"></span></div><div id="status"></div><div id="statusSub"></div></div>
+    <div id="gps" hidden><div id="gpsArrow" class="arrow"></div><div><div id="gpsText"></div><div id="gpsDist"></div></div></div>
+    <div id="mapWrap" title="Map (M)"><canvas id="minimap" width="340" height="340"></canvas></div>
+    <div id="topBtns"><button class="hbtn btn" id="btnMenu" title="Pause (Esc)">II</button></div>
+    <div id="miniMon" hidden><div class="row"><span class="l">HR</span><span id="mmHR">--</span><span class="l">SpO₂</span><span id="mmSp">--</span></div><div class="row"><span class="l">BP</span><span id="mmBP">--</span></div><div id="mmWho"></div></div>
+    <div id="drive" hidden><div id="speedBox"><div id="speed">0</div><div id="speedU">mph</div><div id="dmg"><i></i></div></div><button id="lsBtn" class="btn">Lights &amp; sirens</button></div>
+    <div id="radio"></div>
+    <div id="toasts"></div>
+    <div id="prompt" hidden></div>
+    <div id="dispatch" hidden><h3>DISPATCH · MEDIC 12</h3><div id="dispText"></div><div class="row"><button class="big go btn" id="btnRespond">Respond (Enter)</button></div></div>
+    <!-- touch -->
+    <div class="touch">
+      <div id="tSteer"><button class="tb btn" data-t="left">◀</button><button class="tb btn" data-t="right">▶</button></div>
+      <div id="tPedals"><button class="tb btn" id="tBrake" data-t="brake">BRK</button><button class="tb btn" id="tGas" data-t="gas">GAS</button></div>
+      <div id="tStick"><div id="tStickBase"><div id="tStickKnob"></div></div></div>
+      <div id="tFoot"><button class="tb btn" data-tap="use">USE</button><button class="tb sm btn" data-tap="cycle">NEXT</button></div>
+      <div id="tTop"><button class="tb sm btn" data-tap="exit">IN/OUT</button><button class="tb sm btn" data-tap="ls">L&amp;S</button><button class="tb sm btn" data-tap="horn">HORN</button><button class="tb sm btn" data-tap="cam">CAM</button></div>
+    </div>
+  </div>
+  <!-- care panel -->
+  <div id="care" class="panel" hidden>
+    <div id="careHead"><div id="careName"></div><div id="careSub"></div><div id="careClock"></div><button class="x btn" id="careX" title="Close (Esc)">✕</button></div>
+    <div id="monitor"><canvas id="ecg" width="420" height="64"></canvas><div id="v-rhythm">No monitor</div>
+      <div id="vitals"><div class="vb" id="v-hr"><span>HR</span><b>--</b><i></i></div><div class="vb" id="v-spo2"><span>SpO₂</span><b>--</b><i></i></div><div class="vb" id="v-bp"><span>BP</span><b>--</b><i></i></div><div class="vb" id="v-rr"><span>RR</span><b>--</b><i></i></div></div></div>
+    <div id="workers">
+      <div class="wk btn" id="w-ricky" data-who="ricky"><span class="who">does next</span><b>Ricky</b><span>Ready</span><button class="stop btn">Stop</button><div class="bar"><i></i></div></div>
+      <div class="wk btn" id="w-partner" data-who="partner"><span class="who">does next</span><b>Marisol</b><span>Ready</span><button class="stop btn">Stop</button><div class="bar"><i></i></div></div>
+    </div>
+    <div id="careTabs"></div>
+    <div id="careActs"></div>
+    <div id="careBottom"><div id="careChart"></div><div id="careLog"></div></div>
+  </div>
+  <div id="cprPad" hidden><button id="cprBtn" class="btn">PUSH</button><div id="cprRate"></div><div id="cprQ"><i></i></div><div class="cprHint">Space / tap at 100–120 a minute</div></div>
+  <!-- rear doors -->
+  <div id="rear" class="panel dlg" hidden><h2>Rear doors</h2><button class="x btn" data-close="rear">✕</button><div class="dim" id="rearStock"></div><div class="grid2" id="rearList"></div></div>
+  <!-- transport -->
+  <div id="transport" class="panel dlg" hidden><h2>Transport</h2><button class="x btn" data-close="transport">✕</button>
+    <div class="dim" id="tpSummary"></div>
+    <div class="lab">Destination</div><div id="tpHosp"></div>
+    <div id="tpDrive"><div class="lab">Who drives</div><div class="rowb"><button class="chip btn" id="tpPartner"></button><button class="chip btn" id="tpRicky"></button></div></div>
+    <div class="lab">Radio ahead</div><div class="rowb" id="tpAlerts"></div>
+    <div class="rowb"><button class="chip btn" id="tpLS"></button></div>
+    <div class="rowb"><button class="big go btn" id="tpGo">Go</button></div>
+  </div>
+  <!-- handoff -->
+  <div id="handoff" class="panel dlg" hidden><h2 id="hoTitle">Handoff</h2><p class="dim">Give the ER team your report.</p><h3 id="hoQ"></h3><div id="hoOpts" class="grid2"></div></div>
+  <!-- triage -->
+  <div id="triage" class="panel dlg" hidden><h2>START triage</h2><button class="x btn" data-close="triage">✕</button><div class="dim" id="triName"></div><div id="triRes"></div><div class="grid2" id="triActs"></div><div class="lab">Tag</div><div class="rowb" id="triTags"></div></div>
+  <!-- review -->
+  <div id="review" class="panel dlg" hidden><div id="rvGrade" class="grade">A</div><h2 id="rvTitle"></h2><div id="rvScore"></div><div id="rvOutcome"></div><div id="rvItems"></div><div id="rvPay"></div><div class="xpbar" id="rvRank"></div><div class="rowb"><button class="big blue btn" id="rvOk">Back in service</button></div></div>
+  <!-- map -->
+  <div id="mapBig" class="panel" hidden><canvas id="bigmap" width="900" height="900"></canvas><button class="x btn" data-close="mapBig">✕</button></div>
+  <!-- pause -->
+  <div id="pause" class="panel dlg" hidden><h2>Paused</h2><div class="menu">
+    <button class="mb btn" id="pResume">Resume</button><button class="mb btn" id="pOptions">Options</button><button class="mb btn" id="pHelp">How to play</button>
+    <button class="mb btn" id="pEnd">End shift and go back to the station</button><button class="mb btn" id="pQuit">Save and quit to title</button></div></div>
+  <div id="options" class="panel dlg" hidden><h2>Options</h2><button class="x btn" data-close="options">✕</button><div id="optList"></div></div>
+  <div id="help" class="panel dlg help" hidden><h2>How to play</h2><button class="x btn" data-close="help">✕</button><div id="helpBody"></div></div>
+  <div id="shiftOver" class="panel dlg" hidden><h2>Shift complete</h2><div id="soBody"></div><div class="rowb"><button class="big blue btn" id="soOk">Back to the station</button></div></div>
+  <!-- screens -->
+  <div id="title" class="screen"><div class="tbox"><div class="logo">RICKY<em>RESCUE</em><small>EMT &amp; Paramedic Simulator</small></div>
+    <div class="menu" id="titleMenu"></div><p class="dim" style="font-size:12px;margin-top:18px">Keyboard &amp; mouse, gamepad or touch. Not medical training: protocols are simplified for play.</p></div></div>
+  <div id="create" class="screen"><div class="sbox"><div class="shead"><h2>New career</h2></div><div class="sbody" id="createBody"></div></div></div>
+  <div id="station" class="screen"><div class="sbox"><div class="shead"><h2>Station 12</h2><span class="dim" id="stRank"></span><span class="money" id="stMoney"></span></div><div class="stabs" id="stTabs"></div><div class="sbody" id="stBody"></div></div></div>
+  <div id="fade"></div>
+</div>
