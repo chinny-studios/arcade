@@ -1,0 +1,43 @@
+// Screenshot of every chapter's opening view (dialogue box hidden). node test/smoke.mjs --steps test/look.js
+window.__look = async (id, ci) => { await TA.go(id, ci); TA.sim(0.6); document.getElementById('dlg').style.visibility = 'hidden'; document.getElementById('banner').style.visibility = 'hidden'; TA.sim(0.2); TA.render(); };
+await TA.go('giza', 0); TA.f.enterHub(); TA.sim(0.6); TA.render();
+//--- shot look_hub
+await __look('giza', 0);
+//--- shot look_giza_0
+await __look('giza', 1);
+//--- shot look_giza_1
+await __look('giza', 2);
+//--- shot look_giza_2
+await __look('giza', 3);
+//--- shot look_giza_3
+await __look('giza', 4);
+//--- shot look_giza_4
+await __look('mainz', 0);
+//--- shot look_mainz_0
+await __look('mainz', 1);
+//--- shot look_mainz_1
+await __look('mainz', 2);
+//--- shot look_mainz_2
+await __look('mainz', 3);
+//--- shot look_mainz_3
+await __look('mainz', 4);
+//--- shot look_mainz_4
+await __look('kittyhawk', 0);
+//--- shot look_kittyhawk_0
+await __look('kittyhawk', 1);
+//--- shot look_kittyhawk_1
+await __look('kittyhawk', 2);
+//--- shot look_kittyhawk_2
+await __look('kittyhawk', 3);
+//--- shot look_kittyhawk_3
+await __look('kittyhawk', 4);
+//--- shot look_kittyhawk_4
+await __look('apollo11', 0);
+//--- shot look_apollo11_0
+await __look('apollo11', 1);
+//--- shot look_apollo11_1
+await __look('apollo11', 2);
+//--- shot look_apollo11_2
+await __look('apollo11', 3);
+//--- shot look_apollo11_3
+document.getElementById('dlg').style.visibility = ''; document.getElementById('banner').style.visibility = ''; return 'ok';
