@@ -130,7 +130,7 @@ const NPC = {
       const e = W.edges[i], A = W.nodes[e.a], B = W.nodes[e.b];
       const mx = (A.x + B.x) / 2, mz = (A.z + B.z) / 2;
       if (dist2(mx, mz, PL.x, PL.z) > R2 + e.len * e.len * 0.25) continue;
-      if (e.kind === 'house') continue;
+      if (e.kind === 'house' || e.off) continue;
       const zf = ZONEF[e.zone] || 1, near = clamp(1.7 - Math.sqrt(dist2(mx, mz, PL.x, PL.z)) / 90, 0.25, 1.7);
       const ww = e.len * e.dens * zf * near * (e.kind === 'plaza' ? 0.6 : 1);
       this.edgesNear.push([i, ww]); w += ww;

@@ -32,7 +32,7 @@ function temple(F, o) {
     const sw = o.stairW || w - 2, n = Math.max(2, Math.ceil(ph / 0.3));
     K.stairs(gb, F, 0, 0, -d / 2, sw, n, ph / n, 0.36, -1, o.stairCol || mar);
     if (o.stairW && o.stairW < w - 2) { // side cheek walls
-      for (const s of [-1, 1]) K.tbox(gb, F, s * (sw / 2 + 0.6), 0, -d / 2 - n * 0.18, 1.2, n * 0.36, 1.2, 0.01, ph, o.pod || C.trav2, { ov: n * 0.18 - 0.2 });
+      for (const s of [-1, 1]) K.tbox(gb, F, s * (sw / 2 + 0.6), 0, -d / 2 - n * 0.18, 1.2, n * 0.36, 1.2, 0.01, ph, o.pod || C.trav2, { ov: n * 0.18 - 0.2, solid: true });
     }
   }
   const nc = o.cols, sp = (w - 2 * m) / (nc - 1);
@@ -91,8 +91,8 @@ function tholos(F, o) {
     K.column(gb, F, Math.cos(a) * rr, ph, Math.sin(a) * rr, ch, cr, o.order || 'c', mar);
   }
   K.cyl(gb, F, 0, ph, 0, rc, rc, ch, 20, o.cella || mar, { solid: true });
-  K.cyl(gb, F, 0, ph + ch, 0, rr + cr * 1.4, rr + cr * 1.4, ch * 0.18, 24, mar);
-  K.cyl(gb, F, 0, ph + ch * 1.18, 0, rr + cr * 1.8, 0.8, o.roofH || rr * 0.55, 24, o.roof || C.bronze, { top: false });
+  K.cyl(gb, F, 0, ph + ch, 0, rr + cr * 1.4, rr + cr * 1.4, ch * 0.18, 24, mar, { bot: true }); // seen from the colonnade
+  K.cyl(gb, F, 0, ph + ch * 1.18, 0, rr + cr * 1.8, 0.8, o.roofH || rr * 0.55, 24, o.roof || C.bronze, { top: false, bot: true });
   if (o.smoke) K.cyl(gb, F, 0, ph + ch * 1.18 + (o.roofH || rr * 0.55) - 0.4, 0, 0.9, 0.7, 0.8, 8, shadeHex(o.roof || C.bronze, 0.8));
   K.panel(gb, F, 0, ph, -rc - 0.03, 2.2, ch * 0.55, 0x2a1d14, -1);
   mapCircle(F.x, F.z, rp, '#e6dccb');
@@ -182,13 +182,16 @@ function porticus(F, o) {
       wall(gb, S, -L / 2, 0, -L / 2 + a, 0, 0, wallH, 1, wc);
       wall(gb, S, L / 2 - a, 0, L / 2, 0, 0, wallH, 1, wc);
       K.box(gb, S, 0, ch, 0, gap.w, wallH - ch, 1, wc);
-      if (gap.prop) K.box(gb, S, 0, 0, -dep - 1.2, gap.w + 2, ch + 3.2, 1.6, mar, { skip: 'b' });
+      if (gap.prop) { // a gateway in front of the opening: two piers and the beam across
+        for (const k of [-1, 1]) K.box(gb, S, k * (gap.w / 2 + 0.5), 0, -dep - 1.2, 1, ch + 3.2, 1.6, mar, { solid: true });
+        K.box(gb, S, 0, ch, -dep - 1.2, gap.w, 3.2, 1.6, mar);
+      }
     } else wall(gb, S, -L / 2, 0, L / 2, 0, 0, wallH, 1, wc);
     if (o.exedra && o.exedra.includes(key)) K.ring(gb, S, 0, 0, 0.5, o.exR - 1, o.exR, wallH, 18, wc, { solid: true, gaps: [[S.ang - Math.PI + 0.01, S.ang - 0.01]] });
     const n = Math.max(2, Math.round((L - 2 * dep) / sp));
     K.colonnade(gb, S, -L / 2 + dep, -dep, L / 2 - dep, -dep, n + 1, 0, ch, cr, o.order || 'c', mar);
     K.box(gb, S, 0, ch, -dep / 2 + 0.1, L - (key === 'l' || key === 'r' ? 0 : 0), 0.8, dep + 0.6, mar, { skip: '' });
-    K.tbox(gb, S, 0, ch + 0.8, -dep / 2 + 0.3, L, dep + 0.6, L, 0.01, 1.4, C.tile, { ov: (dep + 0.6) / 2 - 0.3 });
+    K.tbox(gb, S, 0, ch + 0.8, -dep / 2 + 0.1, L, dep + 0.6, L, 0.01, 1.4, C.tile, { ov: dep / 2 + 0.1 }); // back edge inside the wall
     if (o.floor !== false) pavement(S, 0, -dep / 2, L - 0.5, dep - 0.5, C.trav, { yo: 0.08, slab: 2.5, layer: 'mon' });
   };
   // each side's own frame has the back wall on its v = 0 line and the colonnade toward -v (the courtyard)

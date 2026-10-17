@@ -179,7 +179,29 @@ function buildArenas() {
     for (let i = 0; i < NB; i++) {
       const t0 = (i / NB) * TAU, t1 = ((i + 1) / NB) * TAU;
       const P = (k, t) => { const [u, v] = ell(k, t); return [Cf.wx(u, v), Cf.y + H[0] - 0.2, Cf.wz(u, v)]; };
-      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xa89a7c, [Cf.x, Cf.y + 100, Cf.z], -1);
+      // a slab with both faces: the ceiling of the gallery below and the floor of the one above
+      const up = [P(0.5, t0)[0], Cf.y + H[0] + 50, P(0.5, t0)[2]];
+      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xa89a7c, up, 1);
+      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xb3a588, up, -1);
+      // and over the upper galleries, out to the vault wall behind them
+      for (const y of [H[0] + H[1] - 0.2, H[0] + H[1] + H[2] - 0.2]) {
+        const Q = (k, t) => { const [u, v] = ell(k, t); return [Cf.wx(u, v), Cf.y + y, Cf.wz(u, v)]; };
+        gb.quad(Q(0.99, t0), Q(0.99, t1), Q(0.935, t1), Q(0.935, t0), 0x9a8c70, [Cf.x, Cf.y + y + 100, Cf.z], 1);
+        gb.quad(Q(0.99, t0), Q(0.99, t1), Q(0.935, t1), Q(0.935, t0), 0xa89a7c, [Cf.x, Cf.y + y + 100, Cf.z], -1);
+      }
+    }
+    // the inner wall of the ambulatory, closing off the vaults under the seats; open where the four gate passages
+    // run through (up to their vaults)
+    const span = gates.map((gI) => { const t = (gI / NB) * TAU; return [t, 3.6 / (Math.abs(Math.cos(t)) * B0 + Math.abs(Math.sin(t)) * A0) / 0.85]; });
+    const ts = []; for (let i = 0; i <= NB; i++) ts.push((i / NB) * TAU);
+    for (const [t, dt] of span) ts.push(t - dt, t + dt);
+    ts.sort((a, b) => a - b);
+    const inGate = (t) => span.some(([c, dt]) => Math.abs(angWrap(t - c)) < dt);
+    for (let i = 0; i + 1 < ts.length; i++) {
+      const t0 = ts[i], t1 = ts[i + 1]; if (t1 - t0 < 1e-4) continue;
+      const P = (t, y) => { const [u, v] = ell(0.85, t); return [Cf.wx(u, v), Cf.y + y, Cf.wz(u, v)]; };
+      const y0 = inGate((t0 + t1) / 2) ? 7.8 : 0;
+      gb.quad(P(t0, y0), P(t1, y0), P(t1, H[0]), P(t0, H[0]), 0x8e8068, [Cf.x, Cf.y + 5, Cf.z]);
     }
   }
   // the cavea: stepped seating, four ranks separated by walkways

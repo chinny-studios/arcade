@@ -476,9 +476,24 @@ const mixHex = (a, b, t) => { const A = hex3(a), B = hex3(b); return ((lerp(A[0]
 // world point from frame + local, with an optional extra rotation (ra) about (cu, cv)
 function _wp(F, u, y, v) { return [F.wx(u, v), F.y + y, F.wz(u, v)]; }
 const K = {
+  // While the world is built (buildWorld turns this on), a box or tapered block whose base is clear of the ground
+  // gets its underside too: from below you'd otherwise see into cornices, ledges, lintels and eaves.
+  closeRaised: false,
+  raised(F, u, y, v) { return K.closeRaised && F.y + y > groundAt(F.wx(u, v), F.wz(u, v)) + 0.25; },
+  // A box standing on the ground somewhere under it, where the ground falls away elsewhere (a wall along a slope),
+  // reaches down to the lowest ground under it rather than floating there: how far to lower its base.
+  sink(F, u, y, v, w, d, ca, sa) {
+    const b = F.y + y; let lo = Infinity, hi = -Infinity;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const lu = i * w / 2, lv = j * d / 2, g = groundAt(F.wx(u + lu * ca - lv * sa, v + lu * sa + lv * ca), F.wz(u + lu * ca - lv * sa, v + lu * sa + lv * ca));
+      lo = Math.min(lo, g); hi = Math.max(hi, g);
+    }
+    return hi > b - 0.3 && lo < b - 0.02 ? Math.min(10, b - lo + 0.05) : 0;
+  },
   // axis-aligned (in frame) box: centre (u, v), bottom y, sizes w (u) × h × d (v). o: { ra, solid, skip:'b'|'bt', top }
   box(gb, F, u, y, v, w, h, d, hex, o) {
     const ra = (o && o.ra) || 0, ca = Math.cos(ra), sa = Math.sin(ra);
+    if (K.closeRaised) { const dy = K.sink(F, u, y, v, w, d, ca, sa); y -= dy; h += dy; }
     const P = [];
     for (let k = 0; k < 8; k++) {
       const lu = (k & 1 ? 0.5 : -0.5) * w, lv = (k & 2 ? 0.5 : -0.5) * d, ly = k & 4 ? h : 0;
@@ -486,7 +501,8 @@ const K = {
       P.push([F.wx(uu, vv), F.y + y + ly, F.wz(uu, vv)]);
     }
     const ref = [F.wx(u, v), F.y + y + h / 2, F.wz(u, v)];
-    const skip = o && o.skip != null ? o.skip : 'b'; // skip: '' draws every face, including the underside
+    // skip: '' draws every face; by default the underside is left out, unless the box is raised off the ground
+    const skip = o && o.skip != null ? o.skip : K.raised(F, u, y, v) ? '' : 'b';
     const top = o && o.top != null ? o.top : hex;
     gb.quad(P[4], P[5], P[7], P[6], top, ref);
     if (skip.indexOf('b') < 0) gb.quad(P[0], P[1], P[3], P[2], hex, ref);
@@ -505,33 +521,34 @@ const K = {
     const T = [L(-wt / 2 + ou, -dt / 2 + ov, h), L(wt / 2 + ou, -dt / 2 + ov, h), L(wt / 2 + ou, dt / 2 + ov, h), L(-wt / 2 + ou, dt / 2 + ov, h)];
     const ref = L(ou / 2, ov / 2, h * 0.4);
     gb.quad(T[0], T[1], T[2], T[3], (o && o.top) || hex, ref);
-    if (o && o.bottom) gb.quad(B[0], B[1], B[2], B[3], hex, ref);
+    if (o && o.bottom != null ? o.bottom : K.raised(F, u, y, v)) gb.quad(B[0], B[1], B[2], B[3], hex, ref);
     for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; gb.quad(B[i], B[j], T[j], T[i], hex, ref); }
     if (o && o.solid) solidBox(F, u, v, wb, db, y, y + h, ra, true);
   },
   // gable roof: ridge along u (or along v with o.alongV). overhang included in w/d. eaves at y, ridge at y+h.
+  // The underside (o.under, default a dark timber shade; false for none) is what you see under the eaves.
   gable(gb, F, u, y, v, w, d, h, hex, o) {
     const alongV = o && o.alongV;
     const L = (lu, lv, ly) => [F.wx(u + lu, v + lv), F.y + y + ly, F.wz(u + lu, v + lv)];
     const ref = L(0, 0, -1);
-    const side = (o && o.side) || shadeHex(hex, 0.85);
+    const side = (o && o.side) || shadeHex(hex, 0.85), under = o && o.under != null ? o.under : shadeHex(hex, 0.55);
     if (!alongV) {
       const a = L(-w / 2, -d / 2, 0), b = L(w / 2, -d / 2, 0), c = L(w / 2, 0, h), e = L(-w / 2, 0, h), f = L(-w / 2, d / 2, 0), g = L(w / 2, d / 2, 0);
       gb.quad(a, b, c, e, hex, ref); gb.quad(f, g, c, e, hex, ref);
       gb.triR(a, f, e, side, ref); gb.triR(b, g, c, side, ref);
-      if (o && o.under) { gb.quad(a, b, g, f, o.under, L(0, 0, 1)); }
+      if (under !== false) gb.quad(a, b, g, f, under, L(0, 0, 1));
     } else {
       const a = L(-w / 2, -d / 2, 0), b = L(-w / 2, d / 2, 0), c = L(0, d / 2, h), e = L(0, -d / 2, h), f = L(w / 2, -d / 2, 0), g = L(w / 2, d / 2, 0);
       gb.quad(a, b, c, e, hex, ref); gb.quad(f, g, c, e, hex, ref);
       gb.triR(a, f, e, side, ref); gb.triR(b, g, c, side, ref);
-      if (o && o.under) { gb.quad(a, b, g, f, o.under, L(0, 0, 1)); }
+      if (under !== false) gb.quad(a, b, g, f, under, L(0, 0, 1));
     }
   },
-  // hipped/pyramidal tile roof
+  // hipped/pyramidal tile roof, closed underneath (the eaves overhang the walls)
   hip(gb, F, u, y, v, w, d, h, hex) {
-    const rw = Math.max(0.01, w - d), rd = 0.01;
-    if (w >= d) K.tbox(gb, F, u, y, v, w, d, Math.max(0.01, w - d), rd, h, hex);
-    else K.tbox(gb, F, u, y, v, w, d, rd, Math.max(0.01, d - w), h, hex);
+    const rw = Math.max(0.01, w - d), rd = 0.01, o = { bottom: true };
+    if (w >= d) K.tbox(gb, F, u, y, v, w, d, Math.max(0.01, w - d), rd, h, hex, o);
+    else K.tbox(gb, F, u, y, v, w, d, rd, Math.max(0.01, d - w), h, hex, o);
     return rw;
   },
   // cylinder / frustum; seg sides; caps optional (o.top false to skip top, o.bot true for bottom)
@@ -554,6 +571,7 @@ const K = {
     const cx = F.wx(u, v), cz = F.wz(u, v), y0 = F.y + y, y1 = y0 + h;
     const gaps = (o && o.gaps) || [];
     const inGap = (a) => gaps.some((g) => angWrap(a - g[0]) >= 0 && angWrap(a - g[0]) <= angWrap(g[1] - g[0]));
+    const bot = o && o.bot != null ? o.bot : K.closeRaised && y0 > groundAt(cx + r1, cz) + 0.25; // a raised ring (a cornice) is closed underneath
     for (let i = 0; i < seg; i++) {
       const a = (i / seg) * TAU, b = ((i + 1) / seg) * TAU, m = (a + b) / 2;
       if (inGap(m)) continue;
@@ -564,6 +582,7 @@ const K = {
       gb.quad(o0, o1, o2, o3, (o && o.outHex) || hex, c, 1);
       gb.quad(i0, i1, i2, i3, (o && o.inHex) || hex, c, -1);
       gb.quad(i3, i2, o2, o3, (o && o.topHex) || hex, [cx, y0, cz], 1);
+      if (bot) gb.quad(i0, i1, o1, o0, hex, [cx, y1, cz], 1);
       if (inGap(m + TAU / seg)) gb.quad(i1, o1, o2, i2, hex, [cx + Math.cos(m) * (r0 + r1) / 2, y0 + h / 2, cz + Math.sin(m) * (r0 + r1) / 2]);
       if (inGap(m - TAU / seg)) gb.quad(i0, o0, o3, i3, hex, [cx + Math.cos(m) * (r0 + r1) / 2, y0 + h / 2, cz + Math.sin(m) * (r0 + r1) / 2]);
     }
@@ -594,20 +613,23 @@ const K = {
     const capH = order === 'c' ? r * 2.2 : order === 'i' ? r * 1.0 : r * 0.9;
     const baseH = order === 'd' ? r * 0.3 : r * 0.6;
     const shaft = (o && o.shaftHex) || hex;
+    // the base moulding narrows to the shaft and the capital starts at the shaft's top, so no open rim shows; the
+    // abacus and volutes overhang, so they are closed underneath
+    const all = { skip: '' };
     K.box(gb, F, u, y, v, r * 2.7, baseH * 0.5, r * 2.7, hex);
-    K.cyl(gb, F, u, y + baseH * 0.5, v, r * 1.3, r * 1.12, baseH * 0.5, seg, hex, { top: false });
+    K.cyl(gb, F, u, y + baseH * 0.5, v, r * 1.3, r, baseH * 0.5, seg, hex, { top: false });
     K.cyl(gb, F, u, y + baseH, v, r, r * 0.86, h - baseH - capH, seg, shaft, { top: false });
     const cy = y + h - capH;
     if (order === 'c') {
-      K.cyl(gb, F, u, cy, v, r * 0.9, r * 1.35, capH * 0.82, seg, hex, { top: false });
-      K.box(gb, F, u, cy + capH * 0.82, v, r * 2.9, capH * 0.18, r * 2.9, hex);
+      K.cyl(gb, F, u, cy, v, r * 0.86, r * 1.35, capH * 0.82, seg, hex, { top: false });
+      K.box(gb, F, u, cy + capH * 0.82, v, r * 2.9, capH * 0.18, r * 2.9, hex, all);
     } else if (order === 'i') {
-      K.cyl(gb, F, u, cy, v, r * 0.9, r * 1.1, capH * 0.45, seg, hex, { top: false });
-      K.box(gb, F, u, cy + capH * 0.4, v, r * 3.0, capH * 0.42, r * 1.7, hex);
-      K.box(gb, F, u, cy + capH * 0.82, v, r * 2.5, capH * 0.18, r * 2.5, hex);
+      K.cyl(gb, F, u, cy, v, r * 0.86, r * 1.1, capH * 0.45, seg, hex, { top: false });
+      K.box(gb, F, u, cy + capH * 0.4, v, r * 3.0, capH * 0.42, r * 1.7, hex, all);
+      K.box(gb, F, u, cy + capH * 0.82, v, r * 2.5, capH * 0.18, r * 2.5, hex, all);
     } else {
-      K.cyl(gb, F, u, cy, v, r * 0.88, r * 1.25, capH * 0.5, seg, hex, { top: false });
-      K.box(gb, F, u, cy + capH * 0.5, v, r * 2.6, capH * 0.5, r * 2.6, hex);
+      K.cyl(gb, F, u, cy, v, r * 0.86, r * 1.25, capH * 0.5, seg, hex, { top: false });
+      K.box(gb, F, u, cy + capH * 0.5, v, r * 2.6, capH * 0.5, r * 2.6, hex, all);
     }
     if (o && o.solid !== false) solidCircle(F.wx(u, v), F.wz(u, v), r * 1.25, F.y + y, F.y + y + h, true);
   },
@@ -1225,6 +1247,30 @@ function addEdge(a, b, o) {
   W.edges.push(e); const i = W.edges.length - 1; A.e.push(i); B.e.push(i);
   return i;
 }
+// Is a walk from a to b possible for someone who climbs at most a step at a time, as the player does? Used to take
+// out of the graph the edges that would lead people through a wall, a pier, a stair cheek or up a ledge.
+function walkable(ax, az, bx, bz) {
+  const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 0.4));
+  let y = floorAt(ax, az);
+  for (let i = 0; i <= n; i++) {
+    const x = lerp(ax, bx, i / n), z = lerp(az, bz, i / n);
+    y = surfaceAt(x, z, y);
+    for (const s of solidsNear(x, z, 0.5)) if (s.y1 > y + STEP && s.y0 < y + 1.7 && insideSolid(s, x, z, 0.2)) return false;
+  }
+  return true;
+}
+function pruneNav() {
+  // a node inside a wall or a podium moves out to its edge first
+  for (const N of W.nodes) if (!clearAt(N.x, N.z, 0.3)) [N.x, N.z] = collideCircle(N.x, N.z, 0.45, floorAt(N.x, N.z));
+  for (const e of W.edges) { const A = W.nodes[e.a], B = W.nodes[e.b]; e.len = Math.max(0.5, Math.hypot(B.x - A.x, B.z - A.z)); }
+  let n = 0;
+  W.edges.forEach((e, i) => {
+    const A = W.nodes[e.a], B = W.nodes[e.b];
+    if (walkable(A.x, A.z, B.x, B.z) && walkable(B.x, B.z, A.x, A.z)) return;
+    e.off = true; A.e = A.e.filter((k) => k !== i); B.e = B.e.filter((k) => k !== i); n++;
+  });
+  return n;
+}
 // long segments are split every ~36 m so spawning and route choice work along country roads too
 function addPath(pts, o) {
   let prev = addNode(pts[0][0], pts[0][1]);
@@ -1269,9 +1315,12 @@ function street(pts, o) {
         if (a1 > a0) for (const sg of [-1, 1]) {
           const i0 = sg * hw, o0 = sg * (hw + sw);
           _upQuad(gbs, P(a0, i0, 0.16), P(a1, i0, 0.16), P(a1, o0, 0.16), P(a0, o0, 0.16), C.kerb);
-          // kerb face
-          const q0 = P(a0, i0, 0), q1 = P(a1, i0, 0), q2 = P(a1, i0, 0.16), q3 = P(a0, i0, 0.16);
-          gbs.quad(q0, q1, q2, q3, shadeHex(C.kerb, 0.8), [ax + dx * (a0 + a1) / 2 - nx * sg * 2, q0[1] + 0.08, az + dz * (a0 + a1) / 2 - nz * sg * 2], -1);
+          // kerb face, the outer edge, and the ends where the walk stops (at a trim, a bend or the end of the street)
+          const kc = shadeHex(C.kerb, 0.8), mid = [ax + dx * (a0 + a1) / 2 + nx * (i0 + o0) / 2, P(a0, i0, 0)[1] + 0.08, az + dz * (a0 + a1) / 2 + nz * (i0 + o0) / 2];
+          gbs.quad(P(a0, i0, 0), P(a1, i0, 0), P(a1, i0, 0.16), P(a0, i0, 0.16), kc, mid);
+          gbs.quad(P(a0, o0, -0.1), P(a1, o0, -0.1), P(a1, o0, 0.16), P(a0, o0, 0.16), kc, mid);
+          if (k === 0 || a0 > s0) gbs.quad(P(a0, i0, 0), P(a0, o0, -0.1), P(a0, o0, 0.16), P(a0, i0, 0.16), kc, mid);
+          if (k === n - 1 || a1 < s1) gbs.quad(P(a1, i0, 0), P(a1, o0, -0.1), P(a1, o0, 0.16), P(a1, i0, 0.16), kc, mid);
         }
       }
     }
@@ -1419,7 +1468,7 @@ function temple(F, o) {
     const sw = o.stairW || w - 2, n = Math.max(2, Math.ceil(ph / 0.3));
     K.stairs(gb, F, 0, 0, -d / 2, sw, n, ph / n, 0.36, -1, o.stairCol || mar);
     if (o.stairW && o.stairW < w - 2) { // side cheek walls
-      for (const s of [-1, 1]) K.tbox(gb, F, s * (sw / 2 + 0.6), 0, -d / 2 - n * 0.18, 1.2, n * 0.36, 1.2, 0.01, ph, o.pod || C.trav2, { ov: n * 0.18 - 0.2 });
+      for (const s of [-1, 1]) K.tbox(gb, F, s * (sw / 2 + 0.6), 0, -d / 2 - n * 0.18, 1.2, n * 0.36, 1.2, 0.01, ph, o.pod || C.trav2, { ov: n * 0.18 - 0.2, solid: true });
     }
   }
   const nc = o.cols, sp = (w - 2 * m) / (nc - 1);
@@ -1478,8 +1527,8 @@ function tholos(F, o) {
     K.column(gb, F, Math.cos(a) * rr, ph, Math.sin(a) * rr, ch, cr, o.order || 'c', mar);
   }
   K.cyl(gb, F, 0, ph, 0, rc, rc, ch, 20, o.cella || mar, { solid: true });
-  K.cyl(gb, F, 0, ph + ch, 0, rr + cr * 1.4, rr + cr * 1.4, ch * 0.18, 24, mar);
-  K.cyl(gb, F, 0, ph + ch * 1.18, 0, rr + cr * 1.8, 0.8, o.roofH || rr * 0.55, 24, o.roof || C.bronze, { top: false });
+  K.cyl(gb, F, 0, ph + ch, 0, rr + cr * 1.4, rr + cr * 1.4, ch * 0.18, 24, mar, { bot: true }); // seen from the colonnade
+  K.cyl(gb, F, 0, ph + ch * 1.18, 0, rr + cr * 1.8, 0.8, o.roofH || rr * 0.55, 24, o.roof || C.bronze, { top: false, bot: true });
   if (o.smoke) K.cyl(gb, F, 0, ph + ch * 1.18 + (o.roofH || rr * 0.55) - 0.4, 0, 0.9, 0.7, 0.8, 8, shadeHex(o.roof || C.bronze, 0.8));
   K.panel(gb, F, 0, ph, -rc - 0.03, 2.2, ch * 0.55, 0x2a1d14, -1);
   mapCircle(F.x, F.z, rp, '#e6dccb');
@@ -1569,13 +1618,16 @@ function porticus(F, o) {
       wall(gb, S, -L / 2, 0, -L / 2 + a, 0, 0, wallH, 1, wc);
       wall(gb, S, L / 2 - a, 0, L / 2, 0, 0, wallH, 1, wc);
       K.box(gb, S, 0, ch, 0, gap.w, wallH - ch, 1, wc);
-      if (gap.prop) K.box(gb, S, 0, 0, -dep - 1.2, gap.w + 2, ch + 3.2, 1.6, mar, { skip: 'b' });
+      if (gap.prop) { // a gateway in front of the opening: two piers and the beam across
+        for (const k of [-1, 1]) K.box(gb, S, k * (gap.w / 2 + 0.5), 0, -dep - 1.2, 1, ch + 3.2, 1.6, mar, { solid: true });
+        K.box(gb, S, 0, ch, -dep - 1.2, gap.w, 3.2, 1.6, mar);
+      }
     } else wall(gb, S, -L / 2, 0, L / 2, 0, 0, wallH, 1, wc);
     if (o.exedra && o.exedra.includes(key)) K.ring(gb, S, 0, 0, 0.5, o.exR - 1, o.exR, wallH, 18, wc, { solid: true, gaps: [[S.ang - Math.PI + 0.01, S.ang - 0.01]] });
     const n = Math.max(2, Math.round((L - 2 * dep) / sp));
     K.colonnade(gb, S, -L / 2 + dep, -dep, L / 2 - dep, -dep, n + 1, 0, ch, cr, o.order || 'c', mar);
     K.box(gb, S, 0, ch, -dep / 2 + 0.1, L - (key === 'l' || key === 'r' ? 0 : 0), 0.8, dep + 0.6, mar, { skip: '' });
-    K.tbox(gb, S, 0, ch + 0.8, -dep / 2 + 0.3, L, dep + 0.6, L, 0.01, 1.4, C.tile, { ov: (dep + 0.6) / 2 - 0.3 });
+    K.tbox(gb, S, 0, ch + 0.8, -dep / 2 + 0.1, L, dep + 0.6, L, 0.01, 1.4, C.tile, { ov: dep / 2 + 0.1 }); // back edge inside the wall
     if (o.floor !== false) pavement(S, 0, -dep / 2, L - 0.5, dep - 0.5, C.trav, { yo: 0.08, slab: 2.5, layer: 'mon' });
   };
   // each side's own frame has the back wall on its v = 0 line and the colonnade toward -v (the courtyard)
@@ -2137,7 +2189,29 @@ function buildArenas() {
     for (let i = 0; i < NB; i++) {
       const t0 = (i / NB) * TAU, t1 = ((i + 1) / NB) * TAU;
       const P = (k, t) => { const [u, v] = ell(k, t); return [Cf.wx(u, v), Cf.y + H[0] - 0.2, Cf.wz(u, v)]; };
-      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xa89a7c, [Cf.x, Cf.y + 100, Cf.z], -1);
+      // a slab with both faces: the ceiling of the gallery below and the floor of the one above
+      const up = [P(0.5, t0)[0], Cf.y + H[0] + 50, P(0.5, t0)[2]];
+      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xa89a7c, up, 1);
+      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xb3a588, up, -1);
+      // and over the upper galleries, out to the vault wall behind them
+      for (const y of [H[0] + H[1] - 0.2, H[0] + H[1] + H[2] - 0.2]) {
+        const Q = (k, t) => { const [u, v] = ell(k, t); return [Cf.wx(u, v), Cf.y + y, Cf.wz(u, v)]; };
+        gb.quad(Q(0.99, t0), Q(0.99, t1), Q(0.935, t1), Q(0.935, t0), 0x9a8c70, [Cf.x, Cf.y + y + 100, Cf.z], 1);
+        gb.quad(Q(0.99, t0), Q(0.99, t1), Q(0.935, t1), Q(0.935, t0), 0xa89a7c, [Cf.x, Cf.y + y + 100, Cf.z], -1);
+      }
+    }
+    // the inner wall of the ambulatory, closing off the vaults under the seats; open where the four gate passages
+    // run through (up to their vaults)
+    const span = gates.map((gI) => { const t = (gI / NB) * TAU; return [t, 3.6 / (Math.abs(Math.cos(t)) * B0 + Math.abs(Math.sin(t)) * A0) / 0.85]; });
+    const ts = []; for (let i = 0; i <= NB; i++) ts.push((i / NB) * TAU);
+    for (const [t, dt] of span) ts.push(t - dt, t + dt);
+    ts.sort((a, b) => a - b);
+    const inGate = (t) => span.some(([c, dt]) => Math.abs(angWrap(t - c)) < dt);
+    for (let i = 0; i + 1 < ts.length; i++) {
+      const t0 = ts[i], t1 = ts[i + 1]; if (t1 - t0 < 1e-4) continue;
+      const P = (t, y) => { const [u, v] = ell(0.85, t); return [Cf.wx(u, v), Cf.y + y, Cf.wz(u, v)]; };
+      const y0 = inGate((t0 + t1) / 2) ? 7.8 : 0;
+      gb.quad(P(t0, y0), P(t1, y0), P(t1, H[0]), P(t0, H[0]), 0x8e8068, [Cf.x, Cf.y + 5, Cf.z]);
     }
   }
   // the cavea: stepped seating, four ranks separated by walkways
@@ -2578,7 +2652,7 @@ function buildCampus() {
     for (const y of [12, 22, 30]) K.ring(g, R0, 0, y - 0.6, 0, ro - 0.2, ro + 0.5, 0.8, 40, C.marble2, { gaps: [[doorA - 0.16, doorA + 0.16]] });
     // the dome: stepped rings outside, coffers inside, the oculus open to the sky
     for (let k = 0; k < 6; k++) K.cyl(g, R0, 0, 30 + k * 1.6, 0, ro - k * 1.6, ro - (k + 1) * 1.6, 1.6, 40, k < 3 ? C.marble2 : 0x9aa6a6, { top: false });
-    K.dome(g, R0, 0, 39.6, 0, ri - 1.6, 36, 6, 0x9aa6a6, { oculus: 4.6, squash: 0.48 });
+    K.dome(g, R0, 0, 39.6, 0, ro - 6 * 1.6, 36, 6, 0x9aa6a6, { oculus: 4.6, squash: 0.525 }); // springs from the top step
     K.dome(g, R0, 0, ri, 0, ri, 28, 8, 0xd6cdb9, { inside: true, oculus: 4.4, coffer: true });
     K.ring(g, R0, 0, 43.0, 0, 4.4, 5, 0.8, 24, C.bronze);
     // inside: the floor of porphyry and granite squares, niches with columns
@@ -2737,6 +2811,7 @@ function theatre(F, R, H, kind) {
     let y = 0;
     for (let s = 0; s < 3; s++) {
       const h = H / 3; K.box(g, B, -L / 2, y, 0, 1.8, h, 2, C.trav, { solid: s === 0, skip: 'b' });
+      if (i === nb - 1) K.box(g, B, L / 2, y, 0, 1.8, h, 2, C.trav, { solid: s === 0, skip: 'b' }); // the pier closing the last bay
       K.archTop(g, B, 0, 0, y + h * 0.62, (L - 1.8) / 2, y + h - 0.8, 2, C.trav, 6); K.box(g, B, 0, y + h - 0.8, -0.2, L, 0.8, 2.4, C.trav2); y += h;
     }
     K.box(g, B.sub(0, 4, 0, B.y), 0, 0, 0, L + 0.1, H, 0.6, 0x7a6a52);
@@ -4472,7 +4547,7 @@ const NPC = {
       const e = W.edges[i], A = W.nodes[e.a], B = W.nodes[e.b];
       const mx = (A.x + B.x) / 2, mz = (A.z + B.z) / 2;
       if (dist2(mx, mz, PL.x, PL.z) > R2 + e.len * e.len * 0.25) continue;
-      if (e.kind === 'house') continue;
+      if (e.kind === 'house' || e.off) continue;
       const zf = ZONEF[e.zone] || 1, near = clamp(1.7 - Math.sqrt(dist2(mx, mz, PL.x, PL.z)) / 90, 0.25, 1.7);
       const ww = e.len * e.dens * zf * near * (e.kind === 'plaza' ? 0.6 : 1);
       this.edgesNear.push([i, ww]); w += ww;
@@ -5306,8 +5381,24 @@ const PL = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, vx: 0, vz: 0, vy: 0, ground: tr
 const PR = 0.32;
 const WALK = 3.1, RUN = 6.6;
 
-function placePlayer(x, z, yaw = 0) {
-  PL.x = x; PL.z = z; PL.y = surfaceAt(x, z, 999); PL.vx = PL.vz = PL.vy = 0; PL.yaw = yaw; PL.pitch = 0;
+// where feet can stand at (x, z): the ground or a walkable top, with headroom above it. With a height hint (a save)
+// the floor nearest it, otherwise the lowest one, so nothing overhead (a roof, a cella, an upper floor) is chosen.
+function floorAt(x, z, hint) {
+  const L = solidsNear(x, z, 1).filter((s) => insideSolid(s, x, z, 0.12)), g = groundAt(x, z);
+  const ys = [g]; for (const s of L) if (s.walk && s.y1 > g) ys.push(s.y1);
+  const free = ys.filter((y) => !L.some((s) => s.y0 < y + 1.8 && s.y1 > y + 0.05));
+  const c = free.length ? free : [Math.max(...ys)];
+  return hint == null ? Math.min(...c) : c.reduce((a, b) => (Math.abs(b - hint) < Math.abs(a - hint) ? b : a));
+}
+// the nearest open ground to (x, z), spiralling out
+function clearNear(x, z) {
+  const x0 = x, z0 = z;
+  for (let k = 0; k < 60 && !clearAt(x, z, 0.5); k++) { const a = k * 2.4, r = 3 + k * 1.2; x = x0 + Math.cos(a) * r; z = z0 + Math.sin(a) * r; }
+  return [x, z];
+}
+function placePlayer(x, z, yaw = 0, y) {
+  if (y == null) [x, z] = clearNear(x, z);
+  PL.x = x; PL.z = z; PL.y = floorAt(x, z, y); PL.vx = PL.vz = PL.vy = 0; PL.yaw = yaw; PL.pitch = 0;
   // never start inside a solid
   const [nx, nz] = collideCircle(x, z, PR, PL.y); PL.x = nx; PL.z = nz; PL.y = surfaceAt(nx, nz, PL.y + 0.3);
 }
@@ -6185,13 +6276,13 @@ Every morning the master receives his clients here (the salutatio) and gives the
 
 const G = { state: 'title', time: 0, hour: 7.5, day: 1, frame: 0, readCount: 0, ff: false, touchFF: false, autoQ: true, noPause: false, placeT: 0, here: null };
 const clock = { last: performance.now(), fpsT: 0, fpsN: 0, fps: 60, lowT: 0, startT: 0 };
-const START = { u: 75, v: 6, yaw: 60 * D2R };
+const START = { u: 40, v: 9, yaw: 60 * D2R };
 
 const SAVE = {
   key: 'roma-aeterna.save',
   save() {
     if (G.state !== 'play') return;
-    const d = { v: 1, x: PL.x, z: PL.z, yaw: PL.yaw, hour: G.hour, day: G.day,
+    const d = { v: 1, x: PL.x, y: PL.y, z: PL.z, yaw: PL.yaw, hour: G.hour, day: G.day,
       found: W.places.filter((p) => p.found).map((p) => p.id), read: W.placards.filter((p) => p.read).map((p) => p.id) };
     try { localStorage.setItem(this.key, JSON.stringify(d)); } catch (e) { /* ignore */ }
   },
@@ -6220,6 +6311,7 @@ async function buildWorld(step) {
   if (WORLD_BUILT) return;
   await step(0.03, 'Surveying the seven hills…');
   initHeights();
+  K.closeRaised = true;
   await step(0.12, 'Raising the Forum…');
   buildForum();
   await step(0.22, 'Raising the temples of the Capitol and the Palatine…');
@@ -6243,6 +6335,8 @@ async function buildWorld(step) {
   await step(0.85, 'Planting pines and cypresses…');
   buildNature();
   await step(0.9, 'Firing the roof tiles…');
+  K.closeRaised = false;
+  W.navOff = pruneNav();
   finalizeWorld();
   buildTerrain();
   HUD.buildMap();
@@ -6260,7 +6354,7 @@ async function startGame(opts) {
     for (const p of W.places) p.found = save.found.includes(p.id);
     for (const p of W.placards) p.read = save.read.includes(p.id);
     G.hour = save.hour; G.day = save.day || 1;
-    placePlayer(save.x, save.z, save.yaw);
+    placePlayer(save.x, save.z, save.yaw, save.y);
   } else {
     for (const p of W.places) p.found = false;
     for (const p of W.placards) p.read = false;
@@ -6289,8 +6383,7 @@ async function startGame(opts) {
 // where to put the player when travelling to a place: its spawn point, or a clear spot on its edge looking in
 function spawnFor(p) {
   const s = p.spawn || [p.x, p.z + p.r * 0.55];
-  let [x, z] = s;
-  for (let k = 0; k < 60 && !clearAt(x, z, 0.5); k++) { const a = k * 2.4, r = 3 + k * 1.2; x = s[0] + Math.cos(a) * r; z = s[1] + Math.sin(a) * r; }
+  const [x, z] = clearNear(s[0], s[1]);
   return [x, z, p.spawnYaw != null ? p.spawnYaw : Math.atan2(-(p.x - x), -(p.z - z))];
 }
 function travelTo(p) {
@@ -6399,7 +6492,7 @@ function setupDebug() {
     async hold(code, s) { Input.press(code); RA.sim(s); Input.release(code); },
     places() { return W.places.map((p) => p.id); },
     audio() { AU.resume(); AU.update(0.1); AU.ui('found'); AU.step(1); AU.hoof(PL.x + 3, PL.z, 1); AU.bird(); return !!AU.ctx; },
-    stats() { return { tris: R.renderer.info.render.triangles, calls: R.renderer.info.render.calls, solids: W.solids.length, nodes: W.nodes.length, edges: W.edges.length, meshes: W.meshes.length, npcs: NPC.count(), pos: [PL.x, PL.y, PL.z], hour: G.hour }; },
+    stats() { return { tris: R.renderer.info.render.triangles, calls: R.renderer.info.render.calls, solids: W.solids.length, nodes: W.nodes.length, edges: W.edges.length, navOff: W.navOff, meshes: W.meshes.length, npcs: NPC.count(), pos: [PL.x, PL.y, PL.z], hour: G.hour }; },
   };
 }
 

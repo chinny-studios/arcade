@@ -159,7 +159,7 @@ function buildCampus() {
     for (const y of [12, 22, 30]) K.ring(g, R0, 0, y - 0.6, 0, ro - 0.2, ro + 0.5, 0.8, 40, C.marble2, { gaps: [[doorA - 0.16, doorA + 0.16]] });
     // the dome: stepped rings outside, coffers inside, the oculus open to the sky
     for (let k = 0; k < 6; k++) K.cyl(g, R0, 0, 30 + k * 1.6, 0, ro - k * 1.6, ro - (k + 1) * 1.6, 1.6, 40, k < 3 ? C.marble2 : 0x9aa6a6, { top: false });
-    K.dome(g, R0, 0, 39.6, 0, ri - 1.6, 36, 6, 0x9aa6a6, { oculus: 4.6, squash: 0.48 });
+    K.dome(g, R0, 0, 39.6, 0, ro - 6 * 1.6, 36, 6, 0x9aa6a6, { oculus: 4.6, squash: 0.525 }); // springs from the top step
     K.dome(g, R0, 0, ri, 0, ri, 28, 8, 0xd6cdb9, { inside: true, oculus: 4.4, coffer: true });
     K.ring(g, R0, 0, 43.0, 0, 4.4, 5, 0.8, 24, C.bronze);
     // inside: the floor of porphyry and granite squares, niches with columns
@@ -318,6 +318,7 @@ function theatre(F, R, H, kind) {
     let y = 0;
     for (let s = 0; s < 3; s++) {
       const h = H / 3; K.box(g, B, -L / 2, y, 0, 1.8, h, 2, C.trav, { solid: s === 0, skip: 'b' });
+      if (i === nb - 1) K.box(g, B, L / 2, y, 0, 1.8, h, 2, C.trav, { solid: s === 0, skip: 'b' }); // the pier closing the last bay
       K.archTop(g, B, 0, 0, y + h * 0.62, (L - 1.8) / 2, y + h - 0.8, 2, C.trav, 6); K.box(g, B, 0, y + h - 0.8, -0.2, L, 0.8, 2.4, C.trav2); y += h;
     }
     K.box(g, B.sub(0, 4, 0, B.y), 0, 0, 0, L + 0.1, H, 0.6, 0x7a6a52);

@@ -74,9 +74,24 @@ const mixHex = (a, b, t) => { const A = hex3(a), B = hex3(b); return ((lerp(A[0]
 // world point from frame + local, with an optional extra rotation (ra) about (cu, cv)
 function _wp(F, u, y, v) { return [F.wx(u, v), F.y + y, F.wz(u, v)]; }
 const K = {
+  // While the world is built (buildWorld turns this on), a box or tapered block whose base is clear of the ground
+  // gets its underside too: from below you'd otherwise see into cornices, ledges, lintels and eaves.
+  closeRaised: false,
+  raised(F, u, y, v) { return K.closeRaised && F.y + y > groundAt(F.wx(u, v), F.wz(u, v)) + 0.25; },
+  // A box standing on the ground somewhere under it, where the ground falls away elsewhere (a wall along a slope),
+  // reaches down to the lowest ground under it rather than floating there: how far to lower its base.
+  sink(F, u, y, v, w, d, ca, sa) {
+    const b = F.y + y; let lo = Infinity, hi = -Infinity;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const lu = i * w / 2, lv = j * d / 2, g = groundAt(F.wx(u + lu * ca - lv * sa, v + lu * sa + lv * ca), F.wz(u + lu * ca - lv * sa, v + lu * sa + lv * ca));
+      lo = Math.min(lo, g); hi = Math.max(hi, g);
+    }
+    return hi > b - 0.3 && lo < b - 0.02 ? Math.min(10, b - lo + 0.05) : 0;
+  },
   // axis-aligned (in frame) box: centre (u, v), bottom y, sizes w (u) × h × d (v). o: { ra, solid, skip:'b'|'bt', top }
   box(gb, F, u, y, v, w, h, d, hex, o) {
     const ra = (o && o.ra) || 0, ca = Math.cos(ra), sa = Math.sin(ra);
+    if (K.closeRaised) { const dy = K.sink(F, u, y, v, w, d, ca, sa); y -= dy; h += dy; }
     const P = [];
     for (let k = 0; k < 8; k++) {
       const lu = (k & 1 ? 0.5 : -0.5) * w, lv = (k & 2 ? 0.5 : -0.5) * d, ly = k & 4 ? h : 0;
@@ -84,7 +99,8 @@ const K = {
       P.push([F.wx(uu, vv), F.y + y + ly, F.wz(uu, vv)]);
     }
     const ref = [F.wx(u, v), F.y + y + h / 2, F.wz(u, v)];
-    const skip = o && o.skip != null ? o.skip : 'b'; // skip: '' draws every face, including the underside
+    // skip: '' draws every face; by default the underside is left out, unless the box is raised off the ground
+    const skip = o && o.skip != null ? o.skip : K.raised(F, u, y, v) ? '' : 'b';
     const top = o && o.top != null ? o.top : hex;
     gb.quad(P[4], P[5], P[7], P[6], top, ref);
     if (skip.indexOf('b') < 0) gb.quad(P[0], P[1], P[3], P[2], hex, ref);
@@ -103,33 +119,34 @@ const K = {
     const T = [L(-wt / 2 + ou, -dt / 2 + ov, h), L(wt / 2 + ou, -dt / 2 + ov, h), L(wt / 2 + ou, dt / 2 + ov, h), L(-wt / 2 + ou, dt / 2 + ov, h)];
     const ref = L(ou / 2, ov / 2, h * 0.4);
     gb.quad(T[0], T[1], T[2], T[3], (o && o.top) || hex, ref);
-    if (o && o.bottom) gb.quad(B[0], B[1], B[2], B[3], hex, ref);
+    if (o && o.bottom != null ? o.bottom : K.raised(F, u, y, v)) gb.quad(B[0], B[1], B[2], B[3], hex, ref);
     for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; gb.quad(B[i], B[j], T[j], T[i], hex, ref); }
     if (o && o.solid) solidBox(F, u, v, wb, db, y, y + h, ra, true);
   },
   // gable roof: ridge along u (or along v with o.alongV). overhang included in w/d. eaves at y, ridge at y+h.
+  // The underside (o.under, default a dark timber shade; false for none) is what you see under the eaves.
   gable(gb, F, u, y, v, w, d, h, hex, o) {
     const alongV = o && o.alongV;
     const L = (lu, lv, ly) => [F.wx(u + lu, v + lv), F.y + y + ly, F.wz(u + lu, v + lv)];
     const ref = L(0, 0, -1);
-    const side = (o && o.side) || shadeHex(hex, 0.85);
+    const side = (o && o.side) || shadeHex(hex, 0.85), under = o && o.under != null ? o.under : shadeHex(hex, 0.55);
     if (!alongV) {
       const a = L(-w / 2, -d / 2, 0), b = L(w / 2, -d / 2, 0), c = L(w / 2, 0, h), e = L(-w / 2, 0, h), f = L(-w / 2, d / 2, 0), g = L(w / 2, d / 2, 0);
       gb.quad(a, b, c, e, hex, ref); gb.quad(f, g, c, e, hex, ref);
       gb.triR(a, f, e, side, ref); gb.triR(b, g, c, side, ref);
-      if (o && o.under) { gb.quad(a, b, g, f, o.under, L(0, 0, 1)); }
+      if (under !== false) gb.quad(a, b, g, f, under, L(0, 0, 1));
     } else {
       const a = L(-w / 2, -d / 2, 0), b = L(-w / 2, d / 2, 0), c = L(0, d / 2, h), e = L(0, -d / 2, h), f = L(w / 2, -d / 2, 0), g = L(w / 2, d / 2, 0);
       gb.quad(a, b, c, e, hex, ref); gb.quad(f, g, c, e, hex, ref);
       gb.triR(a, f, e, side, ref); gb.triR(b, g, c, side, ref);
-      if (o && o.under) { gb.quad(a, b, g, f, o.under, L(0, 0, 1)); }
+      if (under !== false) gb.quad(a, b, g, f, under, L(0, 0, 1));
     }
   },
-  // hipped/pyramidal tile roof
+  // hipped/pyramidal tile roof, closed underneath (the eaves overhang the walls)
   hip(gb, F, u, y, v, w, d, h, hex) {
-    const rw = Math.max(0.01, w - d), rd = 0.01;
-    if (w >= d) K.tbox(gb, F, u, y, v, w, d, Math.max(0.01, w - d), rd, h, hex);
-    else K.tbox(gb, F, u, y, v, w, d, rd, Math.max(0.01, d - w), h, hex);
+    const rw = Math.max(0.01, w - d), rd = 0.01, o = { bottom: true };
+    if (w >= d) K.tbox(gb, F, u, y, v, w, d, Math.max(0.01, w - d), rd, h, hex, o);
+    else K.tbox(gb, F, u, y, v, w, d, rd, Math.max(0.01, d - w), h, hex, o);
     return rw;
   },
   // cylinder / frustum; seg sides; caps optional (o.top false to skip top, o.bot true for bottom)
@@ -152,6 +169,7 @@ const K = {
     const cx = F.wx(u, v), cz = F.wz(u, v), y0 = F.y + y, y1 = y0 + h;
     const gaps = (o && o.gaps) || [];
     const inGap = (a) => gaps.some((g) => angWrap(a - g[0]) >= 0 && angWrap(a - g[0]) <= angWrap(g[1] - g[0]));
+    const bot = o && o.bot != null ? o.bot : K.closeRaised && y0 > groundAt(cx + r1, cz) + 0.25; // a raised ring (a cornice) is closed underneath
     for (let i = 0; i < seg; i++) {
       const a = (i / seg) * TAU, b = ((i + 1) / seg) * TAU, m = (a + b) / 2;
       if (inGap(m)) continue;
@@ -162,6 +180,7 @@ const K = {
       gb.quad(o0, o1, o2, o3, (o && o.outHex) || hex, c, 1);
       gb.quad(i0, i1, i2, i3, (o && o.inHex) || hex, c, -1);
       gb.quad(i3, i2, o2, o3, (o && o.topHex) || hex, [cx, y0, cz], 1);
+      if (bot) gb.quad(i0, i1, o1, o0, hex, [cx, y1, cz], 1);
       if (inGap(m + TAU / seg)) gb.quad(i1, o1, o2, i2, hex, [cx + Math.cos(m) * (r0 + r1) / 2, y0 + h / 2, cz + Math.sin(m) * (r0 + r1) / 2]);
       if (inGap(m - TAU / seg)) gb.quad(i0, o0, o3, i3, hex, [cx + Math.cos(m) * (r0 + r1) / 2, y0 + h / 2, cz + Math.sin(m) * (r0 + r1) / 2]);
     }
@@ -192,20 +211,23 @@ const K = {
     const capH = order === 'c' ? r * 2.2 : order === 'i' ? r * 1.0 : r * 0.9;
     const baseH = order === 'd' ? r * 0.3 : r * 0.6;
     const shaft = (o && o.shaftHex) || hex;
+    // the base moulding narrows to the shaft and the capital starts at the shaft's top, so no open rim shows; the
+    // abacus and volutes overhang, so they are closed underneath
+    const all = { skip: '' };
     K.box(gb, F, u, y, v, r * 2.7, baseH * 0.5, r * 2.7, hex);
-    K.cyl(gb, F, u, y + baseH * 0.5, v, r * 1.3, r * 1.12, baseH * 0.5, seg, hex, { top: false });
+    K.cyl(gb, F, u, y + baseH * 0.5, v, r * 1.3, r, baseH * 0.5, seg, hex, { top: false });
     K.cyl(gb, F, u, y + baseH, v, r, r * 0.86, h - baseH - capH, seg, shaft, { top: false });
     const cy = y + h - capH;
     if (order === 'c') {
-      K.cyl(gb, F, u, cy, v, r * 0.9, r * 1.35, capH * 0.82, seg, hex, { top: false });
-      K.box(gb, F, u, cy + capH * 0.82, v, r * 2.9, capH * 0.18, r * 2.9, hex);
+      K.cyl(gb, F, u, cy, v, r * 0.86, r * 1.35, capH * 0.82, seg, hex, { top: false });
+      K.box(gb, F, u, cy + capH * 0.82, v, r * 2.9, capH * 0.18, r * 2.9, hex, all);
     } else if (order === 'i') {
-      K.cyl(gb, F, u, cy, v, r * 0.9, r * 1.1, capH * 0.45, seg, hex, { top: false });
-      K.box(gb, F, u, cy + capH * 0.4, v, r * 3.0, capH * 0.42, r * 1.7, hex);
-      K.box(gb, F, u, cy + capH * 0.82, v, r * 2.5, capH * 0.18, r * 2.5, hex);
+      K.cyl(gb, F, u, cy, v, r * 0.86, r * 1.1, capH * 0.45, seg, hex, { top: false });
+      K.box(gb, F, u, cy + capH * 0.4, v, r * 3.0, capH * 0.42, r * 1.7, hex, all);
+      K.box(gb, F, u, cy + capH * 0.82, v, r * 2.5, capH * 0.18, r * 2.5, hex, all);
     } else {
-      K.cyl(gb, F, u, cy, v, r * 0.88, r * 1.25, capH * 0.5, seg, hex, { top: false });
-      K.box(gb, F, u, cy + capH * 0.5, v, r * 2.6, capH * 0.5, r * 2.6, hex);
+      K.cyl(gb, F, u, cy, v, r * 0.86, r * 1.25, capH * 0.5, seg, hex, { top: false });
+      K.box(gb, F, u, cy + capH * 0.5, v, r * 2.6, capH * 0.5, r * 2.6, hex, all);
     }
     if (o && o.solid !== false) solidCircle(F.wx(u, v), F.wz(u, v), r * 1.25, F.y + y, F.y + y + h, true);
   },

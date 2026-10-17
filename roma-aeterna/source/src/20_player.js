@@ -4,8 +4,24 @@ const PL = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, vx: 0, vz: 0, vy: 0, ground: tr
 const PR = 0.32;
 const WALK = 3.1, RUN = 6.6;
 
-function placePlayer(x, z, yaw = 0) {
-  PL.x = x; PL.z = z; PL.y = surfaceAt(x, z, 999); PL.vx = PL.vz = PL.vy = 0; PL.yaw = yaw; PL.pitch = 0;
+// where feet can stand at (x, z): the ground or a walkable top, with headroom above it. With a height hint (a save)
+// the floor nearest it, otherwise the lowest one, so nothing overhead (a roof, a cella, an upper floor) is chosen.
+function floorAt(x, z, hint) {
+  const L = solidsNear(x, z, 1).filter((s) => insideSolid(s, x, z, 0.12)), g = groundAt(x, z);
+  const ys = [g]; for (const s of L) if (s.walk && s.y1 > g) ys.push(s.y1);
+  const free = ys.filter((y) => !L.some((s) => s.y0 < y + 1.8 && s.y1 > y + 0.05));
+  const c = free.length ? free : [Math.max(...ys)];
+  return hint == null ? Math.min(...c) : c.reduce((a, b) => (Math.abs(b - hint) < Math.abs(a - hint) ? b : a));
+}
+// the nearest open ground to (x, z), spiralling out
+function clearNear(x, z) {
+  const x0 = x, z0 = z;
+  for (let k = 0; k < 60 && !clearAt(x, z, 0.5); k++) { const a = k * 2.4, r = 3 + k * 1.2; x = x0 + Math.cos(a) * r; z = z0 + Math.sin(a) * r; }
+  return [x, z];
+}
+function placePlayer(x, z, yaw = 0, y) {
+  if (y == null) [x, z] = clearNear(x, z);
+  PL.x = x; PL.z = z; PL.y = floorAt(x, z, y); PL.vx = PL.vz = PL.vy = 0; PL.yaw = yaw; PL.pitch = 0;
   // never start inside a solid
   const [nx, nz] = collideCircle(x, z, PR, PL.y); PL.x = nx; PL.z = nz; PL.y = surfaceAt(nx, nz, PL.y + 0.3);
 }

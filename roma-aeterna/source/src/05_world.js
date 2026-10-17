@@ -169,6 +169,30 @@ function addEdge(a, b, o) {
   W.edges.push(e); const i = W.edges.length - 1; A.e.push(i); B.e.push(i);
   return i;
 }
+// Is a walk from a to b possible for someone who climbs at most a step at a time, as the player does? Used to take
+// out of the graph the edges that would lead people through a wall, a pier, a stair cheek or up a ledge.
+function walkable(ax, az, bx, bz) {
+  const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 0.4));
+  let y = floorAt(ax, az);
+  for (let i = 0; i <= n; i++) {
+    const x = lerp(ax, bx, i / n), z = lerp(az, bz, i / n);
+    y = surfaceAt(x, z, y);
+    for (const s of solidsNear(x, z, 0.5)) if (s.y1 > y + STEP && s.y0 < y + 1.7 && insideSolid(s, x, z, 0.2)) return false;
+  }
+  return true;
+}
+function pruneNav() {
+  // a node inside a wall or a podium moves out to its edge first
+  for (const N of W.nodes) if (!clearAt(N.x, N.z, 0.3)) [N.x, N.z] = collideCircle(N.x, N.z, 0.45, floorAt(N.x, N.z));
+  for (const e of W.edges) { const A = W.nodes[e.a], B = W.nodes[e.b]; e.len = Math.max(0.5, Math.hypot(B.x - A.x, B.z - A.z)); }
+  let n = 0;
+  W.edges.forEach((e, i) => {
+    const A = W.nodes[e.a], B = W.nodes[e.b];
+    if (walkable(A.x, A.z, B.x, B.z) && walkable(B.x, B.z, A.x, A.z)) return;
+    e.off = true; A.e = A.e.filter((k) => k !== i); B.e = B.e.filter((k) => k !== i); n++;
+  });
+  return n;
+}
 // long segments are split every ~36 m so spawning and route choice work along country roads too
 function addPath(pts, o) {
   let prev = addNode(pts[0][0], pts[0][1]);
@@ -213,9 +237,12 @@ function street(pts, o) {
         if (a1 > a0) for (const sg of [-1, 1]) {
           const i0 = sg * hw, o0 = sg * (hw + sw);
           _upQuad(gbs, P(a0, i0, 0.16), P(a1, i0, 0.16), P(a1, o0, 0.16), P(a0, o0, 0.16), C.kerb);
-          // kerb face
-          const q0 = P(a0, i0, 0), q1 = P(a1, i0, 0), q2 = P(a1, i0, 0.16), q3 = P(a0, i0, 0.16);
-          gbs.quad(q0, q1, q2, q3, shadeHex(C.kerb, 0.8), [ax + dx * (a0 + a1) / 2 - nx * sg * 2, q0[1] + 0.08, az + dz * (a0 + a1) / 2 - nz * sg * 2], -1);
+          // kerb face, the outer edge, and the ends where the walk stops (at a trim, a bend or the end of the street)
+          const kc = shadeHex(C.kerb, 0.8), mid = [ax + dx * (a0 + a1) / 2 + nx * (i0 + o0) / 2, P(a0, i0, 0)[1] + 0.08, az + dz * (a0 + a1) / 2 + nz * (i0 + o0) / 2];
+          gbs.quad(P(a0, i0, 0), P(a1, i0, 0), P(a1, i0, 0.16), P(a0, i0, 0.16), kc, mid);
+          gbs.quad(P(a0, o0, -0.1), P(a1, o0, -0.1), P(a1, o0, 0.16), P(a0, o0, 0.16), kc, mid);
+          if (k === 0 || a0 > s0) gbs.quad(P(a0, i0, 0), P(a0, o0, -0.1), P(a0, o0, 0.16), P(a0, i0, 0.16), kc, mid);
+          if (k === n - 1 || a1 < s1) gbs.quad(P(a1, i0, 0), P(a1, o0, -0.1), P(a1, o0, 0.16), P(a1, i0, 0.16), kc, mid);
         }
       }
     }
