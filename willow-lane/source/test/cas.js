@@ -1,0 +1,21 @@
+// Create a family in CAS by clicking through it, then move onto the empty lot
+const q = (s) => document.querySelector(s);
+q('#mNew').click(); await wait(400);
+q('#cFam').value = 'Testerson'; q('#cFam').dispatchEvent(new Event('input'));
+q('#cFirst').value = 'Robin'; q('#cFirst').dispatchEvent(new Event('input'));
+q('[data-age="adult"]').click(); await wait(100);
+q('#cAdd').click(); await wait(200);
+q('[data-age="adult"]').click(); await wait(100);
+const spouse = q('[data-rel="spouse"]'); if (spouse) spouse.click();
+await wait(100);
+q('#cAdd').click(); await wait(200);
+q('[data-age="child"]').click(); await wait(100);
+const child = q('[data-rel="child"]'); if (child) child.click();
+await wait(100);
+q('[data-ctab="pers"]').click(); await wait(100);
+for (let i = 0; i < 4; i++) q('[data-tr="playful"][data-d="1"]').click();
+q('[data-ctab="ints"]').click(); await wait(100);
+q('#cDone').click(); await wait(500);
+const lot = q('.preset[data-k="empty"]'); lot.click(); await wait(1500);
+const hh = WL.sims();
+return { state: G.state, family: G.family, money: G.money, sims: hh.map(s => s.first + ' ' + s.age + ' ' + Object.values(s.pers).reduce((a, b) => a + b, 0) + ' ' + Object.entries(s.rels).filter(([id, r]) => r.spouse || r.family).map(([id, r]) => (r.spouse ? 'spouse' : r.family) + ':' + WL.f.simById(+id).first).join(',')), objects: G.objects.map(o => o.type) };
