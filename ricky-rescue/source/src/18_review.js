@@ -61,8 +61,15 @@ function scoreCall(C) {
   const special = C.how === 'refusal' || C.how === 'terminated';
   // response
   const goal = RESPONSE_GOAL[C.pri] * (C.hazard ? 1.4 : 1);
-  const resp = (C.times.arrive || C.t) - (C.times.respond || 0);
-  add('Response', `Response time ${fmtMin(resp)} (goal ${fmtMin(goal)})`, clamp(10 * (2 - resp / goal), 0, 10), 10);
+  // turnout: from the page to the wheels rolling; then the drive
+  const page = C.times.page || 0, ack = (C.times.ack !== undefined ? C.times.ack : C.t) - page;
+  const roll = C.times.roll !== undefined ? C.times.roll : C.times.respond || 0, cg = C.chuteGoal || 90;
+  const chute = Math.max(0, roll - page), resp = (C.times.arrive || C.t) - roll;
+  add('Response', `Turnout ${fmtDur(chute)} from the page (goal ${fmtDur(cg)})`, clamp(3 * (2 - chute / cg), 0, 3), 3);
+  if (ack > ACK_T) add('Response', `Took ${fmtDur(ack)} to acknowledge the page`, -2, 0, 'bad');
+  add('Response', `Drive ${fmtMin(resp)} (goal ${fmtMin(goal)})`, clamp(7 * (2 - resp / goal), 0, 7), 7);
+  // problems a rig check would have caught
+  for (const f of (C.equipFails || []).slice(0, 2)) add('Readiness', `Found on the call: ${f}. A rig check would have caught it.`, -2, 0, 'bad');
   if (C.pri === 3 && C.ls.enroute) add('Response', 'Lights and sirens on a priority 3 call', -3, 0, 'bad');
   // assessment
   add('Assessment', 'Gloves before touching the patient', C.ppe && !C.ppeWarn ? 3 : 0, 3);
@@ -115,19 +122,20 @@ function scoreCall(C) {
   const deathFair = (C.how === 'terminated' || out.tier === 5) && C.tpl.arrest && pg / Math.max(1, pm) > 0.7;
   // harms
   const harm = Math.min(36, C.harms.length * 6);
-  let total = items.filter((i) => ['Response', 'Assessment'].includes(i.cat)).reduce((a, i) => a + i.got, 0) + proto + dest + scene + drive + ho + (deathFair ? 7 : outPts) - harm;
+  let total = items.filter((i) => ['Response', 'Assessment', 'Readiness'].includes(i.cat)).reduce((a, i) => a + i.got, 0) + proto + dest + scene + drive + ho + (deathFair ? 7 : outPts) - harm;
   if (C.how === 'abandoned') total = Math.min(total, 30);
   total = clamp(Math.round(total), 0, 100);
   const grade = total >= 90 ? 'A' : total >= 80 ? 'B' : total >= 70 ? 'C' : total >= 60 ? 'D' : 'F';
   const xp = Math.round(total * 1.3 + (C.pri === 1 ? 30 : 10) + (out.save ? 60 : 0));
   const pay = Math.round(110 + total * 2.2 + (G.career.rank >= 3 ? 60 : 0) + (out.save ? 100 : 0));
-  return { C, P, items, harms: C.harms, total, grade, xp, pay, out, proto: Math.round(proto), sections: { proto, dest, scene, drive, ho }, deathFair };
+  return { C, P, items, harms: C.harms, total, grade, xp, pay, out, proto: Math.round(proto), sections: { proto, dest, scene, drive, ho }, deathFair, chute };
 }
 function applyResult(res) {
   const K = G.career, C = res.C;
   const before = K.rank;
   K.xp += res.xp; K.money += res.pay;
   G.shift.earnings += res.pay; G.shift.xp += res.xp;
+  if (G.shift.posting) G.shift.posting.chutes.push(res.chute);
   K.stats.calls++; K.stats.grades[res.grade]++;
   if (res.out.save) { K.stats.saves++; K.stats.rosc++; }
   if (C.P.conds.labor && C.P.conds.labor.born) K.stats.deliveries++;

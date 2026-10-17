@@ -11,7 +11,9 @@ function openRearPanel() {
     else if ((e.by === 'ricky') && !e.P) add('Put the ' + DEVICES[id].short + ' back', '', () => stowToRig(id));
   }
   const nearBase = RIG && (Object.values(CITY.hospitals).some((h) => dist(RIG.x, RIG.z, h.bay.x, h.bay.z) < 40) || dist(RIG.x, RIG.z, CITY.station.x, CITY.station.z) < 40);
-  add('Restock the cabinets', nearBase ? 'Free at a hospital or the station' : 'Only at a hospital or the station', () => { RIG.stock = fullStock(RIGS[RIG.type].cap); toast('Cabinets restocked.'); closePanel('rear'); G.clockT += 120; }, !nearBase);
+  const miss = missingStock();
+  add('Restock the cabinets', G.call ? 'After the call' : !nearBase ? 'Only at a hospital or the station' : miss ? `${miss} item${miss > 1 ? 's' : ''} to top up · about ${fmtMin(60 + miss * 15)}` : 'Already full', () => startRestock(), !nearBase || !!G.call || !miss);
+  if (G.shift && G.shift.check) { const ch = G.shift.check, n = RIG_CHECK.filter((c) => ch.items[c.id].state !== 'todo').length; add('Rig check', ch.done ? 'Done for this shift' : `${n} of ${RIG_CHECK.length} checked` + (G.call ? ' · after the call' : ''), () => openRigCheck(), false); }
   const low = Object.entries(RIG.stock).filter(([k, v]) => (k === 'o2' ? v < 30 : v === 0)).map(([k]) => SUPPLIES[k].name);
   $('#rearStock').textContent = low.length ? 'Running low: ' + low.join(', ') : 'Cabinets are stocked.';
   UI.show('rear');

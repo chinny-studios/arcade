@@ -6,7 +6,7 @@ function boot() {
   loadOpts();
   try { initRender(); } catch (e) { console.error(e); return; }
   makeTextures(); R.sunDisc.material.map = TEX.glow;
-  buildCity(); initTraffic(); initResponders(); buildMinimap();
+  buildCity(); initTraffic(); initResponders(); buildMinimap(); initPosts();
   Input.init(); wireUI();
   setQuality(OPTS.quality); AUDIO.setVolume(OPTS.volume);
   G.live = true;
@@ -69,7 +69,7 @@ const focusZ = () => (G.where === 'foot' && PLAYER.sp === 'city' ? PLAYER.z : RI
 
 function handleGlobalKeys() {
   if (Input.pressed('menu') || Input.pressed('back')) {
-    const top = ['options', 'help', 'mapBig', 'rear', 'triage'].find((id) => UI.isOpen(id));
+    const top = ['options', 'help', 'mapBig', 'rigcheck', 'rear', 'triage'].find((id) => UI.isOpen(id));
     if (top) UI.hide(top);
     else if (UI.isOpen('transport') && TP.midway) UI.hide('transport');
     else if (UI.isOpen('pause')) UI.hide('pause');
@@ -79,7 +79,7 @@ function handleGlobalKeys() {
   if (UI.paused()) return;
   if (Input.pressed('map')) { if (HUD.mapBig) UI.hide('mapBig'); else UI.show('mapBig'); }
   if (Input.pressed('enter') && G.call && G.call.stage === 'pending') respond();
-  if (Input.pressed('skip') && !G.call) skipToCall();
+  if ((Input.pressed('skip') || Input.pressed('t_wait')) && !G.call) toggleWait();
   if (Input.pressed('cprTap') && WORK.ricky && WORK.ricky.id === 'cpr') cprTap();
   if (Input.pressed('t_ls')) setSiren(!RIG.siren);
   if (Input.pressed('t_cam')) CAM.far = !CAM.far;
@@ -149,10 +149,12 @@ bus.on('enterCab', () => { if (G.call && G.call.stage === 'onscene' && RIG.loade
 function installDebug() {
   const step = 1 / 30;
   const RR = {
-    G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC,
+    G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC, SSM, DT, RIG_CHECK,
     get C() { return G.call; }, get P() { return G.call && G.call.P; }, get RIG() { return RIG; },
-    f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv },
-    // start({ rank, rig, hour, hours, xp, money }) — a throwaway career (never saved) and a shift, no calls until asked
+    f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv,
+      toggleWait, startRestock, openRigCheck, rigCheckItem, rigFixItem, grabCoffee, coffeeSpot, replan, assignPost, unitBusy, coverPlan, systemCoverage, callZoneWeight, equipDelay, resetDowntime, missingStock, fullStock },
+    // start({ rank, rig, hour, hours, xp, money, faults }) — a throwaway career (never saved) and a shift, no calls until
+    // asked. The rig comes clean unless faults: true (then the rig check has whatever the last crew left)
     start(o = {}) {
       G.noSave = true;
       G.career = newCareer();
@@ -164,6 +166,7 @@ function installDebug() {
       OPTS.tips = false; OPTS.voice = false;
       G.live = false;
       startShift({ hour: o.hour !== undefined ? o.hour : 10, hours: o.hours || 12, firstCall: 99999 });
+      if (!o.faults) { for (const it of Object.values(G.shift.check.items)) it.bad = false; RIG.stock = fullStock(RIGS[RIG.type].cap); }
       setState('play');
       return Promise.resolve(true);
     },
@@ -249,9 +252,16 @@ function installDebug() {
     },
     units() { return RESP.units.filter((u) => u.state !== 'home').map((u) => ({ name: u.name, kind: u.kind, state: u.state, x: Math.round(u.x), z: Math.round(u.z), v: +u.v.toFixed(1), left: u.route ? Math.round(u.route.len - u.s) : 0 })); },
     press(a) { Input.acts.add(a); frame(step, false); },
+    // posting: where Medic 12 is told to be, the board, and a jump onto the post
+    post() { const m = SSM.m12, p = m && m.post; return p && { id: p.id, n: p.n, name: p.name, district: p.district, reached: m.reached, onPost: m.onPost, due: Math.round(m.deadline - G.clockT), x: Math.round(p.x), z: Math.round(p.z) }; },
+    posts() { return SSM.posts.map((p) => ({ id: p.id, n: p.n, name: p.name, district: p.district, kind: p.kind, coffee: !!p.coffee, x: Math.round(p.x), z: Math.round(p.z) })); },
+    board() { return SSM.units.map((u) => ({ name: u.name, state: u.state, post: u.post && u.post.id, left: u.state === 'busy' ? Math.round(u.until - G.clockT) : 0 })); },
+    toPost() { const p = SSM.m12 && SSM.m12.post; if (!p) return null; if (G.where !== 'cab') { PLAYER.sp = 'city'; enterCab(); } RIG.x = p.x; RIG.z = p.z; RIG.yaw = p.yaw; RIG.v = 0; RIG.auto = null; placeRigModel(0); snapCam(); frame(step, false); frame(step, false); return RR.post(); },
+    // run the clock (game seconds) through whatever activity is going, in big steps
+    chores(max = 3600) { let n = 0; while (DT.act && n < max) { frame(0.25, false); n += 0.25 * TIME_SCALE * ACT_WARP; } return !DT.act; },
     tp(x, z) { if (G.where === 'cab') { RIG.x = x; RIG.z = z; placeRigModel(0); } else { PLAYER.x = x; PLAYER.z = z; } snapCam(); frame(step, false); },
     time(h) { G.clockT = h * 3600; setTimeOfDay(h); },
-    hideHUD(on = true) { for (const id of ['#radio', '#toasts', '#prompt', '#dispatch']) $(id).style.visibility = on ? 'hidden' : ''; },
+    hideHUD(on = true) { for (const id of ['#radio', '#toasts', '#prompt', '#dispatch', '#actBar']) $(id).style.visibility = on ? 'hidden' : ''; },
     stats() {
       const C = G.call, P = C && C.P;
       return { state: document.body.dataset.state, where: G.where, clock: fmtClock(G.clockT), stage: C && C.stage, rig: RIG && { x: Math.round(RIG.x), z: Math.round(RIG.z), v: +RIG.v.toFixed(1), siren: RIG.siren, dmg: Math.round(RIG.damage) },

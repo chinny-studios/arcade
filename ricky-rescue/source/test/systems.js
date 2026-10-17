@@ -53,7 +53,7 @@ for (const type of types) {
     }
     const L = RR.G.lastCall;
     res[type] = { grade: L.grade, total: L.total, out: L.out.text.slice(0, 90), harms: L.harms.map((h) => h.text), missed: L.items.filter((i) => i.kind === 'bad').map((i) => i.text), notes: lines };
-    RR.UI.hide('review'); RR.f.backInService();
+    RR.UI.hide('review'); RR.f.backInService(); RR.RIG.stock = RR.f.fullStock(RR.RIG.S.cap);
     RR.sim(0.5);
   } catch (e) { res[type] = 'ERROR ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 4).join(' | '); }
 }

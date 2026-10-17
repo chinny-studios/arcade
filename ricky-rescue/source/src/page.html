@@ -20,7 +20,7 @@
   .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
   body[data-state="play"] .hud { display: block; }
   #topLeft { position: absolute; left: 14px; top: 12px; max-width: min(520px, 60vw); }
-  #clockRow { display: flex; align-items: baseline; gap: 10px; }
+  #clockRow { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; } #clockRow span { white-space: nowrap; }
   #clock { font-family: var(--head); font-size: 30px; font-weight: 800; letter-spacing: .02em; text-shadow: 0 2px 6px #000; }
   #shiftEnd { color: var(--dim); font-size: 13px; text-shadow: 0 1px 3px #000; }
   #status { font-weight: 700; font-size: 16px; text-shadow: 0 1px 4px #000; margin-top: 2px; }
@@ -67,6 +67,26 @@
   #dispatch { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); width: min(560px, 92vw); background: var(--panel2); border: 2px solid var(--red2); border-radius: 14px; padding: 14px 16px; pointer-events: auto; box-shadow: 0 10px 40px rgba(0,0,0,.6); animation: pop .3s; }
   @keyframes pop { from { transform: translate(-50%, -10px); opacity: 0; } }
   #dispatch h3 { margin: 0 0 6px; font-family: var(--head); font-size: 22px; letter-spacing: .04em; color: #ff8a8a; }
+  /* the pager */
+  #dispatch { background: linear-gradient(#2a2e34, #1a1d22); border: 2px solid #3a3f48; border-radius: 18px; box-sizing: border-box; }
+  #dispatch.late { animation: pop .3s, pagerLate 1s infinite; } @keyframes pagerLate { 50% { border-color: var(--red); box-shadow: 0 0 24px rgba(255,60,60,.6); } }
+  .pgTop { display: flex; justify-content: space-between; font-family: var(--head); font-size: 13px; letter-spacing: .12em; color: #8a929e; margin-bottom: 6px; }
+  .pgTop .led { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-right: 6px; animation: led .5s steps(2) infinite; } @keyframes led { 50% { opacity: .2; } }
+  #pgLcd { background: #9fb88a; color: #1b2614; border-radius: 6px; padding: 8px 12px; font-family: 'Courier New', monospace; font-weight: 700; box-shadow: inset 0 2px 6px rgba(0,0,0,.35); }
+  #pgL1 { font-size: 20px; letter-spacing: .04em; } #pgL2 { font-size: 16px; } #pgL3 { font-size: 13px; opacity: .8; }
+  #dispatch #dispText { font-size: 14px; color: var(--dim); margin-top: 8px; }
+  #pgAck { margin-top: 8px; font-size: 12px; color: var(--dim); } #pgAck i { display: block; height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; margin-bottom: 3px; overflow: hidden; }
+  #pgAck b { display: block; height: 100%; background: var(--amber); }
+  #dispatch.late #pgAckT { color: var(--red); font-weight: 700; }
+  /* energy, chores, the rig check */
+  #energy { font-size: 13px; color: var(--dim); text-shadow: 0 1px 3px #000; } #energy.low { color: var(--amber); font-weight: 700; }
+  #actBar { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: min(320px, 80vw); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; text-align: center; font-size: 14px; }
+  #actBar i { display: block; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); margin-top: 6px; overflow: hidden; } #actBar b { display: block; height: 100%; width: 0; background: var(--green); }
+  .rc { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+  .rc div { display: flex; flex-direction: column; } .rc .bad { color: #ff9a9a; font-size: 12.5px; } .rc .ok { color: var(--green); font-weight: 700; font-size: 13px; }
+  .rc button { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: #26324a; font-weight: 600; font-size: 13px; white-space: nowrap; } .rc button.red { background: #5a1a1a; border-color: #ff6a6a; }
+  .rcbar { width: 110px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; } .rcbar i { display: block; height: 100%; background: var(--green); }
+  #tWait { display: none; } body[data-onpost="1"] #tWait { display: inline-block; }
   #dispText { font-size: 16px; line-height: 1.4; }
   #dispatch .row { display: flex; gap: 8px; margin-top: 12px; }
   .big { height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: #2a3446; font-weight: 700; font-size: 15px; }
@@ -197,6 +217,7 @@
   @media (max-width: 700px) {
     #tTop { right: 8px; top: 124px; flex-direction: column; } #miniMon { top: auto; bottom: 200px; right: 8px; }
     body[data-input="touch"] #miniMon { bottom: 300px; }
+    body[data-input="touch"] #dispatch { left: 8px; transform: none; width: calc(100vw - 92px); animation: none; } body[data-input="touch"] #dispatch.late { animation: pagerLate 1s infinite; }
     #care { left: 6px; right: 6px; top: auto; bottom: 6px; width: auto; height: 62vh; }
     #careBottom { display: none; }
     #topBtns { right: 120px; } #mapWrap { width: 104px; height: 104px; } #miniMon { top: 124px; width: 130px; }
@@ -207,7 +228,7 @@
   <canvas id="c"></canvas>
   <div id="nogl" hidden>WebGL isn't available in this browser, so Ricky Rescue can't run here.</div>
   <div class="hud">
-    <div id="topLeft"><div id="clockRow"><span id="clock">07:00</span><span id="shiftEnd"></span></div><div id="status"></div><div id="statusSub"></div></div>
+    <div id="topLeft"><div id="clockRow"><span id="clock">07:00</span><span id="shiftEnd"></span><span id="energy" hidden></span></div><div id="status"></div><div id="statusSub"></div></div>
     <div id="gps" hidden><div id="gpsArrow" class="arrow"></div><div><div id="gpsText"></div><div id="gpsDist"></div></div></div>
     <div id="mapWrap" title="Map (M)"><canvas id="minimap" width="340" height="340"></canvas></div>
     <div id="topBtns"><button class="hbtn btn" id="btnMenu" title="Pause (Esc)">II</button></div>
@@ -216,14 +237,15 @@
     <div id="radio"></div>
     <div id="toasts"></div>
     <div id="prompt" hidden></div>
-    <div id="dispatch" hidden><h3>DISPATCH · MEDIC 12</h3><div id="dispText"></div><div class="row"><button class="big go btn" id="btnRespond">Respond (Enter)</button></div></div>
+    <div id="dispatch" hidden><div class="pgTop"><span><span class="led"></span>PAGER · MEDIC 12</span><span id="pgClock"></span></div><div id="pgLcd"><div id="pgL1"></div><div id="pgL2"></div><div id="pgL3"></div></div><div id="dispText"></div><div id="pgAck"><i><b></b></i><span id="pgAckT"></span></div><div class="row"><button class="big go btn" id="btnRespond">Acknowledge &amp; respond (Enter)</button></div></div>
+    <div id="actBar" hidden><span id="actLbl"></span><i><b></b></i></div>
     <!-- touch -->
     <div class="touch">
       <div id="tSteer"><button class="tb btn" data-t="left">◀</button><button class="tb btn" data-t="right">▶</button></div>
       <div id="tPedals"><button class="tb btn" id="tBrake" data-t="brake">BRK</button><button class="tb btn" id="tGas" data-t="gas">GAS</button></div>
       <div id="tStick"><div id="tStickBase"><div id="tStickKnob"></div></div></div>
       <div id="tFoot"><button class="tb btn" data-tap="use">USE</button><button class="tb sm btn" data-tap="cycle">NEXT</button></div>
-      <div id="tTop"><button class="tb sm btn" data-tap="exit">IN/OUT</button><button class="tb sm btn" data-tap="ls">L&amp;S</button><button class="tb sm btn" data-tap="horn">HORN</button><button class="tb sm btn" data-tap="cam">CAM</button></div>
+      <div id="tTop"><button class="tb sm btn" data-tap="exit">IN/OUT</button><button class="tb sm btn" data-tap="ls">L&amp;S</button><button class="tb sm btn" data-tap="horn">HORN</button><button class="tb sm btn" data-tap="cam">CAM</button><button class="tb sm btn" id="tWait" data-tap="wait">WAIT</button></div>
     </div>
   </div>
   <!-- care panel -->
@@ -242,6 +264,7 @@
   </div>
   <div id="cprPad" hidden><button id="cprBtn" class="btn">PUSH</button><div id="cprRate"></div><div id="cprQ"><i></i></div><div class="cprHint">Space / tap at 100–120 a minute</div></div>
   <!-- rear doors -->
+  <div id="rigcheck" class="panel dlg" hidden><h2>Rig check</h2><button class="x btn" data-close="rigcheck">✕</button><div class="dim" id="rcSum"></div><div id="rcList"></div></div>
   <div id="rear" class="panel dlg" hidden><h2>Rear doors</h2><button class="x btn" data-close="rear">✕</button><div class="dim" id="rearStock"></div><div class="grid2" id="rearList"></div></div>
   <!-- transport -->
   <div id="transport" class="panel dlg" hidden><h2>Transport</h2><button class="x btn" data-close="transport">✕</button>

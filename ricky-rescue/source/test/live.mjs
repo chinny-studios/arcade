@@ -86,7 +86,8 @@ check('clicking Gloves & PPE does it', await waitFor(() => RR.C.ppe, 40000));
 await page.locator('#careTabs button', { hasText: 'Vitals' }).click(); await page.waitForTimeout(200);
 await page.locator('#w-partner').click(); await page.waitForTimeout(100);
 await page.locator('#careActs button', { hasText: 'Blood pressure' }).click();
-check('Marisol takes the BP', await waitFor(() => (RR.WORK.partner && RR.WORK.partner.id === 'bp') || RR.P.known.has('bp')));
+// she may be busy with something she started herself: then the BP is queued for her next
+check('Marisol takes the BP', await waitFor(() => (RR.WORK.partner && RR.WORK.partner.id === 'bp') || RR.WORK.queue.partner === 'bp' || RR.P.known.has('bp')));
 await page.screenshot({ path: path.join(outDir, 'live3_care.png') });
 await page.keyboard.press('Escape');
 check('Esc closes care', await waitFor(() => !RR.CARE.open));

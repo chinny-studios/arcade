@@ -25,7 +25,7 @@
   .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
   body[data-state="play"] .hud { display: block; }
   #topLeft { position: absolute; left: 14px; top: 12px; max-width: min(520px, 60vw); }
-  #clockRow { display: flex; align-items: baseline; gap: 10px; }
+  #clockRow { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; } #clockRow span { white-space: nowrap; }
   #clock { font-family: var(--head); font-size: 30px; font-weight: 800; letter-spacing: .02em; text-shadow: 0 2px 6px #000; }
   #shiftEnd { color: var(--dim); font-size: 13px; text-shadow: 0 1px 3px #000; }
   #status { font-weight: 700; font-size: 16px; text-shadow: 0 1px 4px #000; margin-top: 2px; }
@@ -72,6 +72,26 @@
   #dispatch { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); width: min(560px, 92vw); background: var(--panel2); border: 2px solid var(--red2); border-radius: 14px; padding: 14px 16px; pointer-events: auto; box-shadow: 0 10px 40px rgba(0,0,0,.6); animation: pop .3s; }
   @keyframes pop { from { transform: translate(-50%, -10px); opacity: 0; } }
   #dispatch h3 { margin: 0 0 6px; font-family: var(--head); font-size: 22px; letter-spacing: .04em; color: #ff8a8a; }
+  /* the pager */
+  #dispatch { background: linear-gradient(#2a2e34, #1a1d22); border: 2px solid #3a3f48; border-radius: 18px; box-sizing: border-box; }
+  #dispatch.late { animation: pop .3s, pagerLate 1s infinite; } @keyframes pagerLate { 50% { border-color: var(--red); box-shadow: 0 0 24px rgba(255,60,60,.6); } }
+  .pgTop { display: flex; justify-content: space-between; font-family: var(--head); font-size: 13px; letter-spacing: .12em; color: #8a929e; margin-bottom: 6px; }
+  .pgTop .led { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-right: 6px; animation: led .5s steps(2) infinite; } @keyframes led { 50% { opacity: .2; } }
+  #pgLcd { background: #9fb88a; color: #1b2614; border-radius: 6px; padding: 8px 12px; font-family: 'Courier New', monospace; font-weight: 700; box-shadow: inset 0 2px 6px rgba(0,0,0,.35); }
+  #pgL1 { font-size: 20px; letter-spacing: .04em; } #pgL2 { font-size: 16px; } #pgL3 { font-size: 13px; opacity: .8; }
+  #dispatch #dispText { font-size: 14px; color: var(--dim); margin-top: 8px; }
+  #pgAck { margin-top: 8px; font-size: 12px; color: var(--dim); } #pgAck i { display: block; height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; margin-bottom: 3px; overflow: hidden; }
+  #pgAck b { display: block; height: 100%; background: var(--amber); }
+  #dispatch.late #pgAckT { color: var(--red); font-weight: 700; }
+  /* energy, chores, the rig check */
+  #energy { font-size: 13px; color: var(--dim); text-shadow: 0 1px 3px #000; } #energy.low { color: var(--amber); font-weight: 700; }
+  #actBar { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: min(320px, 80vw); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; text-align: center; font-size: 14px; }
+  #actBar i { display: block; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); margin-top: 6px; overflow: hidden; } #actBar b { display: block; height: 100%; width: 0; background: var(--green); }
+  .rc { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+  .rc div { display: flex; flex-direction: column; } .rc .bad { color: #ff9a9a; font-size: 12.5px; } .rc .ok { color: var(--green); font-weight: 700; font-size: 13px; }
+  .rc button { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: #26324a; font-weight: 600; font-size: 13px; white-space: nowrap; } .rc button.red { background: #5a1a1a; border-color: #ff6a6a; }
+  .rcbar { width: 110px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; } .rcbar i { display: block; height: 100%; background: var(--green); }
+  #tWait { display: none; } body[data-onpost="1"] #tWait { display: inline-block; }
   #dispText { font-size: 16px; line-height: 1.4; }
   #dispatch .row { display: flex; gap: 8px; margin-top: 12px; }
   .big { height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: #2a3446; font-weight: 700; font-size: 15px; }
@@ -202,6 +222,7 @@
   @media (max-width: 700px) {
     #tTop { right: 8px; top: 124px; flex-direction: column; } #miniMon { top: auto; bottom: 200px; right: 8px; }
     body[data-input="touch"] #miniMon { bottom: 300px; }
+    body[data-input="touch"] #dispatch { left: 8px; transform: none; width: calc(100vw - 92px); animation: none; } body[data-input="touch"] #dispatch.late { animation: pagerLate 1s infinite; }
     #care { left: 6px; right: 6px; top: auto; bottom: 6px; width: auto; height: 62vh; }
     #careBottom { display: none; }
     #topBtns { right: 120px; } #mapWrap { width: 104px; height: 104px; } #miniMon { top: 124px; width: 130px; }
@@ -214,7 +235,7 @@
   <canvas id="c"></canvas>
   <div id="nogl" hidden>WebGL isn't available in this browser, so Ricky Rescue can't run here.</div>
   <div class="hud">
-    <div id="topLeft"><div id="clockRow"><span id="clock">07:00</span><span id="shiftEnd"></span></div><div id="status"></div><div id="statusSub"></div></div>
+    <div id="topLeft"><div id="clockRow"><span id="clock">07:00</span><span id="shiftEnd"></span><span id="energy" hidden></span></div><div id="status"></div><div id="statusSub"></div></div>
     <div id="gps" hidden><div id="gpsArrow" class="arrow"></div><div><div id="gpsText"></div><div id="gpsDist"></div></div></div>
     <div id="mapWrap" title="Map (M)"><canvas id="minimap" width="340" height="340"></canvas></div>
     <div id="topBtns"><button class="hbtn btn" id="btnMenu" title="Pause (Esc)">II</button></div>
@@ -223,14 +244,15 @@
     <div id="radio"></div>
     <div id="toasts"></div>
     <div id="prompt" hidden></div>
-    <div id="dispatch" hidden><h3>DISPATCH · MEDIC 12</h3><div id="dispText"></div><div class="row"><button class="big go btn" id="btnRespond">Respond (Enter)</button></div></div>
+    <div id="dispatch" hidden><div class="pgTop"><span><span class="led"></span>PAGER · MEDIC 12</span><span id="pgClock"></span></div><div id="pgLcd"><div id="pgL1"></div><div id="pgL2"></div><div id="pgL3"></div></div><div id="dispText"></div><div id="pgAck"><i><b></b></i><span id="pgAckT"></span></div><div class="row"><button class="big go btn" id="btnRespond">Acknowledge &amp; respond (Enter)</button></div></div>
+    <div id="actBar" hidden><span id="actLbl"></span><i><b></b></i></div>
     <!-- touch -->
     <div class="touch">
       <div id="tSteer"><button class="tb btn" data-t="left">◀</button><button class="tb btn" data-t="right">▶</button></div>
       <div id="tPedals"><button class="tb btn" id="tBrake" data-t="brake">BRK</button><button class="tb btn" id="tGas" data-t="gas">GAS</button></div>
       <div id="tStick"><div id="tStickBase"><div id="tStickKnob"></div></div></div>
       <div id="tFoot"><button class="tb btn" data-tap="use">USE</button><button class="tb sm btn" data-tap="cycle">NEXT</button></div>
-      <div id="tTop"><button class="tb sm btn" data-tap="exit">IN/OUT</button><button class="tb sm btn" data-tap="ls">L&amp;S</button><button class="tb sm btn" data-tap="horn">HORN</button><button class="tb sm btn" data-tap="cam">CAM</button></div>
+      <div id="tTop"><button class="tb sm btn" data-tap="exit">IN/OUT</button><button class="tb sm btn" data-tap="ls">L&amp;S</button><button class="tb sm btn" data-tap="horn">HORN</button><button class="tb sm btn" data-tap="cam">CAM</button><button class="tb sm btn" id="tWait" data-tap="wait">WAIT</button></div>
     </div>
   </div>
   <!-- care panel -->
@@ -249,6 +271,7 @@
   </div>
   <div id="cprPad" hidden><button id="cprBtn" class="btn">PUSH</button><div id="cprRate"></div><div id="cprQ"><i></i></div><div class="cprHint">Space / tap at 100–120 a minute</div></div>
   <!-- rear doors -->
+  <div id="rigcheck" class="panel dlg" hidden><h2>Rig check</h2><button class="x btn" data-close="rigcheck">✕</button><div class="dim" id="rcSum"></div><div id="rcList"></div></div>
   <div id="rear" class="panel dlg" hidden><h2>Rear doors</h2><button class="x btn" data-close="rear">✕</button><div class="dim" id="rearStock"></div><div class="grid2" id="rearList"></div></div>
   <!-- transport -->
   <div id="transport" class="panel dlg" hidden><h2>Transport</h2><button class="x btn" data-close="transport">✕</button>
@@ -1605,7 +1628,7 @@ function decal(tex, w, h, x, y, z, yaw, o = 1) {
 
 // ---------- ambulance ----------
 // Built facing +z with the origin on the ground under the middle. The curb (right) side is -x.
-function buildRig(type, livId = 'classic', patId = 'alt', colId = 'redwhite') {
+function buildRig(type, livId = 'classic', patId = 'alt', colId = 'redwhite', unit = 'MEDIC 12') {
   const S = RIGS[type], L = LIVERIES[livId], LC = LIGHT_COLORS[colId];
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const len = S.len, wid = S.wid, hgt = S.hgt;
@@ -1657,7 +1680,7 @@ function buildRig(type, livId = 'classic', patId = 'alt', colId = 'redwhite') {
   // lettering
   const txt = hexCss(L.text);
   for (const sx of [-1, 1]) {
-    body.add(decal(textDecal('MEDIC 12', txt), 2.2, 0.42, sx * (boxW / 2 + 0.02), 1.72, zR + boxLen * 0.42, sx * Math.PI / 2));
+    body.add(decal(textDecal(unit, txt), 2.2, 0.42, sx * (boxW / 2 + 0.02), 1.72, zR + boxLen * 0.42, sx * Math.PI / 2));
     body.add(decal(starOfLife(), 0.95, 0.95, sx * (boxW / 2 + 0.02), hgt - 0.7, zR + boxLen * 0.82, sx * Math.PI / 2));
     body.add(decal(textDecal('RICKY RESCUE EMS', txt, 512, 64, 700), 1.9, 0.24, sx * (boxW / 2 + 0.02), 0.62, zR + boxLen * 0.42, sx * Math.PI / 2));
   }
@@ -2769,6 +2792,12 @@ const AUDIO = (() => {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
     o.connect(g); g.connect(sfx); o.start(t); o.stop(t + dur + 0.05);
   }
+  function steady(f, dur, when = 0, vol = 0.07) {
+    const t = ctx.currentTime + when, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.setValueAtTime(vol, t + dur - 0.03); g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(g); g.connect(sfx); o.start(t); o.stop(t + dur + 0.05);
+  }
   function noise(dur, vol = 0.2, freq = 1200, when = 0) {
     if (!ctx) return;
     const t = ctx.currentTime + when, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
@@ -2829,13 +2858,15 @@ const AUDIO = (() => {
     cpr() { tone(1800, 0.03, 'square', 0.04); },
     squelch() { noise(0.18, 0.06, 2200); },
     dispatchTone() { tone(1050, 0.35, 'sine', 0.08); tone(1450, 0.6, 'sine', 0.08, 0.38); },
+    // two-tone sequential page, then the pager's own chirps
+    pager() { if (!ctx) return; steady(853, 0.75, 0); steady(960, 1.5, 0.78); for (let i = 0; i < 3; i++) steady(2400, 0.07, 2.5 + i * 0.15, 0.04); },
     crash(k) { noise(0.5, Math.min(0.5, 0.1 + k * 0.03), 260); tone(80, 0.3, 'sine', 0.2, 0, -40); },
     alarm() { for (let i = 0; i < 3; i++) tone(980, 0.12, 'square', 0.05, i * 0.18); },
     shock() { tone(200, 0.4, 'sawtooth', 0.12, 0, 800); noise(0.2, 0.2, 3000, 0.4); },
     chime(g) { const s = g === 'A' || g === 'B' ? [523, 659, 784, 1047] : g === 'C' ? [523, 659, 784] : [440, 392, 349]; s.forEach((f, i) => tone(f, 0.35, 'triangle', 0.08, i * 0.12)); },
   };
 })();
-function radioTone() { AUDIO.dispatchTone(); }
+function radioTone() { AUDIO.pager(); }
 
 // Ricky Rescue — patients: generation, the physiology model (conditions push vitals around), bleeding, oxygen and
 // ventilation, cardiac arrest and resuscitation, exam findings.
@@ -3854,7 +3885,7 @@ function pickCall(r, opts = {}) {
     const kinds = tpl.places;
     const cands = kinds.includes('road') ? roadPlaces(d, r) : CITY.places.filter((p) => p.district === d && kinds.includes(p.kind));
     if (!cands.length) continue;
-    let place = r.pick(cands);
+    let place = opts.zoneW ? r.wpick(cands, opts.zoneW) : r.pick(cands);
     if (opts.near) place = cands.reduce((a, b) => (dist2(a.x, a.z, opts.near.x, opts.near.z) < dist2(b.x, b.z, opts.near.x, opts.near.z) ? a : b));
     if (opts.far) { const far = cands.filter((p) => dist(p.x, p.z, RIG.x, RIG.z) > opts.far); if (far.length) place = r.pick(far); }
     if (RIG && dist(place.x, place.z, RIG.x, RIG.z) < 90 && !opts.type && !opts.near) continue;
@@ -3921,7 +3952,9 @@ function startShift(o = {}) {
   G.where = 'cab'; G.mode = 'play'; G.speed = 1;
   CAM.yaw = st.yaw + Math.PI; snapCam();
   C.stats.shifts++;
+  resetDowntime();
   radio('Dispatch', `Medic 12, good ${startH < 12 ? 'morning' : 'evening'}. You're in service at Station 12. Shift ends ${fmtClock(G.shift.endT)}.`);
+  resetPosts();
   bus.emit('shiftStart');
 }
 function endShiftNow() {
@@ -3934,7 +3967,8 @@ function endShiftNow() {
 
 // advance the clock, schedule calls, tick the active call. dt is real seconds × game speed.
 function updateGame(dt) {
-  const gdt = dt * TIME_SCALE;
+  // waiting on post or busy with a chore between calls, the clock runs fast
+  const gdt = dt * TIME_SCALE * timeWarp();
   G.clockT += gdt;
   setTimeOfDay((G.clockT / 3600) % 24);
   const S = G.shift; if (!S) return;
@@ -3942,6 +3976,8 @@ function updateGame(dt) {
     if (G.clockT >= S.endT) { endShiftNow(); return; }
     if (G.clockT >= S.nextCallT && G.where !== 'back') dispatchCall();
   }
+  updatePosts(gdt);
+  updateDowntime(gdt);
   if (G.call) tickCall(gdt);
 }
 
@@ -3949,7 +3985,8 @@ function dispatchCall(o = {}) {
   const r = RNG();
   const mci = !o.type && G.career.rank >= 2 && !G.shift.mciDone && r.chance(0.12);
   if (mci || o.type === 'mci') return startMCI(o);
-  const pc = pickCall(r, o);
+  // calls come from where Medic 12 is the closest free unit, weighted by demand
+  const pc = pickCall(r, Object.keys(o).length ? o : { zoneW: callZoneWeight() });
   if (!pc) { G.shift.nextCallT = G.clockT + 120; return null; }
   return startCall(pc.tpl, pc.place, r, o);
 }
@@ -3984,7 +4021,7 @@ const ordinal = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2
 
 function respond() {
   const C = G.call; if (!C || C.stage !== 'pending') return;
-  C.stage = 'enroute'; C.times.respond = C.t;
+  C.stage = 'enroute'; C.times.respond = C.t; C.times.ack = C.t;
   radio('Medic 12', `Medic 12 copies, responding${C.pri === 1 ? ' priority one' : ''}.`, 'crew');
   const goal = C.hazard ? stagingPoint(C) : C.place.curb;
   buildRoute(Object.assign({ ls: true }, goal), C.hazard ? 'Staging area' : C.addr);
@@ -4007,6 +4044,10 @@ function tickCall(gdt) {
   const ctx = careContext(C);
   for (const P of C.patients) tickPatient(P, gdt, ctx);
   updateWorkers(gdt);
+  // nobody answered the pager: tone it out again
+  if (C.stage === 'pending' && !C.retone && C.t > ACK_T) { C.retone = true; AUDIO.pager(); radio('Dispatch', 'Medic 12, dispatch. Do you copy?', 'dispatch'); }
+  // turnout ends when the wheels roll
+  if (C.times.roll === undefined && (C.stage === 'enroute' || C.stage === 'staging') && RIG && (Math.abs(RIG.v) > 3 || (C.rollFrom && dist(RIG.x, RIG.z, C.rollFrom.x, C.rollFrom.z) > 15))) C.times.roll = C.t;
   // stage changes from where the rig is
   if (C.stage === 'enroute' && RIG) {
     const tgt = C.hazard && !C.pdCleared ? stagingPoint(C) : C.place.curb;
@@ -4034,6 +4075,7 @@ function tickCall(gdt) {
 function arriveOnScene(C) {
   if (C.stage === 'onscene') return;
   C.stage = 'onscene'; C.times.arrive = C.t;
+  if (C.times.roll === undefined) C.times.roll = Math.min(C.t, C.times.ack !== undefined ? C.times.ack : C.t);
   radio('Medic 12', 'Medic 12 on scene.', 'crew');
   clearRoute();
   bus.emit('arrive', C);
@@ -4080,8 +4122,10 @@ function backInService() {
   stopAllWork();
   if (RIG) { RIG.siren = false; RIG.auto = null; }
   const S = G.shift;
-  S.nextCallT = G.clockT + rnd.range(3, 9) * 60;
   radio('Medic 12', 'Medic 12 is back in service.', 'crew');
+  replan('service');
+  S.nextCallT = G.clockT + rnd.range(3, 9) * 60 / callGapFactor();
+  if (RIG && missingStock() >= 3) setTimeout(() => partnerSay(atBase() ? 'We\'re running low on a few things. Restock here before we go?' : 'We\'re low on supplies. Next time we\'re at a hospital, let\'s restock.'), DEBUG ? 0 : 2500);
   saveGame();
   if (G.clockT >= S.endT) endShiftNow();
 }
@@ -4525,7 +4569,7 @@ function transferToStretcher() {
 function loadPatient() {
   const s = EQ.stretcher, P = s.P, C = G.call; if (!P) return;
   closePanel('rear');
-  startWork('ricky', { id: 'load', name: 'Loading', dur: 18 * RIGS[RIG.type].load + 6, fn: () => {
+  startWork('ricky', { id: 'load', name: 'Loading', dur: 18 * RIGS[RIG.type].load + 6 + equipDelay('load'), fn: () => {
     s.at = 'rig'; s.by = null; s.model.g.visible = false; PLAYER.push = false; RIG.loaded = P;
     P.where = { scene: 'rig' }; RIG.doors = 0;
     callLog(C, 'Ricky', 'Patient loaded.');
@@ -4696,6 +4740,8 @@ function interactions() {
     }
     if (RIG.loaded && near(rr.x, rr.z, 2.6) && C && C.stage !== 'hospital') out.push({ label: 'Climb in back', fn: () => climbInBack() });
   }
+  // coffee between calls
+  const cs = coffeeSpot(); if (cs) out.push({ label: `Grab a coffee at ${cs.name}${cs.cost ? ' (' + fmtMoney(cs.cost) + ')' : ''}`, fn: () => grabCoffee(cs) });
   // mass-casualty triage before anyone gets treated
   if (C && C.mci && !C.mci.sent) {
     for (const Q of C.mci.pts) if (Q.where.scene === 'city' && near(Q.where.x, Q.where.z, 2.4)) out.push({ label: `Triage patient ${C.mci.pts.indexOf(Q) + 1}${C.mci.tags.has(Q) ? ' (' + TAGS[C.mci.tags.get(Q)].name.toLowerCase() + ')' : ''}`, fn: () => openTriage(Q), kind: 'care' });
@@ -4838,7 +4884,8 @@ function doAction(id, who = CARE.who, P = G.call && G.call.P) {
   const h = a.harm && a.harm(P, C); if (h) addHarm(C, h);
   let dur = a.dur;
   if (who === 'partner' && G.career.rank >= 3) dur *= 0.8;
-  if (who === 'medic') dur *= 0.9;
+  if (who === 'medic') dur *= 0.9; else dur *= fatigueMul();
+  dur += equipDelay(id);
   const pose = id === 'cpr' ? 'cpr' : id === 'bvm' ? 'kneel' : (P.pose === 'sit' || P.pose === 'chestSit') && G.where !== 'back' ? 'crouch' : 'kneel';
   startWork(who, { act: a, id, name: a.name, dur, cont: !!a.cont, pose, P });
   bus.emit('action', id, who);
@@ -5148,7 +5195,9 @@ function openRearPanel() {
     else if ((e.by === 'ricky') && !e.P) add('Put the ' + DEVICES[id].short + ' back', '', () => stowToRig(id));
   }
   const nearBase = RIG && (Object.values(CITY.hospitals).some((h) => dist(RIG.x, RIG.z, h.bay.x, h.bay.z) < 40) || dist(RIG.x, RIG.z, CITY.station.x, CITY.station.z) < 40);
-  add('Restock the cabinets', nearBase ? 'Free at a hospital or the station' : 'Only at a hospital or the station', () => { RIG.stock = fullStock(RIGS[RIG.type].cap); toast('Cabinets restocked.'); closePanel('rear'); G.clockT += 120; }, !nearBase);
+  const miss = missingStock();
+  add('Restock the cabinets', G.call ? 'After the call' : !nearBase ? 'Only at a hospital or the station' : miss ? `${miss} item${miss > 1 ? 's' : ''} to top up · about ${fmtMin(60 + miss * 15)}` : 'Already full', () => startRestock(), !nearBase || !!G.call || !miss);
+  if (G.shift && G.shift.check) { const ch = G.shift.check, n = RIG_CHECK.filter((c) => ch.items[c.id].state !== 'todo').length; add('Rig check', ch.done ? 'Done for this shift' : `${n} of ${RIG_CHECK.length} checked` + (G.call ? ' · after the call' : ''), () => openRigCheck(), false); }
   const low = Object.entries(RIG.stock).filter(([k, v]) => (k === 'o2' ? v < 30 : v === 0)).map(([k]) => SUPPLIES[k].name);
   $('#rearStock').textContent = low.length ? 'Running low: ' + low.join(', ') : 'Cabinets are stocked.';
   UI.show('rear');
@@ -5452,8 +5501,15 @@ function scoreCall(C) {
   const special = C.how === 'refusal' || C.how === 'terminated';
   // response
   const goal = RESPONSE_GOAL[C.pri] * (C.hazard ? 1.4 : 1);
-  const resp = (C.times.arrive || C.t) - (C.times.respond || 0);
-  add('Response', `Response time ${fmtMin(resp)} (goal ${fmtMin(goal)})`, clamp(10 * (2 - resp / goal), 0, 10), 10);
+  // turnout: from the page to the wheels rolling; then the drive
+  const page = C.times.page || 0, ack = (C.times.ack !== undefined ? C.times.ack : C.t) - page;
+  const roll = C.times.roll !== undefined ? C.times.roll : C.times.respond || 0, cg = C.chuteGoal || 90;
+  const chute = Math.max(0, roll - page), resp = (C.times.arrive || C.t) - roll;
+  add('Response', `Turnout ${fmtDur(chute)} from the page (goal ${fmtDur(cg)})`, clamp(3 * (2 - chute / cg), 0, 3), 3);
+  if (ack > ACK_T) add('Response', `Took ${fmtDur(ack)} to acknowledge the page`, -2, 0, 'bad');
+  add('Response', `Drive ${fmtMin(resp)} (goal ${fmtMin(goal)})`, clamp(7 * (2 - resp / goal), 0, 7), 7);
+  // problems a rig check would have caught
+  for (const f of (C.equipFails || []).slice(0, 2)) add('Readiness', `Found on the call: ${f}. A rig check would have caught it.`, -2, 0, 'bad');
   if (C.pri === 3 && C.ls.enroute) add('Response', 'Lights and sirens on a priority 3 call', -3, 0, 'bad');
   // assessment
   add('Assessment', 'Gloves before touching the patient', C.ppe && !C.ppeWarn ? 3 : 0, 3);
@@ -5506,19 +5562,20 @@ function scoreCall(C) {
   const deathFair = (C.how === 'terminated' || out.tier === 5) && C.tpl.arrest && pg / Math.max(1, pm) > 0.7;
   // harms
   const harm = Math.min(36, C.harms.length * 6);
-  let total = items.filter((i) => ['Response', 'Assessment'].includes(i.cat)).reduce((a, i) => a + i.got, 0) + proto + dest + scene + drive + ho + (deathFair ? 7 : outPts) - harm;
+  let total = items.filter((i) => ['Response', 'Assessment', 'Readiness'].includes(i.cat)).reduce((a, i) => a + i.got, 0) + proto + dest + scene + drive + ho + (deathFair ? 7 : outPts) - harm;
   if (C.how === 'abandoned') total = Math.min(total, 30);
   total = clamp(Math.round(total), 0, 100);
   const grade = total >= 90 ? 'A' : total >= 80 ? 'B' : total >= 70 ? 'C' : total >= 60 ? 'D' : 'F';
   const xp = Math.round(total * 1.3 + (C.pri === 1 ? 30 : 10) + (out.save ? 60 : 0));
   const pay = Math.round(110 + total * 2.2 + (G.career.rank >= 3 ? 60 : 0) + (out.save ? 100 : 0));
-  return { C, P, items, harms: C.harms, total, grade, xp, pay, out, proto: Math.round(proto), sections: { proto, dest, scene, drive, ho }, deathFair };
+  return { C, P, items, harms: C.harms, total, grade, xp, pay, out, proto: Math.round(proto), sections: { proto, dest, scene, drive, ho }, deathFair, chute };
 }
 function applyResult(res) {
   const K = G.career, C = res.C;
   const before = K.rank;
   K.xp += res.xp; K.money += res.pay;
   G.shift.earnings += res.pay; G.shift.xp += res.xp;
+  if (G.shift.posting) G.shift.posting.chutes.push(res.chute);
   K.stats.calls++; K.stats.grades[res.grade]++;
   if (res.out.save) { K.stats.saves++; K.stats.rosc++; }
   if (C.P.conds.labor && C.P.conds.labor.born) K.stats.deliveries++;
@@ -5796,6 +5853,8 @@ function drawMinimap(cvId, big) {
   const C = G.call;
   if (C && C.place && C.stage !== 'done') { g.fillStyle = '#ff4a4a'; g.beginPath(); g.arc(P(C.place.x), P(C.place.z), big ? 6 : 4, 0, TAU); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); }
   if (C && C.staging && C.stage === 'enroute' && !C.pdCleared) { g.fillStyle = '#ffd040'; g.beginPath(); g.arc(P(C.staging.x), P(C.staging.z), 4, 0, TAU); g.fill(); }
+  // posts and the other medic units
+  drawPosts(g, P, big);
   // fire engines and police cars out on the road, flashing while they run hot
   const flash = Math.floor(performance.now() / 280) % 2;
   for (const u of RESP.units) {
@@ -5831,7 +5890,23 @@ function updateHUD(dt) {
     sub = C.stage === 'enroute' ? 'Call time ' + fmtDur(C.t) : C.times.arrive !== undefined ? 'On scene ' + fmtDur(C.t - C.times.arrive) : '';
     const ul = unitsLine(C); if (ul) sub += (sub ? ' · ' : '') + ul;
     if (C.mci && !C.mci.sent && C.stage === 'onscene') sub = `Triaged ${C.mci.tags.size} of ${C.mci.pts.length}` + (C.mci.tags.size === C.mci.pts.length ? ' · radio your report (R)' : '');
-  } else if (S && !S.over && S.nextCallT > G.clockT) sub = 'Press T to skip ahead to the next call';
+  } else if (S && !S.over && SSM.m12) {
+    // between calls: posting, chores, waiting for the pager
+    const m = SSM.m12, p = m.post, key = Input.mode === 'pad' ? 'D-pad ↓' : Input.mode === 'touch' ? 'WAIT' : 'T';
+    if (DT.act) st = esc(DT.act.label) + '…';
+    else if (p && !m.reached) { st = 'Posting to ' + esc(postLabel(p)); const left = m.deadline - G.clockT; sub = left >= 0 ? 'Due in ' + fmtDur(left) : 'Late by ' + fmtDur(-left); }
+    else if (p && m.onPost) { st = DT.waiting ? 'On post · waiting for a page ▸▸' : 'On post · ' + esc(postLabel(p)); sub = (DT.waiting ? key + ' to stop waiting' : key + ' to wait for a page'); }
+    else if (p) st = 'Off post · return to ' + esc(postLabel(p));
+    sub += (sub ? ' · ' : '') + `${freeUnits()} of ${SSM.units.length + 1} units free`;
+  }
+  document.body.dataset.onpost = !C && SSM.m12 && SSM.m12.onPost ? '1' : '';
+  // energy, and whatever chore is under way
+  const en = $('#energy');
+  if (S && !S.over && S.energy !== undefined) { en.hidden = false; en.textContent = '☕ ' + Math.round(S.energy) + '%'; en.classList.toggle('low', S.energy < 40); } else en.hidden = true;
+  const ab = $('#actBar');
+  ab.hidden = !DT.act;
+  if (DT.act) { $('#actLbl').textContent = DT.act.label; $('#actBar b').style.width = Math.round(clamp(DT.act.t / DT.act.dur, 0, 1) * 100) + '%'; }
+  if (UI.isOpen('rigcheck') && DT.act) { HUD.rcT = (HUD.rcT || 0) - dt; if (HUD.rcT <= 0) { HUD.rcT = 0.15; renderRigCheck(); } }
   if (st !== HUD.lastStatus) { $('#status').innerHTML = st; HUD.lastStatus = st; }
   $('#statusSub').textContent = sub;
   // GPS
@@ -5878,7 +5953,18 @@ function updateHUD(dt) {
   // dispatch card
   const dc = $('#dispatch');
   dc.hidden = !(C && C.stage === 'pending');
-  if (!dc.hidden) $('#dispText').textContent = C.dispatchText;
+  if (!dc.hidden) {
+    // the pager: short lines on the screen, the full text under it, and the clock to acknowledge
+    $('#dispText').textContent = C.dispatchText;
+    $('#pgClock').textContent = fmtClock(G.clockT);
+    $('#pgL1').textContent = `P${C.pri} ${C.nature.toUpperCase()}`;
+    $('#pgL2').textContent = C.addr.toUpperCase();
+    $('#pgL3').textContent = ['M12', ...(C.units || []).map((u) => (u.kind === 'police' ? 'PD' + u.num : u.short))].join(' ');
+    const left = ACK_T - (C.t - (C.times.page || 0));
+    $('#pgAck b').style.width = clamp(left / ACK_T, 0, 1) * 100 + '%';
+    $('#pgAckT').textContent = left > 0 ? 'Acknowledge within ' + fmtDur(left) : 'Overdue: dispatch is waiting on you';
+    dc.classList.toggle('late', left <= 0);
+  }
   // staging / scene hints
   HUD.radioT = (HUD.radioT || 0) - dt; if (HUD.radioT <= 0) { HUD.radioT = 1; renderRadio(); }
   drawMinimap('#minimap', false);
@@ -5894,7 +5980,7 @@ function usePrompt(i) {
 // Ricky Rescue — menus and panels: title, new career, Station 12 (shift setup, garage, locker, career), options,
 // help, pause, shift summary, first-time tips, and focus navigation for the gamepad.
 
-const BLOCKING = ['rear', 'transport', 'handoff', 'triage', 'review', 'pause', 'options', 'help', 'shiftOver', 'mapBig'];
+const BLOCKING = ['rear', 'rigcheck', 'transport', 'handoff', 'triage', 'review', 'pause', 'options', 'help', 'shiftOver', 'mapBig'];
 const PAUSING = ['pause', 'options', 'help', 'review', 'shiftOver'];
 const UI = {
   open: new Set(), focusEl: null,
@@ -5903,7 +5989,7 @@ const UI = {
   isOpen(id) { return this.open.has(id); },
   blocking() { for (const id of BLOCKING) if (this.open.has(id)) return true; return G.mode !== 'play'; },
   paused() { for (const id of PAUSING) if (this.open.has(id)) return true; return G.mode !== 'play'; },
-  top() { const order = ['options', 'help', 'pause', 'shiftOver', 'review', 'handoff', 'transport', 'triage', 'rear', 'mapBig', 'care']; for (const id of order) if (this.open.has(id)) return $('#' + id); const st = document.body.dataset.state; return st !== 'play' ? $('#' + st) : null; },
+  top() { const order = ['options', 'help', 'pause', 'shiftOver', 'review', 'handoff', 'transport', 'triage', 'rigcheck', 'rear', 'mapBig', 'care']; for (const id of order) if (this.open.has(id)) return $('#' + id); const st = document.body.dataset.state; return st !== 'play' ? $('#' + st) : null; },
   // gamepad: move focus between visible buttons in the top panel
   update() {
     const n = Input.navPad(); if (!Object.keys(n).length) return;
@@ -5938,7 +6024,7 @@ function showTitle() {
   const add = (label, sub, fn, cls = '') => { const b = el('button', 'mb btn ' + cls, esc(label) + (sub ? `<small>${esc(sub)}</small>` : '')); b.onclick = () => { AUDIO.init(); AUDIO.click(); fn(); }; m.appendChild(b); };
   if (has) { const s = peekSave(); add('Continue career', s ? `${RANKS[rankFor(s.xp)].name} · ${s.stats.calls} calls` : '', () => { loadGame(); showStation(); }, 'go'); }
   add('New career', has ? 'replaces your save' : 'start as an EMT at Station 12', () => showCreate(), has ? '' : 'go');
-  add('Quick shift', 'jump straight into a call', () => { if (!G.career) { G.career = has ? (loadGame(), G.career) : newCareer(); } startShift({ hours: 4, firstCall: 3 }); setState('play'); });
+  add('Quick shift', 'jump straight into a call', () => { if (!G.career) { G.career = has ? (loadGame(), G.career) : newCareer(); } startShift({ hours: 4, firstCall: 1 }); setState('play'); });
   add('How to play', '', () => UI.show('help'));
   add('Options', '', () => openOptions());
   titleScene();
@@ -6091,18 +6177,35 @@ const HELP_HTML = `
 <ul><li>Pick the hospital: <b>Mercy</b> has the cath lab, stroke center and labor & delivery; <b>Harbor General</b> is the Level I trauma center; <b>St. Brigid</b> is close but basic.</li>
 <li>Radio a <b>STEMI</b>, <b>stroke</b> or <b>trauma alert</b> when it fits. Ride in back to keep treating while Marisol drives, or drive yourself and let her watch the patient.</li>
 <li>At the hospital, back into the bay, unload, push the stretcher to the ER doors and give your report. Restock at the rear doors of the rig.</li></ul>
+<h3>Between calls</h3>
+<ul><li>Calls come in on the <b>pager</b>. Acknowledge it quickly and get the wheels rolling: <b>turnout time</b> (page to rolling) is scored, about 1½ minutes by day and 2 at night.</li>
+<li>Dispatch <b>posts</b> you where you cover the city best, given which other medic units are free (white squares on the map; orange ones are busy). When a unit gets busy, you may be told to <b>move up</b>. Getting to your post on time earns XP, and calls come from the area around your post, so being there means shorter drives.</li>
+<li>On post, <span class="kbd">T</span> waits for the next page with the clock running fast. Out of the rig: do the <b>rig check</b> at the rear doors (whatever the last crew left broken turns up on a call otherwise), <b>restock</b> at a hospital or the station, and grab a <b>coffee</b> at a shop, the station or a hospital: tired crews work slower.</li></ul>
 <h3>Gamepad</h3>
 <p>RT gas, LT brake, left stick steer or walk, right stick camera, A use, X lights and sirens, Y in/out, B back, LB horn, RB siren tone, D-pad menus, Start pause, View map.</p>
 <h3>Touch</h3>
 <p>Steer and pedal buttons in the rig; a stick and USE button on foot; IN/OUT, L&S and HORN at the top.</p>
 <p class="dim">Ricky Rescue simplifies real protocols to make a game. It isn't medical training.</p>`;
 function openPause() { if (G.mode !== 'play') return; UI.show('pause'); }
+function postingSummary(S) {
+  const P = S.posting; if (!P) return '';
+  const ch = P.chutes.filter((x) => x !== undefined), avg = ch.length ? ch.reduce((a, b) => a + b, 0) / ch.length : null;
+  const k = S.check, found = k ? RIG_CHECK.filter((c) => k.items[c.id].state === 'fixed' && !k.items[c.id].bad).length : 0;
+  const lines = [
+    P.orders ? `Posting: ${P.onTime} of ${P.orders} post orders reached on time${P.late ? `, ${P.late} late` : ''}.` : 'Posting: no move-ups this shift.',
+    avg !== null ? `Average turnout ${fmtDur(avg)} from page to wheels rolling.` : '',
+    k ? (k.done ? `Rig check done${k.fixed ? `, ${k.fixed} problem${k.fixed > 1 ? 's' : ''} fixed before a call` : ''}.` : `Rig check not finished${k.missed ? `: ${k.missed} problem${k.missed > 1 ? 's' : ''} turned up on calls` : ''}.`) : '',
+    S.coffees ? `${S.coffees} coffee${S.coffees > 1 ? 's' : ''}. Energy at the end: ${Math.round(S.energy)}%.` : `No coffee. Energy at the end: ${Math.round(S.energy)}%.`,
+  ];
+  return `<p class="dim">${lines.filter(Boolean).join('<br>')}</p>`;
+}
 function showShiftOver() {
   const S = G.shift, K = G.career;
   const res = S.results;
   const g = (x) => res.filter((r) => r.grade === x).length;
   $('#soBody').innerHTML = `<p>${res.length} call${res.length === 1 ? '' : 's'} this shift. Grades: A ${g('A')}, B ${g('B')}, C ${g('C')}, D ${g('D')}, F ${g('F')}.</p>
     <p class="dim">${res.map((r) => `${r.grade} · ${esc(r.C.nature)} (${r.total})`).join('<br>')}</p>
+    ${postingSummary(S)}
     <p style="color:var(--amber);font-weight:700">Earned ${fmtMoney(S.earnings)} and ${S.xp} XP. Balance ${fmtMoney(K.money)}.</p>`;
   UI.show('shiftOver');
 }
@@ -6110,7 +6213,9 @@ bus.on('shiftEnd', () => { if (G.call) return; setTimeout(() => showShiftOver(),
 
 // ---------- first-time tips ----------
 function tip(id, text) { const K = G.career; if (!K || K.tips[id] || !OPTS.tips) return; K.tips[id] = true; setTimeout(() => toast(text, 'good'), 400); }
-bus.on('dispatch', () => tip('dispatch', 'A call! Press Enter (or Respond) and follow the blue line. Q toggles lights & sirens.'));
+bus.on('dispatch', () => tip('dispatch', 'A page! Acknowledge with Enter (or the button) and get rolling: turnout time counts. Q toggles lights & sirens.'));
+bus.on('postOrder', () => tip('post', 'Dispatch posts you where you cover the most calls. Follow the blue line to your post; on time earns XP.'));
+bus.on('onPost', () => tip('onpost', 'On post. Press T to wait for a page, or get out: rig check and restock at the rear doors, coffee where there\'s a shop.'));
 bus.on('arrive', () => tip('arrive', 'On scene. Press F to get out, then grab equipment at the rear doors or go straight to the patient.'));
 bus.on('contact', () => tip('contact', 'Start with Gloves & PPE, then the general impression and ABCs. Click Marisol to give her jobs too.'));
 bus.on('loaded', () => tip('loaded', 'Choose the hospital that fits the patient and radio ahead with an alert if needed.'));
@@ -6649,6 +6754,490 @@ function sirenVehicles() {
   return out;
 }
 
+// Ricky Rescue — system status management. Between calls dispatch posts Medic 12 at a spot (a firehouse apron, a
+// park curb, a gas-station or strip-mall front, a hospital lot) picked to cover whatever part of the city is thinnest
+// right now, given which of the other medic units are free. Those units are simulated: they catch calls, go to the
+// hospital and come back in service on their own, park at their posts (drawn when Medic 12 is near) and show on the
+// map. A unit going busy or coming free can bring a move-up order. Calls for Medic 12 come from the area it is the
+// closest free unit to, weighted by demand that shifts with the hour, so sitting on post means shorter responses.
+
+const SSM = { posts: [], units: [], pts: [], m12: null };
+const COVER_R = 320;            // Manhattan metres a unit covers inside the response standard
+const MOVEUP_GAIN = 0.05;       // a move-up has to cover this share of the city's demand more than staying put
+const MOVEUP_GAP = 12 * 60;     // game seconds between move-up orders
+const ACK_T = 60;               // game seconds to acknowledge a page before dispatch tones it out again
+const chuteGoal = () => { const h = hourNow(); return h >= 22 || h < 6 ? 120 : 90; };  // page to wheels rolling
+const SIM_UNITS = [
+  { name: 'Medic 3', home: 'fire3' }, { name: 'Medic 5', home: 'fire5' }, { name: 'Medic 7', home: 'fire7' },
+  { name: 'Medic 9', home: 'hosp-brigid' }, { name: 'Medic 14', home: 'hosp-general' },
+];
+// how busy each district is through the day (calls per unit time, relative)
+const DEMAND = {
+  downtown: (h) => (h >= 8 && h < 19 ? 1.6 : h >= 19 ? 1.0 : 0.6),
+  harbor: (h) => (h >= 6 && h < 17 ? 1.3 : 0.6),
+  eastgate: (h) => (h >= 17 || h < 2 ? 1.5 : h >= 9 ? 1.0 : 0.7),
+  maple: (h) => (h >= 16 && h < 22 ? 1.2 : h >= 7 ? 0.9 : 0.6),
+};
+const KIND_DEMAND = { shop: 1.4, apt: 1.25, office: 1.15, house: 1, park: 0.8, ware: 0.9, road: 1.1 };
+const man = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
+const hourNow = () => (G.clockT / 3600) % 24;
+function demandW(p, h = hourNow()) { return (DEMAND[p.district || districtAt(p.x, p.z)] || DEMAND.maple)(h) * (KIND_DEMAND[p.kind] || 1); }
+const postLabel = (p) => `Post ${p.n}, ${p.name}`;
+
+// ---------- the posts and the other units ----------
+function initPosts() {
+  const P = SSM.posts; P.length = 0;
+  const add = (id, name, x, z, yaw, kind, coffee, street) => {
+    if (P.some((q) => dist(q.x, q.z, x, z) < 60)) return;
+    if (street && P.some((q) => q.name === name)) name += ', ' + street;
+    P.push({ id, name, x, z, yaw, kind, district: districtAt(x, z), coffee });
+  };
+  const st = CITY.station;
+  add('station', 'Station 12', st.x, st.z, st.yaw, 'station', { x: st.door.x, z: st.door.z, name: 'the station kitchen', cost: 0 });
+  for (const f of CITY.firehouses) {
+    if (f.num === 12) continue;
+    const bz1 = f.home.z - 4.6;
+    add('fire' + f.num, 'Fire Station ' + f.num, f.block.cx - 2, bz1 + 8.5, -Math.PI / 2, 'fire', { x: f.block.cx, z: bz1 + 1, name: `Fire Station ${f.num}'s kitchen`, cost: 0 });
+  }
+  for (const H of Object.values(CITY.hospitals)) {
+    const b = H.bay, s = H.face === 'W' ? { x: b.x - 3, z: b.z - 18, yaw: 0 } : { x: b.x - 18, z: b.z + (H.face === 'S' ? 3 : -3), yaw: Math.PI / 2 };
+    add('hosp-' + H.id, H.short + ' ER', s.x, s.z, s.yaw, 'hosp', { x: H.door.x, z: H.door.z, name: 'the ED break room', cost: 0 });
+  }
+  const gas = CITY.places.find((p) => p.storeName === 'Gas & Go');
+  if (gas) add('gas', 'Gas & Go', gas.curb.x, gas.curb.z, gas.curb.yaw, 'shop', { x: gas.x, z: gas.z, name: 'Gas & Go', cost: 4 });
+  for (const b of CITY.blocks) {
+    if (b.kind !== 'park' && b.kind !== 'plaza') continue;
+    const p = CITY.places.find((q) => q.block === b && q.kind === 'park'); if (!p) continue;
+    add('park' + b.bi + '-' + b.bj, p.parkName, p.curb.x, p.curb.z, p.curb.yaw, 'park', b.kind === 'plaza' ? { x: p.x, z: p.z, name: 'the plaza coffee cart', cost: 4 } : null, p.street);
+  }
+  // two strip malls, far apart
+  const malls = CITY.blocks.filter((b) => b.kind === 'mall');
+  const pickM = malls.length > 1 ? malls.reduce((best, a) => { for (const c of malls) { const d = dist(a.cx, a.cz, c.cx, c.cz); if (!best || d > best.d) best = { d, a, c }; } return best; }, null) : null;
+  for (const b of pickM ? [pickM.a, pickM.c] : malls) {
+    const shops = CITY.places.filter((q) => q.block === b && q.kind === 'shop'); if (!shops.length) continue;
+    const p = shops[Math.floor(shops.length / 2)];
+    add('mall' + b.bi + '-' + b.bj, p.street + ' Shops', p.curb.x, p.curb.z, p.curb.yaw, 'shop', { x: p.x, z: p.z, name: 'the corner café', cost: 4 });
+  }
+  // fill gaps: a street-corner post where nothing else covers
+  for (let gx = 120; gx < CW; gx += 240) for (let gz = 120; gz < CW; gz += 240) {
+    if (P.some((q) => man(q, { x: gx, z: gz }) < 260)) continue;
+    const c = CITY.places.filter((q) => q.curb && (q.kind === 'house' || q.kind === 'apt' || q.kind === 'office')).sort((a, b) => dist(a.x, a.z, gx, gz) - dist(b.x, b.z, gx, gz))[0];
+    if (c) add('corner' + gx + '-' + gz, c.street, c.curb.x, c.curb.z, c.curb.yaw, 'curb', null);
+  }
+  const order = ['maple', 'eastgate', 'downtown', 'harbor'];
+  P.sort((a, b) => order.indexOf(a.district) - order.indexOf(b.district) || (a.id === 'station' ? -1 : b.id === 'station' ? 1 : 0));
+  P.forEach((p, i) => { p.n = i + 1; });
+  // demand points: every addressed place, and the posts that can reach each one in time
+  SSM.pts = CITY.places.map((p) => ({ x: p.x, z: p.z, district: p.district, kind: p.kind }));
+  for (const p of P) { p.pts = []; SSM.pts.forEach((q, i) => { if (man(p, q) <= COVER_R) p.pts.push(i); }); }
+  // the other medic units, parked at their home posts
+  SSM.units = SIM_UNITS.map((d) => {
+    const rig = buildRig('cutaway', 'classic', 'alt', 'redwhite', d.name.toUpperCase());
+    animRigLights(rig, false, 0, 0);
+    const model = { root: mergeStatic(rig.root) }; model.root.visible = false; R.scene.add(model.root);
+    return { name: d.name, short: 'M' + d.name.split(' ')[1], home: P.find((p) => p.id === d.home) || P[0], post: null, state: 'post', model, solid: null, x: 0, z: 0 };
+  });
+}
+// a parked rig never moves: bake it into one vertex-coloured mesh plus one per decal texture
+function mergeStatic(root) {
+  root.updateMatrixWorld(true);
+  const groups = new Map(), col = new THREE.Color();
+  const shown = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+  root.traverse((o) => {
+    if (!o.isMesh || !shown(o)) return;
+    const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+    const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    g.applyMatrix4(o.matrixWorld);
+    const key = mat.map || mat.transparent ? mat.uuid : 'solid';
+    let G_ = groups.get(key); if (!G_) groups.set(key, (G_ = { mat, pos: [], nor: [], uv: [], col: [] }));
+    const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
+    col.copy(mat.color || col.set(0xffffff)); if (mat.emissive && key === 'solid') col.add(mat.emissive.clone().multiplyScalar(0.3));
+    for (let i = 0; i < P.count; i++) {
+      G_.pos.push(P.getX(i), P.getY(i), P.getZ(i));
+      if (N) G_.nor.push(N.getX(i), N.getY(i), N.getZ(i)); else G_.nor.push(0, 1, 0);
+      if (U) G_.uv.push(U.getX(i), U.getY(i)); else G_.uv.push(0, 0);
+      G_.col.push(col.r, col.g, col.b);
+    }
+  });
+  const out = new THREE.Group();
+  for (const [key, G_] of groups) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(G_.pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(G_.nor, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(G_.uv, 2));
+    let mat = G_.mat;
+    if (key === 'solid') { geo.setAttribute('color', new THREE.Float32BufferAttribute(G_.col, 3)); mat = new THREE.MeshLambertMaterial({ vertexColors: true }); }
+    const m = new THREE.Mesh(geo, mat); m.castShadow = key === 'solid'; m.receiveShadow = key === 'solid';
+    out.add(m);
+  }
+  return out;
+}
+function postById(id) { return SSM.posts.find((p) => p.id === id); }
+function removeSolid(s) {
+  const i = CITY.solids.indexOf(s); if (i >= 0) CITY.solids.splice(i, 1);
+  for (const l of CITY.grid.values()) { const k = l.indexOf(s); if (k >= 0) l.splice(k, 1); }
+}
+function parkSim(u, p) {
+  if (u.solid) { removeSolid(u.solid); u.solid = null; }
+  u.post = p;
+  if (!p) return;
+  u.x = p.x; u.z = p.z;
+  const M = u.model, fx = Math.abs(Math.sin(p.yaw)), fz = Math.abs(Math.cos(p.yaw)), hl = 3.5, hw = 1.2;
+  M.root.position.set(p.x, 0, p.z); M.root.rotation.y = p.yaw;
+  u.solid = addSolid(p.x - fx * hl - fz * hw, p.z - fz * hl - fx * hw, p.x + fx * hl + fz * hw, p.z + fz * hl + fx * hw, 2.5, 'rig');
+}
+
+// ---------- a new shift ----------
+function resetPosts() {
+  for (const u of SSM.units) { u.state = 'post'; u.until = 0; u.callAt = null; parkSim(u, null); }
+  for (const u of SSM.units) parkSim(u, u.home);
+  SSM.m12 = { post: null, deadline: 0, reached: false, onPost: false, lastOrderT: -1e9, orderT: 0 };
+  if (G.shift) G.shift.posting = { orders: 0, onTime: 0, late: 0, chutes: [] };
+  replan('service');
+}
+
+// ---------- coverage planning ----------
+// greedy: repeatedly give the free unit / free post pair that covers the most uncovered demand. Units lean towards
+// staying where they are. Medic 12 only posts inside the districts it covers this shift.
+function coverPlan(withM12, fixM12) {
+  const h = hourNow(), w = SSM.pts.map((q) => demandW(q, h)), cov = new Uint8Array(w.length);
+  const S = G.shift, cover = S ? S.cover : ['maple'];
+  const out = new Map(); let got = 0;
+  const take = (a, p) => { out.set(a, p); for (const i of p.pts) if (!cov[i]) { cov[i] = 1; got += w[i]; } free.delete(p); agents.splice(agents.indexOf(a), 1); };
+  const free = new Set(SSM.posts);
+  const agents = SSM.units.filter((u) => u.state === 'post');
+  if (withM12) agents.push('m12');
+  // the other units don't park on top of Medic 12 where it stands
+  const nearRig = new Set(RIG ? SSM.posts.filter((p) => dist(p.x, p.z, RIG.x, RIG.z) < 16) : []);
+  if (withM12 && fixM12) take('m12', fixM12);
+  while (agents.length && free.size) {
+    let best = null, bs = -Infinity;
+    for (const a of agents) {
+      const cur = a === 'm12' ? SSM.m12 && SSM.m12.post : a.post;
+      const at = a === 'm12' ? (RIG || cur) : cur;
+      for (const p of free) {
+        if (a === 'm12' ? !cover.includes(p.district) : nearRig.has(p)) continue;
+        let g = 0; for (const i of p.pts) if (!cov[i]) g += w[i];
+        if (p === cur) g *= 1.12; else if (at) g -= man(at, p) * 0.004;
+        if (g > bs) { bs = g; best = [a, p]; }
+      }
+    }
+    if (!best) break;
+    take(best[0], best[1]);
+  }
+  const all = w.reduce((a, b) => a + b, 0);
+  return { out, got, all };
+}
+function systemCoverage() { const pl = coverPlan(!G.call && SSM.m12 && SSM.m12.post, SSM.m12 && SSM.m12.post); return pl.all ? pl.got / pl.all : 0; }
+// work out where everyone should be; reason: 'service' (Medic 12 just came free), 'busy' (Medic 12 took a call),
+// or the unit whose status changed
+function replan(reason) {
+  const S = G.shift; if (!S || !SSM.m12) return;
+  const m12free = !G.call && !S.over;
+  const pl = coverPlan(m12free);
+  for (const u of SSM.units) {
+    if (u.state !== 'post') continue;
+    const p = pl.out.get(u);
+    if (p && p !== u.post) { parkSim(u, p); if (!G.call && reason !== 'service' && rnd.chance(0.5)) radio(u.name, `${u.name} moving up to ${postLabel(p)}.`, 'other'); }
+  }
+  if (!m12free) return;
+  const want = pl.out.get('m12'); if (!want) return;
+  const m = SSM.m12;
+  if (!m.post || reason === 'service') { assignPost(want, null); return; }
+  if (want === m.post || G.clockT - m.lastOrderT < MOVEUP_GAP) return;
+  const keep = coverPlan(true, m.post);
+  if ((pl.got - keep.got) / pl.all < MOVEUP_GAIN) return;
+  const why = reason && reason.name ? `${reason.name} is ${reason.state === 'busy' ? 'committed' : 'back in service'}.` : 'Coverage is changing.';
+  assignPost(want, why);
+}
+function assignPost(p, why) {
+  const m = SSM.m12, S = G.shift;
+  m.post = p; m.lastOrderT = G.clockT; m.orderT = G.clockT; m.reached = false; m.onPost = false;
+  DT.waiting = false;
+  if (RIG && dist(RIG.x, RIG.z, p.x, p.z) < 24) {
+    m.reached = true; m.deadline = G.clockT;
+    radio('Dispatch', `Medic 12, ${why ? why + ' ' : ''}Hold on ${postLabel(p)}.`, 'dispatch');
+    return;
+  }
+  const len = RIG ? routeLength({ x: p.x, z: p.z }) : 500;
+  m.deadline = G.clockT + etaFor(len, false) * 1.5 + 90;
+  S.posting.orders++;
+  AUDIO.tone(880, 0.12, 'sine', 0.05); AUDIO.tone(1175, 0.18, 'sine', 0.05, 0.14);
+  radio('Dispatch', why ? `Medic 12, ${why} Move up to ${postLabel(p)}.` : `Medic 12, post at ${postLabel(p)}.`, 'dispatch');
+  setTimeout(() => { if (SSM.m12.post === p && !G.call) radio('Medic 12', `Medic 12 copies, ${why ? 'moving up to' : 'en route to'} post ${p.n}.`, 'crew'); }, DEBUG ? 0 : 1400);
+  buildRoute({ x: p.x, z: p.z, yaw: p.yaw }, `Post ${p.n} · ${p.name}`);
+  bus.emit('postOrder', p, why);
+}
+// Medic 12 takes a call: it's off the board, and the others shuffle to cover
+bus.on('dispatch', (C) => { C.times.page = C.t; C.chuteGoal = chuteGoal(); if (RIG) C.rollFrom = { x: RIG.x, z: RIG.z }; postsOnDispatch(); });
+function postsOnDispatch() {
+  if (!SSM.m12) return;
+  SSM.m12.post = null; SSM.m12.reached = false; SSM.m12.onPost = false;
+  replan('busy');
+}
+
+// ---------- every frame ----------
+function updatePosts(gdt) {
+  const S = G.shift; if (!S || !SSM.m12) return;
+  const h = hourNow();
+  // the other units catch calls and clear them
+  for (const u of SSM.units) {
+    if (u.state === 'post') {
+      if (!S.over && rnd() < gdt * DEMAND[u.post ? u.post.district : 'maple'](h) / 3600) unitBusy(u);
+    } else if (G.clockT >= u.until) {
+      u.state = 'post'; u.callAt = null;
+      if (!G.call && rnd.chance(0.4)) radio(u.name, `${u.name} clear and available.`, 'other');
+      replan(u);
+    } else if (G.clockT >= u.hospT && u.callAt && !u.atHosp) { u.atHosp = true; u.callAt = u.hosp; }
+  }
+  // Medic 12 reaching its post, staying on it
+  const m = SSM.m12;
+  m.onPost = !!(m.post && !G.call && RIG && dist(RIG.x, RIG.z, m.post.x, m.post.z) < 24 && Math.abs(RIG.v) < 1.5);
+  if (m.post && !m.reached && m.onPost) {
+    m.reached = true;
+    const late = G.clockT - m.deadline;
+    if (late <= 0) { S.posting.onTime++; postReward(8); toast(`On post at ${m.post.name}, on time. +8 XP`, 'good'); }
+    else { S.posting.late++; toast(`On post at ${m.post.name}, ${fmtDur(late)} late.`, 'bad'); }
+    radio('Medic 12', `Medic 12 on post at ${m.post.name}.`, 'crew');
+    if (ROUTE.label && ROUTE.label.startsWith('Post')) clearRoute();
+    bus.emit('onPost', m.post);
+  }
+  // a busy activity (restocking, a rig check) is a good reason to be late: dispatch knows
+  if (m.post && !m.reached && DT.act) m.deadline += gdt;
+  // draw the parked units near the camera only
+  const fx = focusX(), fz = focusZ();
+  for (const u of SSM.units) u.model.root.visible = u.state === 'post' && !!u.post && R.env === 'city' && dist(u.x, u.z, fx, fz) < 200;
+}
+function postReward(xp) { const K = G.career; K.xp += xp; G.shift.xp += xp; }
+function unitBusy(u) {
+  const near = CITY.places.filter((p) => man(p, u.post) < COVER_R);
+  const p = near.length ? rnd.wpick(near, (q) => demandW(q)) : rnd.pick(CITY.places);
+  u.state = 'busy'; u.callAt = { x: p.x, z: p.z }; u.atHosp = false;
+  const len = rnd.range(30, 65) * 60;
+  u.until = G.clockT + len; u.hospT = G.clockT + len * 0.45;
+  u.hosp = Object.values(CITY.hospitals).reduce((a, b) => (dist(a.x, a.z, p.x, p.z) < dist(b.x, b.z, p.x, p.z) ? a : b));
+  parkSim(u, null);
+  if (!G.call && rnd.chance(0.5)) radio('Dispatch', `${u.name}, respond priority ${rnd.pick([1, 2, 2, 3])} to ${p.addr}.`, 'other');
+  replan(u);
+}
+
+// ---------- where Medic 12's calls come from ----------
+// weight for each candidate place: demand, strongly favouring places Medic 12 is the closest free unit to
+function callZoneWeight() {
+  const m = SSM.m12; if (!m || !RIG) return null;
+  const base = m.post || { x: RIG.x, z: RIG.z };
+  const others = SSM.units.filter((u) => u.state === 'post' && u.post).map((u) => u.post);
+  const h = hourNow();
+  return (p) => { const d = man(p, base); let mine = true; for (const o of others) if (man(p, o) < d) { mine = false; break; } return demandW(p, h) * (mine ? 1 : 0.1); };
+}
+// busier posts get paged more often
+function callGapFactor() {
+  const m = SSM.m12, p = m && m.post;
+  return p ? clamp(DEMAND[p.district](hourNow()), 0.7, 1.5) : 1;
+}
+function freeUnits() { return SSM.units.filter((u) => u.state === 'post').length + (G.call ? 0 : 1); }
+
+// ---------- map ----------
+function drawPosts(g, P, big) {
+  const m = SSM.m12;
+  for (const p of SSM.posts) {
+    const mine = m && m.post === p;
+    g.fillStyle = mine ? '#40e0ff' : 'rgba(255,255,255,.35)';
+    g.beginPath(); g.arc(P(p.x), P(p.z), mine ? (big ? 5 : 3.5) : big ? 3 : 2, 0, TAU); g.fill();
+    if (mine) { g.strokeStyle = '#40e0ff'; g.lineWidth = 1.5; g.beginPath(); g.arc(P(p.x), P(p.z), big ? 9 : 6, 0, TAU); g.stroke(); }
+    if (big) { g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '9px sans-serif'; g.textAlign = 'center'; g.fillText('P' + p.n, P(p.x), P(p.z) - 6); }
+  }
+  for (const u of SSM.units) {
+    const at = u.state === 'post' ? u.post : u.callAt; if (!at) continue;
+    g.fillStyle = u.state === 'post' ? '#f4f4f0' : '#ffa030';
+    const s = big ? 6 : 3.6; g.fillRect(P(at.x) - s / 2, P(at.z) - s / 2, s, s);
+    if (big) { g.fillStyle = u.state === 'post' ? '#e8f0ff' : '#ffc080'; g.font = 'bold 9px sans-serif'; g.textAlign = 'center'; g.fillText(u.short, P(at.x), P(at.z) + 13); }
+  }
+}
+
+// Ricky Rescue — the time between calls: the rig check (problems left by the last crew turn up on a call if nobody
+// looks), restocking at a hospital or the station, coffee against a shift's worth of tiredness, and waiting on post
+// with the clock running fast until the pager goes. Activities run on game time with the clock sped up, and a page
+// interrupts them.
+
+const DT = { act: null, waiting: false };
+const ACT_WARP = 8, WAIT_WARP = 20;
+const RIG_CHECK = [
+  { id: 'o2', name: 'Main O₂ cylinder', dur: 20, fault: 'Main cylinder reads 400 psi', fix: 'Swap in a full cylinder', fixDur: 90 },
+  { id: 'pads', name: 'Defib pads & AED self-test', dur: 30, fault: 'The pads expired last month', fix: 'Open a fresh set', fixDur: 40, acts: ['aed', 'analyse', 'shock', 'defib'], delay: 25, found: 'The pads are expired! Tearing open the spare set.' },
+  { id: 'monitor', name: 'Monitor batteries', dur: 25, fault: 'Both batteries are nearly flat', fix: 'Swap in charged batteries', fixDur: 50, acts: ['monitor', 'ecg12'], delay: 20, found: 'The monitor died. Swapping the battery.' },
+  { id: 'suction', name: 'Suction unit', dur: 25, fault: 'Won\'t hold vacuum: cracked canister', fix: 'Replace the canister', fixDur: 60, acts: ['suction'], delay: 20, found: 'The suction won\'t pull. Swapping the canister.' },
+  { id: 'airway', name: 'Airway kit & laryngoscope', dur: 30, fault: 'The laryngoscope bulb is dead', fix: 'Fit a new blade', fixDur: 40, acts: ['ett'], delay: 25, found: 'No light on the blade! Swapping it.' },
+  { id: 'drugs', name: 'Drug box seal & dates', dur: 35, fault: 'Seal broken and the naloxone is missing', fix: 'Replace from hospital or station stock', fixDur: 60, base: true },
+  { id: 'gluco', name: 'Glucometer & strips', dur: 20, fault: 'The strip vial is empty', fix: 'Open a new vial', fixDur: 30, acts: ['glucose'], delay: 20, found: 'Out of test strips. Digging out a new vial.' },
+  { id: 'stretcher', name: 'Stretcher & stair chair', dur: 30, fault: 'The stretcher battery is flat', fix: 'Swap the battery pack', fixDur: 60, acts: ['load'], delay: 20, found: 'The stretcher won\'t lift. Cranking it by hand.' },
+  { id: 'radios', name: 'Portable radios', dur: 20 },
+  { id: 'lights', name: 'Lights, siren & horn', dur: 25 },
+];
+
+// ---------- a new shift ----------
+function resetDowntime(r = RNG()) {
+  const S = G.shift;
+  DT.act = null; DT.waiting = false;
+  S.energy = 100; S.coffees = 0; S.lastCoffeeT = -1e9; S.energyWarn = 0;
+  // the last crew left a few things for us to find
+  const items = {};
+  let n = 0;
+  for (const c of RIG_CHECK) { const bad = !!c.fault && n < 3 && r.chance(0.22); if (bad) n++; items[c.id] = { state: 'todo', bad }; }
+  S.check = { items, done: false, fixed: 0, missed: 0 };
+  if (items.o2.bad) RIG.stock.o2 = 22;
+  if (items.drugs.bad) RIG.stock.narcan = 0;
+}
+const atBase = () => RIG && (Object.values(CITY.hospitals).some((h) => dist(RIG.x, RIG.z, h.bay.x, h.bay.z) < 40) || dist(RIG.x, RIG.z, CITY.station.x, CITY.station.z) < 40);
+
+// ---------- activities ----------
+// o = { id, label, dur (game seconds), done(), cancel(fraction), hide (Ricky goes inside) }
+function startActivity(o) {
+  if (G.call || !G.shift || DT.act) return false;
+  DT.act = Object.assign({ t: 0 }, o); DT.waiting = false;
+  PLAYER.busy = 1; PLAYER.workPose = o.pose || null;
+  if (o.hide && PLAYER.model) PLAYER.model.root.visible = false;
+  return true;
+}
+function endActivity() {
+  const a = DT.act; DT.act = null;
+  PLAYER.busy = 0; PLAYER.workPose = null;
+  if (a && a.hide && PLAYER.model && G.where === 'foot') PLAYER.model.root.visible = true;
+  return a;
+}
+function cancelActivity() { const a = DT.act; if (!a) return; endActivity(); if (a.cancel) a.cancel(a.t / a.dur); }
+function timeWarp() {
+  if (G.call || !G.shift || G.shift.over) return 1;
+  return DT.act ? ACT_WARP : DT.waiting ? WAIT_WARP : 1;
+}
+function fatigueMul() { const e = G.shift ? G.shift.energy : 100; return e < 20 ? 1.18 : e < 40 ? 1.08 : 1; }
+function updateDowntime(gdt) {
+  const S = G.shift; if (!S) return;
+  const h = hourNow();
+  S.energy = Math.max(0, S.energy - gdt / 3600 * (h < 6 ? 9 : 5.5));
+  if (S.energy < 40 && S.energyWarn < 1) { S.energyWarn = 1; partnerSay('I\'m starting to fade. Coffee on the next quiet stretch?'); }
+  if (S.energy < 20 && S.energyWarn < 2) { S.energyWarn = 2; toast('Ricky is exhausted and working slower. Grab a coffee between calls.', 'bad'); }
+  if (DT.act) { DT.act.t += gdt; if (DT.act.t >= DT.act.dur) { const a = endActivity(); a.done(); } }
+  if (DT.waiting && (G.call || !SSM.m12 || !SSM.m12.onPost || S.over)) DT.waiting = false;
+}
+bus.on('dispatch', () => { if (DT.act) { const a = DT.act; cancelActivity(); toast(`Page! ${a.label} interrupted.`); } DT.waiting = false; });
+
+// ---------- waiting on post ----------
+function toggleWait() {
+  if (G.call || !G.shift || G.shift.over) return;
+  const m = SSM.m12;
+  if (DT.waiting) { DT.waiting = false; return; }
+  if (!m || !m.onPost) { toast(m && m.post ? `You can only wait on post. Head to ${postLabel(m.post)}.` : 'You can only wait on post.', 'bad'); return; }
+  if (DT.act) return;
+  DT.waiting = true;
+  toast('Waiting for a page… (T to stop)');
+  if (rnd.chance(0.4)) partnerSay(pick(['I\'ll do the paperwork from the last one.', 'Wake me if it\'s a good one.', 'Quiet. Don\'t say it.', 'Want to quiz each other on drug doses?']));
+}
+
+// ---------- restocking ----------
+function missingStock() {
+  const full = fullStock(RIGS[RIG.type].cap); let n = 0;
+  for (const [k, v] of Object.entries(full)) if (k === 'o2' ? RIG.stock.o2 < 90 : RIG.stock[k] < v) n++;
+  return n;
+}
+function startRestock() {
+  const n = missingStock();
+  if (!n) { toast('The cabinets are already full.'); return; }
+  closePanel('rear');
+  const before = Object.assign({}, RIG.stock), full = fullStock(RIGS[RIG.type].cap);
+  const fill = (f) => { for (const [k, v] of Object.entries(full)) RIG.stock[k] = Math.max(before[k], Math.round(before[k] + (v - before[k]) * f)); };
+  startActivity({ id: 'restock', label: 'Restocking the cabinets', dur: 60 + n * 15, pose: 'crouch', done: () => {
+    fill(1); toast('Cabinets restocked.', 'good');
+    const it = G.shift.check.items; if (it.o2.bad && it.o2.state !== 'fixed') it.o2.bad = false; if (it.drugs.bad && it.drugs.state !== 'fixed') it.drugs.bad = false;
+  }, cancel: (f) => { fill(f); toast('Restock cut short.'); } });
+}
+
+// ---------- the rig check ----------
+function openRigCheck() { closePanel('rear'); renderRigCheck(); UI.show('rigcheck'); }
+function renderRigCheck() {
+  const S = G.shift; if (!S) return;
+  const box = $('#rcList'); box.innerHTML = '';
+  const busy = DT.act && DT.act.id.startsWith('rc:');
+  for (const c of RIG_CHECK) {
+    const it = S.check.items[c.id];
+    const row = el('div', 'rc ' + it.state);
+    const doing = busy && DT.act.item === c.id;
+    let right = '';
+    if (doing) right = `<span class="rcbar"><i style="width:${Math.round(DT.act.t / DT.act.dur * 100)}%"></i></span>`;
+    else if (it.state === 'todo') right = `<button class="btn" data-check="${c.id}">Check · ${fmtDur(c.dur)}</button>`;
+    else if (it.state === 'fault') right = `<button class="btn red" data-fix="${c.id}">${esc(c.fix)}</button>`;
+    else right = `<span class="ok">${it.state === 'fixed' ? 'Fixed' : 'OK'}</span>`;
+    row.innerHTML = `<div><b>${esc(c.name)}</b>${it.state === 'fault' ? `<span class="bad">${esc(c.fault)}</span>` : ''}</div>${right}`;
+    box.appendChild(row);
+  }
+  const done = RIG_CHECK.filter((c) => S.check.items[c.id].state !== 'todo').length;
+  $('#rcSum').textContent = S.check.done ? 'Rig check complete. Medic 12 is ready.' : `${done} of ${RIG_CHECK.length} checked` + (G.call ? ' · finish the call first' : '');
+  for (const b of $$('[data-check]', box)) b.onclick = () => rigCheckItem(b.dataset.check);
+  for (const b of $$('[data-fix]', box)) b.onclick = () => rigFixItem(b.dataset.fix);
+}
+function rigCheckItem(id) {
+  const c = RIG_CHECK.find((q) => q.id === id), it = G.shift.check.items[id];
+  if (G.call) { toast('Finish the call first.', 'bad'); return; }
+  if (!startActivity({ id: 'rc:' + id, item: id, label: 'Checking the ' + c.name.toLowerCase(), dur: c.dur, done: () => {
+    it.state = it.bad ? 'fault' : 'ok';
+    if (it.bad) { AUDIO.tone(330, 0.15, 'square', 0.04); partnerSay(pick(['Good thing we looked.', 'Of course. Night crew strikes again.', 'Glad we caught that here and not on a call.'])); }
+    rigCheckProgress();
+  } })) return;
+  renderRigCheck();
+}
+function rigFixItem(id) {
+  const c = RIG_CHECK.find((q) => q.id === id), it = G.shift.check.items[id];
+  if (G.call) { toast('Finish the call first.', 'bad'); return; }
+  if (c.base && !atBase()) { toast('Only at a hospital or the station.', 'bad'); return; }
+  if (!startActivity({ id: 'rc:' + id, item: id, label: c.fix, dur: c.fixDur, done: () => {
+    it.state = 'fixed'; it.bad = false; G.shift.check.fixed++;
+    if (id === 'o2') RIG.stock.o2 = 100;
+    if (id === 'drugs') RIG.stock.narcan = fullStock(RIGS[RIG.type].cap).narcan;
+    toast(c.name + ': sorted.', 'good');
+    rigCheckProgress();
+  } })) return;
+  renderRigCheck();
+}
+function rigCheckProgress() {
+  const S = G.shift, ch = S.check;
+  if (!ch.done && RIG_CHECK.every((c) => ch.items[c.id].state === 'ok' || ch.items[c.id].state === 'fixed')) {
+    ch.done = true; postReward(15); toast('Rig check complete. +15 XP', 'good');
+  }
+  if (UI.isOpen('rigcheck')) renderRigCheck();
+}
+// on a call: a problem nobody checked for costs time the first time the kit is needed
+function equipDelay(actId, C = G.call) {
+  const S = G.shift; if (!S || !S.check || !C) return 0;
+  for (const c of RIG_CHECK) {
+    if (!c.acts || !c.acts.includes(actId)) continue;
+    const it = S.check.items[c.id];
+    if (!it.bad || it.state === 'fixed') continue;
+    it.bad = false; it.state = 'fixed'; S.check.missed++;
+    (C.equipFails = C.equipFails || []).push(c.fault.charAt(0).toLowerCase() + c.fault.slice(1));
+    toast(c.found, 'bad'); callLog(C, PARTNER_SHORT, c.found);
+    return c.delay;
+  }
+  return 0;
+}
+
+// ---------- coffee ----------
+function coffeeSpot() {
+  if (G.call || !G.shift || PLAYER.sp !== 'city') return null;
+  for (const p of SSM.posts) if (p.coffee && dist(PLAYER.x, PLAYER.z, p.coffee.x, p.coffee.z) < 3.4) return p.coffee;
+  return null;
+}
+function grabCoffee(spot) {
+  const S = G.shift, K = G.career;
+  if (G.clockT - S.lastCoffeeT < 40 * 60) { toast('You just had one. Any more and your hands will shake.'); return; }
+  if (spot.cost && K.money < spot.cost) { toast('Not enough cash.', 'bad'); return; }
+  startActivity({ id: 'coffee', label: 'Grabbing a coffee', dur: 240, hide: true, done: () => {
+    S.energy = Math.min(100, S.energy + 35); S.coffees++; S.lastCoffeeT = G.clockT; S.energyWarn = S.energy < 40 ? 1 : 0;
+    if (spot.cost) K.money -= spot.cost;
+    toast(`Coffee from ${spot.name}${spot.cost ? ' (' + fmtMoney(spot.cost) + ')' : ''}. Energy ${Math.round(S.energy)}%.`, 'good');
+    if (rnd.chance(0.6)) partnerSay(pick(['Did you get me one? ...You did. You\'re the best.', 'Ah. Now I can feel my face again.', 'Same order as always, I see.']));
+  }, cancel: (f) => { if (f > 0.5) { S.energy = Math.min(100, S.energy + 15); S.lastCoffeeT = G.clockT; toast('You grab the coffee to go.'); } } });
+}
+
 // Ricky Rescue — boot, the frame loop, reactions to game events, and the #debug hook (window.RR)
 
 let lastT = 0;
@@ -6657,7 +7246,7 @@ function boot() {
   loadOpts();
   try { initRender(); } catch (e) { console.error(e); return; }
   makeTextures(); R.sunDisc.material.map = TEX.glow;
-  buildCity(); initTraffic(); initResponders(); buildMinimap();
+  buildCity(); initTraffic(); initResponders(); buildMinimap(); initPosts();
   Input.init(); wireUI();
   setQuality(OPTS.quality); AUDIO.setVolume(OPTS.volume);
   G.live = true;
@@ -6720,7 +7309,7 @@ const focusZ = () => (G.where === 'foot' && PLAYER.sp === 'city' ? PLAYER.z : RI
 
 function handleGlobalKeys() {
   if (Input.pressed('menu') || Input.pressed('back')) {
-    const top = ['options', 'help', 'mapBig', 'rear', 'triage'].find((id) => UI.isOpen(id));
+    const top = ['options', 'help', 'mapBig', 'rigcheck', 'rear', 'triage'].find((id) => UI.isOpen(id));
     if (top) UI.hide(top);
     else if (UI.isOpen('transport') && TP.midway) UI.hide('transport');
     else if (UI.isOpen('pause')) UI.hide('pause');
@@ -6730,7 +7319,7 @@ function handleGlobalKeys() {
   if (UI.paused()) return;
   if (Input.pressed('map')) { if (HUD.mapBig) UI.hide('mapBig'); else UI.show('mapBig'); }
   if (Input.pressed('enter') && G.call && G.call.stage === 'pending') respond();
-  if (Input.pressed('skip') && !G.call) skipToCall();
+  if ((Input.pressed('skip') || Input.pressed('t_wait')) && !G.call) toggleWait();
   if (Input.pressed('cprTap') && WORK.ricky && WORK.ricky.id === 'cpr') cprTap();
   if (Input.pressed('t_ls')) setSiren(!RIG.siren);
   if (Input.pressed('t_cam')) CAM.far = !CAM.far;
@@ -6800,10 +7389,12 @@ bus.on('enterCab', () => { if (G.call && G.call.stage === 'onscene' && RIG.loade
 function installDebug() {
   const step = 1 / 30;
   const RR = {
-    G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC,
+    G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC, SSM, DT, RIG_CHECK,
     get C() { return G.call; }, get P() { return G.call && G.call.P; }, get RIG() { return RIG; },
-    f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv },
-    // start({ rank, rig, hour, hours, xp, money }) — a throwaway career (never saved) and a shift, no calls until asked
+    f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv,
+      toggleWait, startRestock, openRigCheck, rigCheckItem, rigFixItem, grabCoffee, coffeeSpot, replan, assignPost, unitBusy, coverPlan, systemCoverage, callZoneWeight, equipDelay, resetDowntime, missingStock, fullStock },
+    // start({ rank, rig, hour, hours, xp, money, faults }) — a throwaway career (never saved) and a shift, no calls until
+    // asked. The rig comes clean unless faults: true (then the rig check has whatever the last crew left)
     start(o = {}) {
       G.noSave = true;
       G.career = newCareer();
@@ -6815,6 +7406,7 @@ function installDebug() {
       OPTS.tips = false; OPTS.voice = false;
       G.live = false;
       startShift({ hour: o.hour !== undefined ? o.hour : 10, hours: o.hours || 12, firstCall: 99999 });
+      if (!o.faults) { for (const it of Object.values(G.shift.check.items)) it.bad = false; RIG.stock = fullStock(RIGS[RIG.type].cap); }
       setState('play');
       return Promise.resolve(true);
     },
@@ -6900,9 +7492,16 @@ function installDebug() {
     },
     units() { return RESP.units.filter((u) => u.state !== 'home').map((u) => ({ name: u.name, kind: u.kind, state: u.state, x: Math.round(u.x), z: Math.round(u.z), v: +u.v.toFixed(1), left: u.route ? Math.round(u.route.len - u.s) : 0 })); },
     press(a) { Input.acts.add(a); frame(step, false); },
+    // posting: where Medic 12 is told to be, the board, and a jump onto the post
+    post() { const m = SSM.m12, p = m && m.post; return p && { id: p.id, n: p.n, name: p.name, district: p.district, reached: m.reached, onPost: m.onPost, due: Math.round(m.deadline - G.clockT), x: Math.round(p.x), z: Math.round(p.z) }; },
+    posts() { return SSM.posts.map((p) => ({ id: p.id, n: p.n, name: p.name, district: p.district, kind: p.kind, coffee: !!p.coffee, x: Math.round(p.x), z: Math.round(p.z) })); },
+    board() { return SSM.units.map((u) => ({ name: u.name, state: u.state, post: u.post && u.post.id, left: u.state === 'busy' ? Math.round(u.until - G.clockT) : 0 })); },
+    toPost() { const p = SSM.m12 && SSM.m12.post; if (!p) return null; if (G.where !== 'cab') { PLAYER.sp = 'city'; enterCab(); } RIG.x = p.x; RIG.z = p.z; RIG.yaw = p.yaw; RIG.v = 0; RIG.auto = null; placeRigModel(0); snapCam(); frame(step, false); frame(step, false); return RR.post(); },
+    // run the clock (game seconds) through whatever activity is going, in big steps
+    chores(max = 3600) { let n = 0; while (DT.act && n < max) { frame(0.25, false); n += 0.25 * TIME_SCALE * ACT_WARP; } return !DT.act; },
     tp(x, z) { if (G.where === 'cab') { RIG.x = x; RIG.z = z; placeRigModel(0); } else { PLAYER.x = x; PLAYER.z = z; } snapCam(); frame(step, false); },
     time(h) { G.clockT = h * 3600; setTimeOfDay(h); },
-    hideHUD(on = true) { for (const id of ['#radio', '#toasts', '#prompt', '#dispatch']) $(id).style.visibility = on ? 'hidden' : ''; },
+    hideHUD(on = true) { for (const id of ['#radio', '#toasts', '#prompt', '#dispatch', '#actBar']) $(id).style.visibility = on ? 'hidden' : ''; },
     stats() {
       const C = G.call, P = C && C.P;
       return { state: document.body.dataset.state, where: G.where, clock: fmtClock(G.clockT), stage: C && C.stage, rig: RIG && { x: Math.round(RIG.x), z: Math.round(RIG.z), v: +RIG.v.toFixed(1), siren: RIG.siren, dmg: Math.round(RIG.damage) },

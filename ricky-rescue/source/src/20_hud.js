@@ -72,6 +72,8 @@ function drawMinimap(cvId, big) {
   const C = G.call;
   if (C && C.place && C.stage !== 'done') { g.fillStyle = '#ff4a4a'; g.beginPath(); g.arc(P(C.place.x), P(C.place.z), big ? 6 : 4, 0, TAU); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); }
   if (C && C.staging && C.stage === 'enroute' && !C.pdCleared) { g.fillStyle = '#ffd040'; g.beginPath(); g.arc(P(C.staging.x), P(C.staging.z), 4, 0, TAU); g.fill(); }
+  // posts and the other medic units
+  drawPosts(g, P, big);
   // fire engines and police cars out on the road, flashing while they run hot
   const flash = Math.floor(performance.now() / 280) % 2;
   for (const u of RESP.units) {
@@ -107,7 +109,23 @@ function updateHUD(dt) {
     sub = C.stage === 'enroute' ? 'Call time ' + fmtDur(C.t) : C.times.arrive !== undefined ? 'On scene ' + fmtDur(C.t - C.times.arrive) : '';
     const ul = unitsLine(C); if (ul) sub += (sub ? ' · ' : '') + ul;
     if (C.mci && !C.mci.sent && C.stage === 'onscene') sub = `Triaged ${C.mci.tags.size} of ${C.mci.pts.length}` + (C.mci.tags.size === C.mci.pts.length ? ' · radio your report (R)' : '');
-  } else if (S && !S.over && S.nextCallT > G.clockT) sub = 'Press T to skip ahead to the next call';
+  } else if (S && !S.over && SSM.m12) {
+    // between calls: posting, chores, waiting for the pager
+    const m = SSM.m12, p = m.post, key = Input.mode === 'pad' ? 'D-pad ↓' : Input.mode === 'touch' ? 'WAIT' : 'T';
+    if (DT.act) st = esc(DT.act.label) + '…';
+    else if (p && !m.reached) { st = 'Posting to ' + esc(postLabel(p)); const left = m.deadline - G.clockT; sub = left >= 0 ? 'Due in ' + fmtDur(left) : 'Late by ' + fmtDur(-left); }
+    else if (p && m.onPost) { st = DT.waiting ? 'On post · waiting for a page ▸▸' : 'On post · ' + esc(postLabel(p)); sub = (DT.waiting ? key + ' to stop waiting' : key + ' to wait for a page'); }
+    else if (p) st = 'Off post · return to ' + esc(postLabel(p));
+    sub += (sub ? ' · ' : '') + `${freeUnits()} of ${SSM.units.length + 1} units free`;
+  }
+  document.body.dataset.onpost = !C && SSM.m12 && SSM.m12.onPost ? '1' : '';
+  // energy, and whatever chore is under way
+  const en = $('#energy');
+  if (S && !S.over && S.energy !== undefined) { en.hidden = false; en.textContent = '☕ ' + Math.round(S.energy) + '%'; en.classList.toggle('low', S.energy < 40); } else en.hidden = true;
+  const ab = $('#actBar');
+  ab.hidden = !DT.act;
+  if (DT.act) { $('#actLbl').textContent = DT.act.label; $('#actBar b').style.width = Math.round(clamp(DT.act.t / DT.act.dur, 0, 1) * 100) + '%'; }
+  if (UI.isOpen('rigcheck') && DT.act) { HUD.rcT = (HUD.rcT || 0) - dt; if (HUD.rcT <= 0) { HUD.rcT = 0.15; renderRigCheck(); } }
   if (st !== HUD.lastStatus) { $('#status').innerHTML = st; HUD.lastStatus = st; }
   $('#statusSub').textContent = sub;
   // GPS
@@ -154,7 +172,18 @@ function updateHUD(dt) {
   // dispatch card
   const dc = $('#dispatch');
   dc.hidden = !(C && C.stage === 'pending');
-  if (!dc.hidden) $('#dispText').textContent = C.dispatchText;
+  if (!dc.hidden) {
+    // the pager: short lines on the screen, the full text under it, and the clock to acknowledge
+    $('#dispText').textContent = C.dispatchText;
+    $('#pgClock').textContent = fmtClock(G.clockT);
+    $('#pgL1').textContent = `P${C.pri} ${C.nature.toUpperCase()}`;
+    $('#pgL2').textContent = C.addr.toUpperCase();
+    $('#pgL3').textContent = ['M12', ...(C.units || []).map((u) => (u.kind === 'police' ? 'PD' + u.num : u.short))].join(' ');
+    const left = ACK_T - (C.t - (C.times.page || 0));
+    $('#pgAck b').style.width = clamp(left / ACK_T, 0, 1) * 100 + '%';
+    $('#pgAckT').textContent = left > 0 ? 'Acknowledge within ' + fmtDur(left) : 'Overdue: dispatch is waiting on you';
+    dc.classList.toggle('late', left <= 0);
+  }
   // staging / scene hints
   HUD.radioT = (HUD.radioT || 0) - dt; if (HUD.radioT <= 0) { HUD.radioT = 1; renderRadio(); }
   drawMinimap('#minimap', false);

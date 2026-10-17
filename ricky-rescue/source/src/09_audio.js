@@ -49,6 +49,12 @@ const AUDIO = (() => {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
     o.connect(g); g.connect(sfx); o.start(t); o.stop(t + dur + 0.05);
   }
+  function steady(f, dur, when = 0, vol = 0.07) {
+    const t = ctx.currentTime + when, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.setValueAtTime(vol, t + dur - 0.03); g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(g); g.connect(sfx); o.start(t); o.stop(t + dur + 0.05);
+  }
   function noise(dur, vol = 0.2, freq = 1200, when = 0) {
     if (!ctx) return;
     const t = ctx.currentTime + when, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
@@ -109,10 +115,12 @@ const AUDIO = (() => {
     cpr() { tone(1800, 0.03, 'square', 0.04); },
     squelch() { noise(0.18, 0.06, 2200); },
     dispatchTone() { tone(1050, 0.35, 'sine', 0.08); tone(1450, 0.6, 'sine', 0.08, 0.38); },
+    // two-tone sequential page, then the pager's own chirps
+    pager() { if (!ctx) return; steady(853, 0.75, 0); steady(960, 1.5, 0.78); for (let i = 0; i < 3; i++) steady(2400, 0.07, 2.5 + i * 0.15, 0.04); },
     crash(k) { noise(0.5, Math.min(0.5, 0.1 + k * 0.03), 260); tone(80, 0.3, 'sine', 0.2, 0, -40); },
     alarm() { for (let i = 0; i < 3; i++) tone(980, 0.12, 'square', 0.05, i * 0.18); },
     shock() { tone(200, 0.4, 'sawtooth', 0.12, 0, 800); noise(0.2, 0.2, 3000, 0.4); },
     chime(g) { const s = g === 'A' || g === 'B' ? [523, 659, 784, 1047] : g === 'C' ? [523, 659, 784] : [440, 392, 349]; s.forEach((f, i) => tone(f, 0.35, 'triangle', 0.08, i * 0.12)); },
   };
 })();
-function radioTone() { AUDIO.dispatchTone(); }
+function radioTone() { AUDIO.pager(); }

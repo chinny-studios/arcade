@@ -30,7 +30,7 @@ function decal(tex, w, h, x, y, z, yaw, o = 1) {
 
 // ---------- ambulance ----------
 // Built facing +z with the origin on the ground under the middle. The curb (right) side is -x.
-function buildRig(type, livId = 'classic', patId = 'alt', colId = 'redwhite') {
+function buildRig(type, livId = 'classic', patId = 'alt', colId = 'redwhite', unit = 'MEDIC 12') {
   const S = RIGS[type], L = LIVERIES[livId], LC = LIGHT_COLORS[colId];
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const len = S.len, wid = S.wid, hgt = S.hgt;
@@ -82,7 +82,7 @@ function buildRig(type, livId = 'classic', patId = 'alt', colId = 'redwhite') {
   // lettering
   const txt = hexCss(L.text);
   for (const sx of [-1, 1]) {
-    body.add(decal(textDecal('MEDIC 12', txt), 2.2, 0.42, sx * (boxW / 2 + 0.02), 1.72, zR + boxLen * 0.42, sx * Math.PI / 2));
+    body.add(decal(textDecal(unit, txt), 2.2, 0.42, sx * (boxW / 2 + 0.02), 1.72, zR + boxLen * 0.42, sx * Math.PI / 2));
     body.add(decal(starOfLife(), 0.95, 0.95, sx * (boxW / 2 + 0.02), hgt - 0.7, zR + boxLen * 0.82, sx * Math.PI / 2));
     body.add(decal(textDecal('RICKY RESCUE EMS', txt, 512, 64, 700), 1.9, 0.24, sx * (boxW / 2 + 0.02), 0.62, zR + boxLen * 0.42, sx * Math.PI / 2));
   }

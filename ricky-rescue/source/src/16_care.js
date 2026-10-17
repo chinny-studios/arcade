@@ -89,7 +89,8 @@ function doAction(id, who = CARE.who, P = G.call && G.call.P) {
   const h = a.harm && a.harm(P, C); if (h) addHarm(C, h);
   let dur = a.dur;
   if (who === 'partner' && G.career.rank >= 3) dur *= 0.8;
-  if (who === 'medic') dur *= 0.9;
+  if (who === 'medic') dur *= 0.9; else dur *= fatigueMul();
+  dur += equipDelay(id);
   const pose = id === 'cpr' ? 'cpr' : id === 'bvm' ? 'kneel' : (P.pose === 'sit' || P.pose === 'chestSit') && G.where !== 'back' ? 'crouch' : 'kneel';
   startWork(who, { act: a, id, name: a.name, dur, cont: !!a.cont, pose, P });
   bus.emit('action', id, who);

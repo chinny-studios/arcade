@@ -41,7 +41,9 @@ function startShift(o = {}) {
   G.where = 'cab'; G.mode = 'play'; G.speed = 1;
   CAM.yaw = st.yaw + Math.PI; snapCam();
   C.stats.shifts++;
+  resetDowntime();
   radio('Dispatch', `Medic 12, good ${startH < 12 ? 'morning' : 'evening'}. You're in service at Station 12. Shift ends ${fmtClock(G.shift.endT)}.`);
+  resetPosts();
   bus.emit('shiftStart');
 }
 function endShiftNow() {
@@ -54,7 +56,8 @@ function endShiftNow() {
 
 // advance the clock, schedule calls, tick the active call. dt is real seconds × game speed.
 function updateGame(dt) {
-  const gdt = dt * TIME_SCALE;
+  // waiting on post or busy with a chore between calls, the clock runs fast
+  const gdt = dt * TIME_SCALE * timeWarp();
   G.clockT += gdt;
   setTimeOfDay((G.clockT / 3600) % 24);
   const S = G.shift; if (!S) return;
@@ -62,6 +65,8 @@ function updateGame(dt) {
     if (G.clockT >= S.endT) { endShiftNow(); return; }
     if (G.clockT >= S.nextCallT && G.where !== 'back') dispatchCall();
   }
+  updatePosts(gdt);
+  updateDowntime(gdt);
   if (G.call) tickCall(gdt);
 }
 
@@ -69,7 +74,8 @@ function dispatchCall(o = {}) {
   const r = RNG();
   const mci = !o.type && G.career.rank >= 2 && !G.shift.mciDone && r.chance(0.12);
   if (mci || o.type === 'mci') return startMCI(o);
-  const pc = pickCall(r, o);
+  // calls come from where Medic 12 is the closest free unit, weighted by demand
+  const pc = pickCall(r, Object.keys(o).length ? o : { zoneW: callZoneWeight() });
   if (!pc) { G.shift.nextCallT = G.clockT + 120; return null; }
   return startCall(pc.tpl, pc.place, r, o);
 }
@@ -104,7 +110,7 @@ const ordinal = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2
 
 function respond() {
   const C = G.call; if (!C || C.stage !== 'pending') return;
-  C.stage = 'enroute'; C.times.respond = C.t;
+  C.stage = 'enroute'; C.times.respond = C.t; C.times.ack = C.t;
   radio('Medic 12', `Medic 12 copies, responding${C.pri === 1 ? ' priority one' : ''}.`, 'crew');
   const goal = C.hazard ? stagingPoint(C) : C.place.curb;
   buildRoute(Object.assign({ ls: true }, goal), C.hazard ? 'Staging area' : C.addr);
@@ -127,6 +133,10 @@ function tickCall(gdt) {
   const ctx = careContext(C);
   for (const P of C.patients) tickPatient(P, gdt, ctx);
   updateWorkers(gdt);
+  // nobody answered the pager: tone it out again
+  if (C.stage === 'pending' && !C.retone && C.t > ACK_T) { C.retone = true; AUDIO.pager(); radio('Dispatch', 'Medic 12, dispatch. Do you copy?', 'dispatch'); }
+  // turnout ends when the wheels roll
+  if (C.times.roll === undefined && (C.stage === 'enroute' || C.stage === 'staging') && RIG && (Math.abs(RIG.v) > 3 || (C.rollFrom && dist(RIG.x, RIG.z, C.rollFrom.x, C.rollFrom.z) > 15))) C.times.roll = C.t;
   // stage changes from where the rig is
   if (C.stage === 'enroute' && RIG) {
     const tgt = C.hazard && !C.pdCleared ? stagingPoint(C) : C.place.curb;
@@ -154,6 +164,7 @@ function tickCall(gdt) {
 function arriveOnScene(C) {
   if (C.stage === 'onscene') return;
   C.stage = 'onscene'; C.times.arrive = C.t;
+  if (C.times.roll === undefined) C.times.roll = Math.min(C.t, C.times.ack !== undefined ? C.times.ack : C.t);
   radio('Medic 12', 'Medic 12 on scene.', 'crew');
   clearRoute();
   bus.emit('arrive', C);
@@ -200,8 +211,10 @@ function backInService() {
   stopAllWork();
   if (RIG) { RIG.siren = false; RIG.auto = null; }
   const S = G.shift;
-  S.nextCallT = G.clockT + rnd.range(3, 9) * 60;
   radio('Medic 12', 'Medic 12 is back in service.', 'crew');
+  replan('service');
+  S.nextCallT = G.clockT + rnd.range(3, 9) * 60 / callGapFactor();
+  if (RIG && missingStock() >= 3) setTimeout(() => partnerSay(atBase() ? 'We\'re running low on a few things. Restock here before we go?' : 'We\'re low on supplies. Next time we\'re at a hospital, let\'s restock.'), DEBUG ? 0 : 2500);
   saveGame();
   if (G.clockT >= S.endT) endShiftNow();
 }

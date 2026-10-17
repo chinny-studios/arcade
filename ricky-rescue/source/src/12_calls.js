@@ -334,7 +334,7 @@ function pickCall(r, opts = {}) {
     const kinds = tpl.places;
     const cands = kinds.includes('road') ? roadPlaces(d, r) : CITY.places.filter((p) => p.district === d && kinds.includes(p.kind));
     if (!cands.length) continue;
-    let place = r.pick(cands);
+    let place = opts.zoneW ? r.wpick(cands, opts.zoneW) : r.pick(cands);
     if (opts.near) place = cands.reduce((a, b) => (dist2(a.x, a.z, opts.near.x, opts.near.z) < dist2(b.x, b.z, opts.near.x, opts.near.z) ? a : b));
     if (opts.far) { const far = cands.filter((p) => dist(p.x, p.z, RIG.x, RIG.z) > opts.far); if (far.length) place = r.pick(far); }
     if (RIG && dist(place.x, place.z, RIG.x, RIG.z) < 90 && !opts.type && !opts.near) continue;

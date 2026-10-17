@@ -248,7 +248,7 @@ function transferToStretcher() {
 function loadPatient() {
   const s = EQ.stretcher, P = s.P, C = G.call; if (!P) return;
   closePanel('rear');
-  startWork('ricky', { id: 'load', name: 'Loading', dur: 18 * RIGS[RIG.type].load + 6, fn: () => {
+  startWork('ricky', { id: 'load', name: 'Loading', dur: 18 * RIGS[RIG.type].load + 6 + equipDelay('load'), fn: () => {
     s.at = 'rig'; s.by = null; s.model.g.visible = false; PLAYER.push = false; RIG.loaded = P;
     P.where = { scene: 'rig' }; RIG.doors = 0;
     callLog(C, 'Ricky', 'Patient loaded.');
@@ -419,6 +419,8 @@ function interactions() {
     }
     if (RIG.loaded && near(rr.x, rr.z, 2.6) && C && C.stage !== 'hospital') out.push({ label: 'Climb in back', fn: () => climbInBack() });
   }
+  // coffee between calls
+  const cs = coffeeSpot(); if (cs) out.push({ label: `Grab a coffee at ${cs.name}${cs.cost ? ' (' + fmtMoney(cs.cost) + ')' : ''}`, fn: () => grabCoffee(cs) });
   // mass-casualty triage before anyone gets treated
   if (C && C.mci && !C.mci.sent) {
     for (const Q of C.mci.pts) if (Q.where.scene === 'city' && near(Q.where.x, Q.where.z, 2.4)) out.push({ label: `Triage patient ${C.mci.pts.indexOf(Q) + 1}${C.mci.tags.has(Q) ? ' (' + TAGS[C.mci.tags.get(Q)].name.toLowerCase() + ')' : ''}`, fn: () => openTriage(Q), kind: 'care' });

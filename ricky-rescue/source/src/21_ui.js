@@ -1,7 +1,7 @@
 // Ricky Rescue — menus and panels: title, new career, Station 12 (shift setup, garage, locker, career), options,
 // help, pause, shift summary, first-time tips, and focus navigation for the gamepad.
 
-const BLOCKING = ['rear', 'transport', 'handoff', 'triage', 'review', 'pause', 'options', 'help', 'shiftOver', 'mapBig'];
+const BLOCKING = ['rear', 'rigcheck', 'transport', 'handoff', 'triage', 'review', 'pause', 'options', 'help', 'shiftOver', 'mapBig'];
 const PAUSING = ['pause', 'options', 'help', 'review', 'shiftOver'];
 const UI = {
   open: new Set(), focusEl: null,
@@ -10,7 +10,7 @@ const UI = {
   isOpen(id) { return this.open.has(id); },
   blocking() { for (const id of BLOCKING) if (this.open.has(id)) return true; return G.mode !== 'play'; },
   paused() { for (const id of PAUSING) if (this.open.has(id)) return true; return G.mode !== 'play'; },
-  top() { const order = ['options', 'help', 'pause', 'shiftOver', 'review', 'handoff', 'transport', 'triage', 'rear', 'mapBig', 'care']; for (const id of order) if (this.open.has(id)) return $('#' + id); const st = document.body.dataset.state; return st !== 'play' ? $('#' + st) : null; },
+  top() { const order = ['options', 'help', 'pause', 'shiftOver', 'review', 'handoff', 'transport', 'triage', 'rigcheck', 'rear', 'mapBig', 'care']; for (const id of order) if (this.open.has(id)) return $('#' + id); const st = document.body.dataset.state; return st !== 'play' ? $('#' + st) : null; },
   // gamepad: move focus between visible buttons in the top panel
   update() {
     const n = Input.navPad(); if (!Object.keys(n).length) return;
@@ -45,7 +45,7 @@ function showTitle() {
   const add = (label, sub, fn, cls = '') => { const b = el('button', 'mb btn ' + cls, esc(label) + (sub ? `<small>${esc(sub)}</small>` : '')); b.onclick = () => { AUDIO.init(); AUDIO.click(); fn(); }; m.appendChild(b); };
   if (has) { const s = peekSave(); add('Continue career', s ? `${RANKS[rankFor(s.xp)].name} · ${s.stats.calls} calls` : '', () => { loadGame(); showStation(); }, 'go'); }
   add('New career', has ? 'replaces your save' : 'start as an EMT at Station 12', () => showCreate(), has ? '' : 'go');
-  add('Quick shift', 'jump straight into a call', () => { if (!G.career) { G.career = has ? (loadGame(), G.career) : newCareer(); } startShift({ hours: 4, firstCall: 3 }); setState('play'); });
+  add('Quick shift', 'jump straight into a call', () => { if (!G.career) { G.career = has ? (loadGame(), G.career) : newCareer(); } startShift({ hours: 4, firstCall: 1 }); setState('play'); });
   add('How to play', '', () => UI.show('help'));
   add('Options', '', () => openOptions());
   titleScene();
@@ -198,18 +198,35 @@ const HELP_HTML = `
 <ul><li>Pick the hospital: <b>Mercy</b> has the cath lab, stroke center and labor & delivery; <b>Harbor General</b> is the Level I trauma center; <b>St. Brigid</b> is close but basic.</li>
 <li>Radio a <b>STEMI</b>, <b>stroke</b> or <b>trauma alert</b> when it fits. Ride in back to keep treating while Marisol drives, or drive yourself and let her watch the patient.</li>
 <li>At the hospital, back into the bay, unload, push the stretcher to the ER doors and give your report. Restock at the rear doors of the rig.</li></ul>
+<h3>Between calls</h3>
+<ul><li>Calls come in on the <b>pager</b>. Acknowledge it quickly and get the wheels rolling: <b>turnout time</b> (page to rolling) is scored, about 1½ minutes by day and 2 at night.</li>
+<li>Dispatch <b>posts</b> you where you cover the city best, given which other medic units are free (white squares on the map; orange ones are busy). When a unit gets busy, you may be told to <b>move up</b>. Getting to your post on time earns XP, and calls come from the area around your post, so being there means shorter drives.</li>
+<li>On post, <span class="kbd">T</span> waits for the next page with the clock running fast. Out of the rig: do the <b>rig check</b> at the rear doors (whatever the last crew left broken turns up on a call otherwise), <b>restock</b> at a hospital or the station, and grab a <b>coffee</b> at a shop, the station or a hospital: tired crews work slower.</li></ul>
 <h3>Gamepad</h3>
 <p>RT gas, LT brake, left stick steer or walk, right stick camera, A use, X lights and sirens, Y in/out, B back, LB horn, RB siren tone, D-pad menus, Start pause, View map.</p>
 <h3>Touch</h3>
 <p>Steer and pedal buttons in the rig; a stick and USE button on foot; IN/OUT, L&S and HORN at the top.</p>
 <p class="dim">Ricky Rescue simplifies real protocols to make a game. It isn't medical training.</p>`;
 function openPause() { if (G.mode !== 'play') return; UI.show('pause'); }
+function postingSummary(S) {
+  const P = S.posting; if (!P) return '';
+  const ch = P.chutes.filter((x) => x !== undefined), avg = ch.length ? ch.reduce((a, b) => a + b, 0) / ch.length : null;
+  const k = S.check, found = k ? RIG_CHECK.filter((c) => k.items[c.id].state === 'fixed' && !k.items[c.id].bad).length : 0;
+  const lines = [
+    P.orders ? `Posting: ${P.onTime} of ${P.orders} post orders reached on time${P.late ? `, ${P.late} late` : ''}.` : 'Posting: no move-ups this shift.',
+    avg !== null ? `Average turnout ${fmtDur(avg)} from page to wheels rolling.` : '',
+    k ? (k.done ? `Rig check done${k.fixed ? `, ${k.fixed} problem${k.fixed > 1 ? 's' : ''} fixed before a call` : ''}.` : `Rig check not finished${k.missed ? `: ${k.missed} problem${k.missed > 1 ? 's' : ''} turned up on calls` : ''}.`) : '',
+    S.coffees ? `${S.coffees} coffee${S.coffees > 1 ? 's' : ''}. Energy at the end: ${Math.round(S.energy)}%.` : `No coffee. Energy at the end: ${Math.round(S.energy)}%.`,
+  ];
+  return `<p class="dim">${lines.filter(Boolean).join('<br>')}</p>`;
+}
 function showShiftOver() {
   const S = G.shift, K = G.career;
   const res = S.results;
   const g = (x) => res.filter((r) => r.grade === x).length;
   $('#soBody').innerHTML = `<p>${res.length} call${res.length === 1 ? '' : 's'} this shift. Grades: A ${g('A')}, B ${g('B')}, C ${g('C')}, D ${g('D')}, F ${g('F')}.</p>
     <p class="dim">${res.map((r) => `${r.grade} · ${esc(r.C.nature)} (${r.total})`).join('<br>')}</p>
+    ${postingSummary(S)}
     <p style="color:var(--amber);font-weight:700">Earned ${fmtMoney(S.earnings)} and ${S.xp} XP. Balance ${fmtMoney(K.money)}.</p>`;
   UI.show('shiftOver');
 }
@@ -217,7 +234,9 @@ bus.on('shiftEnd', () => { if (G.call) return; setTimeout(() => showShiftOver(),
 
 // ---------- first-time tips ----------
 function tip(id, text) { const K = G.career; if (!K || K.tips[id] || !OPTS.tips) return; K.tips[id] = true; setTimeout(() => toast(text, 'good'), 400); }
-bus.on('dispatch', () => tip('dispatch', 'A call! Press Enter (or Respond) and follow the blue line. Q toggles lights & sirens.'));
+bus.on('dispatch', () => tip('dispatch', 'A page! Acknowledge with Enter (or the button) and get rolling: turnout time counts. Q toggles lights & sirens.'));
+bus.on('postOrder', () => tip('post', 'Dispatch posts you where you cover the most calls. Follow the blue line to your post; on time earns XP.'));
+bus.on('onPost', () => tip('onpost', 'On post. Press T to wait for a page, or get out: rig check and restock at the rear doors, coffee where there\'s a shop.'));
 bus.on('arrive', () => tip('arrive', 'On scene. Press F to get out, then grab equipment at the rear doors or go straight to the patient.'));
 bus.on('contact', () => tip('contact', 'Start with Gloves & PPE, then the general impression and ABCs. Click Marisol to give her jobs too.'));
 bus.on('loaded', () => tip('loaded', 'Choose the hospital that fits the patient and radio ahead with an alert if needed.'));
