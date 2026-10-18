@@ -91,7 +91,7 @@ function field(F, u, v, w, d, kind) {
   if (kind === 'wheat') { // standing stalks: a few low ridges catch the light
     for (let b = -d / 2 + 1; b < d / 2; b += 3) {
       const P = (a, h) => { const x = F.wx(u + a, v + b), z = F.wz(u + a, v + b); return [x, groundAt(x, z) + h, z]; };
-      gb.quad(P(-w / 2 + 1, 0.05), P(w / 2 - 1, 0.05), P(w / 2 - 1, 0.7), P(-w / 2 + 1, 0.7), 0xd2b86a, null);
+      gbF('ds', F).quad(P(-w / 2 + 1, 0.05), P(w / 2 - 1, 0.05), P(w / 2 - 1, 0.7), P(-w / 2 + 1, 0.7), 0xd2b86a, null); // seen from both sides
     }
   }
   reserve(F, u, v, w, d, 0);

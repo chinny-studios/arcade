@@ -2,13 +2,13 @@
 
 const G = { state: 'title', time: 0, hour: 7.5, day: 1, frame: 0, readCount: 0, ff: false, touchFF: false, autoQ: true, noPause: false, placeT: 0, here: null };
 const clock = { last: performance.now(), fpsT: 0, fpsN: 0, fps: 60, lowT: 0, startT: 0 };
-const START = { u: 75, v: 6, yaw: 60 * D2R };
+const START = { u: 40, v: 9, yaw: 60 * D2R };
 
 const SAVE = {
   key: 'roma-aeterna.save',
   save() {
     if (G.state !== 'play') return;
-    const d = { v: 1, x: PL.x, z: PL.z, yaw: PL.yaw, hour: G.hour, day: G.day,
+    const d = { v: 1, x: PL.x, y: PL.y, z: PL.z, yaw: PL.yaw, hour: G.hour, day: G.day,
       found: W.places.filter((p) => p.found).map((p) => p.id), read: W.placards.filter((p) => p.read).map((p) => p.id) };
     try { localStorage.setItem(this.key, JSON.stringify(d)); } catch (e) { /* ignore */ }
   },
@@ -37,6 +37,7 @@ async function buildWorld(step) {
   if (WORLD_BUILT) return;
   await step(0.03, 'Surveying the seven hills…');
   initHeights();
+  K.closeRaised = true;
   await step(0.12, 'Raising the Forum…');
   buildForum();
   await step(0.22, 'Raising the temples of the Capitol and the Palatine…');
@@ -60,6 +61,8 @@ async function buildWorld(step) {
   await step(0.85, 'Planting pines and cypresses…');
   buildNature();
   await step(0.9, 'Firing the roof tiles…');
+  K.closeRaised = false;
+  W.navOff = pruneNav();
   finalizeWorld();
   buildTerrain();
   HUD.buildMap();
@@ -77,7 +80,7 @@ async function startGame(opts) {
     for (const p of W.places) p.found = save.found.includes(p.id);
     for (const p of W.placards) p.read = save.read.includes(p.id);
     G.hour = save.hour; G.day = save.day || 1;
-    placePlayer(save.x, save.z, save.yaw);
+    placePlayer(save.x, save.z, save.yaw, save.y);
   } else {
     for (const p of W.places) p.found = false;
     for (const p of W.placards) p.read = false;
@@ -106,8 +109,7 @@ async function startGame(opts) {
 // where to put the player when travelling to a place: its spawn point, or a clear spot on its edge looking in
 function spawnFor(p) {
   const s = p.spawn || [p.x, p.z + p.r * 0.55];
-  let [x, z] = s;
-  for (let k = 0; k < 60 && !clearAt(x, z, 0.5); k++) { const a = k * 2.4, r = 3 + k * 1.2; x = s[0] + Math.cos(a) * r; z = s[1] + Math.sin(a) * r; }
+  const [x, z] = clearNear(s[0], s[1]);
   return [x, z, p.spawnYaw != null ? p.spawnYaw : Math.atan2(-(p.x - x), -(p.z - z))];
 }
 function travelTo(p) {
@@ -216,7 +218,7 @@ function setupDebug() {
     async hold(code, s) { Input.press(code); RA.sim(s); Input.release(code); },
     places() { return W.places.map((p) => p.id); },
     audio() { AU.resume(); AU.update(0.1); AU.ui('found'); AU.step(1); AU.hoof(PL.x + 3, PL.z, 1); AU.bird(); return !!AU.ctx; },
-    stats() { return { tris: R.renderer.info.render.triangles, calls: R.renderer.info.render.calls, solids: W.solids.length, nodes: W.nodes.length, edges: W.edges.length, meshes: W.meshes.length, npcs: NPC.count(), pos: [PL.x, PL.y, PL.z], hour: G.hour }; },
+    stats() { return { tris: R.renderer.info.render.triangles, calls: R.renderer.info.render.calls, solids: W.solids.length, nodes: W.nodes.length, edges: W.edges.length, navOff: W.navOff, meshes: W.meshes.length, npcs: NPC.count(), pos: [PL.x, PL.y, PL.z], hour: G.hour }; },
   };
 }
 

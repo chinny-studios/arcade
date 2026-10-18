@@ -80,8 +80,8 @@ function buildCapitolPalatine() {
   }
   // the Palatine "stadium": a sunken garden in the shape of a racecourse
   {
-    const S = site(FF, 222, 282, 0); const g = gbF('mon', S);
-    K.box(g, S, 0, -4, 0, 48, 0.4, 150, 0x7a8a50);
+    const S = site(FF, 222, 282, 0, 4); const g = gbF('mon', S); // the garden floor, 4 m down, is the levelled ground
+    K.box(g, S, 0, -4, 0, 46.8, 0.4, 148.8, 0x7a8a50); // the garden floor, inside the walls
     for (const [u0, v0, u1, v1] of [[-24, -75, 24, -75], [-24, 75, 24, 75], [-24, -75, -24, 75], [24, -75, 24, 75]]) wall(g, S, u0, v0, u1, v1, -4, 14, 1.2, C.brick);
     for (const s of [-1, 1]) K.colonnade(g, S, s * 19, -70, s * 19, 70, 22, -3.6, 7, 0.3, 'i', C.marble);
     K.box(g, S, 24, -3.6, 0, 12, 18, 22, C.brick, { solid: true }); K.box(g, S, 24, 14.4, 0, 13, 1, 23, C.tile2);
@@ -151,17 +151,18 @@ function buildArenas() {
     let y = 0;
     for (let s = 0; s < 3; s++) {
       const h = H[s], pw = 2.3, r = (L - pw) / 2;
-      K.box(g, B, -L / 2, y, 0, pw, h, 2.2, travC, { solid: s === 0, skip: 'b' });
+      // the bays are chords of the ellipse: piers and bands run a little past the joins so no wedge opens there
+      K.box(g, B, -L / 2, y, 0, pw + 0.25, h, 2.2, travC, { solid: s === 0, skip: 'b' });
       K.archTop(g, B, 0, 0, y + h * (s === 0 ? 0.66 : 0.62), r, y + h - 1.2, 2.2, travC, 6, travD);
-      K.box(g, B, 0, y + h - 1.2, -0.3, L + 0.05, 1.2, 2.8, travD, { skip: 'b' });
+      K.box(g, B, 0, y + h - 1.2, -0.3, L + 0.3, 1.2, 2.8, travD, { skip: '' }); // the band overhangs: closed below
       K.box(g, B, -L / 2, y, -1.35, 0.9, h - 1.2, 0.5, travC); // half-column
       y += h;
     }
     // attic: pilasters, small square windows, and corbels for the awning masts
-    K.box(g, B, 0, y, 0, L + 0.05, atticH, 2.4, travC);
+    K.box(g, B, 0, y, 0, L + 0.3, atticH, 2.4, travC);
     K.box(g, B, -L / 2, y, -1.3, 0.8, atticH, 0.4, travC);
     if (i % 2) K.panel(g, B, 0, y + 4, -1.22, 1.4, 1.4, 0x2a2018, -1);
-    K.box(g, B, 0, y + atticH, 0, L + 0.3, 0.8, 2.8, travD);
+    K.box(g, B, 0, y + atticH, 0, L + 0.4, 0.8, 2.8, travD);
     K.box(g, B, -L / 2 + 1, y + atticH - 2.4, -1.5, 0.3, 4.4, 0.3, C.wood);
     // a dark vault wall behind the upper arches
     K.box(g, B.sub(0, 4.5, 0, B.y), 0, H[0], 0, L + 0.1, H[1] + H[2], 0.6, 0x7a6a52);
@@ -179,7 +180,29 @@ function buildArenas() {
     for (let i = 0; i < NB; i++) {
       const t0 = (i / NB) * TAU, t1 = ((i + 1) / NB) * TAU;
       const P = (k, t) => { const [u, v] = ell(k, t); return [Cf.wx(u, v), Cf.y + H[0] - 0.2, Cf.wz(u, v)]; };
-      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xa89a7c, [Cf.x, Cf.y + 100, Cf.z], -1);
+      // a slab with both faces: the ceiling of the gallery below and the floor of the one above
+      const up = [P(0.5, t0)[0], Cf.y + H[0] + 50, P(0.5, t0)[2]];
+      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xa89a7c, up, 1);
+      gb.quad(P(0.99, t0), P(0.99, t1), P(0.85, t1), P(0.85, t0), 0xb3a588, up, -1);
+      // and over the upper galleries, out to the vault wall behind them
+      for (const y of [H[0] + H[1] - 0.2, H[0] + H[1] + H[2] - 0.2]) {
+        const Q = (k, t) => { const [u, v] = ell(k, t); return [Cf.wx(u, v), Cf.y + y, Cf.wz(u, v)]; };
+        gb.quad(Q(0.99, t0), Q(0.99, t1), Q(0.935, t1), Q(0.935, t0), 0x9a8c70, [Cf.x, Cf.y + y + 100, Cf.z], 1);
+        gb.quad(Q(0.99, t0), Q(0.99, t1), Q(0.935, t1), Q(0.935, t0), 0xa89a7c, [Cf.x, Cf.y + y + 100, Cf.z], -1);
+      }
+    }
+    // the inner wall of the ambulatory, closing off the vaults under the seats; open where the four gate passages
+    // run through (up to their vaults)
+    const span = gates.map((gI) => { const t = (gI / NB) * TAU; return [t, 3.6 / (Math.abs(Math.cos(t)) * B0 + Math.abs(Math.sin(t)) * A0) / 0.85]; });
+    const ts = []; for (let i = 0; i <= NB; i++) ts.push((i / NB) * TAU);
+    for (const [t, dt] of span) ts.push(t - dt, t + dt);
+    ts.sort((a, b) => a - b);
+    const inGate = (t) => span.some(([c, dt]) => Math.abs(angWrap(t - c)) < dt);
+    for (let i = 0; i + 1 < ts.length; i++) {
+      const t0 = ts[i], t1 = ts[i + 1]; if (t1 - t0 < 1e-4) continue;
+      const P = (t, y) => { const [u, v] = ell(0.85, t); return [Cf.wx(u, v), Cf.y + y, Cf.wz(u, v)]; };
+      const y0 = inGate((t0 + t1) / 2) ? 7.8 : 0;
+      gb.quad(P(t0, y0), P(t1, y0), P(t1, H[0]), P(t0, H[0]), 0x8e8068, [Cf.x, Cf.y + 5, Cf.z]);
     }
   }
   // the cavea: stepped seating, four ranks separated by walkways
@@ -291,10 +314,15 @@ function buildLudus() {
     if (i % 9 !== 0) for (let r = 0; r < 4; r++) {
       const k0 = 1 + r * 0.08, k1 = k0 + 0.08, y = 1.2 + r * 0.6;
       g.quad(P(k0, t0, y), P(k0, t1, y), P(k1, t1, y), P(k1, t0, y), 0xcfc3a6, [S.x, S.y - 10, S.z]);
-      g.quad(P(k0, t0, y - 0.6), P(k0, t1, y - 0.6), P(k0, t1, y), P(k0, t0, y), 0xb5a98c, [S.x, S.y + y, S.z], -1);
+      const yr = r ? y - 0.6 : -1; // the lowest riser goes down to the ground
+      g.quad(P(k0, t0, yr), P(k0, t1, yr), P(k0, t1, y), P(k0, t0, y), 0xb5a98c, [S.x, S.y + y, S.z], -1);
       g.quad(P(k1, t0, y), P(k1, t1, y), P(k1, t1, y - 0.6 - 1.2), P(k1, t0, y - 0.6 - 1.2), 0xb5a98c, [S.x, S.y + y, S.z]);
     }
     if (i % 9 !== 0) { const [u0, v0] = [a * Math.cos(t0), b * Math.sin(t0)], [u1, v1] = [a * Math.cos(t1), b * Math.sin(t1)]; wall(g, S, u0, v0, u1, v1, 0, 1.2, 0.5, C.plaster); }
+    else for (const t of [t0, t1]) for (let r = 0; r < 4; r++) { // the stepped sides of the entrance
+      const k0 = 1 + r * 0.08, k1 = k0 + 0.08, y = 1.2 + r * 0.6, m = P(1.1, (t0 + t1) / 2, 0);
+      g.quad(P(r ? k0 : 1, t, -1), P(k1, t, -1), P(k1, t, y), P(r ? k0 : 1, t, y), 0xb5a98c, m, -1);
+    }
     g.triR([S.x, S.y + 0.06, S.z], P(1, t0, 0.06), P(1, t1, 0.06), 0xd2bd8c, [S.x, S.y - 5, S.z]);
   }
   K.box(g, S, -16, 0, 0, 0.3, 1.9, 0.3, C.wood, { solid: true }); K.box(g, S, 16, 0, 0, 0.3, 1.9, 0.3, C.wood, { solid: true }); // the palus, the training post
@@ -323,32 +351,49 @@ function buildCircus() {
   g.jit = j0;
   // seating along a path: straight sides plus the curved end. f(t) gives (u, v, outward nu, nv) at distance t.
   const ranks = 14, rise = (facadeH - 6) / ranks, dep = (VO - VA - 2) / ranks;
-  const band = (P0, P1, n0x, n0z) => { // P0, P1: local points on the arena edge; n: outward normal (local)
+  // P0, P1: local points on the arena edge; N0, N1: the outward directions there (radial on the round end, so that
+  // neighbouring bands share their edges all the way up instead of opening in wedges)
+  const band = (P0, P1, N0, N1 = N0) => {
+    const at = (P, N, d) => [P[0] + N[0] * d, P[1] + N[1] * d];
     for (let k = 0; k < ranks; k++) {
       const y0 = 3 + k * rise, y1 = y0 + rise, d0 = 1 + k * dep, d1 = d0 + dep;
-      const Q = (P, d, y) => [S.wx(P[0] + n0x * d, P[1] + n0z * d), S.y + y, S.wz(P[0] + n0x * d, P[1] + n0z * d)];
+      const Q = (P, N, d, y) => { const [u, v] = at(P, N, d); return [S.wx(u, v), S.y + y, S.wz(u, v)]; };
       const col = k < 3 ? 0xe6dfcf : k < 9 ? 0xd2c7ad : 0xa49274;
-      g.quad(Q(P0, d0, y1), Q(P1, d0, y1), Q(P1, d1, y1), Q(P0, d1, y1), col, [S.x, S.y - 100, S.z]);
-      g.quad(Q(P0, d0, y0), Q(P1, d0, y0), Q(P1, d0, y1), Q(P0, d0, y1), shadeHex(col, 0.78), [S.wx(P0[0] - n0x * 50, P0[1] - n0z * 50), S.y + y1, S.wz(P0[0] - n0x * 50, P0[1] - n0z * 50)], -1); // riser, facing the track
+      g.quad(Q(P0, N0, d0, y1), Q(P1, N1, d0, y1), Q(P1, N1, d1, y1), Q(P0, N0, d1, y1), col, [S.x, S.y - 100, S.z]);
+      const [fu, fv] = at(P0, N0, -50);
+      g.quad(Q(P0, N0, d0, y0), Q(P1, N1, d0, y0), Q(P1, N1, d0, y1), Q(P0, N0, d0, y1), shadeHex(col, 0.78), [S.wx(fu, fv), S.y + y1, S.wz(fu, fv)], -1); // riser, facing the track
       if (k % 2 === 0) for (let q = 0; q < 9; q++) {
-        const t = Math.random();
-        const pu = lerp(P0[0], P1[0], t) + n0x * (d0 + dep * 0.5), pv = lerp(P0[1], P1[1], t) + n0z * (d0 + dep * 0.5);
-        W.seatPts.push({ x: S.wx(pu, pv), y: S.y + y1, z: S.wz(pu, pv), yaw: S.yawOf(-n0x, -n0z), circus: true });
+        const t = Math.random(), nx = lerp(N0[0], N1[0], t), nz = lerp(N0[1], N1[1], t);
+        const pu = lerp(P0[0], P1[0], t) + nx * (d0 + dep * 0.5), pv = lerp(P0[1], P1[1], t) + nz * (d0 + dep * 0.5);
+        W.seatPts.push({ x: S.wx(pu, pv), y: S.y + y1, z: S.wz(pu, pv), yaw: S.yawOf(-nx, -nz), circus: true });
       }
     }
     // the outer wall behind the top rank
-    const T0 = [P0[0] + n0x * (VO - VA), P0[1] + n0z * (VO - VA)], T1 = [P1[0] + n0x * (VO - VA), P1[1] + n0z * (VO - VA)];
+    const T0 = at(P0, N0, VO - VA), T1 = at(P1, N1, VO - VA);
     wall(g, S, T0[0], T0[1], T1[0], T1[1], 0, facadeH + 2, 1.2, C.trav2, { ext: 0.6 });
     // the solid mass under the seats
-    const M0 = [P0[0] + n0x * (VO - VA) / 2, P0[1] + n0z * (VO - VA) / 2], M1 = [P1[0] + n0x * (VO - VA) / 2, P1[1] + n0z * (VO - VA) / 2];
+    const M0 = at(P0, N0, (VO - VA) / 2), M1 = at(P1, N1, (VO - VA) / 2);
     solidBox(S, (M0[0] + M1[0]) / 2, (M0[1] + M1[1]) / 2, Math.hypot(M1[0] - M0[0], M1[1] - M0[1]) + 0.4, VO - VA, 0, 30, Math.atan2(M1[1] - M0[1], M1[0] - M0[0]), true);
   };
   const NS = 22;
-  for (const s of [-1, 1]) for (let i = 0; i < NS; i++) { const u0 = lerp(U0 + 8, cu, i / NS), u1 = lerp(U0 + 8, cu, (i + 1) / NS); band([u0, s * VA], [u1, s * VA], 0, s); }
-  for (let i = 0; i < 12; i++) { const t0 = -Math.PI / 2 + (i / 12) * Math.PI, t1 = -Math.PI / 2 + ((i + 1) / 12) * Math.PI; const n = (t0 + t1) / 2; band([cu + Math.cos(t0) * VA, Math.sin(t0) * VA], [cu + Math.cos(t1) * VA, Math.sin(t1) * VA], Math.cos(n), Math.sin(n)); }
+  for (const s of [-1, 1]) for (let i = 0; i < NS; i++) { const u0 = lerp(U0 + 8, cu, i / NS), u1 = lerp(U0 + 8, cu, (i + 1) / NS); band([u0, s * VA], [u1, s * VA], [0, s]); }
+  // the stepped ends of the stands by the starting gates, closing the seats' profile
+  for (const s of [-1, 1]) for (let k = 0; k < ranks; k++) {
+    const y1 = 3 + (k + 1) * rise, d0 = 1 + k * dep, d1 = d0 + dep, u = U0 + 8;
+    const Q = (d, y) => [S.wx(u, s * (VA + d)), S.y + y, S.wz(u, s * (VA + d))];
+    g.quad(Q(k ? d0 : 0, -1), Q(d1, -1), Q(d1, y1), Q(k ? d0 : 0, y1), 0xb5a98c, [S.wx(u + 10, s * VA), S.y, S.wz(u + 10, s * VA)]);
+  }
+  // the round end, leaving a way through the stands behind the Arch of Titus (the two middle segments)
+  const archGap = (i) => i === 5 || i === 6;
+  for (let i = 0; i < 12; i++) { if (archGap(i)) continue; const t0 = -Math.PI / 2 + (i / 12) * Math.PI, t1 = -Math.PI / 2 + ((i + 1) / 12) * Math.PI; band([cu + Math.cos(t0) * VA, Math.sin(t0) * VA], [cu + Math.cos(t1) * VA, Math.sin(t1) * VA], [Math.cos(t0), Math.sin(t0)], [Math.cos(t1), Math.sin(t1)]); }
+  for (const t of [-Math.PI / 12, Math.PI / 12]) for (let k = 0; k < ranks; k++) { // the stepped sides of that way
+    const y1 = 3 + (k + 1) * rise, d0 = 1 + k * dep, d1 = d0 + dep, c = Math.cos(t), sn = Math.sin(t);
+    const Q = (d, y) => [S.wx(cu + c * (VA + d), sn * (VA + d)), S.y + y, S.wz(cu + c * (VA + d), sn * (VA + d))];
+    g.quad(Q(k ? d0 : 0, -1), Q(d1, -1), Q(d1, y1), Q(k ? d0 : 0, y1), 0xb5a98c, [S.wx(cu + VA + 10, 0), S.y, S.wz(cu + VA + 10, 0)], -1);
+  }
   // podium wall round the track
   for (const s of [-1, 1]) wall(g, S, U0 + 8, s * VA, cu, s * VA, 0, 3, 0.8, C.marble, { top: C.marble });
-  for (let i = 0; i < 12; i++) { const t0 = -Math.PI / 2 + (i / 12) * Math.PI, t1 = -Math.PI / 2 + ((i + 1) / 12) * Math.PI; wall(g, S, cu + Math.cos(t0) * VA, Math.sin(t0) * VA, cu + Math.cos(t1) * VA, Math.sin(t1) * VA, 0, 3, 0.8, C.marble); }
+  for (let i = 0; i < 12; i++) { if (archGap(i)) continue; const t0 = -Math.PI / 2 + (i / 12) * Math.PI, t1 = -Math.PI / 2 + ((i + 1) / 12) * Math.PI; wall(g, S, cu + Math.cos(t0) * VA, Math.sin(t0) * VA, cu + Math.cos(t1) * VA, Math.sin(t1) * VA, 0, 3, 0.8, C.marble); }
   // outer facade: arcades with shops on the ground floor (two storeys and an attic), along both sides
   for (const s of [-1, 1]) {
     const F2 = S.sub(0, s * (VO + 0.6), s > 0 ? Math.PI : 0, S.y);

@@ -25,9 +25,11 @@ const HILLS = [
 const FLATS = [
   { F: FF.sub(0, 0), au: 150, av: 52, fall: 30, y: 0 },
   { F: FF.sub(400, 0), au: 125, av: 108, fall: 30, y: 0 },
-  { F: FF.sub(110, 480), au: 300, av: 72, fall: 25, y: 0 },
+  { F: FF.sub(110, 480), au: 290, av: 72, fall: 25, y: 0, p: 4 }, // the Circus: squarer, so the track's corners are level
   { F: FF.sub(-170, -160), au: 125, av: 62, fall: 20, y: 0 },
   { F: FF.sub(-40, -170), au: 80, av: 55, fall: 20, y: 0 },
+  // the Palatine stadium: its sunken garden is dug level into the edge of the hill
+  { F: FF.sub(222, 282), au: 23.4, av: 74.4, fall: 5, y: 22.6, p: 8 },
 ];
 // Tiber centreline, north to south (world x, z)
 const RIVER = [[-700, -1500], [-760, -950], [-930, -700], [-1010, -450], [-960, -250], [-800, -60], [-620, 120], [-560, 330], [-600, 650], [-680, 1000], [-760, 1400], [-840, 1900], [-900, 2900]];
@@ -41,8 +43,9 @@ const TOWN = { x: 1760, z: 2480 };
 const T = { X0: -1450, Z0: -1450, X1: 2150, Z1: 2850, S: 12 };
 T.NX = Math.round((T.X1 - T.X0) / T.S); T.NZ = Math.round((T.Z1 - T.Z0) / T.S);
 
-function ellDist(F, au, av, x, z) {
-  const u = F.lu(x, z), v = F.lv(x, z), e = Math.sqrt((u / au) * (u / au) + (v / av) * (v / av));
+// distance outside (negative inside) an ellipse, or with p > 2 a squarer superellipse, in frame F
+function ellDist(F, au, av, x, z, p = 2) {
+  const u = F.lu(x, z), v = F.lv(x, z), e = Math.pow(Math.pow(Math.abs(u / au), p) + Math.pow(Math.abs(v / av), p), 1 / p);
   if (e <= 1) return (e - 1) * Math.min(au, av);
   return (e - 1) * Math.hypot(u, v) / e;
 }
@@ -80,7 +83,7 @@ function rawHeight(x, z) {
   }
   h += hill;
   for (const L of FLATS) {
-    const s = ellDist(L.F, L.au, L.av, x, z);
+    const s = ellDist(L.F, L.au, L.av, x, z, L.p);
     if (s < L.fall) h = lerp(h, L.y, s <= 0 ? 1 : 1 - smooth(0, L.fall, s));
   }
   // the Tiber: cut a channel, then raise the island back out of it

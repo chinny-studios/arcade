@@ -46,9 +46,10 @@ function tomb(S, kind, k = 1) {
     case 'drum': { // a round drum tomb on a square base, earth and a cypress on top
       const r = rnd(4, 7) * k;
       K.box(g, S, 0, b, 0, r * 2 + 1, -b + 2, r * 2 + 1, stone, { solid: true });
-      K.cyl(g, S, 0, 2, 0, r, r, rnd(3, 5), 18, C.trav, { solid: true, topHex: 0x6f8a45 });
-      K.cyl(g, S, 0, 5.8, 0, r * 0.95, 0.6, r * 0.5, 14, 0x6f8a45, { top: false });
-      treeAt(S.x, S.z, 'cypress', 0.8, S.y + 5.8 + r * 0.4);
+      const dh = rnd(3, 5), top = 2 + dh; // the earth mound sits on the drum, whatever its height
+      K.cyl(g, S, 0, 2, 0, r, r, dh, 18, C.trav, { solid: true, topHex: 0x6f8a45 });
+      K.cyl(g, S, 0, top - 0.05, 0, r * 0.95, 0.6, r * 0.5, 14, 0x6f8a45, { top: false });
+      treeAt(S.x, S.z, 'cypress', 0.8, S.y + top + r * 0.4);
       decal(S, 0, 2.6, -r - 0.05, r * 0.9, 1.0, ep(), { pw: 384, ph: 128, bg: '#ddd2bc', ink: '#3a2a1a', size: 0.62 });
       break;
     }
