@@ -649,7 +649,7 @@ function heroDomus(S, w, d, fy, base) {
   // the household: the master receives clients in the morning; they wait outside
   W.spots.push({ kind: 'stand', x: S.wx(0, a1 + 1.6), z: S.wz(0, a1 + 1.6), y: S.y + fy, yaw: S.yaw + Math.PI, role: 'patron', h: [6, 13] });
   W.spots.push({ kind: 'stand', x: S.wx(-1.2, a0 + 1.2), z: S.wz(-1.2, a0 + 1.2), y: S.y + fy, yaw: S.yaw, role: 'doorkeeper', h: [0, 24] });
-  W.spots.push({ kind: 'work', x: S.wx(2, pv0 + 3), z: S.wz(2, pv0 + 3), y: S.y + fy, yaw: 0, role: 'housemaid', h: [6, 20] });
+  W.spots.push({ kind: 'work', x: S.wx(2, pv0 + 3.7), z: S.wz(2, pv0 + 3.7), y: S.y + fy, yaw: 0, role: 'housemaid', h: [6, 20] }); // clear of the roses
   for (let i = 0; i < 5; i++) W.spots.push({ kind: 'queue', x: S.wx(-2 + i * 0.9, -D2 - 1.5 - (i % 2) * 0.6), z: S.wz(-2 + i * 0.9, -D2 - 1.5 - (i % 2) * 0.6), yaw: S.yaw, role: 'client', h: [6, 9.5] });
   addPath([fw(S, 0, -D2 - 2.5), fw(S, 0, -D2 + 2), fw(S, 0, a0 + 2), fw(S, -2.5, (a0 + a1) / 2), fw(S, 0, a1 + 1), fw(S, 0, t1 + 2)], { hw: 0.7, kind: 'house', zone: 'subura', dens: 0.15 });
   place('domus', 'A town house', 'Domus', S.wx(0, (a0 + a1) / 2), S.wz(0, (a0 + a1) / 2), 9, 'scene', { area: 'The Subura' });

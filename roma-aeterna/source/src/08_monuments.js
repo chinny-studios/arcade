@@ -81,7 +81,7 @@ function buildCapitolPalatine() {
   // the Palatine "stadium": a sunken garden in the shape of a racecourse
   {
     const S = site(FF, 222, 282, 0, 4); const g = gbF('mon', S); // the garden floor, 4 m down, is the levelled ground
-    K.box(g, S, 0, -4, 0, 48, 0.4, 150, 0x7a8a50);
+    K.box(g, S, 0, -4, 0, 46.8, 0.4, 148.8, 0x7a8a50); // the garden floor, inside the walls
     for (const [u0, v0, u1, v1] of [[-24, -75, 24, -75], [-24, 75, 24, 75], [-24, -75, -24, 75], [24, -75, 24, 75]]) wall(g, S, u0, v0, u1, v1, -4, 14, 1.2, C.brick);
     for (const s of [-1, 1]) K.colonnade(g, S, s * 19, -70, s * 19, 70, 22, -3.6, 7, 0.3, 'i', C.marble);
     K.box(g, S, 24, -3.6, 0, 12, 18, 22, C.brick, { solid: true }); K.box(g, S, 24, 14.4, 0, 13, 1, 23, C.tile2);

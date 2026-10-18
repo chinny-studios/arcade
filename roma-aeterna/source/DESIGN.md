@@ -42,6 +42,16 @@ All static geometry is written into growable flat-shaded batches (`GB`, 02_geo.j
 `glow` layer, a MeshBasic material whose colour the sky animates from dark to warm. Text (inscriptions, signs,
 graffiti) are canvas-texture decals. Shadows come from one sun light whose box follows the player.
 
+Faces are single-sided, so anything you can see from behind is a hole. While the world is built (`K.closeRaised`),
+the kit closes what the eye reaches from below: boxes, tapered blocks and rings raised off the ground get their
+undersides, hip and gable roofs always have them, and a box standing on a slope reaches down to the lowest ground under
+it (a slab at most twice its thickness). Wide arches spring lower rather than break through their storey. Polygonal
+rings of bays (the Colosseum, the theatres) overlap their piers and bands at the joins. `test/audit.mjs` checks all of
+this by rendering back faces magenta from every walkable point (see AGENTS.md).
+
+After the build, `pruneNav()` takes out of the walking graph every edge that a walker climbing a step at a time
+couldn't follow (through a wall, a pier, a stair cheek, up a ledge), so crowds don't pass through buildings.
+
 Quality presets (03_render.js) set view distance, shadow map, pixel ratio, crowd size and NPC draw distance; `auto`
 steps down if fps stays under 26.
 

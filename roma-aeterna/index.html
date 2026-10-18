@@ -481,16 +481,16 @@ const K = {
   closeRaised: false,
   raised(F, u, y, v) { return K.closeRaised && F.y + y > groundAt(F.wx(u, v), F.wz(u, v)) + 0.25; },
   // A box standing on the ground somewhere under it, where the ground falls away elsewhere (a wall along a slope),
-  // reaches down to the lowest ground under it rather than floating there: how far to lower its base. A thin slab
-  // (a floor, a ceiling) is not stretched into a block: it goes down at most twice its height.
+  // reaches down to the lowest ground under it rather than floating there: how far to lower its base. A slab raised
+  // over the ground at its centre (a portico ceiling touching a rising hill) goes down at most twice its height.
   sink(F, u, y, v, w, h, d, ca, sa) {
-    const b = F.y + y; let lo = Infinity, hi = -Infinity;
-    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-      const lu = i * w / 2, lv = j * d / 2, g = groundAt(F.wx(u + lu * ca - lv * sa, v + lu * sa + lv * ca), F.wz(u + lu * ca - lv * sa, v + lu * sa + lv * ca));
+    const b = F.y + y, nu = Math.max(1, Math.min(40, Math.ceil(w / 2))), nv = Math.max(1, Math.min(40, Math.ceil(d / 2))); let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) { // every 2 m or so over the footprint
+      const lu = (i / nu - 0.5) * w, lv = (j / nv - 0.5) * d, g = groundAt(F.wx(u + lu * ca - lv * sa, v + lu * sa + lv * ca), F.wz(u + lu * ca - lv * sa, v + lu * sa + lv * ca));
       lo = Math.min(lo, g); hi = Math.max(hi, g);
     }
-    const dy = b - lo + 0.05;
-    return hi > b - 0.3 && lo < b - 0.02 && dy <= Math.max(0.6, 2 * h) ? Math.min(10, dy) : 0;
+    const dy = b - lo + 0.1, standing = groundAt(F.wx(u, v), F.wz(u, v)) > b - 0.3;
+    return hi > b - 0.3 && lo < b - 0.02 && (standing || dy <= Math.max(0.6, 2 * h)) ? Math.min(40, dy) : 0;
   },
   // axis-aligned (in frame) box: centre (u, v), bottom y, sizes w (u) × h × d (v). o: { ra, solid, skip:'b'|'bt', top }
   box(gb, F, u, y, v, w, h, d, hex, o) {
@@ -555,6 +555,7 @@ const K = {
   },
   // cylinder / frustum; seg sides; caps optional (o.top false to skip top, o.bot true for bottom)
   cyl(gb, F, u, y, v, rb, rt, h, seg, hex, o) {
+    if (K.closeRaised && rb === rt) { const dy = K.sink(F, u, y, v, rb * 1.8, h, rb * 1.8, 1, 0); y -= dy; h += dy; } // a drum on a slope
     const cx = F.wx(u, v), cz = F.wz(u, v), y0 = F.y + y, y1 = y0 + h, a0 = (o && o.a0) || 0;
     const ref = [cx, y0 + h / 2, cz];
     const top = o && o.topHex != null ? o.topHex : hex;
@@ -1267,7 +1268,7 @@ function walkable(ax, az, bx, bz) {
 }
 function pruneNav() {
   // a node inside a wall or a podium moves out to its edge first
-  for (const N of W.nodes) if (!clearAt(N.x, N.z, 0.3)) [N.x, N.z] = collideCircle(N.x, N.z, 0.45, floorAt(N.x, N.z));
+  for (const N of W.nodes) { const y = floorAt(N.x, N.z); if (solidsNear(N.x, N.z, 2.5).some((s) => s.y1 > y + STEP && s.y0 < y + 1.7 && insideSolid(s, N.x, N.z, 0.3))) [N.x, N.z] = collideCircle(N.x, N.z, 0.45, y); }
   for (const e of W.edges) { const A = W.nodes[e.a], B = W.nodes[e.b]; e.len = Math.max(0.5, Math.hypot(B.x - A.x, B.z - A.z)); }
   let n = 0;
   W.edges.forEach((e, i) => {
@@ -2097,7 +2098,7 @@ function buildCapitolPalatine() {
   // the Palatine "stadium": a sunken garden in the shape of a racecourse
   {
     const S = site(FF, 222, 282, 0, 4); const g = gbF('mon', S); // the garden floor, 4 m down, is the levelled ground
-    K.box(g, S, 0, -4, 0, 48, 0.4, 150, 0x7a8a50);
+    K.box(g, S, 0, -4, 0, 46.8, 0.4, 148.8, 0x7a8a50); // the garden floor, inside the walls
     for (const [u0, v0, u1, v1] of [[-24, -75, 24, -75], [-24, 75, 24, 75], [-24, -75, -24, 75], [24, -75, 24, 75]]) wall(g, S, u0, v0, u1, v1, -4, 14, 1.2, C.brick);
     for (const s of [-1, 1]) K.colonnade(g, S, s * 19, -70, s * 19, 70, 22, -3.6, 7, 0.3, 'i', C.marble);
     K.box(g, S, 24, -3.6, 0, 12, 18, 22, C.brick, { solid: true }); K.box(g, S, 24, 14.4, 0, 13, 1, 23, C.tile2);
@@ -2839,11 +2840,12 @@ function theatre(F, R, H, kind) {
     const B = F.sub((u0 + u1) / 2, (v0 + v1) / 2, Math.atan2(v1 - v0, u1 - u0), F.y);
     let y = 0;
     for (let s = 0; s < 3; s++) {
-      const h = H / 3; K.box(g, B, -L / 2, y, 0, 1.8, h, 2, C.trav, { solid: s === 0, skip: 'b' });
+      // the bays are chords of the half circle: piers and bands run a little past the joins so no wedge opens there
+      const h = H / 3; K.box(g, B, -L / 2, y, 0, 2.1, h, 2, C.trav, { solid: s === 0, skip: 'b' });
       if (i === nb - 1) K.box(g, B, L / 2, y, 0, 1.8, h, 2, C.trav, { solid: s === 0, skip: 'b' }); // the pier closing the last bay
-      K.archTop(g, B, 0, 0, y + h * 0.62, (L - 1.8) / 2, y + h - 0.8, 2, C.trav, 6); K.box(g, B, 0, y + h - 0.8, -0.2, L, 0.8, 2.4, C.trav2); y += h;
+      K.archTop(g, B, 0, 0, y + h * 0.62, (L - 1.8) / 2, y + h - 0.8, 2, C.trav, 6); K.box(g, B, 0, y + h - 0.8, -0.2, L + 0.3, 0.8, 2.4, C.trav2); y += h;
     }
-    K.box(g, B.sub(0, 4, 0, B.y), 0, 0, 0, L + 0.1, H, 0.6, 0x7a6a52);
+    K.box(g, B.sub(0, 4, 0, B.y), 0, 0, 0, L + 0.4, H, 0.6, 0x7a6a52);
   }
   // seats
   const ranks = 16;
@@ -2855,6 +2857,12 @@ function theatre(F, R, H, kind) {
       g.quad(Q(r0, a0, y), Q(r0, a1, y), Q(r1, a1, y), Q(r1, a0, y), k % 5 === 0 ? 0xbfb196 : 0xd9cfb8, [F.x, F.y - 50, F.z]);
       g.quad(Q(r0, a0, y0), Q(r0, a1, y0), Q(r0, a1, y), Q(r0, a0, y), 0xb5a98c, [F.x, F.y + y, F.z], -1);
     }
+  }
+  // the stepped ends of the seating, on the line of the stage
+  for (const sg of [-1, 1]) for (let k = 0; k < ranks; k++) {
+    const r0 = lerp(14, R - 5, k / ranks), r1 = lerp(14, R - 5, (k + 1) / ranks), y = 1 + (k + 1) * (H - 4) / ranks;
+    const Q = (r, yy) => [F.wx(sg * r, 0), F.y + yy, F.wz(sg * r, 0)];
+    g.quad(Q(k ? r0 : 13, -1), Q(r1, -1), Q(r1, y), Q(k ? r0 : 13, y), 0xb5a98c, [F.wx(0, -20), F.y, F.wz(0, -20)], -1);
   }
   for (let i = 0; i < 18; i++) { const a = ((i + 0.5) / 18) * Math.PI; const r = (14 + R) / 2; solidBox(F, Math.cos(a) * r, Math.sin(a) * r, 8, R - 13, 0, H, a + Math.PI / 2, true); }
   // orchestra and stage
@@ -3667,7 +3675,7 @@ function heroDomus(S, w, d, fy, base) {
   // the household: the master receives clients in the morning; they wait outside
   W.spots.push({ kind: 'stand', x: S.wx(0, a1 + 1.6), z: S.wz(0, a1 + 1.6), y: S.y + fy, yaw: S.yaw + Math.PI, role: 'patron', h: [6, 13] });
   W.spots.push({ kind: 'stand', x: S.wx(-1.2, a0 + 1.2), z: S.wz(-1.2, a0 + 1.2), y: S.y + fy, yaw: S.yaw, role: 'doorkeeper', h: [0, 24] });
-  W.spots.push({ kind: 'work', x: S.wx(2, pv0 + 3), z: S.wz(2, pv0 + 3), y: S.y + fy, yaw: 0, role: 'housemaid', h: [6, 20] });
+  W.spots.push({ kind: 'work', x: S.wx(2, pv0 + 3.7), z: S.wz(2, pv0 + 3.7), y: S.y + fy, yaw: 0, role: 'housemaid', h: [6, 20] }); // clear of the roses
   for (let i = 0; i < 5; i++) W.spots.push({ kind: 'queue', x: S.wx(-2 + i * 0.9, -D2 - 1.5 - (i % 2) * 0.6), z: S.wz(-2 + i * 0.9, -D2 - 1.5 - (i % 2) * 0.6), yaw: S.yaw, role: 'client', h: [6, 9.5] });
   addPath([fw(S, 0, -D2 - 2.5), fw(S, 0, -D2 + 2), fw(S, 0, a0 + 2), fw(S, -2.5, (a0 + a1) / 2), fw(S, 0, a1 + 1), fw(S, 0, t1 + 2)], { hw: 0.7, kind: 'house', zone: 'subura', dens: 0.15 });
   place('domus', 'A town house', 'Domus', S.wx(0, (a0 + a1) / 2), S.wz(0, (a0 + a1) / 2), 9, 'scene', { area: 'The Subura' });
@@ -3723,9 +3731,10 @@ function tomb(S, kind, k = 1) {
     case 'drum': { // a round drum tomb on a square base, earth and a cypress on top
       const r = rnd(4, 7) * k;
       K.box(g, S, 0, b, 0, r * 2 + 1, -b + 2, r * 2 + 1, stone, { solid: true });
-      K.cyl(g, S, 0, 2, 0, r, r, rnd(3, 5), 18, C.trav, { solid: true, topHex: 0x6f8a45 });
-      K.cyl(g, S, 0, 5.8, 0, r * 0.95, 0.6, r * 0.5, 14, 0x6f8a45, { top: false });
-      treeAt(S.x, S.z, 'cypress', 0.8, S.y + 5.8 + r * 0.4);
+      const dh = rnd(3, 5), top = 2 + dh; // the earth mound sits on the drum, whatever its height
+      K.cyl(g, S, 0, 2, 0, r, r, dh, 18, C.trav, { solid: true, topHex: 0x6f8a45 });
+      K.cyl(g, S, 0, top - 0.05, 0, r * 0.95, 0.6, r * 0.5, 14, 0x6f8a45, { top: false });
+      treeAt(S.x, S.z, 'cypress', 0.8, S.y + top + r * 0.4);
       decal(S, 0, 2.6, -r - 0.05, r * 0.9, 1.0, ep(), { pw: 384, ph: 128, bg: '#ddd2bc', ink: '#3a2a1a', size: 0.62 });
       break;
     }
@@ -4133,7 +4142,7 @@ function field(F, u, v, w, d, kind) {
   if (kind === 'wheat') { // standing stalks: a few low ridges catch the light
     for (let b = -d / 2 + 1; b < d / 2; b += 3) {
       const P = (a, h) => { const x = F.wx(u + a, v + b), z = F.wz(u + a, v + b); return [x, groundAt(x, z) + h, z]; };
-      gb.quad(P(-w / 2 + 1, 0.05), P(w / 2 - 1, 0.05), P(w / 2 - 1, 0.7), P(-w / 2 + 1, 0.7), 0xd2b86a, null);
+      gbF('ds', F).quad(P(-w / 2 + 1, 0.05), P(w / 2 - 1, 0.05), P(w / 2 - 1, 0.7), P(-w / 2 + 1, 0.7), 0xd2b86a, null); // seen from both sides
     }
   }
   reserve(F, u, v, w, d, 0);

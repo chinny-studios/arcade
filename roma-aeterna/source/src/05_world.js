@@ -183,7 +183,7 @@ function walkable(ax, az, bx, bz) {
 }
 function pruneNav() {
   // a node inside a wall or a podium moves out to its edge first
-  for (const N of W.nodes) if (!clearAt(N.x, N.z, 0.3)) [N.x, N.z] = collideCircle(N.x, N.z, 0.45, floorAt(N.x, N.z));
+  for (const N of W.nodes) { const y = floorAt(N.x, N.z); if (solidsNear(N.x, N.z, 2.5).some((s) => s.y1 > y + STEP && s.y0 < y + 1.7 && insideSolid(s, N.x, N.z, 0.3))) [N.x, N.z] = collideCircle(N.x, N.z, 0.45, y); }
   for (const e of W.edges) { const A = W.nodes[e.a], B = W.nodes[e.b]; e.len = Math.max(0.5, Math.hypot(B.x - A.x, B.z - A.z)); }
   let n = 0;
   W.edges.forEach((e, i) => {

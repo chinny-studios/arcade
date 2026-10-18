@@ -79,16 +79,16 @@ const K = {
   closeRaised: false,
   raised(F, u, y, v) { return K.closeRaised && F.y + y > groundAt(F.wx(u, v), F.wz(u, v)) + 0.25; },
   // A box standing on the ground somewhere under it, where the ground falls away elsewhere (a wall along a slope),
-  // reaches down to the lowest ground under it rather than floating there: how far to lower its base. A thin slab
-  // (a floor, a ceiling) is not stretched into a block: it goes down at most twice its height.
+  // reaches down to the lowest ground under it rather than floating there: how far to lower its base. A slab raised
+  // over the ground at its centre (a portico ceiling touching a rising hill) goes down at most twice its height.
   sink(F, u, y, v, w, h, d, ca, sa) {
-    const b = F.y + y; let lo = Infinity, hi = -Infinity;
-    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-      const lu = i * w / 2, lv = j * d / 2, g = groundAt(F.wx(u + lu * ca - lv * sa, v + lu * sa + lv * ca), F.wz(u + lu * ca - lv * sa, v + lu * sa + lv * ca));
+    const b = F.y + y, nu = Math.max(1, Math.min(40, Math.ceil(w / 2))), nv = Math.max(1, Math.min(40, Math.ceil(d / 2))); let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) { // every 2 m or so over the footprint
+      const lu = (i / nu - 0.5) * w, lv = (j / nv - 0.5) * d, g = groundAt(F.wx(u + lu * ca - lv * sa, v + lu * sa + lv * ca), F.wz(u + lu * ca - lv * sa, v + lu * sa + lv * ca));
       lo = Math.min(lo, g); hi = Math.max(hi, g);
     }
-    const dy = b - lo + 0.05;
-    return hi > b - 0.3 && lo < b - 0.02 && dy <= Math.max(0.6, 2 * h) ? Math.min(10, dy) : 0;
+    const dy = b - lo + 0.1, standing = groundAt(F.wx(u, v), F.wz(u, v)) > b - 0.3;
+    return hi > b - 0.3 && lo < b - 0.02 && (standing || dy <= Math.max(0.6, 2 * h)) ? Math.min(40, dy) : 0;
   },
   // axis-aligned (in frame) box: centre (u, v), bottom y, sizes w (u) × h × d (v). o: { ra, solid, skip:'b'|'bt', top }
   box(gb, F, u, y, v, w, h, d, hex, o) {
@@ -153,6 +153,7 @@ const K = {
   },
   // cylinder / frustum; seg sides; caps optional (o.top false to skip top, o.bot true for bottom)
   cyl(gb, F, u, y, v, rb, rt, h, seg, hex, o) {
+    if (K.closeRaised && rb === rt) { const dy = K.sink(F, u, y, v, rb * 1.8, h, rb * 1.8, 1, 0); y -= dy; h += dy; } // a drum on a slope
     const cx = F.wx(u, v), cz = F.wz(u, v), y0 = F.y + y, y1 = y0 + h, a0 = (o && o.a0) || 0;
     const ref = [cx, y0 + h / 2, cz];
     const top = o && o.topHex != null ? o.topHex : hex;

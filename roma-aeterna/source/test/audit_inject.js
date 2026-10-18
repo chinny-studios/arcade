@@ -49,7 +49,8 @@
       updateCamera(); updateCells(x, z); R.camera.updateMatrixWorld();
     },
     // feet height at a walkable point (podiums and paving included) and whether an eye there would be inside a solid
-    feet(x, z, y) { return y != null ? y : floorAt(x, z); }, // where the player would stand there
+    // where the player would stand there (on a bridge, the deck rather than the riverbed under it)
+    feet(x, z, y) { if (y != null) return y; const f = floorAt(x, z); return f < WATER_Y ? surfaceAt(x, z, groundAt(x, z) + 12) : f; },
     buried(x, y, z) { for (const s of solidsNear(x, z, 1)) if (s.y0 < y + 0.15 && s.y1 > y - 0.15 && insideSolid(s, x, z, 0.15)) return true; return false; },
     // render into a target without multisampling, so that edges come out the same in every pass
     shoot() {
@@ -103,7 +104,8 @@
       }
       const res = { nMag, nZ, mag: [], zf: [] };
       const top = (m, minN) => [...m.values()].filter((c) => c.n >= minN).sort((p, q) => q.n - p.n).slice(0, o.rays || 5);
-      for (const c of top(mag, 4)) res.mag.push({ n: c.n, px: [c.i, c.j], hits: A.hits(c.i, c.j, w, h) });
+      // a magenta pixel is a back face: name that face (the nearest one along the ray), not what lies behind it
+      for (const c of top(mag, 4)) res.mag.push({ n: c.n, px: [c.i, c.j], hits: A.hits(c.i, c.j, w, h, 3, true) });
       for (const c of top(zf, 6)) res.zf.push({ n: c.n, px: [c.i, c.j], hits: A.hits(c.i, c.j, w, h) });
       T.push(performance.now()); res.ms = T.slice(1).map((t, i) => Math.round(t - T[i]));
       return res;
