@@ -1627,65 +1627,97 @@ function decal(tex, w, h, x, y, z, yaw, o = 1) {
 }
 
 // ---------- ambulance ----------
+// Cab shapes per rig type, in metres. hood: bumper to windshield foot; nose / cowl: hood height at the bumper and at
+// the windshield; ws: windshield top; rake: how far back the windshield top sits; cap: run of the van's high-roof cap.
+const RIG_CABS = {
+  van: { len: 2.55, hood: 0.95, nose: 1.18, cowl: 1.3, ws: 2.05, rake: 0.72, cap: 0.35, axF: 0.9 },
+  cutaway: { len: 2.5, hood: 0.95, nose: 1.12, cowl: 1.3, ws: 1.98, rake: 0.55, h: 2.25, w: 2.02, axF: 0.9 },
+  box: { len: 2.7, hood: 1.2, nose: 1.45, cowl: 1.55, ws: 2.28, rake: 0.3, h: 2.5, w: 2.3, axF: 1.0 },
+};
+// a side profile (points are [z, y]) extruded across the width w, centred on x = 0. Each arch {z, y, r} is a wheel
+// arch notched up from the bottom edge (y0) through the whole width.
+function profileGeo(pts, y0, arches, w) {
+  const sh = new THREE.Shape();
+  sh.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
+  // bottom edge, rear to front (the last point is the rear bottom corner)
+  for (const a of arches.slice().sort((p, q) => p.z - q.z)) {
+    sh.lineTo(a.z - a.r, y0); sh.lineTo(a.z - a.r, a.y); sh.absarc(a.z, a.y, a.r, Math.PI, 0, true); sh.lineTo(a.z + a.r, y0);
+  }
+  sh.closePath();
+  return new THREE.ExtrudeGeometry(sh, { depth: w, bevelEnabled: false, curveSegments: 10 }).rotateY(-Math.PI / 2).translate(w / 2, 0, 0);
+}
 // Built facing +z with the origin on the ground under the middle. The curb (right) side is -x.
 function buildRig(type, livId = 'classic', patId = 'alt', colId = 'redwhite', unit = 'MEDIC 12') {
-  const S = RIGS[type], L = LIVERIES[livId], LC = LIGHT_COLORS[colId];
+  const S = RIGS[type], L = LIVERIES[livId], LC = LIGHT_COLORS[colId], K = RIG_CABS[type], van = type === 'van';
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const len = S.len, wid = S.wid, hgt = S.hgt;
   const mBody = lam(L.body), mCab = lam(L.cab), mStripe = lam(L.stripe), mStripe2 = lam(L.stripe2);
   const mGlass = lam(0x1a2430, { emissive: 0x101820, emissiveIntensity: 0.3 }), mDark = lam(0x202226), mTire = lam(0x18181a), mRim = lam(0xb8bcc0), mChrome = lam(0xd0d4d8), mGrey = lam(0x8a8e94);
   const add = (m, mat, x, y, z, sx, sy, sz, parent = body) => { const o = mesh(GM.box(), mat, x, y, z, sx, sy, sz); parent.add(o); return o; };
-  const cabLen = type === 'van' ? 1.75 : type === 'cutaway' ? 2.3 : 2.55;
-  const zR = -len / 2, zF = len / 2, zB = zF - cabLen; // rear, front, box/cab seam
-  const cabH = type === 'van' ? hgt : type === 'cutaway' ? 2.25 : 2.5;
-  const cabW = type === 'van' ? wid : type === 'cutaway' ? 2.02 : 2.3;
-  const hoodH = type === 'box' ? 1.5 : 1.15, base = 0.42;
+  const zR = -len / 2, zF = len / 2, zB = zF - K.len; // rear, front, box/cab seam
+  const cabW = K.w || wid, topY = van ? hgt : K.h, base = 0.42;
+  const wsZ = zF - K.hood, wsTopZ = wsZ - K.rake; // windshield foot and top
   const wr = type === 'box' ? 0.46 : 0.38;
-  // patient box
+  const axF = zF - K.axF, axR = zR + (van ? 1.25 : 1.6);
+  const archY = Math.max(wr, base), archR = wr + 0.07, archTop = archY + archR;
+  const archF = { z: axF, y: archY, r: archR }, archB = { z: axR, y: archY, r: archR };
+  // patient box (on the van it is the back of one shell with the cab)
   const boxW = wid, boxLen = zB - zR;
-  add(GM.box(), mBody, 0, (base + hgt) / 2, zR + boxLen / 2, boxW, hgt - base, boxLen);
-  // cab
-  const cabZ0 = zB, wsZ = zF - (type === 'box' ? 1.05 : 1.15); // windshield foot
-  if (type === 'van') {
-    add(GM.box(), mCab, 0, (base + hgt) / 2, (cabZ0 + wsZ - 0.55) / 2, cabW, hgt - base, wsZ - 0.55 - cabZ0);
-  } else {
-    add(GM.box(), mCab, 0, (base + cabH) / 2, (cabZ0 + wsZ - 0.5) / 2, cabW, cabH - base, wsZ - 0.5 - cabZ0);
-  }
-  const topY = type === 'van' ? hgt : cabH;
-  // windshield as a sloped glass slab
-  const ws = add(GM.box(), mGlass, 0, (hoodH + topY) / 2, wsZ - 0.28, cabW - 0.08, Math.hypot(topY - hoodH, 0.6), 0.08);
-  ws.rotation.x = -Math.atan2(0.6, topY - hoodH) * (type === 'box' ? 0.3 : 1);
-  // the body around the windshield (pillars)
-  for (const sx of [-1, 1]) add(GM.box(), mCab, sx * (cabW / 2 - 0.05), (hoodH + topY) / 2, wsZ - 0.28, 0.1, topY - hoodH, 0.62);
-  // hood and nose
-  add(GM.box(), mCab, 0, (base + hoodH) / 2, (wsZ + zF) / 2 - 0.02, cabW, hoodH - base, zF - wsZ + 0.04);
-  if (type === 'van') { const n = add(GM.box(), mCab, 0, hoodH - 0.05, wsZ + 0.3, cabW - 0.04, 0.2, 0.9); n.rotation.x = 0.18; }
-  add(GM.box(), mDark, 0, base + 0.42, zF + 0.02, cabW * 0.62, 0.38, 0.05); // grille
+  body.add(new THREE.Mesh(profileGeo([[zB, base], [zB, hgt], [zR, hgt], [zR, base]], base, [archB], boxW), mBody));
+  // cab: bumper, sloped hood, raked windshield, (on the van, the high-roof cap,) roof and back of the cab
+  const cabPts = [[zF, base], [zF, K.nose], [wsZ, K.cowl], [wsTopZ, K.ws]];
+  cabPts.push(van ? [wsTopZ - K.cap, topY] : [wsTopZ - 0.1, topY]);
+  cabPts.push([zB, topY], [zB, base]);
+  body.add(new THREE.Mesh(profileGeo(cabPts, base, [archF], cabW), mCab));
+  // windshield glass laid on the slope, inset from the sides so the body shows as pillars
+  const wsH = K.ws - K.cowl, wsL = Math.hypot(K.rake, wsH);
+  const ws = add(GM.box(), mGlass, 0, (K.cowl + K.ws) / 2 + 0.02 * K.rake / wsL, wsZ - K.rake / 2 + 0.02 * wsH / wsL, cabW - 0.18, wsL - 0.06, 0.03);
+  ws.rotation.x = -Math.atan2(K.rake, wsH);
+  // grille, bumper
+  const noseH = K.nose - base;
+  add(GM.box(), mDark, 0, base + noseH * 0.5, zF + 0.02, cabW * 0.56, noseH * 0.4, 0.05); // grille
   add(GM.box(), mDark, 0, base + 0.06, zF + 0.06, cabW + 0.02, 0.22, 0.16); // bumper
-  // cab side windows
-  for (const sx of [-1, 1]) add(GM.box(), mGlass, sx * (cabW / 2 + 0.005), (hoodH + topY) / 2 + 0.05, (cabZ0 + wsZ) / 2 - (type === 'van' ? 0.1 : 0), 0.02, (topY - hoodH) * 0.72, (wsZ - cabZ0) * 0.62);
-  // stripes along the box and cab
-  const stripeY = 1.12;
+  // cab door glass, handles and mirrors
+  const doorZ0 = zB + (van ? 0.12 : 0.1), doorZ1 = wsTopZ - 0.06;
   for (const sx of [-1, 1]) {
-    add(GM.box(), mStripe, sx * (boxW / 2 + 0.006), stripeY, zR + boxLen / 2, 0.01, 0.26, boxLen);
-    add(GM.box(), mStripe2, sx * (boxW / 2 + 0.006), stripeY - 0.24, zR + boxLen / 2, 0.01, 0.07, boxLen);
-    add(GM.box(), mStripe, sx * (cabW / 2 + 0.006), stripeY - 0.12, (cabZ0 + zF) / 2, 0.01, 0.2, zF - cabZ0);
+    add(GM.box(), mGlass, sx * (cabW / 2 + 0.005), (K.cowl + K.ws) / 2 + 0.04, (doorZ0 + doorZ1) / 2, 0.02, K.ws - K.cowl - 0.12, doorZ1 - doorZ0);
+    add(GM.box(), mDark, sx * (cabW / 2 + 0.01), K.cowl - 0.12, doorZ0 + 0.18, 0.03, 0.05, 0.2);
+    add(GM.box(), mDark, sx * (cabW / 2 + 0.2), K.cowl + 0.42, wsTopZ + 0.02, 0.08, 0.35, 0.22);
+    add(GM.box(), mDark, sx * (cabW / 2 + 0.1), K.cowl + 0.42, wsTopZ + 0.02, 0.2, 0.04, 0.04);
+  }
+  // side strips (stripes, checks) are split around the wheel arches they would cross
+  const strip = (mat, x, y, h, z0, z1, arches) => {
+    let segs = [[z0, z1]];
+    for (const a of arches) if (y - h / 2 < a.y + a.r) segs = segs.flatMap(([p, q]) => [[p, Math.min(q, a.z - a.r)], [Math.max(p, a.z + a.r), q]]);
+    for (const [p, q] of segs) if (q - p > 0.02) add(GM.box(), mat, x, y, (p + q) / 2, 0.01, h, q - p);
+  };
+  // stripes along the box and cab (one unbroken stripe on the van's single shell)
+  const stripeY = van ? 1.0 : 1.12;
+  for (const sx of [-1, 1]) {
+    strip(mStripe, sx * (boxW / 2 + 0.006), stripeY, 0.26, zR, zB, [archB]);
+    strip(mStripe2, sx * (boxW / 2 + 0.006), stripeY - 0.24, 0.07, zR, zB, [archB]);
+    if (van) strip(mStripe, sx * (cabW / 2 + 0.006), stripeY, 0.26, zB, zF, [archF]);
+    else strip(mStripe, sx * (cabW / 2 + 0.006), Math.min(stripeY - 0.12, K.nose - 0.16), 0.2, zB, zF, [archF]);
     if (L.check) for (let z = zR + 0.15, k = 0; z < zB - 0.4; z += 0.5, k++) {
-      add(GM.box(), k % 2 ? mStripe : mBody, sx * (boxW / 2 + 0.008), 0.72, z + 0.25, 0.01, 0.42, 0.5);
-      add(GM.box(), k % 2 ? mBody : mStripe, sx * (boxW / 2 + 0.008), 1.14, z + 0.25, 0.01, 0.42, 0.5);
+      strip(k % 2 ? mStripe : mBody, sx * (boxW / 2 + 0.008), 0.72, 0.42, z, z + 0.5, [archB]);
+      strip(k % 2 ? mBody : mStripe, sx * (boxW / 2 + 0.008), 1.14, 0.42, z, z + 0.5, [archB]);
     }
   }
   // rear stripe and chevrons
   add(GM.box(), mStripe, 0, stripeY, zR - 0.006, boxW, 0.26, 0.01);
   // lettering
-  const txt = hexCss(L.text);
+  const txt = hexCss(L.text), unitW = Math.min(2.2, boxLen * 0.55), nameW = Math.min(1.9, boxLen * 0.5);
   for (const sx of [-1, 1]) {
-    body.add(decal(textDecal(unit, txt), 2.2, 0.42, sx * (boxW / 2 + 0.02), 1.72, zR + boxLen * 0.42, sx * Math.PI / 2));
+    body.add(decal(textDecal(unit, txt), unitW, unitW * 0.19, sx * (boxW / 2 + 0.02), stripeY + 0.72, zR + boxLen * 0.38, sx * Math.PI / 2));
     body.add(decal(starOfLife(), 0.95, 0.95, sx * (boxW / 2 + 0.02), hgt - 0.7, zR + boxLen * 0.82, sx * Math.PI / 2));
-    body.add(decal(textDecal('RICKY RESCUE EMS', txt, 512, 64, 700), 1.9, 0.24, sx * (boxW / 2 + 0.02), 0.62, zR + boxLen * 0.42, sx * Math.PI / 2));
+    body.add(decal(textDecal('RICKY RESCUE EMS', txt, 512, 64, 700), nameW, nameW * 0.125, sx * (boxW / 2 + 0.02), stripeY + 0.3, zR + boxLen * 0.38, sx * Math.PI / 2));
   }
   body.add(decal(starOfLife(), 0.8, 0.8, 0, hgt - 0.65, zR - 0.02, Math.PI));
-  const hoodTxt = decal(textDecal('ECNALUBMA', hexCss(L.text)), 1.2, 0.22, 0, hoodH + 0.01, zF - 0.45, 0); hoodTxt.rotation.x = -Math.PI / 2; body.add(hoodTxt);
+  // mirror-image lettering on the hood (reads right in the mirror of the car ahead), laid on its slope
+  const hoodRise = Math.atan2(K.cowl - K.nose, K.hood);
+  const hoodTxt = decal(textDecal('AMBULANCE', hexCss(L.text)), -Math.min(1.2, cabW * 0.6), 0.22, 0, (K.nose + K.cowl) / 2 + 0.01, zF - K.hood / 2, 0);
+  hoodTxt.rotation.x = -Math.PI / 2 + hoodRise; body.add(hoodTxt);
   // rear doors (hinged on the outside edges) and the side door on the curb side
   const doorH = hgt - base - 0.25, doorW = boxW / 2 - 0.04;
   const mkDoor = (side) => {
@@ -1699,46 +1731,48 @@ function buildRig(type, livId = 'classic', patId = 'alt', colId = 'redwhite', un
   add(GM.box(), mDark, 0, base - 0.02, zR - 0.18, boxW - 0.1, 0.12, 0.35); // rear step
   const sideDoor = add(GM.box(), mBody, -(boxW / 2 + 0.01), base + 0.12 + doorH / 2, zB - 0.7, 0.03, doorH, 0.95);
   add(GM.box(), mGlass, -(boxW / 2 + 0.02), base + doorH * 0.75, zB - 0.7, 0.01, doorH * 0.24, 0.55);
-  // undercarriage and wheels
-  add(GM.box(), mDark, 0, 0.36, 0, wid - 0.25, 0.22, len - 0.6);
+  // undercarriage and wheels; each axle has a dark well between its wheels so the arches don't show daylight
+  add(GM.box(), mDark, 0, 0.36, 0, wid - 0.75, 0.22, len - 0.6);
   const wheels = [];
-  const axF = zF - (type === 'box' ? 1.2 : 0.9), axR = zR + (type === 'van' ? 1.25 : 1.6);
-  for (const [z, front] of [[axF, true], [axR, false]]) for (const sx of [-1, 1]) {
-    const wg = new THREE.Group(); wg.position.set(sx * (wid / 2 - 0.22), wr, z); body.add(wg);
-    const spin = new THREE.Group(); wg.add(spin);
-    spin.add(mesh(GM.wheel(), mTire, 0, 0, 0, 0.3, wr * 2, wr * 2));
-    spin.add(mesh(GM.wheel(), mRim, sx * 0.13, 0, 0, 0.06, wr * 1.1, wr * 1.1));
-    if (!front && type === 'box') spin.add(mesh(GM.wheel(), mTire, -sx * 0.3, 0, 0, 0.28, wr * 2, wr * 2));
-    wheels.push({ g: wg, spin, front });
-    // arch
-    add(GM.box(), mDark, sx * (wid / 2 - 0.02), wr + 0.12, z, 0.06, 0.18, wr * 2.4);
+  for (const [z, front] of [[axF, true], [axR, false]]) {
+    const wx = (front ? cabW : wid) / 2 - 0.17, dual = !front && type === 'box';
+    add(GM.box(), mDark, 0, (base + archTop) / 2, z, 2 * (wx - (dual ? 0.46 : 0.16)) - 0.02, archTop - base, archR * 2);
+    for (const sx of [-1, 1]) {
+      const wg = new THREE.Group(); wg.position.set(sx * wx, wr, z); body.add(wg);
+      const spin = new THREE.Group(); wg.add(spin);
+      spin.add(mesh(GM.wheel(), mTire, 0, 0, 0, 0.3, wr * 2, wr * 2));
+      spin.add(mesh(GM.wheel(), mRim, sx * 0.13, 0, 0, 0.06, wr * 1.1, wr * 1.1));
+      if (dual) spin.add(mesh(GM.wheel(), mTire, -sx * 0.3, 0, 0, 0.28, wr * 2, wr * 2));
+      wheels.push({ g: wg, spin, front });
+    }
   }
-  // mirrors
-  for (const sx of [-1, 1]) { add(GM.box(), mDark, sx * (cabW / 2 + 0.2), hoodH + 0.55, wsZ - 0.45, 0.08, 0.35, 0.22); add(GM.box(), mDark, sx * (cabW / 2 + 0.1), hoodH + 0.55, wsZ - 0.45, 0.2, 0.04, 0.04); }
   // emergency lights
   const lmA = basic(0x501010), lmB = basic(0x404040);
   const offA = new THREE.Color(LC.a).multiplyScalar(0.28), offB = new THREE.Color(LC.b).multiplyScalar(0.28);
   lmA.color.copy(offA); lmB.color.copy(offB);
   const lightsA = [], lightsB = [];
   const lamp = (side, x, y, z, sx, sy, sz) => { const o = add(GM.box(), side ? lmB : lmA, x, y, z, sx, sy, sz); (side ? lightsB : lightsA).push(o); return o; };
-  // light bar on the cab roof
-  add(GM.box(), mDark, 0, topY + 0.06, wsZ - 0.75, cabW * 0.9, 0.1, 0.32);
-  lamp(0, cabW * 0.24, topY + 0.17, wsZ - 0.75, cabW * 0.38, 0.14, 0.3);
-  lamp(1, -cabW * 0.24, topY + 0.17, wsZ - 0.75, cabW * 0.38, 0.14, 0.3);
+  // light bar on the cab roof (the van's sits just behind the cap)
+  const barZ = van ? wsTopZ - K.cap - 0.3 : (zB + wsTopZ - 0.1) / 2;
+  add(GM.box(), mDark, 0, topY + 0.06, barZ, cabW * 0.9, 0.1, 0.32);
+  lamp(0, cabW * 0.24, topY + 0.17, barZ, cabW * 0.38, 0.14, 0.3);
+  lamp(1, -cabW * 0.24, topY + 0.17, barZ, cabW * 0.38, 0.14, 0.3);
+  // front corner lights: on the box above the cab, or on the van's cap
+  const cornerZ = van ? wsTopZ - K.cap * (1 - 0.15 / (hgt - K.ws)) + 0.03 : zB + 0.03;
   // box corner lights (front and rear), side lights, grille and rear-door lights
   for (const sx of [-1, 1]) {
     const s = sx > 0 ? 0 : 1;
-    lamp(s, sx * (boxW / 2 - 0.2), hgt - 0.15, zB + 0.03, 0.32, 0.2, 0.06);
+    lamp(s, sx * (boxW / 2 - 0.2), hgt - 0.15, cornerZ, 0.32, 0.2, 0.06);
     lamp(1 - s, sx * (boxW / 2 - 0.2), hgt - 0.15, zR - 0.03, 0.32, 0.2, 0.06);
     lamp(s, sx * (boxW / 2 + 0.03), hgt - 0.18, zR + 0.35, 0.06, 0.2, 0.3);
     lamp(1 - s, sx * (boxW / 2 + 0.03), hgt - 0.18, zR + boxLen * 0.55, 0.06, 0.2, 0.3);
-    lamp(s, sx * cabW * 0.22, base + 0.42, zF + 0.05, 0.16, 0.1, 0.03);
+    lamp(s, sx * cabW * 0.17, base + noseH * 0.5, zF + 0.05, 0.16, 0.1, 0.03);
     lamp(1 - s, sx * (boxW / 2 - 0.35), base + 0.55, zR - 0.03, 0.22, 0.12, 0.04);
   }
   // head and tail lights
   const mHead = basic(0xfff4dc), mTail = basic(0x601010);
   for (const sx of [-1, 1]) {
-    add(GM.box(), mHead, sx * (cabW / 2 - 0.22), base + 0.5, zF + 0.03, 0.3, 0.18, 0.04);
+    add(GM.box(), mHead, sx * (cabW / 2 - 0.22), base + noseH * 0.55, zF + 0.03, 0.3, 0.18, 0.04);
     add(GM.box(), mTail, sx * (boxW / 2 - 0.1), base + 0.95, zR - 0.03, 0.14, 0.42, 0.04);
   }
   // glow sprites for the emergency lights (night halos)
@@ -7392,7 +7426,7 @@ function installDebug() {
     G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC, SSM, DT, RIG_CHECK,
     get C() { return G.call; }, get P() { return G.call && G.call.P; }, get RIG() { return RIG; },
     f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv,
-      toggleWait, startRestock, openRigCheck, rigCheckItem, rigFixItem, grabCoffee, coffeeSpot, replan, assignPost, unitBusy, coverPlan, systemCoverage, callZoneWeight, equipDelay, resetDowntime, missingStock, fullStock },
+      toggleWait, startRestock, openRigCheck, rigCheckItem, rigFixItem, grabCoffee, coffeeSpot, replan, assignPost, unitBusy, coverPlan, systemCoverage, callZoneWeight, equipDelay, resetDowntime, missingStock, fullStock, buildRig, RIGS },
     // start({ rank, rig, hour, hours, xp, money, faults }) — a throwaway career (never saved) and a shift, no calls until
     // asked. The rig comes clean unless faults: true (then the rig check has whatever the last crew left)
     start(o = {}) {
