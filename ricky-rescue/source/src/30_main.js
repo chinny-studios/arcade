@@ -152,7 +152,7 @@ function installDebug() {
     G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC, SSM, DT, RIG_CHECK,
     get C() { return G.call; }, get P() { return G.call && G.call.P; }, get RIG() { return RIG; },
     f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv,
-      toggleWait, startRestock, openRigCheck, rigCheckItem, rigFixItem, grabCoffee, coffeeSpot, replan, assignPost, unitBusy, coverPlan, systemCoverage, callZoneWeight, equipDelay, resetDowntime, missingStock, fullStock },
+      toggleWait, startRestock, openRigCheck, rigCheckItem, rigFixItem, grabCoffee, coffeeSpot, replan, assignPost, unitBusy, coverPlan, systemCoverage, callZoneWeight, equipDelay, resetDowntime, missingStock, fullStock, buildRig, RIGS },
     // start({ rank, rig, hour, hours, xp, money, faults }) — a throwaway career (never saved) and a shift, no calls until
     // asked. The rig comes clean unless faults: true (then the rig check has whatever the last crew left)
     start(o = {}) {
