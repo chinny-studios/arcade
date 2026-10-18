@@ -79,19 +79,21 @@ const K = {
   closeRaised: false,
   raised(F, u, y, v) { return K.closeRaised && F.y + y > groundAt(F.wx(u, v), F.wz(u, v)) + 0.25; },
   // A box standing on the ground somewhere under it, where the ground falls away elsewhere (a wall along a slope),
-  // reaches down to the lowest ground under it rather than floating there: how far to lower its base.
-  sink(F, u, y, v, w, d, ca, sa) {
+  // reaches down to the lowest ground under it rather than floating there: how far to lower its base. A thin slab
+  // (a floor, a ceiling) is not stretched into a block: it goes down at most twice its height.
+  sink(F, u, y, v, w, h, d, ca, sa) {
     const b = F.y + y; let lo = Infinity, hi = -Infinity;
     for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
       const lu = i * w / 2, lv = j * d / 2, g = groundAt(F.wx(u + lu * ca - lv * sa, v + lu * sa + lv * ca), F.wz(u + lu * ca - lv * sa, v + lu * sa + lv * ca));
       lo = Math.min(lo, g); hi = Math.max(hi, g);
     }
-    return hi > b - 0.3 && lo < b - 0.02 ? Math.min(10, b - lo + 0.05) : 0;
+    const dy = b - lo + 0.05;
+    return hi > b - 0.3 && lo < b - 0.02 && dy <= Math.max(0.6, 2 * h) ? Math.min(10, dy) : 0;
   },
   // axis-aligned (in frame) box: centre (u, v), bottom y, sizes w (u) × h × d (v). o: { ra, solid, skip:'b'|'bt', top }
   box(gb, F, u, y, v, w, h, d, hex, o) {
     const ra = (o && o.ra) || 0, ca = Math.cos(ra), sa = Math.sin(ra);
-    if (K.closeRaised) { const dy = K.sink(F, u, y, v, w, d, ca, sa); y -= dy; h += dy; }
+    if (K.closeRaised) { const dy = K.sink(F, u, y, v, w, h, d, ca, sa); y -= dy; h += dy; }
     const P = [];
     for (let k = 0; k < 8; k++) {
       const lu = (k & 1 ? 0.5 : -0.5) * w, lv = (k & 2 ? 0.5 : -0.5) * d, ly = k & 4 ? h : 0;
@@ -238,6 +240,7 @@ const K = {
   // spandrel over one arched opening: wall thickness t (along v), opening centred at u, springing at ys, radius r,
   // the block reaching up to ytop. Leaves the semicircular hole open.
   archTop(gb, F, u, v, ys, r, ytop, t, hex, seg = 6, inner) {
+    ys = Math.min(ys, ytop - r - 0.3); // a wide arch springs lower rather than break through the top
     const L = (lu, ly, lv) => [F.wx(u + lu, v + lv), F.y + ly, F.wz(u + lu, v + lv)];
     const ref = L(0, ys + r * 0.5, 0);
     for (let i = 0; i < seg; i++) {

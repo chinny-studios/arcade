@@ -92,7 +92,7 @@ let views = await page.evaluate(({ grid, only, dirs }) => {
     if (pitchUp) out.push({ tag: tag + ':up', x, y, z, yaw: y0, pitch: 1.05 });
   };
   for (const s of W.spots) if (s.kind !== 'mill') ground(s.x, s.z, 'spot', dirs, true, s.y); // (a mill spot is the centre of the donkey's round)
-  for (const n of W.nodes) ground(n.x, n.z, 'node', dirs, true);
+  for (const n of W.nodes) if (n.e.length) ground(n.x, n.z, 'node', dirs, true); // (nodes left without paths are unreachable)
   for (const p of W.places) {
     if (p.kind === 'district' || (only.length && !only.includes(p.id))) continue;
     const r = Math.max(14, p.r), g = A.feet(p.x, p.z);
