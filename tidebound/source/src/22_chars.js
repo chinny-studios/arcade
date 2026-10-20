@@ -215,10 +215,10 @@ const Chars = (() => {
   // tone, its bottom and right edges the shadow tone); a lower-case letter is an explicit shadow of that material;
   // PSOLID letters keep their colour (eyes, glints, metal, gold). Faces and small props are pixel-string stamps, and
   // shapes come from the S helpers. A dark outline tinted from the touching material is added last.
-  const PSOLID = { D: '#181820', '@': '#ffffff', R: '#d83838', G: '#f0b828', M: '#c8d0d8', Z: '#3a2418', b: '#f0a0a0' };
-  const TORSO = [[18, 40], [46, 40], [52, 44], [55, 52], [57, 64], [7, 64], [9, 52], [13, 44]];
-  const ARM_L = [[17, 44], [13, 52], [13, 59]];
-  const ARM_R = [[47, 44], [51, 52], [51, 59]];
+  const PSOLID = { D: '#181820', '@': '#ffffff', R: '#d83838', G: '#f0b828', M: '#c8d0d8', Z: '#3a2418', Y: '#f0a0a0' };
+  const TORSO = [[21, 40], [43, 40], [49, 44], [51, 52], [53, 64], [11, 64], [13, 52], [15, 44]];
+  const ARM_L = [[17, 44], [10, 50], [14, 57]];
+  const ARM_R = [[47, 44], [54, 50], [50, 57]];
   const PEYE = ['@D', 'DD', 'DD'];
   const BROW = ['ZZZ'];
   const MOUTH = {
@@ -271,11 +271,13 @@ const Chars = (() => {
     return { G, paint, stamp };
   }
 
-  // Letters to colours: highlight, base and shadow per shaded material, then the dark outline.
+  // Letters to colours: highlight, base and shadow per shaded material, then the dark outline. 'i' and 'j' are
+  // the hair-strand and cloth highlights (pal.HR, pal.HL); lower case is the shadow of its upper-case material.
   function resolvePortrait(G, pal) {
     const body = (c) => c !== '.' && !PSOLID[c];
+    const norm = (c) => (c === 'i' ? 'H' : c === 'j' ? 'W' : c.toUpperCase());
     const at = (x, y) => (x < 0 || y < 0 || x > 63 || y > 63 ? '.' : G[y][x]);
-    const sh = (F) => shade(pal[F], F === 'K' ? 0.86 : 0.76);
+    const sh = (F) => shade(pal[F], F === 'K' ? 0.74 : 0.7);
     const hi = (F) => mixHex(pal[F], F === 'K' ? 0.2 : 0.3);
     const out = [];
     for (let y = 0; y < 64; y++) {
@@ -284,12 +286,16 @@ const Chars = (() => {
         const c = G[y][x];
         if (c === '.') {
           const n = [at(x, y + 1), at(x + 1, y), at(x, y - 1), at(x - 1, y)].find(body);
-          if (n) row[x] = shade(pal[n.toUpperCase()], 0.4);
+          if (n) row[x] = shade(pal[norm(n)], 0.4);
         } else if (PSOLID[c]) {
           row[x] = PSOLID[c];
+        } else if (c === 'i') {
+          row[x] = pal.HR;
+        } else if (c === 'j') {
+          row[x] = pal.HL;
         } else {
           const F = c.toUpperCase();
-          const diff = (n) => n === '.' || (body(n) && n.toUpperCase() !== F);
+          const diff = (n) => n === '.' || (body(n) && norm(n) !== F);
           if (c !== F) row[x] = sh(F);
           else if (diff(at(x, y - 1)) || diff(at(x - 1, y))) row[x] = hi(F);
           else if (diff(at(x + 1, y)) || diff(at(x, y + 1))) row[x] = sh(F);
@@ -311,22 +317,53 @@ const Chars = (() => {
 
   // Palette for a portrait: defaults come from the character's spec, `over` replaces single materials.
   function ppal(sp, over) {
-    return Object.assign({
+    const p = Object.assign({
       K: sp.skin, H: sp.hair, W: sp.shirt, V: sp.shirt, P: sp.pants, C: sp.hat || '#f4f4f4', T: sp.band || '#f4f4f4',
       A: sp.acc || '#c04848', J: '#f4f4f8', U: '#2a3a5a', N: '#8a5a30', B: '#806040', Q: '#3a2820',
     }, over || {});
+    p.HR = mixHex(p.H, 0.45);
+    p.HL = mixHex(p.W, 0.4);
+    return p;
   }
 
-  // Arm from shoulder through the elbow to the hand. `sleeve` is the material of the sleeve, `hand` the skin.
-  function arm(a, pts, sleeve, hand) {
+  // Neck and the band of shadow under the chin.
+  function neck(a) {
+    a.paint('K', S.box(28, 33, 36, 41));
+    a.paint('k', S.box(28, 36, 36, 39));
+  }
+
+  // Hand: a small rounded palm with a thumb, at (x, y).
+  function hand(a, x, y, m) {
+    a.paint(m || 'K', S.ell(x, y, 2.4, 2.7));
+    a.paint(m || 'K', S.seg(x + 1, y - 1, x + 2.6, y - 3.4, 1.8));
+  }
+
+  // Arm from shoulder through the elbow to the hand. Segments before `cuff` are sleeve (material `sleeve`), the rest
+  // bare forearm (`hand` material). A small hand with a thumb ends the arm.
+  function arm(a, pts, sleeve, skin, cuff) {
+    const c = cuff === undefined ? pts.length - 2 : cuff;
     for (let i = 0; i < pts.length - 1; i++) {
-      a.paint(sleeve, S.seg(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 7));
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+      a.paint(i < c ? sleeve : skin || 'K', S.seg(x0, y0, x1, y1, i < c ? 7 : 5));
     }
     const [hx, hy] = pts[pts.length - 1];
-    a.paint(hand || 'K', S.ell(hx, hy, 2.8, 2.8));
+    hand(a, hx, hy, skin || 'K');
   }
 
-  function torso(a, m, pts) { a.paint(m, S.poly(pts || TORSO)); }
+  // Torso: material m with a far-side shadow, two cloth folds, a near-shoulder highlight and a belt line.
+  function torso(a, m, pts, belt) {
+    const inT = S.poly(pts || TORSO);
+    const f = m.toLowerCase();
+    a.paint(m, inT);
+    a.paint(f, (x, y) => inT(x, y) && x >= 38 && y >= 42);
+    a.paint(f, S.seg(29, 50, 27, 57, 1));
+    a.paint(f, S.seg(37, 51, 40, 58, 1));
+    a.paint('j', (x, y) => inT(x, y) && y >= 41 && y <= 43 && x <= 30);
+    if (belt !== false) {
+      a.paint('Q', (x, y) => inT(x, y) && (y === 56 || y === 57));
+      a.paint('G', S.box(31, 56, 33, 57));
+    }
+  }
 
   // Head centred at (32, 24). o: hair ('short' | 'long' | 'spiky' | 'bun' | 'none'), hl (hairline y, or fn of x),
   // expr (MOUTH key), brow [left, right] raise, glasses, beard, blush, back (no face: seen from behind).
@@ -341,6 +378,9 @@ const Chars = (() => {
       a.paint('H', (x, y) => S.ell(32, 24, 11.3, 12.4)(x, y) && y < hl(x));
       if (hair === 'long') { a.paint('H', S.box(20, 20, 22, 36)); a.paint('H', S.box(42, 20, 44, 36)); }
       if (hair === 'bun') a.paint('H', S.ell(32, 8, 4.5, 4));
+      a.paint('i', S.seg(25, 16, 28, 14, 1));
+      a.paint('i', S.seg(31, 15, 35, 14, 1));
+      a.paint('i', S.seg(37, 17, 39, 15.5, 1));
     }
     if (o.back) {
       a.paint('H', S.ell(32, 24, 11.3, 12.4));
@@ -355,7 +395,7 @@ const Chars = (() => {
     a.stamp(25, 19 + br[0], BROW);
     a.stamp(35, 19 + br[1], BROW);
     a.paint('k', S.box(33, 25, 33, 27));
-    if (o.blush) { a.stamp(27, 27, ['bb']); a.stamp(37, 27, ['bb']); }
+    if (o.blush) { a.stamp(27, 27, ['YY']); a.stamp(37, 27, ['YY']); }
     if (o.glasses) {
       a.paint('M', (x, y) => S.box(23, 20, 28, 25)(x, y) && !S.box(24, 21, 27, 24)(x, y));
       a.paint('M', (x, y) => S.box(33, 20, 38, 25)(x, y) && !S.box(34, 21, 37, 24)(x, y));
@@ -398,8 +438,7 @@ const Chars = (() => {
         if (sp.long) a.paint('H', S.poly([[19, 20], [45, 20], [48, 50], [16, 50]]));
         if (sp.cape) a.paint('A', S.poly([[6, 36], [58, 36], [62, 64], [2, 64]]));
         if (sp.pack) a.paint('B', S.poly([[12, 38], [52, 38], [54, 50], [10, 50]]));
-        a.paint('K', S.box(28, 33, 36, 40));
-        a.paint('k', S.box(28, 36, 36, 38));
+        neck(a);
         torso(a, sp.coat ? 'J' : 'W');
         if (sp.coat) a.paint('W', S.poly([[27, 39], [37, 39], [32, 47]]));
         if (sp.apron) a.paint('J', S.poly([[22, 52], [42, 52], [45, 64], [19, 64]]));
@@ -427,7 +466,7 @@ const Chars = (() => {
     player: {
       pal: (sp) => ppal(sp, { W: '#f0f0f0', V: '#dcdce8', B: '#3868c8', K: sp.skin }),
       build: (a) => {
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'B');
         a.paint('W', S.poly([[22, 39], [42, 39], [40, 44], [24, 44]]));
         a.paint('V', S.seg(22, 42, 21, 63, 2.4));
@@ -441,7 +480,7 @@ const Chars = (() => {
     rival: {
       pal: (sp) => ppal(sp, { H: '#3a6ad8', W: '#e8e8f0', V: '#d4d4e0', J: '#e8e8f0', A: '#d83838' }),
       build: (a) => {
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'J');
         a.paint('A', S.poly([[27, 39], [37, 39], [32, 50]]));
         arm(a, [[17, 44], [11, 50], [18, 56]], 'V', 'K');
@@ -458,7 +497,7 @@ const Chars = (() => {
       pal: (sp) => ppal(sp, { H: '#d8d8e0', J: '#f4f4f8', V: '#e4e4ec', W: '#4a5878', N: '#8a5a30' }),
       build: (a) => {
         a.paint('H', S.poly([[19, 20], [45, 20], [48, 52], [16, 52]]));
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'J');
         a.paint('W', S.poly([[27, 39], [37, 39], [32, 48]]));
         a.paint('N', S.box(16, 46, 27, 62));
@@ -473,7 +512,7 @@ const Chars = (() => {
       pal: (sp) => ppal(sp, { H: '#c04838', W: '#f8c0d0', V: '#f0a8c0', J: '#f8c0d0', A: '#a060c8' }),
       build: (a) => {
         a.paint('H', S.poly([[19, 20], [45, 20], [47, 52], [17, 52]]));
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'W');
         a.paint('A', S.poly([[27, 39], [37, 39], [32, 45]]));
         arm(a, ARM_L, 'V', 'K');
@@ -486,7 +525,7 @@ const Chars = (() => {
     youngster: {
       pal: (sp) => ppal(sp, { W: '#e0c040', V: '#e8d060', C: '#48a048', H: '#3c2818', T: '#f4f4f4' }),
       build: (a) => {
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'W');
         a.paint('T', S.poly([[28, 39], [36, 39], [32, 44]]));
         arm(a, ARM_L, 'V', 'K');
@@ -498,7 +537,7 @@ const Chars = (() => {
     fisher: {
       pal: (sp) => ppal(sp, { H: '#5a4028', W: '#58a0a0', V: '#58a0a0', C: '#e8c878', T: '#a06030', N: '#8a5a30' }),
       build: (a) => {
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'W');
         a.paint('K', S.poly([[28, 39], [36, 39], [32, 46]]));
         a.paint('N', S.seg(46, 40, 60, 4, 2));
@@ -513,7 +552,7 @@ const Chars = (() => {
       pal: (sp) => ppal(sp, { K: sp.skin, H: '#5a3a20', W: '#58884a', V: '#58884a', B: '#a07048', U: '#3a2a1a', N: '#8a5a30' }),
       build: (a) => {
         a.paint('B', S.poly([[10, 42], [15, 34], [49, 34], [54, 42], [55, 52], [9, 52]]));
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'W');
         a.paint('U', S.seg(22, 40, 21, 63, 2));
         a.paint('U', S.seg(42, 40, 43, 63, 2));
@@ -524,11 +563,15 @@ const Chars = (() => {
       },
     },
     swimmer: {
-      pal: (sp) => ppal(sp, { K: sp.skin, V: sp.skin, H: '#2a2a40', C: '#3858c0', A: '#3868c8' }),
+      pal: (sp) => ppal(sp, { K: sp.skin, V: sp.skin, H: '#2a2a40', C: '#3858c0', A: '#3868c8', J: '#f0f0f0', W: '#e8b890' }),
       build: (a) => {
-        a.paint('K', S.box(28, 33, 36, 40));
-        torso(a, 'K');
-        torso(a, 'A', [[24, 40], [40, 40], [44, 50], [46, 64], [18, 64], [20, 50]]);
+        neck(a);
+        torso(a, 'K', TORSO, false);
+        torso(a, 'A', [[24, 40], [40, 40], [43, 46], [44, 64], [20, 64], [21, 46]], false);
+        a.paint('K', S.seg(24, 40, 22, 46, 1.4));
+        a.paint('K', S.seg(40, 40, 42, 46, 1.4));
+        a.paint('J', S.poly([[13, 42], [22, 40], [24, 50], [18, 62], [12, 56]]));
+        a.paint('j', S.seg(15, 44, 20, 48, 1));
         arm(a, ARM_L, 'V', 'K');
         arm(a, [[47, 44], [54, 40], [53, 32]], 'V', 'K');
         head(a, { hair: 'none', hl: 19, expr: 'grin' });
@@ -538,7 +581,7 @@ const Chars = (() => {
     bugkid: {
       pal: (sp) => ppal(sp, { K: sp.skin, H: '#302018', W: '#70b848', V: '#70b848', J: '#f0f0f0', N: '#8a5a30' }),
       build: (a) => {
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'W');
         a.paint('J', S.poly([[27, 39], [37, 39], [32, 45]]));
         a.paint('N', S.seg(46, 42, 57, 6, 2));
@@ -552,7 +595,7 @@ const Chars = (() => {
     sailor: {
       pal: (sp) => ppal(sp, { K: sp.skin, H: '#c05a20', W: '#e8e8e8', V: '#e8e8e8', U: '#203870', C: '#f4f4f4', T: '#203870', A: '#c04848' }),
       build: (a) => {
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'W');
         a.paint('U', (x, y) => S.poly(TORSO)(x, y) && y >= 46 && y % 4 === 2);
         a.paint('A', S.poly([[27, 39], [37, 39], [32, 46]]));
@@ -569,7 +612,7 @@ const Chars = (() => {
       build: (a) => {
         a.paint('A', S.poly([[6, 36], [58, 36], [63, 64], [1, 64]]));
         a.paint('H', S.poly([[19, 20], [45, 20], [47, 50], [17, 50]]));
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'W');
         a.paint('J', S.poly([[27, 39], [37, 39], [32, 48]]));
         a.paint('G', S.ell(32, 44, 1.6, 1.6));
@@ -583,7 +626,7 @@ const Chars = (() => {
     captain: {
       pal: (sp) => ppal(sp, { K: '#8a5030', H: '#404040', W: '#f4f4f8', V: '#2a3c66', U: '#1e2e50', J: '#f4f4f8', C: '#181820' }),
       build: (a) => {
-        a.paint('K', S.box(28, 33, 36, 40));
+        neck(a);
         torso(a, 'U');
         a.paint('J', S.poly([[22, 39], [30, 39], [30, 50], [24, 46]]));
         a.paint('J', S.poly([[42, 39], [34, 39], [34, 50], [40, 46]]));
