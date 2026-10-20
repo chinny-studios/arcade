@@ -117,8 +117,8 @@ const Evolve = (() => {
     await UI.say('Congratulations! Your ' + oldName + ' evolved into ' + SPECIES[to].name + '!');
     Mon.evolve(mon, to);
     Mon.markCaught(to);
-    Scenes.pop(sc);
     await learnAtLevel(mon);
+    Scenes.pop(sc);
     if (prev) Music.play(prev); else Music.stop();
     return true;
   }
