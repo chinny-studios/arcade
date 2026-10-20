@@ -1,0 +1,32 @@
+<title>Tidebound</title>
+<meta name="description" content="A pocket-sized monster-collecting adventure on a chain of coastal islands, in the style of the handheld classics.">
+<style>
+  html, body { margin: 0; height: 100%; background: #10141c; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+  #app { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #c { display: block; image-rendering: pixelated; image-rendering: crisp-edges; background: #000; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+  #touch { position: fixed; inset: 0; pointer-events: none; display: none; }
+  body.touch #touch { display: block; }
+  #touch .b { position: absolute; pointer-events: auto; border-radius: 50%; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.35);
+    color: rgba(255,255,255,.85); font: 700 18px system-ui, sans-serif; display: flex; align-items: center; justify-content: center; touch-action: none; }
+  #touch .b.on { background: rgba(255,255,255,.4); }
+  #dpad { position: absolute; left: 18px; bottom: 18px; width: 150px; height: 150px; pointer-events: auto; touch-action: none; }
+  #dpad i { position: absolute; width: 50px; height: 50px; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.35); border-radius: 8px; box-sizing: border-box; }
+  #dpad i.on { background: rgba(255,255,255,.4); }
+  #dpad .u { left: 50px; top: 0; } #dpad .d { left: 50px; top: 100px; } #dpad .l { left: 0; top: 50px; } #dpad .r { left: 100px; top: 50px; }
+  #tA { right: 22px; bottom: 70px; width: 64px; height: 64px; }
+  #tB { right: 96px; bottom: 30px; width: 56px; height: 56px; }
+  #tS { right: 50%; bottom: 8px; width: 64px; height: 26px; border-radius: 13px; margin-right: 6px; font-size: 11px; }
+  #tL { left: 50%; bottom: 8px; width: 64px; height: 26px; border-radius: 13px; margin-left: 6px; font-size: 11px; }
+  #err { position: fixed; left: 8px; bottom: 8px; color: #f88; font: 12px monospace; white-space: pre-wrap; }
+</style>
+<div id="app">
+  <canvas id="c" width="320" height="180"></canvas>
+  <div id="touch">
+    <div id="dpad"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i></div>
+    <div class="b" id="tA" data-k="a">A</div>
+    <div class="b" id="tB" data-k="b">B</div>
+    <div class="b" id="tS" data-k="start">START</div>
+    <div class="b" id="tL" data-k="select">SELECT</div>
+  </div>
+  <div id="err"></div>
+</div>
