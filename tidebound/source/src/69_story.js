@@ -176,6 +176,7 @@ const Story = (() => {
     setFlag('badge1');
     G.money += 500;
     await UI.say(['{P} received the WAVE BADGE!', 'MARINA: The sea trusts you now.']);
+    setFlag('got_smash');
     await Script.give('hm_smash');
     await UI.say(['HM02 SMASH lets you break rocks.', 'Now the Tidewater Cave opens up!']);
     World.refresh();
@@ -189,7 +190,6 @@ const Story = (() => {
     if (n && n.y + 1 < p.y) await Script.walk('rival_lumen', 'd');
     await Script.emote('rival_lumen', '!');
     await UI.say([G.rival + ': Heh, you beat Marina?', 'Then prove you are the best!']);
-    const counter = COUNTER[G.starter];
     const T = {
       id: 'rival2', cls: 'RIVAL', name: G.rival, sprite: 'rival', music: 'rival', money: 60,
       party: [['gullip', 13], [EVOLVED[G.starter] || 'brambull', 16], ['kelpup', 13]],
@@ -197,7 +197,6 @@ const Story = (() => {
       lose: G.rival + ': Ugh, you really are good.',
       after: G.rival + ': Still too strong for me!',
     };
-    void counter;
     const r = await Battle.trainer(T);
     if (r === 'lose') Mon.healParty();
     setFlag('rival2');

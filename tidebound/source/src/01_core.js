@@ -189,6 +189,7 @@ const Scenes = {
   update(dt) { const t = this.top(); if (t && t.update) t.update(dt); },
   draw(g) {
     let i = this.stack.length - 1;
+    if (i < 0) return;
     while (i > 0 && !this.stack[i].opaque) i--;
     for (; i < this.stack.length; i++) if (this.stack[i].draw) this.stack[i].draw(g);
   },

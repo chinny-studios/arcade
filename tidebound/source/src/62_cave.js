@@ -1,0 +1,97 @@
+// Tidebound: Tidewater Cave. Rows are written run-length style: "W26x1W7" is 26 walls, one exit, seven walls.
+// The lower hall leads west past a small lake to the top corridor and the far exit (Captain Brine, HM CHOP).
+// A smash rock on the east side of the hall guards a side chamber where Corallo waits (needs HM02 SMASH).
+
+Maps.def({
+  id: 'cave', name: 'TIDEWATER CAVE', music: 'cave', indoor: false, border: 'cave_wall',
+  rows: [
+    'W26x1W7',
+    'W23.5W6',
+    'W20.8W6',
+    'W12.16W6',
+    'W12.1W9.6W6',
+    'W12.1W9.6W6',
+    'W8.5W9.6W6',
+    'W8.5W9.6W6',
+    'W2.1S1.9W21',
+    'W2.11W9.9W3',
+    'W2.2w5.4W9.9W3',
+    'W2.2w5.4W5.3K1.9W3',
+    'W2.2w5.4W5.3W1.9W3',
+    'W2.11W5.3W1.9W3',
+    'W2.19W13',
+    'W2.19W13',
+    'W2.9W2.8W13',
+    'W2.9W2.8W13',
+    'W13.8W13',
+    'W13.8W13',
+    'W13.8W13',
+    'W13.2R1.5W13',
+    'W13.8W13',
+    'W13.8W13',
+    'W13.8W13',
+    'W16E1W17',
+  ].map((s) => s.replace(/(.)(\d*)/g, (_, c, n) => c.repeat(n ? +n : 1))),
+  legend: {
+    W: 'cave_wall', '.': 'cave_floor', w: 'water_cave', K: 'smash_rock', E: 'cave_entrance', x: 'cave_exit',
+    R: 'rubble', S: 'sign',
+  },
+  warps: [
+    { x: 16, y: 25, to: 'route1', tx: 13, ty: 2, dir: 'down' },
+    { x: 26, y: 0, to: 'route2', tx: 12, ty: 34, dir: 'up' },
+  ],
+  npcs: [
+    { id: 'cv_hiker1', x: 10, y: 9, sprite: 'hiker', dir: 'right', move: 'still',
+      trainer: {
+        id: 'cave_hiker1', cls: 'HIKER', name: 'GUS', music: 'trainer', sight: 4,
+        party: [['echobat', 7], ['geodig', 8]], money: 120,
+        intro: 'GUS: Hey! Nobody sneaks past this HIKER!',
+        lose: 'GUS: My boots are soaked!',
+        after: 'GUS: The lake is deeper than it looks.',
+      } },
+    { id: 'cv_fisher', x: 4, y: 14, sprite: 'fisher', dir: 'right', move: 'still',
+      trainer: {
+        id: 'cave_fisher', cls: 'FISHER', name: 'RUNE', music: 'trainer', sight: 4,
+        party: [['snipper', 8], ['pebblet', 9]], money: 120,
+        intro: 'RUNE: Fish in the dark? Sure, why not!',
+        lose: 'RUNE: The fish got away from me.',
+        after: 'RUNE: I will catch you next time.',
+      } },
+    { id: 'cv_hiker2', x: 17, y: 22, sprite: 'hiker', dir: 'up', move: 'still',
+      trainer: {
+        id: 'cave_hiker2', cls: 'HIKER', name: 'PIP', music: 'trainer', sight: 4,
+        party: [['pebblet', 9], ['geodig', 9], ['echobat', 10]], money: 140,
+        intro: 'PIP: Got lost in here for three days!',
+        lose: 'PIP: Okay, okay! I surrender!',
+        after: 'PIP: The exit is up the corridor. Go on!',
+      } },
+    { id: 'cv_brine', x: 22, y: 2, sprite: 'captain', dir: 'left', move: 'still',
+      talk: () => Story.brine() },
+    { id: 'corallo', x: 27, y: 11, sprite: 'none', dir: 'left', move: 'still',
+      cond: () => flag('got_smash') && !flag('corallo'),
+      talk: () => Story.corallo() },
+  ],
+  signs: [
+    { x: 3, y: 8, text: 'TIDEWATER CAVE. Mind the water. The floors are slick!' },
+  ],
+  items: [
+    { x: 25, y: 6, item: 'superpotion', n: 1, id: 'cv_sp' },
+    { x: 4, y: 9, item: 'antidote', n: 1, id: 'cv_antidote' },
+    { x: 2, y: 8, item: 'repel', n: 1, id: 'cv_repel' },
+    { x: 16, y: 22, item: 'potion', n: 1, id: 'cv_potion', hidden: true },
+    { x: 29, y: 12, item: 'greatorb', n: 1, id: 'cv_greatorb', hidden: true },
+  ],
+  encounters: {
+    cave: {
+      rate: 0.07,
+      list: [
+        ['echobat', 6, 10, 25],
+        ['geodig', 6, 10, 25],
+        ['pebblet', 6, 10, 25],
+        ['snipper', 6, 10, 20],
+        ['zappeel', 6, 10, 5],
+      ],
+    },
+  },
+  triggers: [],
+});

@@ -474,7 +474,8 @@ const Tiles = (() => {
     px(g, 9, 9, '#f8d060');
     rect(g, 2, 15, 12, 1, '#b8b0a0');
   });
-  def('care_roof', { solid: true }, (g) => {
+  def('care_roof', { solid: true }, (g) => roofPaint(g, RED_R, false, false));
+  def('care_sign', { solid: true }, (g) => {
     roofPaint(g, RED_R, false, false);
     plate(g, 8, 8, 4.8, '#4a1410');
     rect(g, 7, 5, 2, 6, K.red);
@@ -494,7 +495,8 @@ const Tiles = (() => {
     px(g, 4, 4, '#ffffff'); px(g, 9, 4, '#ffffff');
     px(g, 6, 9, '#ffffff'); px(g, 9, 9, '#ffffff');
   });
-  def('mart_roof', { solid: true }, (g) => {
+  def('mart_roof', { solid: true }, (g) => roofPaint(g, BLUE_R, false, false));
+  def('mart_sign', { solid: true }, (g) => {
     roofPaint(g, BLUE_R, false, false);
     rect(g, 0, 4, 16, 8, BLUE_R.ol);
     rect(g, 0, 5, 16, 6, '#ffffff');
@@ -519,7 +521,8 @@ const Tiles = (() => {
     rect(g, 7, 3, 2, 12, K.blue);
     px(g, 6, 9, '#ffffff'); px(g, 9, 9, '#ffffff');
   });
-  def('gym_roof', { solid: true }, (g) => {
+  def('gym_roof', { solid: true }, (g) => roofPaint(g, TEAL_R, false, false));
+  def('gym_sign', { solid: true }, (g) => {
     roofPaint(g, TEAL_R, false, false);
     ball(g, 8, 8, 6, 6, { o: '#7a5008', hi: '#fff4b0', mid: '#f4c440', lo: '#d8a020', sh: '#a87410' });
     ball(g, 8, 8, 4.2, 4.2, { o: '#14306a', hi: '#9cc4fa', mid: '#3a78d8', lo: '#2a5cb8', sh: '#1c4090' });

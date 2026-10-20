@@ -1,0 +1,96 @@
+// Tidebound: Lumen City. The town at the end of Route 2. The Care Center and the Mart sit on the main road, the Gym
+// is north of it, and three houses line the lower street. The Lighthouse rises in the north-east: after the gym, its
+// rival waits outside, and after that battle the top of the tower holds the sleeping Lumarine.
+// Rows are run-length encoded: "T31L3T2" is 31 trees, three lighthouse tops, two trees.
+
+Maps.def({
+  id: 'lumen', name: 'LUMEN CITY', music: 'city', indoor: false, border: 'tree',
+  rows: [
+    'T36',
+    'T31L3T2',
+    'T2.8,4.16T1B3T2',
+    'T2.8,4.16T1B3T2',
+    'T2.8,4.16T1B3T2',
+    'T2.8,4.16T1B3T2',
+    'T2.8,4.16T1B1Z1B1T2',
+    'T2.30=1.2T1',
+    'T2.30=1.2T1',
+    'T2.15G7.8=1.2T1',
+    'T2.15G3E1G3.8=1.2T1',
+    'T2.1C6.8g7.1M6.1=1.2T1',
+    'T2.1C3K1C2.8g3O1g3.1M2N1M3.1=1.2T1',
+    'T2.1c6.12S1.3m6.1=1.2T1',
+    'T2.1c3D1c2.16m2Q1m3.1=1.2T1',
+    'T2=32T2',
+    'T2.14=3.15T2',
+    'T2.6,4.4=3.10,3.2T2',
+    'T2.6,4.4=3.10,3.2T2',
+    'T2.2an3e.2an3e=3.8an3e=1.2T1',
+    'T2.2an3e.2an3e=3.8an3e=1.2T1',
+    'T2.2oyoyo.2oyoyo=3.8oyoyo=1.2T1',
+    'T2.2oodoo.2oodoo=3.8oodoo=1.2T1',
+    'T2=32T2',
+    'T2.14=3.15T2',
+    'T2.6f2.6=3.8,4.3T2',
+    'T2.14=3,10.5T2',
+    'T2.6,8=3.9w3.3T2',
+    'T2.14=3.9w3.3T2',
+    'T16=3T17',
+  ].map((s) => s.replace(/(.)(\d*)/g, (_, c, n) => c.repeat(n ? +n : 1))),
+  legend: {
+    T: 'tree', '.': 'grass', ',': 'tallgrass', '=': 'path', f: 'flowers', w: 'water', S: 'sign',
+    a: 'roof_l', n: 'roof_m', e: 'roof_r', o: 'wall', y: 'wall_window', d: 'door',
+    C: 'care_roof', K: 'care_sign', N: 'mart_sign', E: 'gym_sign', c: 'care_wall', D: 'care_door',
+    M: 'mart_roof', m: 'mart_wall', Q: 'mart_door',
+    G: 'gym_roof', g: 'gym_wall', O: 'gym_door',
+    L: 'lighthouse_top', B: 'lighthouse_body', Z: 'lighthouse_door',
+  },
+  warps: [
+    // south edge: back down to Route 2's north edge
+    { x: 16, y: 29, to: 'route2', tx: 16, ty: 1, dir: 'down' },
+    { x: 17, y: 29, to: 'route2', tx: 17, ty: 1, dir: 'down' },
+    { x: 18, y: 29, to: 'route2', tx: 18, ty: 1, dir: 'down' },
+    // doors
+    { x: 6, y: 14, to: 'lumen_center', tx: 5, ty: 8, dir: 'up' },
+    { x: 27, y: 14, to: 'lumen_mart', tx: 5, ty: 8, dir: 'up' },
+    { x: 20, y: 12, to: 'lumen_gym', tx: 6, ty: 10, dir: 'up' },
+    { x: 6, y: 22, to: 'lumen_house_a', tx: 4, ty: 6, dir: 'up' },
+    { x: 13, y: 22, to: 'lumen_house_b', tx: 4, ty: 6, dir: 'up' },
+    { x: 29, y: 22, to: 'lumen_house_c', tx: 4, ty: 6, dir: 'up' },
+    { x: 32, y: 6, to: 'lighthouse_1f', tx: 4, ty: 6, dir: 'up' },
+  ],
+  npcs: [
+    { id: 'lu_boy', x: 10, y: 17, sprite: 'boy', dir: 'right', move: 'still',
+      text: ['The mart sells ORBS! Get a bunch!', 'The gym is up north, past the sign.'] },
+    { id: 'lu_girl', x: 14, y: 17, sprite: 'girl', dir: 'down', move: 'still',
+      text: ['Lumen is the only town that glows', 'when the lighthouse wakes up.'] },
+    { id: 'lu_scientist', x: 23, y: 19, sprite: 'scientist', dir: 'left', move: 'still',
+      text: ['Tidelings get stronger when their type', 'matches the moves they use. Remember!'] },
+    { id: 'lu_oldwoman', x: 31, y: 25, sprite: 'oldwoman', dir: 'up', move: 'still',
+      text: ['The care center is free for everyone.', 'Heal your TIDELINGS any time, dear.'] },
+    { id: 'lu_fisher', x: 19, y: 27, sprite: 'fisher', dir: 'right', move: 'still',
+      text: ['The pond has tiny tidelings. Catch them,', 'they are very shy!'] },
+    {
+      id: 'rival_lumen', x: 32, y: 9, sprite: 'rival', dir: 'down', move: 'still',
+      cond: () => flag('badge1') && !flag('rival2'),
+      talk: () => Story.rival2(),
+    },
+  ],
+  signs: [
+    { x: 21, y: 13, text: 'LUMEN CITY GYM — LEADER: MARINA. The tide-and-wind tamer!' },
+    { x: 10, y: 16, text: 'LUMEN CITY — Where the sea meets the light.' },
+  ],
+  items: [
+    { x: 4, y: 17, item: 'potion', n: 1, id: 'lu_potion' },
+    { x: 2, y: 16, item: 'pechaberry', n: 1, id: 'lu_pecha', hidden: true },
+    { x: 28, y: 24, item: 'repel', n: 1, id: 'lu_repel' },
+  ],
+  encounters: {},
+  triggers: [
+    {
+      x: 31, y: 11, w: 3, h: 1,
+      cond: () => flag('badge1') && !flag('rival2'),
+      run: () => Story.rival2(),
+    },
+  ],
+});

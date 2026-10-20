@@ -225,7 +225,7 @@ Maps.def({
   ],
   legend: { W: 'wall_in', h: 'shelf', C: 'counter', '.': 'floor', p: 'plant', M: 'mat' },
   warps: [
-    { x: 5, y: 9, to: 'lumen', tx: 22, ty: 15, dir: 'down' },
+    { x: 5, y: 9, to: 'lumen', tx: 27, ty: 15, dir: 'down' },
   ],
   npcs: [
     {
@@ -259,7 +259,7 @@ Maps.def({
   ],
   legend: { W: 'wall_in', N: 'window_in', K: 'bookshelf', '.': 'floor', T: 'table', B: 'bed', r: 'rug', M: 'mat' },
   warps: [
-    { x: 4, y: 7, to: 'lumen', tx: 8, ty: 16, dir: 'down' },
+    { x: 4, y: 7, to: 'lumen', tx: 6, ty: 23, dir: 'down' },
   ],
   npcs: [
     {
@@ -287,7 +287,7 @@ Maps.def({
   ],
   legend: { W: 'wall_in', N: 'window_in', '.': 'floor', p: 'plant', T: 'table', r: 'rug', M: 'mat' },
   warps: [
-    { x: 4, y: 7, to: 'lumen', tx: 13, ty: 16, dir: 'down' },
+    { x: 4, y: 7, to: 'lumen', tx: 13, ty: 23, dir: 'down' },
   ],
   npcs: [
     {
@@ -315,7 +315,7 @@ Maps.def({
   ],
   legend: { W: 'wall_in', N: 'window_in', K: 'bookshelf', '.': 'floor', T: 'table', p: 'plant', r: 'rug', M: 'mat' },
   warps: [
-    { x: 4, y: 7, to: 'lumen', tx: 28, ty: 16, dir: 'down' },
+    { x: 4, y: 7, to: 'lumen', tx: 29, ty: 23, dir: 'down' },
   ],
   npcs: [
     {
@@ -413,7 +413,7 @@ Maps.def({
   legend: { W: 'wall_in', N: 'window_in', K: 'bookshelf', U: 'stairs_up', '.': 'floor', T: 'table', p: 'plant', r: 'rug', M: 'mat' },
   warps: [
     { x: 8, y: 1, to: 'lighthouse_top', tx: 8, ty: 2, dir: 'down' },
-    { x: 4, y: 7, to: 'lumen', tx: 31, ty: 7, dir: 'down' },
+    { x: 4, y: 7, to: 'lumen', tx: 32, ty: 7, dir: 'down' },
   ],
   npcs: [
     {
