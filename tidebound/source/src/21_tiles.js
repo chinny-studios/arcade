@@ -7,8 +7,8 @@ const Tiles = (() => {
   const K = {
     ol: '#1e3a24',                           // dark outline
     gr: '#5cb84c', gr1: '#4ea842', gr3: '#7ccc62', gs: '#3e9238', gd: '#2a6a2c',
-    tg: '#379030', tg1: '#2a7a2a', tgl: '#5cb848', tgk: '#1c4a22', tgL: '#9ae486', tgM: '#58c04c',
-    w1: '#2a68c8', w2: '#3a80dc', w3: '#1c4ea6', w4: '#8ccaf8', wsp: '#f6fcff',
+    tg: '#2f8a2c', tg1: '#226e22', tgl: '#4aa43e', tgk: '#18401c', tgL: '#9ae486', tgM: '#5cc850',
+    w1: '#2a68c8', w2: '#4a8ee6', w3: '#1a4ca0', w4: '#8ccaf8', wsp: '#f6fcff',
     sd: '#f6dc98', sd2: '#e6c47c', sdL: '#fff2c8', sdW: '#d2a862', foam: '#f6fcff', foam2: '#9ad6f6',
     wood: '#a8703c', woodL: '#c8904e', woodD: '#6a4220', woodH: '#e4ae70',
     cream: '#f4e6c4', creamD: '#d8c49a', red: '#d8443a', redD: '#8a2418', blue: '#3c6cd0', glass: '#8ad8f8',
@@ -85,7 +85,8 @@ const Tiles = (() => {
   // Tall grass: darker base with blade tufts. The tufts with y >= 6 are also drawn again as the front layer.
   const TUFT = ['..k..', '.kLk.', 'kLMLk', '.kkk.'];
   const TUFT_PAL = { k: K.tgk, L: K.tgL, M: K.tgM };
-  const TUFTS = [[1, 0], [7, 1], [11, 3], [3, 5], [9, 6], [0, 9], [6, 10], [11, 11], [3, 12]];
+  const TUFTS = [];
+  for (let j = 0; j < 4; j++) for (let i = 0; i < 3; i++) TUFTS.push([(j & 1 ? 2 : 0) + i * 5 + (j === 3 ? 1 : 0), j * 4]);
   function tuft(g, x0, y0) {
     for (let j = 0; j < 4; j++) for (let i = 0; i < 5; i++) {
       const c = TUFT_PAL[TUFT[j][i]];
@@ -110,12 +111,15 @@ const Tiles = (() => {
     }
   }
   function pathBase(g) {
-    rect(g, 0, 0, 16, 16, '#e8cc9a');
+    rect(g, 0, 0, 16, 16, '#d8b070');
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
       const h = hash(x, y, 4);
-      if (h < 0.09) px(g, x, y, '#c8a468');
-      else if (h > 0.94) px(g, x, y, '#f8e6bc');
+      if (h < 0.07) px(g, x, y, '#b68a50');
+      else if (h > 0.93) px(g, x, y, '#ecc88c');
     }
+    // packed-earth edges, a little worn in the middle
+    for (let i = 0; i < 16; i++) { px(g, i, 0, '#c09458'); px(g, 0, i, '#c09458'); }
+    for (const [x, y] of [[3, 4], [10, 3], [7, 9], [12, 11], [4, 13]]) { px(g, x, y, '#a87c44'); px(g, x + 1, y, '#a87c44'); }
   }
 
   // ---------- water and shores ----------
@@ -129,7 +133,7 @@ const Tiles = (() => {
     }
     for (const [sx, sy] of SPARK[f & 3]) {
       px(g, sx, sy, K.wsp);
-      px(g, sx - 1, sy, K.w4); px(g, sx + 1, sy, K.w4); px(g, sx, sy - 1, K.w4); px(g, sx, sy + 1, K.w4);
+      px(g, sx - 1, sy, K.w4); px(g, sx + 1, sy, K.w4);
     }
   }
   // Sand band depth (pixels) with a little wobble along the coast, so the edge is not ruler-straight.
@@ -169,10 +173,11 @@ const Tiles = (() => {
   // ---------- ledges ----------
   function ledgeS(g) {
     grassBase(g);
-    rect(g, 0, 10, 16, 1, '#a6e28a');
-    rect(g, 0, 11, 16, 1, K.gd);
-    rect(g, 0, 12, 16, 2, '#a07048');
-    for (let x = 0; x < 16; x++) if (hash(x, 12, 3) < 0.35) px(g, x, 13, '#7a5232');
+    rect(g, 0, 9, 16, 1, '#a6e28a');
+    rect(g, 0, 10, 16, 1, K.gd);
+    rect(g, 0, 11, 16, 3, '#b08050');
+    rect(g, 0, 11, 16, 1, '#c89c66');
+    for (let y = 12; y < 14; y++) for (let x = 0; x < 16; x++) if (hash(x, y, 3) < 0.3) px(g, x, y, '#845e36');
     rect(g, 0, 14, 16, 1, '#5a3c22');
     rect(g, 0, 15, 16, 1, '#2e5e2a');
   }
