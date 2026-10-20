@@ -233,7 +233,8 @@ textWidth(str)   wrapText(str, maxWidth) → array of lines
 UI.box(g, x, y, w, h, style = 'white')     // GBA-style frame. styles: 'white' (dialog/menus), 'dark'
 UI.cursor(g, x, y)                          // the ▶ menu arrow
 UI.say(text | [texts], opts?) → Promise     // bottom dialog box (x 4, y 132, w 312, h 44), 2 lines, typewriter,
-    // A or B advances, ▼ blinks when waiting; '\n' forces a line break, '\f' (or new array item) a new box;
+    // A or B advances, ▼ blinks when waiting; '\n' forces a line break, '\f' a new box; array items are joined
+    // with spaces and re-wrapped (scripts write ['line one', 'line two']);
     // {P} → G.name, {R} → G.rival. opts: { keepOpen: bool (resolve while box stays drawn, used before choose),
     // auto: sec (advance by itself, used in battle), noWait: true (resolve once printed) }
 UI.choose(options, opts?) → Promise<index | -1>   // menu box; opts { x, y (default: right side above dialog box),
@@ -431,3 +432,19 @@ Shows the title, then either loads the save or runs `Story.intro()`, then `World
 `TB.tap(btn)`, `TB.tp(map, x, y)`, `TB.give(item, n)`, `TB.giveMon(sp, lv)`, `TB.battle(sp, lv)`,
 `TB.trainer(def)`, `TB.flags`, `TB.G()`, `TB.auto(true)` (autoText + fast), `TB.scenes()`. Modules add more.
 `TB.autoBattle = true` makes the player's side pick the first damaging move automatically (for tests).
+
+## Integration notes (decisions made after the first build)
+
+- Map `signs` entries may have `run: async () => {}` instead of `text`. An npc with `sprite: 'none'` is not drawn
+  but is solid and talkable (PC, static encounters).
+- Indoor maps draw `wall_in` only on the top row; side and bottom walls render black, as in the GBA games.
+- Building signs are their own tiles (`care_sign`, `mart_sign`, `gym_sign`), placed once on a plain roof.
+- Mats on the bottom row are edge warps: step onto the mat, then walk off it.
+- A trainer party entry may be `[sp, lv, movesLv]`: the mon knows the moves it would have at `movesLv` (the first
+  rival knows only its starting moves, like the classics).
+- `Menus.useMedicine` is synchronous and returns `{ ok, text, events }`; callers show events with
+  `Menus.showEvents`. `Menus.forgetMove` returns a slot and never teaches: call `Mon.teach`.
+- Battle does not set trainer flags; `Script.trainerBattle` does (`tr_<id>`), and story battles set their own flags.
+- Balance (test/balance.js, 6 seeds, autoBattle): the lab rival is winnable 2–6/6 per starter; each Route 1 trainer
+  is beatable at lv 7 when healed between fights (Splishel vs Thistlet is the hard matchup); Marina falls to a lv 15
+  evolved starter plus one lv 13 partner 5–6/6.

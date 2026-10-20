@@ -54,6 +54,7 @@ DBG.boost = (lv) => {
     Mon.heal(m);
   }
 };
+DBG.story = Story;
 DBG.tp = (map, x, y, dir = 'down') => World.warp(map, x, y, dir);
 DBG.battle = (sp, lv = 5) => Battle.wild(sp, lv);
 DBG.trainer = (t) => Battle.trainer(t);

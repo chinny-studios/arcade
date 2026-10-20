@@ -791,7 +791,8 @@ const Battle = {
   // Trainer battle from a map trainer object. Resolves 'win'|'lose'.
   B.trainer = (t) => {
     const cls = t.cls, name = cls === 'RIVAL' ? G.rival : t.name;
-    const foes = t.party.map(([sp, lv]) => Mon.create(sp, lv));
+    // a party entry may name a third value: the level whose moveset to use (a fresh rival knows only its first moves)
+    const foes = t.party.map(([sp, lv, mlv]) => Mon.create(sp, lv, mlv ? { moves: Mon.create(sp, mlv).moves.map((m) => m.id) } : undefined));
     const music = t.music || (cls === 'RIVAL' ? 'rival' : cls === 'LEADER' ? 'gymbattle' : 'trainer');
     return begin({ wild: false, music, foes, title: cls + ' ' + name, t, potions: potionCount(t.items) });
   };

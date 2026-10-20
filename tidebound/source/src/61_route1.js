@@ -77,7 +77,7 @@ Maps.def({
     { id: 'r1_trainer_dani', x: 5, y: 15, sprite: 'lass', dir: 'down', move: 'still',
       trainer: {
         id: 'r1_lass', cls: 'LASS', name: 'DANI', music: 'trainer', sight: 4,
-        party: [['mothlet', 4], ['thistlet', 5]], money: 80,
+        party: [['mothlet', 4], ['thistlet', 4]], money: 80,
         intro: "DANI: Oh, a challenger! Let's see your TIDELINGS.",
         lose: 'DANI: That was a pretty good battle!',
         after: 'DANI: Moths love the lantern light up north.',

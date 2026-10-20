@@ -43,7 +43,7 @@ const SPECIES = {
   },
   splishel: {
     id: 'splishel', num: 5, name: 'SPLISHEL', types: ['water'],
-    base: { hp: 44, atk: 48, def: 65, spa: 50, spd: 64, spe: 39 },
+    base: { hp: 50, atk: 50, def: 64, spa: 62, spd: 62, spe: 40 },
     abilities: ['torrent'], growth: 'medium', xpYield: 64, catchRate: 45,
     evolve: { to: 'tidalon', lv: 14 },
     learn: [[1, 'tackle'], [1, 'tailwhip'], [5, 'watergun'], [8, 'withdraw'], [11, 'bubble'], [15, 'quickattack'],

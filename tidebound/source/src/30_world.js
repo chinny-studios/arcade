@@ -101,6 +101,12 @@ const World = (() => {
     if (ti.draw) ti.draw(g, x, y, G.time); else fallbackTile(name).draw(g, x, y);
   }
   function drawChar(g, name, x, y, dir, frame) {
+    // 'mon:<species>': a Tideling standing in the overworld (static encounters), its battle sprite at half size, bobbing
+    if (name.startsWith('mon:') && typeof Sprites !== 'undefined') {
+      const bob = Math.round(Math.sin(G.time * 3) * 1);
+      g.drawImage(Sprites.mon(name.slice(4)), x - 8, y - 16 + bob, 32, 32);
+      return;
+    }
     if (typeof Chars !== 'undefined' && Chars.draw) { Chars.draw(g, name, x, y, dir, frame); return; }
     g.fillStyle = '#e0a060'; g.fillRect(x + 3, y + 2, 10, 14);
     g.fillStyle = '#303030'; g.fillRect(x + 5, y + 6, 2, 2); g.fillRect(x + 9, y + 6, 2, 2);

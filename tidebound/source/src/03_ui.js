@@ -49,9 +49,10 @@ const UI = (() => {
     if (sc.res) sc.res();
   }
 
-  // split text into pages: array items and '\f' each start a new box; long pages wrap into 2-line pages
+  // split text into pages: '\f' starts a new box and long text wraps into 2-line pages. Array items are lines of
+  // one flowing text (scripts write ['first line', 'second line']), so they are joined and re-wrapped.
   function paginate(input) {
-    const items = Array.isArray(input) ? input : [input];
+    const items = [Array.isArray(input) ? input.join(' ') : input];
     const out = [];
     for (const item of items) {
       for (const seg of String(item == null ? '' : item).split('\f')) {

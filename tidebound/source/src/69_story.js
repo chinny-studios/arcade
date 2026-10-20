@@ -108,7 +108,7 @@ const Story = (() => {
       await UI.say([G.rival + ': Hah! I get the one', 'that beats yours. Let\'s go!']);
       const T = {
         id: 'rival1', cls: 'RIVAL', name: G.rival, sprite: 'rival', music: 'rival', money: 30,
-        party: [[rv, 5]],
+        party: [[rv, 5, 4]],
         intro: G.rival + ': Ready when you are!',
         lose: G.rival + ': Hmph. A lucky break.',
         after: G.rival + ': Next time I win!',

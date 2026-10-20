@@ -449,7 +449,7 @@ Maps.def({
   ],
   npcs: [
     {
-      id: 'lumarine', x: 5, y: 2, sprite: 'none', dir: 'down', move: 'still',
+      id: 'lumarine', x: 5, y: 2, sprite: 'mon:lumarine', dir: 'down', move: 'still',
       cond: () => flag('rival2') && !flag('lumarine'),
       talk: () => Story.lumarine(),
     },

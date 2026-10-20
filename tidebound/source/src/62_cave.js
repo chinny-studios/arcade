@@ -67,7 +67,7 @@ Maps.def({
       } },
     { id: 'cv_brine', x: 22, y: 2, sprite: 'captain', dir: 'left', move: 'still',
       talk: () => Story.brine() },
-    { id: 'corallo', x: 27, y: 11, sprite: 'none', dir: 'left', move: 'still',
+    { id: 'corallo', x: 27, y: 11, sprite: 'mon:corallo', dir: 'left', move: 'still',
       cond: () => flag('got_smash') && !flag('corallo'),
       talk: () => Story.corallo() },
   ],
