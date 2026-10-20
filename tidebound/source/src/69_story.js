@@ -192,7 +192,7 @@ const Story = (() => {
     await UI.say([G.rival + ': Heh, you beat Marina?', 'Then prove you are the best!']);
     const T = {
       id: 'rival2', cls: 'RIVAL', name: G.rival, sprite: 'rival', music: 'rival', money: 60,
-      party: [['gullip', 13], [EVOLVED[G.starter] || 'brambull', 16], ['kelpup', 13]],
+      party: [['gullip', 13], [EVOLVED[COUNTER[G.starter]] || 'brambull', 16], ['kelpup', 13]],
       intro: G.rival + ': Ready! Let\'s end this!',
       lose: G.rival + ': Ugh, you really are good.',
       after: G.rival + ': Still too strong for me!',

@@ -213,14 +213,18 @@ const Script = (() => {
 DBG.world = World;
 DBG.maps = Maps;
 DBG.walk = (path) => Script.walk('player', path);
-// Holds a direction for a little over one step per tile, n times.
+// Holds a direction until the player has started n steps (or something interrupts), then lets the last step finish.
 DBG.step = async (dir, n = 1) => {
-  for (let i = 0; i < n; i++) {
-    Input.hold(dir, true);
-    await DBG.sim(0.45);
-    Input.hold(dir, false);
-    await DBG.sim(0.05);
+  const p = World.player, m0 = G.map;
+  const s0 = p.stepN;
+  Input.hold(dir, true);
+  for (let f = 0; f < 60 * (n + 2) && p.stepN - s0 < n; f++) {
+    await DBG.sim(1 / 60);
+    if (G.map !== m0 || (Scenes.top() && Scenes.top().name !== 'world')) break;
   }
+  Input.hold(dir, false);
+  for (let f = 0; f < 120 && p.moving; f++) await DBG.sim(1 / 60);
+  await DBG.sim(0.05);
 };
 DBG.where = () => ({ map: G.map, x: G.x, y: G.y, dir: G.dir });
 DBG.noEncounters = false;

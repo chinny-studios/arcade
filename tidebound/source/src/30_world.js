@@ -57,7 +57,7 @@ const World = (() => {
   let map = null;            // runtime map: a copy of the Maps.def object with live tiles/npcs/items
   let busy = 0;              // script locks (World.lock / unlock, tasks, warps)
   let taskBusy = false;      // one async task (script, warp, encounter, trigger) at a time
-  let holdDir = null, holdT = 0;
+  let holdDir = null, holdT = 0, holdNeed = HOLD;
   let bumpCd = 0;
   let popup = null;          // location name popup {name, t}
   let lastName = null;
@@ -264,14 +264,14 @@ const World = (() => {
   function input(dt) {
     const d = Input.dir();
     if (!d) { holdDir = null; holdT = 0; }
-    else if (d !== holdDir) { holdDir = d; holdT = 0; }
+    else if (d !== holdDir) { holdDir = d; holdT = 0; holdNeed = player.dir === d ? 0 : HOLD; }   // already facing: walk at once
     else holdT += dt;
     if (player.moving) return;
     if (Input.pressed('start')) { task(() => Menus.start()); return; }
     if (Input.pressed('a')) { task(interact); return; }
     if (!d) return;
     if (player.dir !== d) { player.dir = d; G.dir = d; }   // a tap only turns
-    if (holdT >= HOLD) tryMove(d);
+    if (holdT >= holdNeed) tryMove(d);
   }
 
   // Runs after each completed player step. Decisions are made synchronously; anything that takes time runs as a task.
@@ -533,6 +533,7 @@ const World = (() => {
         if (inMap(tx, ty)) name = tileName(tx, ty);
         else if (map.indoor) continue;
         else name = map.border || 'water';
+        if (map.indoor && name === 'wall_in' && ty > 0) continue;   // GBA rooms: only the back wall is drawn
         const ox = shake && tx === shake.x && ty === shake.y ? sx : 0;
         drawTile(g, name, tx * TILE + ox, ty * TILE);
       }
@@ -595,5 +596,7 @@ const World = (() => {
     draw,
     // used by Script.walk: start one scripted step of `o` (player or npc) toward (nx, ny)
     _move: startMove,
+    // tests: can the player stand on (x, y)?
+    _walkable: (x, y) => inMap(x, y) && !blockedFor(player, x, y) && !tileAt(x, y).ledge,
   };
 })();

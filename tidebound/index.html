@@ -5897,7 +5897,7 @@ const World = (() => {
   let map = null;            // runtime map: a copy of the Maps.def object with live tiles/npcs/items
   let busy = 0;              // script locks (World.lock / unlock, tasks, warps)
   let taskBusy = false;      // one async task (script, warp, encounter, trigger) at a time
-  let holdDir = null, holdT = 0;
+  let holdDir = null, holdT = 0, holdNeed = HOLD;
   let bumpCd = 0;
   let popup = null;          // location name popup {name, t}
   let lastName = null;
@@ -6104,14 +6104,14 @@ const World = (() => {
   function input(dt) {
     const d = Input.dir();
     if (!d) { holdDir = null; holdT = 0; }
-    else if (d !== holdDir) { holdDir = d; holdT = 0; }
+    else if (d !== holdDir) { holdDir = d; holdT = 0; holdNeed = player.dir === d ? 0 : HOLD; }   // already facing: walk at once
     else holdT += dt;
     if (player.moving) return;
     if (Input.pressed('start')) { task(() => Menus.start()); return; }
     if (Input.pressed('a')) { task(interact); return; }
     if (!d) return;
     if (player.dir !== d) { player.dir = d; G.dir = d; }   // a tap only turns
-    if (holdT >= HOLD) tryMove(d);
+    if (holdT >= holdNeed) tryMove(d);
   }
 
   // Runs after each completed player step. Decisions are made synchronously; anything that takes time runs as a task.
@@ -6373,6 +6373,7 @@ const World = (() => {
         if (inMap(tx, ty)) name = tileName(tx, ty);
         else if (map.indoor) continue;
         else name = map.border || 'water';
+        if (map.indoor && name === 'wall_in' && ty > 0) continue;   // GBA rooms: only the back wall is drawn
         const ox = shake && tx === shake.x && ty === shake.y ? sx : 0;
         drawTile(g, name, tx * TILE + ox, ty * TILE);
       }
@@ -6435,6 +6436,8 @@ const World = (() => {
     draw,
     // used by Script.walk: start one scripted step of `o` (player or npc) toward (nx, ny)
     _move: startMove,
+    // tests: can the player stand on (x, y)?
+    _walkable: (x, y) => inMap(x, y) && !blockedFor(player, x, y) && !tileAt(x, y).ledge,
   };
 })();
 
@@ -6654,14 +6657,18 @@ const Script = (() => {
 DBG.world = World;
 DBG.maps = Maps;
 DBG.walk = (path) => Script.walk('player', path);
-// Holds a direction for a little over one step per tile, n times.
+// Holds a direction until the player has started n steps (or something interrupts), then lets the last step finish.
 DBG.step = async (dir, n = 1) => {
-  for (let i = 0; i < n; i++) {
-    Input.hold(dir, true);
-    await DBG.sim(0.45);
-    Input.hold(dir, false);
-    await DBG.sim(0.05);
+  const p = World.player, m0 = G.map;
+  const s0 = p.stepN;
+  Input.hold(dir, true);
+  for (let f = 0; f < 60 * (n + 2) && p.stepN - s0 < n; f++) {
+    await DBG.sim(1 / 60);
+    if (G.map !== m0 || (Scenes.top() && Scenes.top().name !== 'world')) break;
   }
+  Input.hold(dir, false);
+  for (let f = 0; f < 120 && p.moving; f++) await DBG.sim(1 / 60);
+  await DBG.sim(0.05);
 };
 DBG.where = () => ({ map: G.map, x: G.x, y: G.y, dir: G.dir });
 DBG.noEncounters = false;
@@ -7169,7 +7176,7 @@ const Battle = {
   // Shares the XP of a fainted foe among the fighters (and half to each EXP. Share holder).
   async function awardXp(S, foe) {
     const total = Mon.xpYield(foe, !S.wild);
-    const fighters = [...S.parts].filter((m) => m.hp > 0);
+    const fighters = [...S.parts].filter((m) => m && m.hp > 0);
     const shares = new Map();
     if (fighters.length) for (const m of fighters) shares.set(m, Math.max(1, Math.floor(total / fighters.length)));
     for (const m of G.party) {
@@ -7382,7 +7389,6 @@ const Battle = {
       await say('A wild ' + SPECIES[S.foes[0].sp].name + ' appeared!');
     } else {
       await B.ui.portrait(S, true);
-      if (S.t.intro) await say(S.t.intro);
       await say(S.title + ' would like to battle!');
       await B.ui.portrait(S, false);
       await say(S.title + ' sent out ' + SPECIES[S.foes[0].sp].name + '!');
@@ -7421,7 +7427,7 @@ const Battle = {
   async function run(S) {
     B.current = S;
     S.prev = Music.current;
-    S.parts = new Set([S.p ? S.p.mon : null]);
+    S.parts = new Set();
     await B.ui.transition(S);
     Scenes.push(S.scene);
     Music.play(S.music);
@@ -7742,11 +7748,9 @@ const Battle = {
       draw(g) {
         drawBackdrop(g);
         drawPlatforms(g);
-        if (S.e && S.e.mon) {
-          if (S.portraitOn || S.pox) drawTrainer(g, S);
-          else drawSide(g, S.e, E_X, E_Y, false);
-          drawBalls(g, S);
-        }
+        if (S.portraitOn) drawTrainer(g, S);
+        else if (S.e && S.e.mon) drawSide(g, S.e, E_X, E_Y, false);
+        if ((S.e && S.e.mon) || S.portraitOn) drawBalls(g, S);
         drawBall(g, S);
         if (S.p && S.p.mon) drawSide(g, S.p, P_X, P_Y, true);
         if (S.e && S.e.mon && !S.portraitOn && !S.pox) drawEnemyBox(g, S.e);
@@ -7982,6 +7986,135 @@ const Battle = {
       Scenes.push(sc);
     });
   };
+})();
+
+// ---- 42_evolve.js
+// Tidebound: the evolution scene. Evolve.run(mon, to) plays the animation, changes the species and checks the
+// moves the new species learns at its level. B cancels before the change. Top-level names: Evolve only.
+
+const Evolve = (() => {
+  const SPARKLES = Array.from({ length: 24 }, (_, i) => ({
+    x: (i * 53) % W, y: (i * 37) % H, ph: (i * 1.7) % 6.28,
+  }));
+  const silhouettes = new Map();
+
+  // A white copy of a monster sprite, for the flicker.
+  function silhouette(sp) {
+    if (!silhouettes.has(sp)) {
+      const src = Sprites.mon(sp, false);
+      silhouettes.set(sp, makeCanvas(src.width, src.height, (c, g) => {
+        g.drawImage(src, 0, 0);
+        g.globalCompositeOperation = 'source-in';
+        g.fillStyle = '#ffffff';
+        g.fillRect(0, 0, c.width, c.height);
+      }));
+    }
+    return silhouettes.get(sp);
+  }
+
+  // The scene: a dark background with sparkles. It drives the flicker and the flash itself, from its update.
+  function makeScene(from, to) {
+    const sc = {
+      name: 'evolve', opaque: true, t: 0, acc: 0, period: 0.4, showNew: false, phase: 'idle',
+      white: 0, res: null, onFlash: null,
+      update(dt) {
+        this.t += dt;
+        if (this.phase === 'anim') {
+          if (Input.pressed('b')) { this.finish(false); return; }
+          const k = Math.min(1, this.t / 4);
+          this.period = 0.42 - (0.42 - 0.05) * k;
+          this.acc += dt;
+          while (this.acc >= this.period) { this.acc -= this.period; this.showNew = !this.showNew; }
+          if (this.t >= 4) this.finish(true);
+        } else if (this.phase === 'flash') {
+          this.white = Math.max(0, this.white - dt * 1.2);
+          if (this.white <= 0 && this.onFlash) { const f = this.onFlash; this.onFlash = null; this.phase = 'idle'; f(); }
+        }
+      },
+      finish(ok) {
+        this.phase = 'idle';
+        this.showNew = false;
+        const r = this.res; this.res = null;
+        if (r) r(ok);
+      },
+      draw(g) {
+        g.fillStyle = '#101828';
+        g.fillRect(0, 0, W, H);
+        for (const s of SPARKLES) {
+          const a = 0.35 + 0.65 * Math.max(0, Math.sin(this.t * 3 + s.ph));
+          g.fillStyle = 'rgba(255,255,255,' + a.toFixed(2) + ')';
+          g.fillRect(s.x, s.y, 1, 1);
+        }
+        const img = this.showNew ? silhouette(to) : silhouette(from);
+        g.drawImage(img, 128, 36);
+        if (this.white > 0) {
+          g.globalAlpha = Math.min(1, this.white);
+          g.fillStyle = '#ffffff';
+          g.fillRect(0, 0, W, H);
+          g.globalAlpha = 1;
+        }
+      },
+    };
+    // Evolution flicker: resolves true when the timer runs out, false on B.
+    sc.animate = () => new Promise((res) => {
+      sc.res = res;
+      sc.phase = 'anim';
+      sc.t = 0;
+      sc.acc = 0;
+      if (DBG.fast) { sc.finish(true); }
+    });
+    // Full white flash, then the new sprite is shown.
+    sc.flashOut = () => new Promise((res) => {
+      if (DBG.fast) { sc.showNew = true; res(); return; }
+      sc.white = 1;
+      sc.phase = 'flash';
+      sc.onFlash = () => { sc.showNew = true; res(); };
+    });
+    return sc;
+  }
+
+  // Learn the moves the new species gets at the current level. A full moveset asks which move to forget.
+  async function learnAtLevel(mon) {
+    const name = Mon.name(mon);
+    for (const id of Mon.learnable(mon, mon.lv)) {
+      if (Mon.knows(mon, id)) continue;
+      if (mon.moves.length < 4) {
+        Mon.teach(mon, id);
+        await UI.say(name + ' learned ' + MOVES[id].name + '!');
+      } else {
+        await Battle.learnFull(mon, id);
+      }
+    }
+  }
+
+  // Runs the evolution of mon into species `to`. Resolves true when it evolved, false when B cancelled.
+  async function run(mon, to) {
+    const from = mon.sp;
+    const oldName = Mon.name(mon);
+    const prev = Music.current;
+    const sc = makeScene(from, to);
+    Scenes.push(sc);
+    Music.play('evolve');
+    await UI.say('What? ' + oldName + ' is evolving!');
+    const ok = await sc.animate();
+    if (!ok) {
+      await UI.say('Huh? ' + oldName + ' stopped evolving!');
+      Scenes.pop(sc);
+      if (prev) Music.play(prev); else Music.stop();
+      return false;
+    }
+    Sound.play('evolve');
+    await sc.flashOut();
+    await UI.say('Congratulations! Your ' + oldName + ' evolved into ' + SPECIES[to].name + '!');
+    Mon.evolve(mon, to);
+    Mon.markCaught(to);
+    await learnAtLevel(mon);
+    Scenes.pop(sc);
+    if (prev) Music.play(prev); else Music.stop();
+    return true;
+  }
+
+  return { run };
 })();
 
 // ---- 50_menus.js
@@ -9202,7 +9335,12 @@ const Title = (() => {
   function buildLogo() {
     const text = 'TIDEBOUND';
     const S = 3, OW = 2, pad = OW + 2;
-    const mask = makeCanvas(textWidth(text) + 4, 12, (c, g) => drawText(g, text, 2, 2, '#ffffff', '#ffffff'));
+    // letters spaced 2px wider than the font so the outlines don't merge at 3x
+    const adv = [...text].map((ch) => textWidth(ch) + 3);
+    const mask = makeCanvas(adv.reduce((a, b) => a + b, 0) + 4, 12, (c, g) => {
+      let x = 2;
+      [...text].forEach((ch, i) => { drawText(g, ch, x, 2, '#ffffff', null); x += adv[i]; });
+    });
     const bw = mask.width * S, bh = mask.height * S;
     const fill = makeCanvas(bw, bh, (c, g) => {
       const grd = g.createLinearGradient(0, 0, 0, bh);
@@ -9319,7 +9457,7 @@ const Title = (() => {
     if (!lumarine) lumarine = Sprites.mon('lumarine');
     const p = k / on;
     const x = W + 6 - p * (W + 90);
-    const y = 96 + Math.sin(t * 2) * 3;
+    const y = 114 + Math.sin(t * 2) * 3;
     g.drawImage(lumarine, Math.round(x), Math.round(y));
   }
   function drawLogo(g, t) {
@@ -10600,7 +10738,7 @@ const Story = (() => {
     await UI.say([G.rival + ': Heh, you beat Marina?', 'Then prove you are the best!']);
     const T = {
       id: 'rival2', cls: 'RIVAL', name: G.rival, sprite: 'rival', music: 'rival', money: 60,
-      party: [['gullip', 13], [EVOLVED[G.starter] || 'brambull', 16], ['kelpup', 13]],
+      party: [['gullip', 13], [EVOLVED[COUNTER[G.starter]] || 'brambull', 16], ['kelpup', 13]],
       intro: G.rival + ': Ready! Let\'s end this!',
       lose: G.rival + ': Ugh, you really are good.',
       after: G.rival + ': Still too strong for me!',
@@ -10664,7 +10802,7 @@ DBG.start = async (o = {}) => {
   DBG.autoText = o.autoText !== false;
   G.options.music = false; G.options.sfx = false;
   if (o.starter) {
-    G.party.push(Mon.create(o.starter, o.lv || 5));
+    G.party.push(Mon.create(o.starter, o.lv || 5)); Mon.markCaught(o.starter);
     G.starter = o.starter;
     setFlag('got_starter'); setFlag('rival1'); setFlag('got_dex'); setFlag('intro_done');
     bagAdd('orb', 5); bagAdd('potion', 2);
@@ -10679,6 +10817,23 @@ DBG.G = () => G;
 DBG.flags = () => G.flags;
 DBG.give = (item, n = 1) => bagAdd(item, n);
 DBG.giveMon = (sp, lv = 5) => { const m = Mon.create(sp, lv); Mon.addToParty(m); Mon.markCaught(sp); return m; };
+// boost(lv): level every party member up to lv the normal way (learning moves, replacing the weakest when full,
+// evolving), then heal. boost(0) just heals.
+DBG.boost = (lv) => {
+  for (const m of G.party) {
+    if (m.lv < lv) {
+      const evs = Mon.gainXp(m, Mon.xpAt(lv, SPECIES[m.sp].growth) - m.xp);
+      for (const ev of evs) {
+        if (ev.type === 'learnFull') {
+          let k = 0;
+          m.moves.forEach((mv, i) => { if ((MOVES[mv.id].power || 0) < (MOVES[m.moves[k].id].power || 0)) k = i; });
+          Mon.teach(m, ev.move, k);
+        } else if (ev.type === 'evolve') Mon.evolve(m, ev.to);
+      }
+    }
+    Mon.heal(m);
+  }
+};
 DBG.tp = (map, x, y, dir = 'down') => World.warp(map, x, y, dir);
 DBG.battle = (sp, lv = 5) => Battle.wild(sp, lv);
 DBG.trainer = (t) => Battle.trainer(t);

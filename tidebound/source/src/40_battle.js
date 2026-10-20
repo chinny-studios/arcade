@@ -500,7 +500,7 @@ const Battle = {
   // Shares the XP of a fainted foe among the fighters (and half to each EXP. Share holder).
   async function awardXp(S, foe) {
     const total = Mon.xpYield(foe, !S.wild);
-    const fighters = [...S.parts].filter((m) => m.hp > 0);
+    const fighters = [...S.parts].filter((m) => m && m.hp > 0);
     const shares = new Map();
     if (fighters.length) for (const m of fighters) shares.set(m, Math.max(1, Math.floor(total / fighters.length)));
     for (const m of G.party) {
@@ -713,7 +713,6 @@ const Battle = {
       await say('A wild ' + SPECIES[S.foes[0].sp].name + ' appeared!');
     } else {
       await B.ui.portrait(S, true);
-      if (S.t.intro) await say(S.t.intro);
       await say(S.title + ' would like to battle!');
       await B.ui.portrait(S, false);
       await say(S.title + ' sent out ' + SPECIES[S.foes[0].sp].name + '!');
@@ -752,7 +751,7 @@ const Battle = {
   async function run(S) {
     B.current = S;
     S.prev = Music.current;
-    S.parts = new Set([S.p ? S.p.mon : null]);
+    S.parts = new Set();
     await B.ui.transition(S);
     Scenes.push(S.scene);
     Music.play(S.music);

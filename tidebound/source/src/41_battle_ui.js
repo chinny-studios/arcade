@@ -258,11 +258,9 @@
       draw(g) {
         drawBackdrop(g);
         drawPlatforms(g);
-        if (S.e && S.e.mon) {
-          if (S.portraitOn || S.pox) drawTrainer(g, S);
-          else drawSide(g, S.e, E_X, E_Y, false);
-          drawBalls(g, S);
-        }
+        if (S.portraitOn) drawTrainer(g, S);
+        else if (S.e && S.e.mon) drawSide(g, S.e, E_X, E_Y, false);
+        if ((S.e && S.e.mon) || S.portraitOn) drawBalls(g, S);
         drawBall(g, S);
         if (S.p && S.p.mon) drawSide(g, S.p, P_X, P_Y, true);
         if (S.e && S.e.mon && !S.portraitOn && !S.pox) drawEnemyBox(g, S.e);

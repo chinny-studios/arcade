@@ -27,7 +27,12 @@ const Title = (() => {
   function buildLogo() {
     const text = 'TIDEBOUND';
     const S = 3, OW = 2, pad = OW + 2;
-    const mask = makeCanvas(textWidth(text) + 4, 12, (c, g) => drawText(g, text, 2, 2, '#ffffff', '#ffffff'));
+    // letters spaced 2px wider than the font so the outlines don't merge at 3x
+    const adv = [...text].map((ch) => textWidth(ch) + 3);
+    const mask = makeCanvas(adv.reduce((a, b) => a + b, 0) + 4, 12, (c, g) => {
+      let x = 2;
+      [...text].forEach((ch, i) => { drawText(g, ch, x, 2, '#ffffff', null); x += adv[i]; });
+    });
     const bw = mask.width * S, bh = mask.height * S;
     const fill = makeCanvas(bw, bh, (c, g) => {
       const grd = g.createLinearGradient(0, 0, 0, bh);
@@ -144,7 +149,7 @@ const Title = (() => {
     if (!lumarine) lumarine = Sprites.mon('lumarine');
     const p = k / on;
     const x = W + 6 - p * (W + 90);
-    const y = 96 + Math.sin(t * 2) * 3;
+    const y = 114 + Math.sin(t * 2) * 3;
     g.drawImage(lumarine, Math.round(x), Math.round(y));
   }
   function drawLogo(g, t) {
