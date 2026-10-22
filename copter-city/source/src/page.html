@@ -1,0 +1,265 @@
+<title>Copter City</title>
+<meta name="description" content="Fly a helicopter for the city in a 1996-style sim: fight fires with a water bucket, fly patients to hospital, chase getaway cars, break up riots, taxi passengers and pull people off burning roofs across five cities.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #f0f0e0; --dim: #a8b0a0; --faint: #707868; --yel: #ffd23a; --red: #ff4a4a; --grn: #7aff5a; --blue: #5ab8ff;
+    --panel: #1c2430; --panel2: #263242; --hi: #4a5a70; --lo: #0a0e14;
+    --mono: 'VT323', 'Courier New', monospace; --pix: 'Press Start 2P', 'Courier New', monospace;
+    --dw: min(100vw, 860px, 106vh); --dh: calc(var(--dw) / 4.8); }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: var(--ink); font-family: var(--mono); font-size: 20px; -webkit-user-select: none; user-select: none; touch-action: none; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  button, select, input { font-family: var(--mono); font-size: 20px; color: var(--ink); }
+  #nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; }
+  /* bevelled 90s panels and buttons */
+  .win { background: var(--panel); border: 3px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); box-shadow: 0 0 0 2px #000, 0 10px 40px rgba(0,0,0,.6); }
+  .btn { background: #34445a; border: 3px solid; border-color: #6a7e9a #141c26 #141c26 #6a7e9a; padding: 4px 14px; cursor: pointer; min-height: 38px; }
+  .btn:hover, .btn:focus-visible { background: #44587a; outline: none; color: var(--yel); }
+  .btn:active { border-color: #141c26 #6a7e9a #6a7e9a #141c26; }
+  .btn:disabled { opacity: .45; cursor: default; color: var(--ink); }
+  .btn.big { font-size: 26px; padding: 8px 20px; min-width: 300px; }
+  h2 { font-family: var(--pix); font-size: 16px; color: var(--yel); margin: 0 0 12px; text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
+  .dim { color: var(--dim); } .small { font-size: 17px; } .ok { color: var(--grn); }
+  .menu { position: absolute; inset: 0; display: grid; place-items: center; z-index: 20; background: rgba(0,0,0,.35); }
+  .menu > .win { padding: 18px 22px; max-width: min(760px, 94vw); max-height: 88vh; overflow: auto; }
+  /* title */
+  #title { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.55)); }
+  #logo { font-family: var(--pix); font-size: clamp(30px, 7vw, 72px); color: var(--yel); text-shadow: 4px 4px 0 #b8420a, 8px 8px 0 #000; letter-spacing: 2px; text-align: center; line-height: 1.15; }
+  #tag { font-size: 24px; color: #fff; text-shadow: 2px 2px 0 #000; margin-bottom: 16px; text-align: center; padding: 0 12px; }
+  #title .foot { position: absolute; bottom: 10px; color: var(--dim); font-size: 17px; text-shadow: 1px 1px 0 #000; text-align: center; padding: 0 10px; }
+  /* HUD */
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud { display: block; }
+  body.nohud .hud { display: none !important; }
+  #call { position: absolute; left: 12px; top: 10px; width: min(430px, 64vw); padding: 8px 10px 8px 54px; background: rgba(12,16,22,.86); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+  #callArrow { position: absolute; left: 12px; top: 14px; width: 0; height: 0; border: 15px solid transparent; border-bottom: 26px solid var(--yel); border-top: 0; transform-origin: 50% 60%; filter: drop-shadow(1px 2px 0 #000); }
+  #callTag { font-family: var(--pix); font-size: 10px; padding: 3px 5px; color: #000; margin-right: 6px; }
+  #callTitle { font-size: 24px; } #callStage { color: var(--dim); font-size: 19px; line-height: 1.1; margin-top: 2px; } #callDist { color: var(--yel); font-size: 18px; }
+  #calls { position: absolute; left: 12px; top: 128px; font-size: 17px; text-shadow: 1px 1px 0 #000; }
+  #calls i { font-style: normal; font-family: var(--pix); font-size: 8px; color: #000; padding: 2px 4px; margin-right: 4px; }
+  #tr { position: absolute; right: 12px; top: 10px; text-align: right; text-shadow: 2px 2px 0 #000; }
+  #money { font-family: var(--pix); font-size: 16px; color: var(--grn); } #clock { font-size: 24px; } #goal { color: var(--dim); font-size: 18px; }
+  #cash { font-family: var(--pix); font-size: 14px; margin-top: 4px; } #cash.good { color: var(--grn); } #cash.bad { color: var(--red); }
+  #np { position: absolute; right: 12px; top: 96px; text-align: right; background: rgba(0,0,0,.6); padding: 4px 8px; font-size: 17px; color: var(--blue); border-right: 3px solid var(--blue); }
+  #np b { color: #fff; font-weight: normal; }
+  #log { position: absolute; left: 12px; bottom: calc(var(--dh) + 10px); width: min(520px, 70vw); display: flex; flex-direction: column; gap: 3px; }
+  body[data-where="foot"] #log { bottom: 14px; }
+  .rm { background: rgba(8,10,14,.78); border-left: 4px solid var(--faint); padding: 3px 8px; font-size: 18px; line-height: 1.15; transition: opacity 1s; }
+  .rm b { color: var(--yel); font-weight: normal; margin-right: 4px; } .rm.dispatch { border-color: var(--yel); } .rm.good { border-color: var(--grn); } .rm.bad { border-color: var(--red); color: #ffd8d0; } .rm.person { border-color: var(--blue); color: #d8f0ff; }
+  .rm.old { opacity: .4; }
+  #toasts { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(600px, 92vw); }
+  .toast { background: rgba(10,12,18,.9); border: 2px solid var(--hi); padding: 5px 14px; text-align: center; font-size: 21px; transition: opacity .6s, transform .6s; }
+  .toast.bad { border-color: var(--red); color: #ffd0d0; } .toast.good { border-color: var(--grn); color: #e0ffd8; } .toast.out { opacity: 0; transform: translateY(-10px); }
+  #bubble { position: absolute; left: 50%; top: 13%; transform: translateX(-50%); background: #fff; color: #111; padding: 6px 14px; font-size: 22px; border: 3px solid #000; max-width: 80vw; text-align: center; }
+  #prompt { position: absolute; left: 50%; bottom: calc(var(--dh) + 12px); transform: translateX(-50%); display: flex; gap: 8px; }
+  body[data-where="foot"] #prompt { bottom: 30%; }
+  .pp { background: rgba(10,12,18,.85); border: 2px solid var(--hi); padding: 2px 10px 2px 4px; display: flex; align-items: center; gap: 6px; font-size: 19px; }
+  .pp .k { background: var(--yel); color: #000; padding: 0 6px; font-family: var(--pix); font-size: 9px; line-height: 20px; }
+  #dash { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: var(--dw); height: var(--dh); image-rendering: pixelated; }
+  #cockpit { position: absolute; inset: 0; pointer-events: none; }
+  #cockpit i { position: absolute; background: #23282c; box-shadow: inset 0 0 0 2px #121518; }
+  #cockpit .p1 { left: 0; top: 0; bottom: 0; width: 5vw; } #cockpit .p2 { right: 0; top: 0; bottom: 0; width: 5vw; } #cockpit .p3 { left: 0; right: 0; top: 0; height: 5vh; }
+  #cockpit .p4 { left: 36%; width: 1.6vw; top: 0; height: 68vh; transform: skewX(-6deg); } #cockpit .p5 { right: 36%; width: 1.6vw; top: 0; height: 68vh; transform: skewX(6deg); }
+  #cockpit .p6 { left: 0; right: 0; bottom: 0; height: 30vh; background: linear-gradient(#2c3236, #1a1e22); border-top: 4px solid #3a4046; }
+  #hud-pause { position: absolute; right: 12px; bottom: calc(var(--dh) + 8px); pointer-events: auto; width: 44px; height: 40px; }
+  body[data-where="foot"] #hud-pause { bottom: 12px; }
+  /* touch */
+  #touch { display: none; position: absolute; inset: 0; pointer-events: none; }
+  body[data-input="touch"][data-state="play"] #touch { display: block; }
+  body[data-input="touch"] #log { width: 56vw; }
+  #tStick { position: absolute; left: 0; bottom: 0; width: 45vw; height: 62vh; pointer-events: auto; }
+  #tBase { position: absolute; left: 90px; bottom: 120px; width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(255,255,255,.5); background: rgba(0,0,0,.2); transform: translate(-50%, 50%); opacity: .35; }
+  body[data-input="touch"] #tBase { transform: translate(-50%, -50%); }
+  #tKnob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.6); transform: translate(-50%,-50%); }
+  .tb { position: absolute; pointer-events: auto; width: 62px; height: 62px; background: rgba(20,28,40,.72); border: 3px solid rgba(255,255,255,.35); color: #fff; font-family: var(--pix); font-size: 10px; display: grid; place-items: center; }
+  .tb.on { background: rgba(255,210,58,.6); }
+  #tUp { right: 18px; bottom: calc(var(--dh) + 150px); } #tDn { right: 18px; bottom: calc(var(--dh) + 78px); }
+  #tSl { right: 164px; bottom: calc(var(--dh) + 114px); } #tSr { right: 92px; bottom: calc(var(--dh) + 114px); }
+  #tUse { right: 18px; top: 120px; width: 76px; height: 76px; font-size: 12px; background: rgba(140,40,20,.7); } #tGear { right: 104px; top: 128px; } #tExit { right: 174px; top: 128px; }
+  #tCam { right: 18px; top: 206px; width: 52px; height: 44px; } #tMap { right: 78px; top: 206px; width: 52px; height: 44px; } #tCall { right: 138px; top: 206px; width: 52px; height: 44px; } #tRadio { right: 198px; top: 206px; width: 52px; height: 44px; }
+  body[data-input="touch"] #tBase { bottom: calc(var(--dh) + 70px); }
+  /* short landscape screens: small buttons along the top right, flight buttons above the panel */
+  @media (max-height: 520px) and (orientation: landscape) {
+    #tCam, #tMap, #tCall, #tRadio { top: 8px; width: 50px; height: 40px; } #tCam { right: 8px; } #tMap { right: 64px; } #tCall { right: 120px; } #tRadio { right: 176px; }
+    #tUse { right: 8px; top: 58px; width: 66px; height: 66px; } #tGear { right: 82px; top: 62px; width: 58px; height: 58px; } #tExit { right: 148px; top: 62px; width: 58px; height: 58px; }
+    #tUp { right: 8px; bottom: calc(var(--dh) + 70px); width: 58px; height: 58px; } #tDn { right: 8px; bottom: calc(var(--dh) + 6px); width: 58px; height: 58px; }
+    #tSl { right: 140px; bottom: calc(var(--dh) + 38px); width: 58px; height: 58px; } #tSr { right: 74px; bottom: calc(var(--dh) + 38px); width: 58px; height: 58px; }
+    body[data-input="touch"] #tr { top: auto; bottom: calc(var(--dh) + 8px); right: auto; left: 12px; text-align: left; }
+    body[data-input="touch"] #hud-pause { right: 232px; top: 8px; bottom: auto; }
+    body[data-input="touch"] #log { display: none; }
+    body[data-input="touch"] #tBase { bottom: calc(var(--dh) + 40px); }
+    #call { width: 52vw; padding: 4px 8px 4px 48px; } #callStage { font-size: 15px; }
+  }
+  body[data-where="foot"] #tDn, body[data-where="foot"] #tSl, body[data-where="foot"] #tSr, body[data-where="foot"] #tUse, body[data-where="foot"] #tGear, body[data-where="foot"] #tCam { display: none; }
+  body[data-input="touch"] #tr { top: 260px; }
+  body[data-input="touch"] #np { display: none !important; }
+  /* menus */
+  .city { border: 2px solid var(--hi); background: var(--panel2); padding: 8px 10px; margin: 8px 0; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; }
+  .city.locked { opacity: .5; } .city.cur { border-color: var(--yel); }
+  .city .cn { font-size: 24px; color: #fff; } .city .cb { grid-column: 1; color: var(--dim); font-size: 18px; } .city .cg { grid-column: 1; color: var(--faint); font-size: 16px; }
+  .city .btn { grid-column: 2; grid-row: 1 / span 3; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; } .tabs .btn.on { background: #5a6e8e; color: var(--yel); }
+  .hrow { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 7px 0; border-bottom: 1px solid #34404e; }
+  .hrow b { color: #fff; font-weight: normal; }
+  .opt { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; }
+  .opt select, .opt input[type=range] { min-width: 180px; } select { background: #34445a; border: 2px solid #6a7e9a; padding: 2px 6px; }
+  .opt input[type=checkbox] { width: 22px; height: 22px; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 2px 16px; font-size: 19px; } .keys b { color: var(--yel); font-weight: normal; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; } @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
+  #mapBig { position: absolute; inset: 0; z-index: 15; display: grid; place-items: center; background: rgba(0,0,0,.6); pointer-events: auto; }
+  #bigMap { border: 3px solid var(--hi); image-rendering: pixelated; max-width: 94vw; max-height: 84vh; }
+  #mapBig .mt { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-size: 20px; text-shadow: 1px 1px 0 #000; text-align: center; }
+  #mapClose { position: absolute; right: 12px; top: 8px; }
+  @media (max-width: 640px), (max-height: 500px) { #call { width: 56vw; } #callTitle { font-size: 20px; } #callStage { font-size: 16px; } #calls { display: none; } .rm { font-size: 15px; } #tr { transform: scale(.85); transform-origin: top right; } }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="nogl" hidden>Copter City needs WebGL. Try another browser or turn on hardware acceleration.</div>
+
+  <div class="hud">
+    <div id="cockpit" hidden><i class="p6"></i><i class="p1"></i><i class="p2"></i><i class="p3"></i><i class="p4"></i><i class="p5"></i></div>
+    <div id="call" hidden><div id="callArrow"></div><div><span id="callTag"></span><span id="callTitle"></span></div><div id="callStage"></div><div id="callDist"></div></div>
+    <div id="calls"></div>
+    <div id="tr"><div id="money"></div><div id="clock"></div><div id="goal"></div><div id="cash" hidden></div></div>
+    <div id="np" hidden></div>
+    <div id="log"></div>
+    <div id="toasts"></div>
+    <div id="bubble" hidden></div>
+    <div id="prompt"></div>
+    <canvas id="dash"></canvas>
+    <button id="hud-pause" class="btn" aria-label="Pause">II</button>
+    <div id="touch">
+      <div id="tStick"><div id="tBase"><div id="tKnob"></div></div></div>
+      <div class="tb" id="tUp" data-t="up">UP</div><div class="tb" id="tDn" data-t="dn">DN</div>
+      <div class="tb" id="tSl" data-t="sl">&lt;&lt;</div><div class="tb" id="tSr" data-t="sr">&gt;&gt;</div>
+      <div class="tb" id="tUse" data-tap="t_use">USE</div><div class="tb" id="tGear" data-tap="t_gear">GEAR</div><div class="tb" id="tExit" data-tap="t_exit">EXIT</div>
+      <div class="tb" id="tCam" data-tap="t_cam">CAM</div><div class="tb" id="tMap" data-tap="t_map">MAP</div><div class="tb" id="tCall" data-tap="t_call">CALL</div><div class="tb" id="tRadio" data-tap="t_radio">FM</div>
+    </div>
+  </div>
+
+  <div id="title" hidden>
+    <div id="logo">COPTER<br>CITY</div>
+    <div id="tag">The city needs a pilot. Fires, crashes, crooks and cranky passengers.</div>
+    <button class="btn big" id="btnContinue" hidden>Continue career</button>
+    <button class="btn big" id="btnNew">New career</button>
+    <button class="btn big" id="btnFree">Free flight</button>
+    <button class="btn big" id="btnOptions">Options</button>
+    <button class="btn big" id="btnHelp">Controls</button>
+    <div class="foot">Keyboard and mouse · gamepad · touch &nbsp;·&nbsp; All sound and music made in code</div>
+  </div>
+
+  <div id="career" class="menu" hidden><div class="win">
+    <h2>CAREER</h2>
+    <div id="careerHead" class="dim"></div>
+    <div id="cityList"></div>
+    <button class="btn" id="careerBack">Back</button>
+  </div></div>
+
+  <div id="free" class="menu" hidden><div class="win">
+    <h2>FREE FLIGHT</h2>
+    <div class="opt">
+      <span>City</span><select id="freeCity"></select>
+      <span>Helicopter</span><select id="freeHeli"></select>
+      <span>Time of day</span><select id="freeHour"><option value="7">Dawn</option><option value="11" selected>Midday</option><option value="18.6">Sunset</option><option value="22">Night</option></select>
+      <span>Dispatch calls</span><select id="freeCalls"><option value="on">On</option><option value="off">Off: just fly</option></select>
+    </div>
+    <p id="freeNote" class="dim small"></p>
+    <button class="btn" id="freeGo">Take off</button> <button class="btn" id="freeBack">Back</button>
+  </div></div>
+
+  <div id="hangar" class="menu" hidden><div class="win">
+    <h2>HANGAR</h2>
+    <div id="hMoney" class="dim"></div>
+    <div class="tabs"><button class="btn" data-htab="service">Fuel &amp; repairs</button><button class="btn" data-htab="helis">Helicopters</button><button class="btn" data-htab="ups">Upgrades</button><button class="btn" data-htab="move">Relocate</button></div>
+    <div id="hBody"></div>
+    <p><button class="btn" id="hLeave">Back to the pad</button></p>
+  </div></div>
+
+  <div id="pause" class="menu" hidden><div class="win" style="display:flex;flex-direction:column;gap:8px;min-width:260px">
+    <h2>PAUSED</h2>
+    <button class="btn" id="pResume">Resume</button>
+    <button class="btn" id="pMap">City map</button>
+    <button class="btn" id="pOptions">Options</button>
+    <button class="btn" id="pHelp">Controls</button>
+    <button class="btn" id="pQuit">Save and quit to title</button>
+  </div></div>
+
+  <div id="options" class="menu" hidden><div class="win">
+    <h2>OPTIONS</h2>
+    <div class="opt">
+      <span>Flight model</span><select data-opt="flight"><option value="arcade">Arcade: holds altitude, easy</option><option value="sim">Sim: collective, cyclic, pedals</option></select>
+      <span>Sim: stability assist</span><input type="checkbox" data-opt="assist">
+      <span>Sim: rotor torque</span><input type="checkbox" data-opt="torque">
+      <span>Resolution</span><select data-opt="res"><option value="240">240 lines (1996)</option><option value="360">360 lines</option><option value="480">480 lines</option><option value="0">Full</option></select>
+      <span>View distance</span><select data-opt="view"><option value="600">Short</option><option value="900">Medium</option><option value="1300">Far</option></select>
+      <span>Volume</span><input type="range" min="0" max="1" step="0.05" data-opt="vol">
+      <span>Radio volume</span><input type="range" min="0" max="1" step="0.05" data-opt="music">
+      <span>Dispatcher voice</span><input type="checkbox" data-opt="voice">
+      <span>Camera shake</span><input type="checkbox" data-opt="shake">
+      <span>Equipment tips</span><input type="checkbox" data-opt="tips">
+      <span>Invert forward/back</span><input type="checkbox" data-opt="invert">
+      <span>Call beams</span><input type="checkbox" data-opt="markers">
+      <span>Fires spread</span><input type="checkbox" data-opt="spread">
+    </div>
+    <p><button class="btn" id="optClose">Done</button></p>
+  </div></div>
+
+  <div id="help" class="menu" hidden><div class="win">
+    <h2>CONTROLS</h2>
+    <div class="cols">
+      <div class="keys">
+        <span></span><span class="dim">Keyboard · arcade</span>
+        <b>W / S</b><span>forward / back</span>
+        <b>A / D</b><span>turn left / right</span>
+        <b>Q / E</b><span>strafe left / right</span>
+        <b>Space / Shift</b><span>climb / descend</span>
+        <b>1 – 5</b><span>bucket, ladder, light, megaphone, gas</span>
+        <b>F</b><span>use equipment</span>
+        <b>E</b><span>get out (landed) · get in · chat</span>
+        <b>Enter</b><span>hangar (on the yellow pad)</span>
+        <b>Tab</b><span>next call</span>
+        <b>M</b><span>city map</span>
+        <b>V</b><span>camera: chase, cockpit, high, belly</span>
+        <b>R</b><span>radio station</span>
+        <b>H</b><span>siren</span>
+        <b>Mouse drag · wheel</b><span>look around · zoom</span>
+        <b>Esc / P</b><span>pause</span>
+      </div>
+      <div class="keys">
+        <span></span><span class="dim">Sim flight model</span>
+        <b>W / S</b><span>cyclic forward / back</span>
+        <b>A / D</b><span>cyclic roll</span>
+        <b>Q / E</b><span>pedals (yaw)</span>
+        <b>Space / Shift</b><span>collective up / down</span>
+        <span></span><span class="dim">Gamepad</span>
+        <b>Left stick</b><span>fly (sim: cyclic)</span>
+        <b>RT / LT</b><span>climb / descend</span>
+        <b>LB / RB</b><span>strafe (sim: right stick pedals)</span>
+        <b>A</b><span>use equipment · X next equipment</span>
+        <b>Y</b><span>get in / out · B camera</span>
+        <b>D-pad</b><span>up next call · down siren · left/right equipment</span>
+        <b>Back · Start · L3</b><span>map · pause · radio</span>
+        <span></span><span class="dim">Touch</span>
+        <b>Left side</b><span>stick to fly or walk</span>
+        <b>UP / DN</b><span>climb / descend</span>
+        <b>USE · GEAR · EXIT</b><span>equipment and doors</span>
+      </div>
+    </div>
+    <p><button class="btn" id="helpClose">Done</button></p>
+  </div></div>
+
+  <div id="notice" class="menu" hidden><div class="win" style="max-width:560px">
+    <h2 id="noticeTitle"></h2>
+    <div id="noticeBody"></div>
+    <p><button class="btn" id="noticeOk">OK</button></p>
+  </div></div>
+
+  <div id="mapBig" hidden>
+    <div class="mt">Click a call to make it your target · <span class="dim">M to close</span></div>
+    <button class="btn" id="mapClose">Close</button>
+    <canvas id="bigMap"></canvas>
+  </div>
+</div>
