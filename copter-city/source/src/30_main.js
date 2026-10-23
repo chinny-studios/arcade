@@ -103,7 +103,7 @@ function autopilot(dt) {
   const surf = surfaceY(H.x, H.z, H.y + 1);
   let alt = a.alt !== undefined ? a.alt : 60;
   // look ahead for tall buildings
-  if (!a.exact) for (let k = 20; k < Math.min(Math.max(120, speedH() * 4), d + 10); k += 20) { const x = H.x + (d > 1 ? dx / d : 0) * k, z = H.z + (d > 1 ? dz / d : 0) * k; alt = Math.max(alt, roofBelow(x, z) + 15); }
+  if (!a.exact) for (let k = 10; k < Math.min(Math.max(120, speedH() * 4), d + 10); k += 10) for (const side of [-8, 0, 8]) { const ux = d > 1 ? dx / d : 0, uz = d > 1 ? dz / d : 0, x = H.x + ux * k - uz * side, z = H.z + uz * k + ux * side; alt = Math.max(alt, roofBelow(x, z) + 15); }
   if (d < 120 && !a.land && !a.exact) alt = Math.max(alt, roofBelow(a.x, a.z) + 15);
   if (a.land && d < 12) alt = -5;
   const tgtY = (a.land && d < 12 ? surf : surfaceY(a.x, a.z) * 0) + alt;

@@ -52,8 +52,9 @@ function flyHeli(dt, inp) {
     if ((H.warnT -= dt) <= 0) { msg('You are leaving city airspace. Turn back.', 'bad'); H.warnT = 6; }
   }
   if (H.y > 420) H.vy = Math.min(H.vy, -1);
-  H.x += H.vx * dt; H.y += H.vy * dt; H.z += H.vz * dt;
-  collideHeli(dt);
+  // move in steps of under a metre so a fast helicopter can't skip through a wall
+  const steps = Math.min(8, Math.max(1, Math.ceil(Math.hypot(H.vx, H.vy, H.vz) * dt / 0.8)));
+  for (let i = 0; i < steps; i++) { H.x += H.vx * dt / steps; H.y += H.vy * dt / steps; H.z += H.vz * dt / steps; collideHeli(); }
   groundHeli(dt);
 }
 function flyArcade(dt, inp, power, load) {
@@ -109,27 +110,47 @@ function flySim(dt, inp, power, load) {
 }
 
 // ---------- collisions, ground and damage ----------
-function collideHeli(dt) {
-  const H = HELI, m = H.model, cy = H.y + m.skid + m.bodyH * 0.5;
-  const r = Math.min(m.r, 6.5);
-  const c = collideSphere(H.x, cy, H.z, r, H.y + 1.2);
-  if (!c.hit) return;
-  const vn = H.vx * c.nx + H.vy * c.ny + H.vz * c.nz;
-  H.x = c.x; H.z = c.z; H.y = c.y - m.skid - m.bodyH * 0.5;
-  if (c.ny > 0.7) { // resting on something's top: treat it as ground
+// Every hull sphere is pushed out of buildings, props and cars, and the helicopter moves with it. The deepest
+// contact sets the bounce and the damage. Rotor tips leave sideways and cost more.
+const _hq = new THREE.Quaternion(), _he = new THREE.Euler(), _hp = new V3();
+function collideHeli() {
+  const H = HELI, m = H.model, minTop = H.y + 1.2;
+  _hq.setFromEuler(_he.set(H.pitch, H.yaw, H.roll, 'YXZ'));
+  let best = null, car = null;
+  for (let pass = 0; pass < 2; pass++) {
+    let moved = false;
+    for (const s of m.hull) {
+      _hp.copy(s.p).applyQuaternion(_hq);
+      const px = H.x + _hp.x, py = H.y + _hp.y, pz = H.z + _hp.z;
+      const c = collideSphere(px, py, pz, s.r, minTop, s.rotor);
+      const hitCar = pushFromCars(c, s.r);
+      if (!c.hit) continue;
+      if (hitCar) car = hitCar;
+      H.x += c.x - px; H.y += c.y - py; H.z += c.z - pz; moved = true;
+      if (!best || c.depth > best.depth) best = { depth: c.depth, nx: c.nx, ny: c.ny, nz: c.nz, rotor: s.rotor, x: c.x, y: c.y, z: c.z, hit: c.hit };
+    }
+    if (!moved) break;
+  }
+  if (!best) return;
+  if (best.ny > 0.7) { // resting on something's top: treat it as ground
     if (H.vy < 0) { if (H.vy < -7) damageHeli((-H.vy - 7) * 7, 'hard landing'); H.vy = 0; }
     return;
   }
-  if (vn < 0) {
-    H.vx -= 1.4 * vn * c.nx; H.vy -= 1.4 * vn * c.ny; H.vz -= 1.4 * vn * c.nz;
-    if (vn < -2.5 && H.hitT <= 0) {
-      G.lastHit = { x: H.x, y: H.y, z: H.z, vn, s: c.hit && c.hit.y1 !== undefined ? [c.hit.x0, c.hit.z0, c.hit.x1, c.hit.z1, c.hit.y0, c.hit.y1, c.hit.r, c.hit.b && c.hit.b.style] : null };
-      damageHeli((-vn - 2.5) * 3.6 * (1 + H.st.hp / 400), 'collision');
-      CAM.shake = Math.min(1, CAM.shake + 0.5); H.hitT = 0.4;
-      for (let i = 0; i < 10; i++) spark({ add: true, x: H.x - c.nx * r, y: cy, z: H.z - c.nz * r, vx: rr(-6, 6), vy: rr(0, 6), vz: rr(-6, 6), life: 0.5, s0: 0.8, s1: 0.2, c0: [1, 0.9, 0.5, 1], c1: [1, 0.5, 0.1, 0], grav: 10 });
-      AUDIO.sfx('crunch', Math.min(1, -vn / 12));
-    }
-  }
+  const vn = H.vx * best.nx + H.vy * best.ny + H.vz * best.nz;
+  if (vn >= 0) return;
+  H.vx -= 1.4 * vn * best.nx; H.vy -= 1.4 * vn * best.ny; H.vz -= 1.4 * vn * best.nz;
+  // a rotor strike hurts even at a crawl; the body shrugs off a nudge
+  const hard = best.rotor ? -vn > 0.8 : -vn > 2.5;
+  if (!hard || H.hitT > 0) return;
+  const s = best.hit;
+  G.lastHit = { x: H.x, y: H.y, z: H.z, vn, rotor: best.rotor, car: !!car, s: s && s.y1 !== undefined ? [s.x0, s.z0, s.x1, s.z1, s.y0, s.y1, s.r, s.b && s.b.style] : null };
+  const base = best.rotor ? (-vn < 3 ? 1.5 + (-vn) * 1.5 : 4 + (-vn) * 4.5) : (-vn - 2.5) * 3.6; // a blade scrape is a scratch, a strike at speed is not
+  damageHeli(base * (1 + H.st.hp / 400), best.rotor ? 'rotor strike' : car ? 'hit a car' : 'collision');
+  if (best.rotor && (H.rotorT = (H.rotorT || 0) - 1) < 0) { toast('Rotor strike! Keep the blades clear.', 'bad'); H.rotorT = 4; }
+  if (car) { car.stop = 4; car.v = 0; }
+  CAM.shake = Math.min(1, CAM.shake + (best.rotor ? 0.35 : 0.5)); H.hitT = 0.4;
+  for (let i = 0; i < 10; i++) spark({ add: true, x: best.x - best.nx * 0.5, y: best.y, z: best.z - best.nz * 0.5, vx: rr(-6, 6), vy: rr(0, 6), vz: rr(-6, 6), life: 0.5, s0: 0.8, s1: 0.2, c0: [1, 0.9, 0.5, 1], c1: [1, 0.5, 0.1, 0], grav: 10 });
+  AUDIO.sfx('crunch', Math.min(1, -vn / 12));
 }
 function groundHeli(dt) {
   const H = HELI;
@@ -183,6 +204,7 @@ function crashFall(dt) {
   H.vy -= GRAV * 0.7 * dt; H.vx *= Math.exp(-0.5 * dt); H.vz *= Math.exp(-0.5 * dt);
   H.roll = damp(H.roll, 0.5, 1, dt);
   H.x += H.vx * dt; H.y += H.vy * dt; H.z += H.vz * dt;
+  if (!H.crashed) collideHeli();
   smoke(H.x, H.y + 2, H.z, 0.6);
   const s = surfaceY(H.x, H.z, H.y + 1);
   if (H.y <= s || H.crashing > 12) {

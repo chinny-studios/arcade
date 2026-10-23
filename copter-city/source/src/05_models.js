@@ -72,8 +72,31 @@ function buildHeli(type) {
   // anchors for the gear that hangs off it
   out.hook = new V3(0, base, 0);
   out.spotAt = new V3(0, base + 0.1, -bl / 2 - S.nose * 0.5);
+  out.hull = heliHull(S, base);
   g.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
   return out;
+}
+
+// The collision shape in model space: spheres along the cabin, the tail boom and fin, the skids, and a ring of
+// small spheres around each rotor disc (rotor: true). Fed to collideHeli every step.
+function heliHull(S, base) {
+  const [bw, bh, bl] = S.body, hull = [];
+  const sph = (x, y, z, r, rotor = false) => hull.push({ p: new V3(x, y, z), r, rotor });
+  const rb = Math.max(bw, bh) * 0.55, yc = base + bh * 0.5;
+  const z0 = -bl / 2 - S.nose * 0.6, z1 = bl / 2 - rb * 0.5, n = Math.max(2, Math.ceil((z1 - z0) / (rb * 1.1)));
+  for (let i = 0; i <= n; i++) sph(0, yc, lerp(z0, z1, i / n), rb);
+  if (!S.tandem) {
+    const yb = base + bh * 0.68;
+    for (let z = bl / 2 + 0.8; z < bl / 2 + S.boom; z += 1.1) sph(0, yb, z, 0.6);
+    sph(0, yb + S.finH * 0.5, bl / 2 + S.boom - 0.3, Math.max(0.7, S.finH * 0.6));
+  }
+  for (const sz of [-0.35, 0.35]) sph(0, 0.4, sz * bl, Math.min(0.9, bw * 0.4));
+  const rotors = S.tandem ? [[-bl / 2 + 1.2, base + bh + 0.9], [bl / 2 - 1.2, base + bh + 1.8]] : [[bl * 0.05, base + bh + 0.8]];
+  for (const [rz, ry] of rotors) {
+    for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; sph(Math.cos(a) * S.rotor * 0.93, ry, rz + Math.sin(a) * S.rotor * 0.93, 0.5, true); }
+    for (let i = 0; i < 7; i++) { const a = (i + 0.5) / 7 * TAU; sph(Math.cos(a) * S.rotor * 0.55, ry, rz + Math.sin(a) * S.rotor * 0.55, 0.5, true); }
+  }
+  return hull;
 }
 
 // ---------- people ----------

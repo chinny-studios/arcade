@@ -14,7 +14,7 @@ function buildGear() {
   const w = mesh(GM.disc(), mat(0x4a8ac8, { basic: true }), 0, 0.8 * big, 0, 1.9 * big, 1, 1.9 * big); b.add(w); GEAR.bucketWater = w;
   for (let i = 0; i < 3; i++) { const a = i / 3 * TAU; const s = mesh(GM.box(), mat(0x202020), Math.cos(a) * 0.5 * big, 2.2 * big, Math.sin(a) * 0.5 * big, 0.05, 1.4 * big, 0.05); s.rotation.set(Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4); b.add(s); }
   b.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
-  GEAR.bucket = b; GEAR.bucketH = 2.9 * big;
+  GEAR.bucket = b; GEAR.bucketH = 2.9 * big; GEAR.bucketR = 1.0 * big;
   const L = new Merger();
   for (const sx of [-0.35, 0.35]) L.box(sx, -LADDER_LEN, 0, 0.06, LADDER_LEN, 0.06, 0xc8b070);
   for (let y = 0.4; y < LADDER_LEN; y += 0.5) L.box(0, -y, 0, 0.7, 0.06, 0.08, 0x9a7a40);
@@ -81,6 +81,24 @@ function updateGear(dt) {
     const bottom = wet ? WATER_Y - 0.9 : floor;
     if (by < bottom) by = bottom;
     b.y = by;
+    // walls, roof clutter and cars knock it about
+    const br = GEAR.bucketR, c = collideSphere(b.x, b.y + br, b.z, br);
+    pushFromCars(c, br);
+    if (c.hit) {
+      const nx = c.x - b.x, nz = c.z - b.z, l = Math.hypot(nx, nz);
+      if (l > 1e-4) {
+        const vn = (b.vx * nx + b.vz * nz) / l;
+        if (vn < 0) { b.vx -= 1.6 * vn * nx / l; b.vz -= 1.6 * vn * nz / l; if (vn < -3 && GEAR.clangT <= 0) { AUDIO.sfx('thunk'); GEAR.clangT = 0.3; } }
+      }
+      b.x = c.x; b.z = c.z; b.y = Math.max(b.y, c.y - br);
+      dx = b.x - h.x; dz = b.z - h.z;
+    }
+    // dragged too far behind something, it slips free and drops back under the hook
+    if (dist3(b.x, b.y, b.z, h.x, h.y, h.z) > BUCKET_LEN * 1.3) {
+      b.x = h.x; b.z = h.z; b.vx = b.vz = 0; dx = dz = 0;
+      b.y = Math.max(h.y - BUCKET_LEN, surfaceY(h.x, h.z, h.y));
+      toast('The bucket snagged and swung free.');
+    }
     // filling
     if (wet && by < WATER_Y + 0.7 && b.water < H.st.bucket) {
       b.water = Math.min(H.st.bucket, b.water + 520 * dt);
@@ -95,7 +113,7 @@ function updateGear(dt) {
     stretchCable(h, b.x, b.y + GEAR.bucketH, b.z);
   } else { b.x = h.x; b.y = h.y - 2; b.z = h.z; b.vx = b.vz = 0; }
   GEAR.bucket.visible = showBucket;
-  GEAR.fillSnd = Math.max(0, GEAR.fillSnd - dt);
+  GEAR.fillSnd = Math.max(0, GEAR.fillSnd - dt); GEAR.clangT = Math.max(0, (GEAR.clangT || 0) - dt);
   // dumping
   if (GEAR.dumpT > 0) {
     GEAR.dumpT -= dt;
@@ -113,7 +131,8 @@ function updateGear(dt) {
   for (let i = GEAR.drops.length - 1; i >= 0; i--) {
     const d = GEAR.drops[i];
     d.vy -= 11 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt;
-    const s = surfaceY(d.x, d.z, d.y + 1);
+    let s = surfaceY(d.x, d.z, d.y + 1);
+    if (pointInSolid(d.x, d.y, d.z)) s = d.y; // splashes against a wall
     if (d.y <= s) { GEAR.drops.splice(i, 1); splash(d.x, s + 0.2, d.z, 8, 1.4); bus.emit('water', d.x, s, d.z, d.L); }
   }
   // the ladder unrolls when selected and rolls up when not, unless someone's on it
@@ -123,6 +142,10 @@ function updateGear(dt) {
   if (L.len > 0.2) {
     L.x = damp(L.x || h.x, h.x - H.vx * 0.12, 5, dt); L.z = damp(L.z || h.z, h.z - H.vz * 0.12, 5, dt);
     L.y = Math.max(h.y - L.len, surfaceY(L.x, L.z, h.y) + 0.1);
+    // the bottom rungs swing clear of walls and cars instead of through them
+    const lc = collideSphere(L.x, L.y + 0.6, L.z, 0.45);
+    pushFromCars(lc, 0.45);
+    if (lc.hit) { L.x = lc.x; L.z = lc.z; L.y = Math.max(L.y, lc.y - 0.6); }
     const len = h.y - L.y;
     GEAR.ladder.position.copy(h);
     GEAR.ladder.scale.set(1, len / LADDER_LEN, 1);
@@ -137,7 +160,8 @@ function updateGear(dt) {
     c.mesh.position.set(c.x, c.y, c.z); c.mesh.rotation.x += dt * 8;
     gasPuff(c.x, c.y, c.z, 0.2);
     bus.emit('canister', c);
-    const s = surfaceY(c.x, c.z, c.y + 1);
+    let s = surfaceY(c.x, c.z, c.y + 1);
+    if (pointInSolid(c.x, c.y, c.z)) s = c.y; // into a wall: it bursts there
     if (c.y <= s) {
       R.scene.remove(c.mesh); GEAR.cans.splice(i, 1);
       const cl = { x: c.x, y: s, z: c.z, r: 10, t: 0, life: 14 };

@@ -28,6 +28,6 @@ r.jam0 = { stuck: CC.TRAFFIC.cars.filter((k) => k.v < 0.5).length };
 CC.fly(c.n.x, c.n.z, 25, { max: 80 });
 F.selectEquip('mega'); F.useEquip(); CC.sim(1);
 r.jam1 = { state: c.state, money: CC.G.career.money };
-r.dmg = CC.G.dmgLog;
+r.dmg = CC.G.dmgLog; r.hit = CC.G.lastHit;
 return r;
 //--- shot calls_end

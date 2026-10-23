@@ -8,7 +8,7 @@ const CALL_TYPES = {};
 function initCalls() {
   if (CALLS.group) R.scene.remove(CALLS.group);
   CALLS.group = new THREE.Group(); R.scene.add(CALLS.group);
-  G.calls = []; G.target = null; G.nextCallT = 12; G.walkers = [];
+  G.calls = []; G.target = null; G.nextCallT = 12; G.walkers = []; G.dynCars = [];
 }
 function spawnPerson(x, y, z, pose = 'stand', o = {}) {
   const P = buildPerson(o); P.pose = pose; P.x = x; P.y = y; P.z = z; P.yaw = o.yaw !== undefined ? o.yaw : rr(0, TAU);
@@ -78,7 +78,7 @@ function pickCallType() {
 }
 function startCall(type, o = {}) {
   const T = CALL_TYPES[type];
-  const c = { id: ++CALLS.n, type, def: CALL[type], t: 0, state: 'open', stage: '', people: [], objs: [], x: 0, y: 0, z: 0, pay: CITY.def.pay, child: o.child || null };
+  const c = { id: ++CALLS.n, type, def: CALL[type], t: 0, state: 'open', stage: '', people: [], objs: [], solids: [], dyn: [], x: 0, y: 0, z: 0, pay: CITY.def.pay, child: o.child || null };
   let ok;
   try { ok = T.start(c, o); } catch (e) { console.error(e); ok = false; }
   if (ok === false) { cleanupCall(c); return null; }
@@ -113,6 +113,8 @@ function cleanupCall(c) {
   for (const o of c.objs) if (o.parent) o.parent.remove(o);
   if (c.marker && c.marker.parent) c.marker.parent.remove(c.marker);
   if (c.cleanup) c.cleanup();
+  killSolids(c.solids);
+  if (c.dyn) G.dynCars = (G.dynCars || []).filter((d) => !c.dyn.includes(d));
   unboard((s) => s.call === c && c.state === 'failed');
 }
 bus.on('mega', (x, z, alt) => { for (const c of G.calls.slice()) if (c.onMega) c.onMega(x, z, alt); });
@@ -222,7 +224,7 @@ CALL_TYPES.medevac = {
     c.title = o.title || 'Car crash';
     c.radio = o.radio || `Two-car collision ${c.where}. Injured on the scene. Land nearby and fly them to a hospital.`;
     if (!o.noWrecks) {
-      for (let i = 0; i < 2; i++) { const car = buildCar('car'); wreckCar(car); car.group.position.set(s.x + (i ? 2.5 : -2), 0.05, s.z + (i ? 1.5 : -1.8)); car.group.rotation.y = s.yaw + (i ? 0.9 : -0.4); addObj(car.group); c.objs.push(car.group); }
+      for (let i = 0; i < 2; i++) { const car = buildCar('car'); wreckCar(car); car.group.position.set(s.x + (i ? 2.5 : -2), 0.05, s.z + (i ? 1.5 : -1.8)); car.group.rotation.y = s.yaw + (i ? 0.9 : -0.4); addObj(car.group); c.objs.push(car.group); c.solids.push(...propSolids(car.group.position.x, car.group.position.z, car.group.rotation.y, 4.2, 1.9, 0, 1.7)); }
       igniteSpot(s.x + 2.5, 0.5, s.z + 1.5, 3, 4, 1.2, 0.2, null);
       c.edge = blockEdgeAt(s.x, s.z, true);
     }
@@ -339,13 +341,13 @@ CALL_TYPES.jam = {
     c.where = whereText(n.x, n.z);
     c.title = 'Traffic jam';
     c.radio = `Gridlock ${c.where}. A stalled truck has the intersection blocked. Get down there with the megaphone.`;
-    const tr = buildCar('truck', 0xd8d8d0); tr.group.position.set(n.x + 1, 0.05, n.z - 1); tr.group.rotation.y = 0.6; addObj(tr.group); c.objs.push(tr.group);
+    const tr = buildCar('truck', 0xd8d8d0); tr.group.position.set(n.x + 1, 0.05, n.z - 1); tr.group.rotation.y = 0.6; addObj(tr.group); c.objs.push(tr.group); c.solids.push(...propSolids(n.x + 1 - Math.sin(0.6) * 1.2, n.z - 1 - Math.cos(0.6) * 1.2, 0.6, 9, 2.4, 0, 3.4));
     c.stage = 'Hover low over the jam and use the megaphone (4, then F).';
     c.timeoutText = 'The jam cleared on its own. No pay this time.';
     c.onMega = (x, z, alt) => {
       if (c.state !== 'open' || dist(x, z, c.n.x, c.n.z) > 55 || alt > 70) return;
       c.n.jam = 0;
-      c.objs.forEach((o) => { o.visible = false; });
+      c.objs.forEach((o) => { o.visible = false; }); killSolids(c.solids);
       finishCall(c, true, c.def.reward * c.pay * timeBonus(c.t, 45, 90), 'Traffic is moving again.');
     };
   },
@@ -364,6 +366,7 @@ CALL_TYPES.crime = {
     c.car = { e: s.e, dir: 1, t: s.t, v: 0, vmax: 19, lane: 2.8, x: s.x, z: s.z, yaw: 0, model: car };
     addObj(car.group); c.objs.push(car.group);
     c.x = s.x; c.z = s.z;
+    c.dyn.push(c.car); G.dynCars = (G.dynCars || []).concat([c.car]);
     c.where = whereText(s.x, s.z);
     c.title = pick(['Bank robbery', 'Armed robbery', 'Jewelry heist', 'Stolen armored car']);
     c.radio = `${c.title} ${c.where}! Suspects fleeing in a black sedan. Keep them in sight, and gas them if you can.`;
@@ -388,7 +391,8 @@ CALL_TYPES.crime = {
       if (sees) { c.seen += dt; c.lost = 0; } else c.lost += dt;
       if (c.seen > 8 && c.police.length < 2 && c.police.length < Math.floor(c.seen / 8)) {
         const pc = buildCar('police'); addObj(pc.group); c.objs.push(pc.group);
-        c.police.push({ e: car.e, dir: car.dir, t: Math.max(0, car.t - 40), v: 16, vmax: 21, lane: 2.8, x: 0, z: 0, yaw: 0, model: pc });
+        const cop = { e: car.e, dir: car.dir, t: Math.max(0, car.t - 40), v: 16, vmax: 21, lane: 2.8, x: car.x, z: car.z, yaw: 0, model: pc };
+        c.police.push(cop); c.dyn.push(cop); G.dynCars.push(cop);
         msg('Units joining the pursuit.', 'radio');
       }
       if (c.seen > 75) { c.stopped = 0.01; msg('Police have them boxed in!', 'good'); c.boxed = true; }
@@ -459,7 +463,7 @@ CALL_TYPES.riot = {
     c.rioters = [];
     for (let i = 0; i < 12; i++) { const P = spawnPerson(c.x + rr(-12, 12), CURB, c.z + rr(-12, 12), 'riot', { shirt: pick([0x2a2a2a, 0x5a2a2a, 0x3a3a5a, 0x6a6a6a]) }); P.home = { x: P.x, z: P.z }; c.people.push(P); c.rioters.push(P); }
     const s = roadSpot((e) => dist(e.a.x, e.a.z, c.x, c.z) < 110);
-    const car = buildCar('car'); wreckCar(car); car.group.position.set(s.x, 0.05, s.z); car.group.rotation.y = s.yaw + 1; addObj(car.group); c.objs.push(car.group);
+    const car = buildCar('car'); wreckCar(car); car.group.position.set(s.x, 0.05, s.z); car.group.rotation.y = s.yaw + 1; addObj(car.group); c.objs.push(car.group); c.solids.push(...propSolids(s.x, s.z, s.yaw + 1, 4.2, 1.9, 0, 1.7));
     c.inc = newIncident({ call: c });
     igniteSpot(s.x, 0.4, s.z, 3, 4, 1.4, 0.6, c.inc);
     c.anger = 0; c.megaHits = 0;
@@ -514,7 +518,7 @@ CALL_TYPES.flood = {
     for (let i = 0; i < n; i++) {
       const s = { x: rr(b.sx0 - 4, b.sx1 + 4), z: rr(b.sz0, b.sz1) };
       if (i % 2 === 0) { s.x = b.sx0 - 3; s.z = rr(b.sz0 + 5, b.sz1 - 5); } // on a car in the street
-      const car = buildCar('car'); car.group.position.set(s.x, 0.05, s.z); car.group.rotation.y = rr(0, TAU); addObj(car.group); c.objs.push(car.group);
+      const car = buildCar('car'); car.group.position.set(s.x, 0.05, s.z); car.group.rotation.y = rr(0, TAU); addObj(car.group); c.objs.push(car.group); c.solids.push(...propSolids(s.x, s.z, car.group.rotation.y, 4.2, 1.9, 0, 1.5));
       const P = spawnPerson(s.x, 1.55, s.z, 'wave'); P.baseY = P.y; P.hp = 100; c.people.push(P); c.victims.push(P);
     }
     c.where = whereText(b.cx, b.cz);
@@ -558,7 +562,11 @@ CALL_TYPES.ship = {
     const cy = Math.cos(c.ship.rotation.y), sy = Math.sin(c.ship.rotation.y);
     c.fire = igniteSpot(c.x + sy * -5, 2, c.z + cy * -5, 6, 9, 2.5, 0.6, c.inc);
     c.victims = [];
-    for (let i = 0; i < 3; i++) { const lz = 6 + i * 1.6; const P = spawnPerson(c.x + sy * lz + rr(-1.5, 1.5), WATER_Y + 1.85, c.z + cy * lz, 'wave'); P.baseY = P.y; c.people.push(P); c.victims.push(P); }
+    for (let i = 0; i < 3; i++) { const lz = -10.6, lx = (i - 1) * 1.6; const P = spawnPerson(c.x + sy * lz + cy * lx, WATER_Y + 1.85, c.z + cy * lz - sy * lx, 'wave'); P.baseY = P.y; c.people.push(P); c.victims.push(P); }
+    // the hull, the container stack, the bridge and the funnel, as offsets above the waterline (they sink with her)
+    c.shipParts = [[-8.5, 3.1, 1.9], [-3, 3.1, 1.9], [3, 3.1, 1.9], [9, 3.1, 1.9], [-3.5, 3, 3.8], [8, 2.6, 4.8], [9.5, 0.8, 7.5]].map(([k, r, top]) => {
+      const sol = addPost(c.x + sy * k, c.z + cy * k, r, WATER_Y - 2, WATER_Y + top); sol.top = top; c.solids.push(sol); return sol;
+    });
     c.title = 'Ship on fire';
     c.where = 'out on the water';
     c.radio = 'Mayday from the freighter "Dorothy B": engine room fire and crew on deck! Put out the fire and lift the crew off.';
@@ -569,6 +577,7 @@ CALL_TYPES.ship = {
     if (fireLeft) c.sink += dt;
     if (c.sink > 260) { // she's going down
       c.ship.position.y = WATER_Y - (c.sink - 260) * 0.15;
+      for (const sol of c.shipParts) sol.y1 = c.ship.position.y + sol.top;
       for (const P of c.victims) if (!P.state && c.sink > 285) { P.state = 'lost'; removePerson(P); }
       if (c.sink > 300 && fireLeft) removeFire(c.fire);
     }

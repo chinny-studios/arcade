@@ -76,7 +76,7 @@ function updateTraffic(dt) {
   const lanes = new Map();
   for (const car of T.cars) { if (car.dead) continue; const k = car.e.id * 2 + (car.dir > 0 ? 1 : 0); let l = lanes.get(k); if (!l) lanes.set(k, (l = [])); l.push(car); }
   for (const l of lanes.values()) l.sort((a, b) => a.t - b.t);
-  const hx = HELI.x, hz = HELI.z, heliLow = HELI.y - surfaceY(HELI.x, HELI.z) < 3;
+  const hx = HELI.x, hz = HELI.z, heliLow = HELI.y - surfaceY(HELI.x, HELI.z) < 3, onFoot = G.where === 'foot' && PILOT.y < 1.5;
   for (const l of lanes.values()) {
     for (let i = 0; i < l.length; i++) {
       const car = l[i], lead = l[i + 1];
@@ -88,6 +88,7 @@ function updateTraffic(dt) {
       else if (left < 10 && n.edges.length > 2) target = Math.min(target, 7);
       if (car.stop > 0) { car.stop -= dt; target = 0; }
       if (heliLow && dist2(car.x - Math.sin(car.yaw) * 6, car.z - Math.cos(car.yaw) * 6, hx, hz) < 49) target = 0;
+      if (onFoot && dist2(car.x - Math.sin(car.yaw) * 5, car.z - Math.cos(car.yaw) * 5, PILOT.x, PILOT.z) < 12) target = 0;
       car.v = target < car.v ? Math.max(target, car.v - 14 * dt) : Math.min(target, car.v + 4 * dt);
       car.horn = car.v < 0.5 && n.jam > 0 ? car.horn + dt : 0;
     }
@@ -127,6 +128,26 @@ function updatePeds(dt) {
     T.pedCloth.setMatrixAt(p.i, m4); T.pedSkin.setMatrixAt(p.i, m4);
   }
   T.pedCloth.instanceMatrix.needsUpdate = true; T.pedSkin.instanceMatrix.needsUpdate = true;
+}
+// cars as obstacles: three or four upright cylinders along each car. Traffic plus any moving call cars in G.dynCars
+// ({ x, z, yaw, big }: a getaway car, police cruisers).
+const _carCyl = [];
+function carCylinders(x, z, r) {
+  _carCyl.length = 0;
+  const add = (c) => {
+    if (c.dead || dist2(c.x, c.z, x, z) > (r + 6) * (r + 6)) return;
+    const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw), big = c.big;
+    for (const k of big ? [-2.8, -0.9, 0.9, 2.8] : [-1.3, 0, 1.3]) _carCyl.push({ x: c.x + fx * k, z: c.z + fz * k, r: big ? 1.25 : 0.95, y0: 0, y1: big ? 3.0 : 1.7, car: c });
+  };
+  for (const c of TRAFFIC.cars) add(c);
+  for (const c of G.dynCars || []) add(c);
+  return _carCyl;
+}
+// push a sphere out of nearby cars (into res, the same shape collideSphere returns)
+function pushFromCars(res, r) {
+  let car = null;
+  for (const cy of carCylinders(res.x, res.z, r)) if (pushOut(res, r, cy)) car = cy.car;
+  return car;
 }
 function carsNear(x, z, r) { return TRAFFIC.cars.filter((c) => !c.dead && dist2(c.x, c.z, x, z) < r * r); }
 function pedsNear(x, z, r) { return TRAFFIC.peds.filter((p) => dist2(p.x, p.z, x, z) < r * r); }
