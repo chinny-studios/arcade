@@ -50,6 +50,7 @@ function footControls(dt) {
   // no swimming
   if (isWaterAt(nx, nz) && surfaceY(nx, nz, p.y + 0.6) <= WATER_Y + 0.01) { nx = p.x; nz = p.z; }
   const c = collideSphere(nx, p.y + 0.9, nz, 0.45, p.y + 0.6);
+  pushFromCars(c, 0.45);
   nx = c.x; nz = c.z;
   // don't walk into the helicopter's body
   const hd = dist(nx, nz, H.x, H.z), hr = H.model.r * 0.35 + 0.5;

@@ -56,33 +56,47 @@ function solidsNear(x, z, r) {
   return _near;
 }
 // push a sphere (x, y, z, r) out of the solids it overlaps; returns { x, y, z, hit, nx, ny, nz, depth }
-function collideSphere(x, y, z, r, minTop = -Infinity) {
-  let px = 0, py = 0, pz = 0, hit = false, nx = 0, ny = 0, nz = 0, depth = 0;
-  for (const s of solidsNear(x, z, r)) {
-    const cx = x + px, cy = y + py, cz = z + pz;
-    if (cy - r > s.y1 || cy + r < s.y0 || s.y1 < minTop) continue;
-    let qx, qz;
-    if (s.r) {
-      const dx = cx - s.x, dz = cz - s.z, d = Math.hypot(dx, dz);
-      if (d > s.r) { qx = s.x + dx / d * s.r; qz = s.z + dz / d * s.r; } else { qx = cx; qz = cz; }
-    } else { qx = clamp(cx, s.x0, s.x1); qz = clamp(cz, s.z0, s.z1); }
-    const qy = clamp(cy, s.y0, s.y1);
-    let dx = cx - qx, dy = cy - qy, dz = cz - qz, d = Math.hypot(dx, dy, dz);
-    if (d >= r) continue;
-    let k;
-    if (d < 1e-6) { // centre inside: leave upward if near the top, else along the shortest horizontal axis
-      if (s.y1 - cy < 2.5) { dx = 0; dy = 1; dz = 0; k = s.y1 - cy + r; }
-      else if (s.r) { const a = Math.atan2(cz - s.z, cx - s.x); dx = Math.cos(a); dz = Math.sin(a); dy = 0; k = s.r - Math.hypot(cx - s.x, cz - s.z) + r; }
-      else {
-        const l = cx - s.x0, rr = s.x1 - cx, t = cz - s.z0, bb = s.z1 - cz, m = Math.min(l, rr, t, bb); dy = 0;
-        if (m === l) { dx = -1; dz = 0; k = l + r; } else if (m === rr) { dx = 1; dz = 0; k = rr + r; } else if (m === t) { dx = 0; dz = -1; k = t + r; } else { dx = 0; dz = 1; k = bb + r; }
-      }
-    } else { dx /= d; dy /= d; dz /= d; k = r - d; }
-    px += dx * k; py += dy * k; pz += dz * k; hit = true;
-    if (k > depth) { depth = k; nx = dx; ny = dy; nz = dz; hit = s; }
-  }
-  return { x: x + px, y: y + py, z: z + pz, hit, nx, ny, nz, depth };
+// push a sphere (x, y, z, r) out of the solids it overlaps; returns { x, y, z, hit, nx, ny, nz, depth }.
+// Solids whose top is below minTop are skipped (the ground check steps onto them); noUp keeps a sphere whose centre
+// ends up inside a solid from popping out of the top (rotor tips leave sideways).
+function collideSphere(x, y, z, r, minTop = -Infinity, noUp = false) {
+  const res = { x, y, z, hit: false, nx: 0, ny: 0, nz: 0, depth: 0 };
+  for (const s of solidsNear(x, z, r)) pushOut(res, r, s, minTop, noUp);
+  return res;
 }
+// moves res (a sphere's centre) out of one solid: a box { x0, z0, x1, z1, y0, y1 } or an upright cylinder { x, z, r, y0, y1 }
+function pushOut(res, r, s, minTop = -Infinity, noUp = false) {
+  const cx = res.x, cy = res.y, cz = res.z;
+  if (cy - r > s.y1 || cy + r < s.y0 || s.y1 < minTop) return false;
+  let qx, qz;
+  if (s.r) {
+    const dx = cx - s.x, dz = cz - s.z, d = Math.hypot(dx, dz);
+    if (d > s.r) { qx = s.x + dx / d * s.r; qz = s.z + dz / d * s.r; } else { qx = cx; qz = cz; }
+  } else { qx = clamp(cx, s.x0, s.x1); qz = clamp(cz, s.z0, s.z1); }
+  const qy = clamp(cy, s.y0, s.y1);
+  let dx = cx - qx, dy = cy - qy, dz = cz - qz, d = Math.hypot(dx, dy, dz);
+  if (d >= r) return false;
+  let k;
+  if (d < 1e-6) { // centre inside: leave upward if near the top, else along the shortest horizontal axis
+    if (s.y1 - cy < 2.5 && !noUp) { dx = 0; dy = 1; dz = 0; k = s.y1 - cy + r; }
+    else if (s.r) { const a = Math.atan2(cz - s.z, cx - s.x); dx = Math.cos(a); dz = Math.sin(a); dy = 0; k = s.r - Math.hypot(cx - s.x, cz - s.z) + r; }
+    else {
+      const l = cx - s.x0, rr = s.x1 - cx, t = cz - s.z0, bb = s.z1 - cz, m = Math.min(l, rr, t, bb); dy = 0;
+      if (m === l) { dx = -1; dz = 0; k = l + r; } else if (m === rr) { dx = 1; dz = 0; k = rr + r; } else if (m === t) { dx = 0; dz = -1; k = t + r; } else { dx = 0; dz = 1; k = bb + r; }
+    }
+  } else { dx /= d; dy /= d; dz /= d; k = r - d; }
+  res.x += dx * k; res.y += dy * k; res.z += dz * k;
+  if (k > res.depth) { res.depth = k; res.nx = dx; res.ny = dy; res.nz = dz; res.hit = s; }
+  else if (!res.hit) res.hit = s;
+  return true;
+}
+// short-lived obstacles (crash wrecks, the jam's truck, the freighter): upright cylinders along a footprint
+function propSolids(x, z, yaw, len, w, y0, y1) {
+  const out = [], n = Math.max(1, Math.round(len / w)), fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  for (let i = 0; i < n; i++) { const k = (i + 0.5) / n * len - len / 2; out.push(addPost(x + fx * k, z + fz * k, w / 2, y0, y1)); }
+  return out;
+}
+function killSolids(list) { for (const s of list || []) s.dead = true; }
 // the highest solid top under (x, z) at or below height y (roofs, pads); -Infinity if none
 function roofBelow(x, z, y = 1e9, pad = 0) {
   let best = -Infinity;
@@ -91,6 +105,14 @@ function roofBelow(x, z, y = 1e9, pad = 0) {
     if (inside && s.y1 <= y + 0.01 && s.y1 > best) best = s.y1;
   }
   return best;
+}
+// is the point (x, y, z) inside a solid (a wall, a roof prop, a tree)?
+function pointInSolid(x, y, z) {
+  for (const s of solidsNear(x, z, 1)) {
+    if (y < s.y0 || y > s.y1) continue;
+    if (s.r ? dist2(x, z, s.x, s.z) < s.r * s.r : x > s.x0 && x < s.x1 && z > s.z0 && z < s.z1) return s;
+  }
+  return null;
 }
 // the surface something would land on: a roof, the terrain, or the water
 function surfaceY(x, z, y = 1e9) {
@@ -257,7 +279,7 @@ function buildRoads(S) {
     if (e.axis === 'x') {
       const x0 = e.a.x + RH, x1 = e.b.x - RH, z = e.a.z;
       S.road.quad([x0, y, z + RH], [x1, y, z + RH], [x1, y, z - RH], [x0, y, z - RH], [0, 0, 0, (x1 - x0) / 12, 1, (x1 - x0) / 12, 1, 0], 0xffffff, [0, 1, 0]);
-      if (e.bridge) bridgeDeck(S, x0, z - RH, x1, z + RH, 'x');
+      if (e.bridge) { bridgeDeck(S, x0, z - RH, x1, z + RH, 'x'); addSolid(x0, z - RH, x1, z + RH, -1.2, 0.05); addSolid(x0, z - RH, x1, z - RH + 0.4, 0, 1.03); addSolid(x0, z + RH - 0.4, x1, z + RH, 0, 1.03); }
     } else {
       const z0 = e.a.z + RH, z1 = e.b.z - RH, x = e.a.x;
       S.road.quad([x - RH, y, z1], [x + RH, y, z1], [x + RH, y, z0], [x - RH, y, z0], [0, 0, 1, 0, 1, (z1 - z0) / 12, 0, (z1 - z0) / 12], 0xffffff, [0, 1, 0]);
@@ -297,7 +319,7 @@ function buildLamps(S) {
       for (const side of [-1, 1]) {
         const x = e.axis === 'x' ? e.a.x + t : e.a.x + side * (RH + 0.6), z = e.axis === 'x' ? e.a.z + side * (RH + 0.6) : e.a.z + t;
         if (!blockAt(x, z)) continue;
-        S.solid.box(x, CURB, z, 0.25, 6, 0.25, 0x505458);
+        S.solid.box(x, CURB, z, 0.25, 6, 0.25, 0x505458); addPost(x, z, 0.3, 0, 6.3);
         S.solid.box(x - (e.axis === 'z' ? side * 0.8 : 0), 6, z - (e.axis === 'x' ? side * 0.8 : 0), e.axis === 'z' ? 1.8 : 0.4, 0.25, e.axis === 'x' ? 1.8 : 0.4, 0x505458);
         pts.push(x - (e.axis === 'z' ? side * 1.4 : 0), 5.9, z - (e.axis === 'x' ? side * 1.4 : 0));
       }
@@ -339,7 +361,7 @@ function buildBlock(b, S, r) {
       if (r.chance(0.5)) S.solid.box(x0 + W * 0.72, yL - 0.12, z0 + W * 0.72, 12, 0.14, 9, 0x3a6a8a);
     }
     b.open = [{ x: cx + 12, z: cz + 12 }, { x: cx - 12, z: cz - 12 }, { x: cx + 12, z: cz - 14 }];
-    for (let i = 0; i < 14; i++) { const tx = r.range(x0 + 2, x1 - 2), tz = r.range(z0 + 2, z1 - 2); if (Math.abs(tx - cx) > 3 && Math.abs(tz - cz) > 3 && dist(tx, tz, cx + 12, cz + 12) > 7 && dist(tx, tz, cx - 12, cz - 12) > 7 && dist(tx, tz, cx + 12, cz - 14) > 7) CITY.trees.push({ x: tx, z: tz, y: yL, s: r.range(0.8, 1.3), kind: r.chance(0.3) ? 1 : 0 }); }
+    for (let i = 0; i < 14; i++) { const tx = r.range(x0 + 2, x1 - 2), tz = r.range(z0 + 2, z1 - 2); if (Math.abs(tx - cx) > 3 && Math.abs(tz - cz) > 3 && b.open.every((o) => dist(tx, tz, o.x, o.z) > 11)) CITY.trees.push({ x: tx, z: tz, y: yL, s: r.range(0.8, 1.3), kind: r.chance(0.3) ? 1 : 0 }); }
     if (k === 'landmark') CITY.landmarks.push({ name: b.lname, x: cx + 12, z: cz + 12, b });
     return;
   }
@@ -394,7 +416,6 @@ function buildBlock(b, S, r) {
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       if (i === 1 && j === 1) { // the middle lot stays a yard: somewhere to land
         b.open = [{ x: x0 + cell * 1.5, z: z0 + cell * 1.5 }];
-        CITY.trees.push({ x: x0 + cell * 1.2, z: z0 + cell * 1.9, y: yL, s: 1, kind: 0 });
         continue;
       }
       const lx = x0 + i * cell, lz = z0 + j * cell, w = r.range(8, 11), d = r.range(7, 9);
@@ -516,6 +537,13 @@ function makeSolids(B) {
   const k = B.burnt ? 0.35 : 1;
   for (const t of B.tiers) B.solids.push(addSolid(t.x0, t.z0, t.x1, t.z1, 0, Math.max(2, t.h * k), B));
   if (B.gable && !B.burnt) B.solids.push(addSolid(B.x0 + 1, B.z0 + 1, B.x1 - 1, B.z1 - 1, B.h, B.h + 2.2, B));
+  if (!B.burnt) {
+    const top = B.tiers[B.tiers.length - 1], tx = (top.x0 + top.x1) / 2, tz = (top.z0 + top.z1) / 2;
+    if (B.watertower) B.solids.push(addPost(tx + 2, tz, 2.2, top.h, top.h + 8.6, B));
+    if (B.dome) B.solids.push(addPost(B.cx, B.cz, B.dome.r, B.h, B.h + 3 + B.dome.r * 0.75, B));
+    if (B.vault) B.solids.push(addSolid(B.x0, B.z0, B.x1, B.z1, B.h, B.h + 4.5, B));
+    if (B.clock) B.solids.push(addPost(B.cx, B.clock.z - 4, 4, top.h, top.h + 4, B));
+  }
   if (B.antenna && !B.burnt) B.solids.push(addPost((B.tiers[B.tiers.length - 1].x0 + B.tiers[B.tiers.length - 1].x1) / 2, (B.tiers[B.tiers.length - 1].z0 + B.tiers[B.tiers.length - 1].z1) / 2, 0.6, B.h, B.h + B.antenna, B));
 }
 function rebuildChunk(ch) {
@@ -662,7 +690,9 @@ function buildTrees(cr) {
     m4.compose(_v1.set(t.x, t.y, t.z), _q.identity(), _sc.set(0.5 * t.s, 3 * t.s, 0.5 * t.s)); trunk.setMatrixAt(i, m4);
     if (t.kind === 1) { m4.compose(_v1.set(t.x, t.y + 5.5 * t.s, t.z), _q.identity(), _sc.set(4.2 * t.s, 8 * t.s, 4.2 * t.s)); cone.setMatrixAt(ci, m4); cone.setColorAt(ci++, col.setHSL(0.33, 0.45, 0.22 + hash2(i, 1) * 0.08)); }
     else { m4.compose(_v1.set(t.x, t.y + 4.5 * t.s, t.z), _q.setFromAxisAngle(_up, i), _sc.set(5 * t.s, 4.4 * t.s, 5 * t.s)); leaf.setMatrixAt(li, m4); leaf.setColorAt(li++, col.setHSL(0.25 + hash2(i, 2) * 0.08, 0.5, 0.3 + hash2(i, 3) * 0.1)); }
-    if (t.y < 1) addPost(t.x, t.z, 1.6 * t.s, 0, t.y + 8 * t.s);
+    // trunk, then the crown
+    addPost(t.x, t.z, 0.5 * t.s, t.y - 1, t.y + 3 * t.s);
+    addPost(t.x, t.z, (t.kind === 1 ? 1.9 : 2.4) * t.s, t.y + 2.2 * t.s, t.y + (t.kind === 1 ? 9.5 : 7) * t.s);
   });
   leaf.count = li; cone.count = ci;
   for (const m of [trunk, leaf, cone]) { if (m.instanceColor) m.instanceColor.needsUpdate = true; c.group.add(m); }

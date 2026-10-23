@@ -18,7 +18,7 @@ megaphone and tear gas, across a five-city career with six helicopters, or in fr
 - **Tests (in `source/`):** `node test/smoke.mjs --steps test/calls.js` plays medevac, passenger and jam in Dover.
   `test/fire.js` flies bucket trips to put out a fire. `test/calls2.js --start '{"city":"halley","heli":"raptor"}'`
   does a car chase, a rooftop rescue and the ship. `test/calls3.js` with `--start '{"city":"metro","heli":"raptor"}'`
-  (or granite, sunset) does riot, flood, spill, tornado and quake. `test/systems.js` covers sim flight, audio and the
+  (or granite, sunset) does riot, flood, spill, tornado and quake. `test/collide.js` (with `--start '{"city":"metro"}'`) checks that walls stop every helicopter's rotor tips, fast flight doesn't tunnel, and cars, the pilot, the bucket, the ladder and the ship collide. `test/systems.js` covers sim flight, audio and the
   radio, on foot, a crash and draw calls; `test/soak.js` runs live dispatch for ten minutes; `test/ui.js --no-start`
   clicks through the menus and the hangar; `test/visual.js` is a screenshot tour; `test/mobile.js` (with `--w 390 --h
   844` or `--w 844 --h 390`) checks phone layouts; `test/pad.js` mocks a gamepad. `node test/live.mjs` uses real key

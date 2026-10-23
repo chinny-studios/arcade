@@ -888,33 +888,47 @@ function solidsNear(x, z, r) {
   return _near;
 }
 // push a sphere (x, y, z, r) out of the solids it overlaps; returns { x, y, z, hit, nx, ny, nz, depth }
-function collideSphere(x, y, z, r, minTop = -Infinity) {
-  let px = 0, py = 0, pz = 0, hit = false, nx = 0, ny = 0, nz = 0, depth = 0;
-  for (const s of solidsNear(x, z, r)) {
-    const cx = x + px, cy = y + py, cz = z + pz;
-    if (cy - r > s.y1 || cy + r < s.y0 || s.y1 < minTop) continue;
-    let qx, qz;
-    if (s.r) {
-      const dx = cx - s.x, dz = cz - s.z, d = Math.hypot(dx, dz);
-      if (d > s.r) { qx = s.x + dx / d * s.r; qz = s.z + dz / d * s.r; } else { qx = cx; qz = cz; }
-    } else { qx = clamp(cx, s.x0, s.x1); qz = clamp(cz, s.z0, s.z1); }
-    const qy = clamp(cy, s.y0, s.y1);
-    let dx = cx - qx, dy = cy - qy, dz = cz - qz, d = Math.hypot(dx, dy, dz);
-    if (d >= r) continue;
-    let k;
-    if (d < 1e-6) { // centre inside: leave upward if near the top, else along the shortest horizontal axis
-      if (s.y1 - cy < 2.5) { dx = 0; dy = 1; dz = 0; k = s.y1 - cy + r; }
-      else if (s.r) { const a = Math.atan2(cz - s.z, cx - s.x); dx = Math.cos(a); dz = Math.sin(a); dy = 0; k = s.r - Math.hypot(cx - s.x, cz - s.z) + r; }
-      else {
-        const l = cx - s.x0, rr = s.x1 - cx, t = cz - s.z0, bb = s.z1 - cz, m = Math.min(l, rr, t, bb); dy = 0;
-        if (m === l) { dx = -1; dz = 0; k = l + r; } else if (m === rr) { dx = 1; dz = 0; k = rr + r; } else if (m === t) { dx = 0; dz = -1; k = t + r; } else { dx = 0; dz = 1; k = bb + r; }
-      }
-    } else { dx /= d; dy /= d; dz /= d; k = r - d; }
-    px += dx * k; py += dy * k; pz += dz * k; hit = true;
-    if (k > depth) { depth = k; nx = dx; ny = dy; nz = dz; hit = s; }
-  }
-  return { x: x + px, y: y + py, z: z + pz, hit, nx, ny, nz, depth };
+// push a sphere (x, y, z, r) out of the solids it overlaps; returns { x, y, z, hit, nx, ny, nz, depth }.
+// Solids whose top is below minTop are skipped (the ground check steps onto them); noUp keeps a sphere whose centre
+// ends up inside a solid from popping out of the top (rotor tips leave sideways).
+function collideSphere(x, y, z, r, minTop = -Infinity, noUp = false) {
+  const res = { x, y, z, hit: false, nx: 0, ny: 0, nz: 0, depth: 0 };
+  for (const s of solidsNear(x, z, r)) pushOut(res, r, s, minTop, noUp);
+  return res;
 }
+// moves res (a sphere's centre) out of one solid: a box { x0, z0, x1, z1, y0, y1 } or an upright cylinder { x, z, r, y0, y1 }
+function pushOut(res, r, s, minTop = -Infinity, noUp = false) {
+  const cx = res.x, cy = res.y, cz = res.z;
+  if (cy - r > s.y1 || cy + r < s.y0 || s.y1 < minTop) return false;
+  let qx, qz;
+  if (s.r) {
+    const dx = cx - s.x, dz = cz - s.z, d = Math.hypot(dx, dz);
+    if (d > s.r) { qx = s.x + dx / d * s.r; qz = s.z + dz / d * s.r; } else { qx = cx; qz = cz; }
+  } else { qx = clamp(cx, s.x0, s.x1); qz = clamp(cz, s.z0, s.z1); }
+  const qy = clamp(cy, s.y0, s.y1);
+  let dx = cx - qx, dy = cy - qy, dz = cz - qz, d = Math.hypot(dx, dy, dz);
+  if (d >= r) return false;
+  let k;
+  if (d < 1e-6) { // centre inside: leave upward if near the top, else along the shortest horizontal axis
+    if (s.y1 - cy < 2.5 && !noUp) { dx = 0; dy = 1; dz = 0; k = s.y1 - cy + r; }
+    else if (s.r) { const a = Math.atan2(cz - s.z, cx - s.x); dx = Math.cos(a); dz = Math.sin(a); dy = 0; k = s.r - Math.hypot(cx - s.x, cz - s.z) + r; }
+    else {
+      const l = cx - s.x0, rr = s.x1 - cx, t = cz - s.z0, bb = s.z1 - cz, m = Math.min(l, rr, t, bb); dy = 0;
+      if (m === l) { dx = -1; dz = 0; k = l + r; } else if (m === rr) { dx = 1; dz = 0; k = rr + r; } else if (m === t) { dx = 0; dz = -1; k = t + r; } else { dx = 0; dz = 1; k = bb + r; }
+    }
+  } else { dx /= d; dy /= d; dz /= d; k = r - d; }
+  res.x += dx * k; res.y += dy * k; res.z += dz * k;
+  if (k > res.depth) { res.depth = k; res.nx = dx; res.ny = dy; res.nz = dz; res.hit = s; }
+  else if (!res.hit) res.hit = s;
+  return true;
+}
+// short-lived obstacles (crash wrecks, the jam's truck, the freighter): upright cylinders along a footprint
+function propSolids(x, z, yaw, len, w, y0, y1) {
+  const out = [], n = Math.max(1, Math.round(len / w)), fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  for (let i = 0; i < n; i++) { const k = (i + 0.5) / n * len - len / 2; out.push(addPost(x + fx * k, z + fz * k, w / 2, y0, y1)); }
+  return out;
+}
+function killSolids(list) { for (const s of list || []) s.dead = true; }
 // the highest solid top under (x, z) at or below height y (roofs, pads); -Infinity if none
 function roofBelow(x, z, y = 1e9, pad = 0) {
   let best = -Infinity;
@@ -923,6 +937,14 @@ function roofBelow(x, z, y = 1e9, pad = 0) {
     if (inside && s.y1 <= y + 0.01 && s.y1 > best) best = s.y1;
   }
   return best;
+}
+// is the point (x, y, z) inside a solid (a wall, a roof prop, a tree)?
+function pointInSolid(x, y, z) {
+  for (const s of solidsNear(x, z, 1)) {
+    if (y < s.y0 || y > s.y1) continue;
+    if (s.r ? dist2(x, z, s.x, s.z) < s.r * s.r : x > s.x0 && x < s.x1 && z > s.z0 && z < s.z1) return s;
+  }
+  return null;
 }
 // the surface something would land on: a roof, the terrain, or the water
 function surfaceY(x, z, y = 1e9) {
@@ -1089,7 +1111,7 @@ function buildRoads(S) {
     if (e.axis === 'x') {
       const x0 = e.a.x + RH, x1 = e.b.x - RH, z = e.a.z;
       S.road.quad([x0, y, z + RH], [x1, y, z + RH], [x1, y, z - RH], [x0, y, z - RH], [0, 0, 0, (x1 - x0) / 12, 1, (x1 - x0) / 12, 1, 0], 0xffffff, [0, 1, 0]);
-      if (e.bridge) bridgeDeck(S, x0, z - RH, x1, z + RH, 'x');
+      if (e.bridge) { bridgeDeck(S, x0, z - RH, x1, z + RH, 'x'); addSolid(x0, z - RH, x1, z + RH, -1.2, 0.05); addSolid(x0, z - RH, x1, z - RH + 0.4, 0, 1.03); addSolid(x0, z + RH - 0.4, x1, z + RH, 0, 1.03); }
     } else {
       const z0 = e.a.z + RH, z1 = e.b.z - RH, x = e.a.x;
       S.road.quad([x - RH, y, z1], [x + RH, y, z1], [x + RH, y, z0], [x - RH, y, z0], [0, 0, 1, 0, 1, (z1 - z0) / 12, 0, (z1 - z0) / 12], 0xffffff, [0, 1, 0]);
@@ -1129,7 +1151,7 @@ function buildLamps(S) {
       for (const side of [-1, 1]) {
         const x = e.axis === 'x' ? e.a.x + t : e.a.x + side * (RH + 0.6), z = e.axis === 'x' ? e.a.z + side * (RH + 0.6) : e.a.z + t;
         if (!blockAt(x, z)) continue;
-        S.solid.box(x, CURB, z, 0.25, 6, 0.25, 0x505458);
+        S.solid.box(x, CURB, z, 0.25, 6, 0.25, 0x505458); addPost(x, z, 0.3, 0, 6.3);
         S.solid.box(x - (e.axis === 'z' ? side * 0.8 : 0), 6, z - (e.axis === 'x' ? side * 0.8 : 0), e.axis === 'z' ? 1.8 : 0.4, 0.25, e.axis === 'x' ? 1.8 : 0.4, 0x505458);
         pts.push(x - (e.axis === 'z' ? side * 1.4 : 0), 5.9, z - (e.axis === 'x' ? side * 1.4 : 0));
       }
@@ -1171,7 +1193,7 @@ function buildBlock(b, S, r) {
       if (r.chance(0.5)) S.solid.box(x0 + W * 0.72, yL - 0.12, z0 + W * 0.72, 12, 0.14, 9, 0x3a6a8a);
     }
     b.open = [{ x: cx + 12, z: cz + 12 }, { x: cx - 12, z: cz - 12 }, { x: cx + 12, z: cz - 14 }];
-    for (let i = 0; i < 14; i++) { const tx = r.range(x0 + 2, x1 - 2), tz = r.range(z0 + 2, z1 - 2); if (Math.abs(tx - cx) > 3 && Math.abs(tz - cz) > 3 && dist(tx, tz, cx + 12, cz + 12) > 7 && dist(tx, tz, cx - 12, cz - 12) > 7 && dist(tx, tz, cx + 12, cz - 14) > 7) CITY.trees.push({ x: tx, z: tz, y: yL, s: r.range(0.8, 1.3), kind: r.chance(0.3) ? 1 : 0 }); }
+    for (let i = 0; i < 14; i++) { const tx = r.range(x0 + 2, x1 - 2), tz = r.range(z0 + 2, z1 - 2); if (Math.abs(tx - cx) > 3 && Math.abs(tz - cz) > 3 && b.open.every((o) => dist(tx, tz, o.x, o.z) > 11)) CITY.trees.push({ x: tx, z: tz, y: yL, s: r.range(0.8, 1.3), kind: r.chance(0.3) ? 1 : 0 }); }
     if (k === 'landmark') CITY.landmarks.push({ name: b.lname, x: cx + 12, z: cz + 12, b });
     return;
   }
@@ -1226,7 +1248,6 @@ function buildBlock(b, S, r) {
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       if (i === 1 && j === 1) { // the middle lot stays a yard: somewhere to land
         b.open = [{ x: x0 + cell * 1.5, z: z0 + cell * 1.5 }];
-        CITY.trees.push({ x: x0 + cell * 1.2, z: z0 + cell * 1.9, y: yL, s: 1, kind: 0 });
         continue;
       }
       const lx = x0 + i * cell, lz = z0 + j * cell, w = r.range(8, 11), d = r.range(7, 9);
@@ -1348,6 +1369,13 @@ function makeSolids(B) {
   const k = B.burnt ? 0.35 : 1;
   for (const t of B.tiers) B.solids.push(addSolid(t.x0, t.z0, t.x1, t.z1, 0, Math.max(2, t.h * k), B));
   if (B.gable && !B.burnt) B.solids.push(addSolid(B.x0 + 1, B.z0 + 1, B.x1 - 1, B.z1 - 1, B.h, B.h + 2.2, B));
+  if (!B.burnt) {
+    const top = B.tiers[B.tiers.length - 1], tx = (top.x0 + top.x1) / 2, tz = (top.z0 + top.z1) / 2;
+    if (B.watertower) B.solids.push(addPost(tx + 2, tz, 2.2, top.h, top.h + 8.6, B));
+    if (B.dome) B.solids.push(addPost(B.cx, B.cz, B.dome.r, B.h, B.h + 3 + B.dome.r * 0.75, B));
+    if (B.vault) B.solids.push(addSolid(B.x0, B.z0, B.x1, B.z1, B.h, B.h + 4.5, B));
+    if (B.clock) B.solids.push(addPost(B.cx, B.clock.z - 4, 4, top.h, top.h + 4, B));
+  }
   if (B.antenna && !B.burnt) B.solids.push(addPost((B.tiers[B.tiers.length - 1].x0 + B.tiers[B.tiers.length - 1].x1) / 2, (B.tiers[B.tiers.length - 1].z0 + B.tiers[B.tiers.length - 1].z1) / 2, 0.6, B.h, B.h + B.antenna, B));
 }
 function rebuildChunk(ch) {
@@ -1494,7 +1522,9 @@ function buildTrees(cr) {
     m4.compose(_v1.set(t.x, t.y, t.z), _q.identity(), _sc.set(0.5 * t.s, 3 * t.s, 0.5 * t.s)); trunk.setMatrixAt(i, m4);
     if (t.kind === 1) { m4.compose(_v1.set(t.x, t.y + 5.5 * t.s, t.z), _q.identity(), _sc.set(4.2 * t.s, 8 * t.s, 4.2 * t.s)); cone.setMatrixAt(ci, m4); cone.setColorAt(ci++, col.setHSL(0.33, 0.45, 0.22 + hash2(i, 1) * 0.08)); }
     else { m4.compose(_v1.set(t.x, t.y + 4.5 * t.s, t.z), _q.setFromAxisAngle(_up, i), _sc.set(5 * t.s, 4.4 * t.s, 5 * t.s)); leaf.setMatrixAt(li, m4); leaf.setColorAt(li++, col.setHSL(0.25 + hash2(i, 2) * 0.08, 0.5, 0.3 + hash2(i, 3) * 0.1)); }
-    if (t.y < 1) addPost(t.x, t.z, 1.6 * t.s, 0, t.y + 8 * t.s);
+    // trunk, then the crown
+    addPost(t.x, t.z, 0.5 * t.s, t.y - 1, t.y + 3 * t.s);
+    addPost(t.x, t.z, (t.kind === 1 ? 1.9 : 2.4) * t.s, t.y + 2.2 * t.s, t.y + (t.kind === 1 ? 9.5 : 7) * t.s);
   });
   leaf.count = li; cone.count = ci;
   for (const m of [trunk, leaf, cone]) { if (m.instanceColor) m.instanceColor.needsUpdate = true; c.group.add(m); }
@@ -1614,8 +1644,31 @@ function buildHeli(type) {
   // anchors for the gear that hangs off it
   out.hook = new V3(0, base, 0);
   out.spotAt = new V3(0, base + 0.1, -bl / 2 - S.nose * 0.5);
+  out.hull = heliHull(S, base);
   g.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
   return out;
+}
+
+// The collision shape in model space: spheres along the cabin, the tail boom and fin, the skids, and a ring of
+// small spheres around each rotor disc (rotor: true). Fed to collideHeli every step.
+function heliHull(S, base) {
+  const [bw, bh, bl] = S.body, hull = [];
+  const sph = (x, y, z, r, rotor = false) => hull.push({ p: new V3(x, y, z), r, rotor });
+  const rb = Math.max(bw, bh) * 0.55, yc = base + bh * 0.5;
+  const z0 = -bl / 2 - S.nose * 0.6, z1 = bl / 2 - rb * 0.5, n = Math.max(2, Math.ceil((z1 - z0) / (rb * 1.1)));
+  for (let i = 0; i <= n; i++) sph(0, yc, lerp(z0, z1, i / n), rb);
+  if (!S.tandem) {
+    const yb = base + bh * 0.68;
+    for (let z = bl / 2 + 0.8; z < bl / 2 + S.boom; z += 1.1) sph(0, yb, z, 0.6);
+    sph(0, yb + S.finH * 0.5, bl / 2 + S.boom - 0.3, Math.max(0.7, S.finH * 0.6));
+  }
+  for (const sz of [-0.35, 0.35]) sph(0, 0.4, sz * bl, Math.min(0.9, bw * 0.4));
+  const rotors = S.tandem ? [[-bl / 2 + 1.2, base + bh + 0.9], [bl / 2 - 1.2, base + bh + 1.8]] : [[bl * 0.05, base + bh + 0.8]];
+  for (const [rz, ry] of rotors) {
+    for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; sph(Math.cos(a) * S.rotor * 0.93, ry, rz + Math.sin(a) * S.rotor * 0.93, 0.5, true); }
+    for (let i = 0; i < 7; i++) { const a = (i + 0.5) / 7 * TAU; sph(Math.cos(a) * S.rotor * 0.55, ry, rz + Math.sin(a) * S.rotor * 0.55, 0.5, true); }
+  }
+  return hull;
 }
 
 // ---------- people ----------
@@ -1892,7 +1945,7 @@ function updateTraffic(dt) {
   const lanes = new Map();
   for (const car of T.cars) { if (car.dead) continue; const k = car.e.id * 2 + (car.dir > 0 ? 1 : 0); let l = lanes.get(k); if (!l) lanes.set(k, (l = [])); l.push(car); }
   for (const l of lanes.values()) l.sort((a, b) => a.t - b.t);
-  const hx = HELI.x, hz = HELI.z, heliLow = HELI.y - surfaceY(HELI.x, HELI.z) < 3;
+  const hx = HELI.x, hz = HELI.z, heliLow = HELI.y - surfaceY(HELI.x, HELI.z) < 3, onFoot = G.where === 'foot' && PILOT.y < 1.5;
   for (const l of lanes.values()) {
     for (let i = 0; i < l.length; i++) {
       const car = l[i], lead = l[i + 1];
@@ -1904,6 +1957,7 @@ function updateTraffic(dt) {
       else if (left < 10 && n.edges.length > 2) target = Math.min(target, 7);
       if (car.stop > 0) { car.stop -= dt; target = 0; }
       if (heliLow && dist2(car.x - Math.sin(car.yaw) * 6, car.z - Math.cos(car.yaw) * 6, hx, hz) < 49) target = 0;
+      if (onFoot && dist2(car.x - Math.sin(car.yaw) * 5, car.z - Math.cos(car.yaw) * 5, PILOT.x, PILOT.z) < 12) target = 0;
       car.v = target < car.v ? Math.max(target, car.v - 14 * dt) : Math.min(target, car.v + 4 * dt);
       car.horn = car.v < 0.5 && n.jam > 0 ? car.horn + dt : 0;
     }
@@ -1943,6 +1997,26 @@ function updatePeds(dt) {
     T.pedCloth.setMatrixAt(p.i, m4); T.pedSkin.setMatrixAt(p.i, m4);
   }
   T.pedCloth.instanceMatrix.needsUpdate = true; T.pedSkin.instanceMatrix.needsUpdate = true;
+}
+// cars as obstacles: three or four upright cylinders along each car. Traffic plus any moving call cars in G.dynCars
+// ({ x, z, yaw, big }: a getaway car, police cruisers).
+const _carCyl = [];
+function carCylinders(x, z, r) {
+  _carCyl.length = 0;
+  const add = (c) => {
+    if (c.dead || dist2(c.x, c.z, x, z) > (r + 6) * (r + 6)) return;
+    const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw), big = c.big;
+    for (const k of big ? [-2.8, -0.9, 0.9, 2.8] : [-1.3, 0, 1.3]) _carCyl.push({ x: c.x + fx * k, z: c.z + fz * k, r: big ? 1.25 : 0.95, y0: 0, y1: big ? 3.0 : 1.7, car: c });
+  };
+  for (const c of TRAFFIC.cars) add(c);
+  for (const c of G.dynCars || []) add(c);
+  return _carCyl;
+}
+// push a sphere out of nearby cars (into res, the same shape collideSphere returns)
+function pushFromCars(res, r) {
+  let car = null;
+  for (const cy of carCylinders(res.x, res.z, r)) if (pushOut(res, r, cy)) car = cy.car;
+  return car;
 }
 function carsNear(x, z, r) { return TRAFFIC.cars.filter((c) => !c.dead && dist2(c.x, c.z, x, z) < r * r); }
 function pedsNear(x, z, r) { return TRAFFIC.peds.filter((p) => dist2(p.x, p.z, x, z) < r * r); }
@@ -2011,8 +2085,9 @@ function flyHeli(dt, inp) {
     if ((H.warnT -= dt) <= 0) { msg('You are leaving city airspace. Turn back.', 'bad'); H.warnT = 6; }
   }
   if (H.y > 420) H.vy = Math.min(H.vy, -1);
-  H.x += H.vx * dt; H.y += H.vy * dt; H.z += H.vz * dt;
-  collideHeli(dt);
+  // move in steps of under a metre so a fast helicopter can't skip through a wall
+  const steps = Math.min(8, Math.max(1, Math.ceil(Math.hypot(H.vx, H.vy, H.vz) * dt / 0.8)));
+  for (let i = 0; i < steps; i++) { H.x += H.vx * dt / steps; H.y += H.vy * dt / steps; H.z += H.vz * dt / steps; collideHeli(); }
   groundHeli(dt);
 }
 function flyArcade(dt, inp, power, load) {
@@ -2068,27 +2143,47 @@ function flySim(dt, inp, power, load) {
 }
 
 // ---------- collisions, ground and damage ----------
-function collideHeli(dt) {
-  const H = HELI, m = H.model, cy = H.y + m.skid + m.bodyH * 0.5;
-  const r = Math.min(m.r, 6.5);
-  const c = collideSphere(H.x, cy, H.z, r, H.y + 1.2);
-  if (!c.hit) return;
-  const vn = H.vx * c.nx + H.vy * c.ny + H.vz * c.nz;
-  H.x = c.x; H.z = c.z; H.y = c.y - m.skid - m.bodyH * 0.5;
-  if (c.ny > 0.7) { // resting on something's top: treat it as ground
+// Every hull sphere is pushed out of buildings, props and cars, and the helicopter moves with it. The deepest
+// contact sets the bounce and the damage. Rotor tips leave sideways and cost more.
+const _hq = new THREE.Quaternion(), _he = new THREE.Euler(), _hp = new V3();
+function collideHeli() {
+  const H = HELI, m = H.model, minTop = H.y + 1.2;
+  _hq.setFromEuler(_he.set(H.pitch, H.yaw, H.roll, 'YXZ'));
+  let best = null, car = null;
+  for (let pass = 0; pass < 2; pass++) {
+    let moved = false;
+    for (const s of m.hull) {
+      _hp.copy(s.p).applyQuaternion(_hq);
+      const px = H.x + _hp.x, py = H.y + _hp.y, pz = H.z + _hp.z;
+      const c = collideSphere(px, py, pz, s.r, minTop, s.rotor);
+      const hitCar = pushFromCars(c, s.r);
+      if (!c.hit) continue;
+      if (hitCar) car = hitCar;
+      H.x += c.x - px; H.y += c.y - py; H.z += c.z - pz; moved = true;
+      if (!best || c.depth > best.depth) best = { depth: c.depth, nx: c.nx, ny: c.ny, nz: c.nz, rotor: s.rotor, x: c.x, y: c.y, z: c.z, hit: c.hit };
+    }
+    if (!moved) break;
+  }
+  if (!best) return;
+  if (best.ny > 0.7) { // resting on something's top: treat it as ground
     if (H.vy < 0) { if (H.vy < -7) damageHeli((-H.vy - 7) * 7, 'hard landing'); H.vy = 0; }
     return;
   }
-  if (vn < 0) {
-    H.vx -= 1.4 * vn * c.nx; H.vy -= 1.4 * vn * c.ny; H.vz -= 1.4 * vn * c.nz;
-    if (vn < -2.5 && H.hitT <= 0) {
-      G.lastHit = { x: H.x, y: H.y, z: H.z, vn, s: c.hit && c.hit.y1 !== undefined ? [c.hit.x0, c.hit.z0, c.hit.x1, c.hit.z1, c.hit.y0, c.hit.y1, c.hit.r, c.hit.b && c.hit.b.style] : null };
-      damageHeli((-vn - 2.5) * 3.6 * (1 + H.st.hp / 400), 'collision');
-      CAM.shake = Math.min(1, CAM.shake + 0.5); H.hitT = 0.4;
-      for (let i = 0; i < 10; i++) spark({ add: true, x: H.x - c.nx * r, y: cy, z: H.z - c.nz * r, vx: rr(-6, 6), vy: rr(0, 6), vz: rr(-6, 6), life: 0.5, s0: 0.8, s1: 0.2, c0: [1, 0.9, 0.5, 1], c1: [1, 0.5, 0.1, 0], grav: 10 });
-      AUDIO.sfx('crunch', Math.min(1, -vn / 12));
-    }
-  }
+  const vn = H.vx * best.nx + H.vy * best.ny + H.vz * best.nz;
+  if (vn >= 0) return;
+  H.vx -= 1.4 * vn * best.nx; H.vy -= 1.4 * vn * best.ny; H.vz -= 1.4 * vn * best.nz;
+  // a rotor strike hurts even at a crawl; the body shrugs off a nudge
+  const hard = best.rotor ? -vn > 0.8 : -vn > 2.5;
+  if (!hard || H.hitT > 0) return;
+  const s = best.hit;
+  G.lastHit = { x: H.x, y: H.y, z: H.z, vn, rotor: best.rotor, car: !!car, s: s && s.y1 !== undefined ? [s.x0, s.z0, s.x1, s.z1, s.y0, s.y1, s.r, s.b && s.b.style] : null };
+  const base = best.rotor ? (-vn < 3 ? 1.5 + (-vn) * 1.5 : 4 + (-vn) * 4.5) : (-vn - 2.5) * 3.6; // a blade scrape is a scratch, a strike at speed is not
+  damageHeli(base * (1 + H.st.hp / 400), best.rotor ? 'rotor strike' : car ? 'hit a car' : 'collision');
+  if (best.rotor && (H.rotorT = (H.rotorT || 0) - 1) < 0) { toast('Rotor strike! Keep the blades clear.', 'bad'); H.rotorT = 4; }
+  if (car) { car.stop = 4; car.v = 0; }
+  CAM.shake = Math.min(1, CAM.shake + (best.rotor ? 0.35 : 0.5)); H.hitT = 0.4;
+  for (let i = 0; i < 10; i++) spark({ add: true, x: best.x - best.nx * 0.5, y: best.y, z: best.z - best.nz * 0.5, vx: rr(-6, 6), vy: rr(0, 6), vz: rr(-6, 6), life: 0.5, s0: 0.8, s1: 0.2, c0: [1, 0.9, 0.5, 1], c1: [1, 0.5, 0.1, 0], grav: 10 });
+  AUDIO.sfx('crunch', Math.min(1, -vn / 12));
 }
 function groundHeli(dt) {
   const H = HELI;
@@ -2142,6 +2237,7 @@ function crashFall(dt) {
   H.vy -= GRAV * 0.7 * dt; H.vx *= Math.exp(-0.5 * dt); H.vz *= Math.exp(-0.5 * dt);
   H.roll = damp(H.roll, 0.5, 1, dt);
   H.x += H.vx * dt; H.y += H.vy * dt; H.z += H.vz * dt;
+  if (!H.crashed) collideHeli();
   smoke(H.x, H.y + 2, H.z, 0.6);
   const s = surfaceY(H.x, H.z, H.y + 1);
   if (H.y <= s || H.crashing > 12) {
@@ -2269,7 +2365,7 @@ function buildGear() {
   const w = mesh(GM.disc(), mat(0x4a8ac8, { basic: true }), 0, 0.8 * big, 0, 1.9 * big, 1, 1.9 * big); b.add(w); GEAR.bucketWater = w;
   for (let i = 0; i < 3; i++) { const a = i / 3 * TAU; const s = mesh(GM.box(), mat(0x202020), Math.cos(a) * 0.5 * big, 2.2 * big, Math.sin(a) * 0.5 * big, 0.05, 1.4 * big, 0.05); s.rotation.set(Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4); b.add(s); }
   b.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
-  GEAR.bucket = b; GEAR.bucketH = 2.9 * big;
+  GEAR.bucket = b; GEAR.bucketH = 2.9 * big; GEAR.bucketR = 1.0 * big;
   const L = new Merger();
   for (const sx of [-0.35, 0.35]) L.box(sx, -LADDER_LEN, 0, 0.06, LADDER_LEN, 0.06, 0xc8b070);
   for (let y = 0.4; y < LADDER_LEN; y += 0.5) L.box(0, -y, 0, 0.7, 0.06, 0.08, 0x9a7a40);
@@ -2336,6 +2432,24 @@ function updateGear(dt) {
     const bottom = wet ? WATER_Y - 0.9 : floor;
     if (by < bottom) by = bottom;
     b.y = by;
+    // walls, roof clutter and cars knock it about
+    const br = GEAR.bucketR, c = collideSphere(b.x, b.y + br, b.z, br);
+    pushFromCars(c, br);
+    if (c.hit) {
+      const nx = c.x - b.x, nz = c.z - b.z, l = Math.hypot(nx, nz);
+      if (l > 1e-4) {
+        const vn = (b.vx * nx + b.vz * nz) / l;
+        if (vn < 0) { b.vx -= 1.6 * vn * nx / l; b.vz -= 1.6 * vn * nz / l; if (vn < -3 && GEAR.clangT <= 0) { AUDIO.sfx('thunk'); GEAR.clangT = 0.3; } }
+      }
+      b.x = c.x; b.z = c.z; b.y = Math.max(b.y, c.y - br);
+      dx = b.x - h.x; dz = b.z - h.z;
+    }
+    // dragged too far behind something, it slips free and drops back under the hook
+    if (dist3(b.x, b.y, b.z, h.x, h.y, h.z) > BUCKET_LEN * 1.3) {
+      b.x = h.x; b.z = h.z; b.vx = b.vz = 0; dx = dz = 0;
+      b.y = Math.max(h.y - BUCKET_LEN, surfaceY(h.x, h.z, h.y));
+      toast('The bucket snagged and swung free.');
+    }
     // filling
     if (wet && by < WATER_Y + 0.7 && b.water < H.st.bucket) {
       b.water = Math.min(H.st.bucket, b.water + 520 * dt);
@@ -2350,7 +2464,7 @@ function updateGear(dt) {
     stretchCable(h, b.x, b.y + GEAR.bucketH, b.z);
   } else { b.x = h.x; b.y = h.y - 2; b.z = h.z; b.vx = b.vz = 0; }
   GEAR.bucket.visible = showBucket;
-  GEAR.fillSnd = Math.max(0, GEAR.fillSnd - dt);
+  GEAR.fillSnd = Math.max(0, GEAR.fillSnd - dt); GEAR.clangT = Math.max(0, (GEAR.clangT || 0) - dt);
   // dumping
   if (GEAR.dumpT > 0) {
     GEAR.dumpT -= dt;
@@ -2368,7 +2482,8 @@ function updateGear(dt) {
   for (let i = GEAR.drops.length - 1; i >= 0; i--) {
     const d = GEAR.drops[i];
     d.vy -= 11 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt;
-    const s = surfaceY(d.x, d.z, d.y + 1);
+    let s = surfaceY(d.x, d.z, d.y + 1);
+    if (pointInSolid(d.x, d.y, d.z)) s = d.y; // splashes against a wall
     if (d.y <= s) { GEAR.drops.splice(i, 1); splash(d.x, s + 0.2, d.z, 8, 1.4); bus.emit('water', d.x, s, d.z, d.L); }
   }
   // the ladder unrolls when selected and rolls up when not, unless someone's on it
@@ -2378,6 +2493,10 @@ function updateGear(dt) {
   if (L.len > 0.2) {
     L.x = damp(L.x || h.x, h.x - H.vx * 0.12, 5, dt); L.z = damp(L.z || h.z, h.z - H.vz * 0.12, 5, dt);
     L.y = Math.max(h.y - L.len, surfaceY(L.x, L.z, h.y) + 0.1);
+    // the bottom rungs swing clear of walls and cars instead of through them
+    const lc = collideSphere(L.x, L.y + 0.6, L.z, 0.45);
+    pushFromCars(lc, 0.45);
+    if (lc.hit) { L.x = lc.x; L.z = lc.z; L.y = Math.max(L.y, lc.y - 0.6); }
     const len = h.y - L.y;
     GEAR.ladder.position.copy(h);
     GEAR.ladder.scale.set(1, len / LADDER_LEN, 1);
@@ -2392,7 +2511,8 @@ function updateGear(dt) {
     c.mesh.position.set(c.x, c.y, c.z); c.mesh.rotation.x += dt * 8;
     gasPuff(c.x, c.y, c.z, 0.2);
     bus.emit('canister', c);
-    const s = surfaceY(c.x, c.z, c.y + 1);
+    let s = surfaceY(c.x, c.z, c.y + 1);
+    if (pointInSolid(c.x, c.y, c.z)) s = c.y; // into a wall: it bursts there
     if (c.y <= s) {
       R.scene.remove(c.mesh); GEAR.cans.splice(i, 1);
       const cl = { x: c.x, y: s, z: c.z, r: 10, t: 0, life: 14 };
@@ -2593,6 +2713,7 @@ function footControls(dt) {
   // no swimming
   if (isWaterAt(nx, nz) && surfaceY(nx, nz, p.y + 0.6) <= WATER_Y + 0.01) { nx = p.x; nz = p.z; }
   const c = collideSphere(nx, p.y + 0.9, nz, 0.45, p.y + 0.6);
+  pushFromCars(c, 0.45);
   nx = c.x; nz = c.z;
   // don't walk into the helicopter's body
   const hd = dist(nx, nz, H.x, H.z), hr = H.model.r * 0.35 + 0.5;
@@ -2672,7 +2793,7 @@ const CALL_TYPES = {};
 function initCalls() {
   if (CALLS.group) R.scene.remove(CALLS.group);
   CALLS.group = new THREE.Group(); R.scene.add(CALLS.group);
-  G.calls = []; G.target = null; G.nextCallT = 12; G.walkers = [];
+  G.calls = []; G.target = null; G.nextCallT = 12; G.walkers = []; G.dynCars = [];
 }
 function spawnPerson(x, y, z, pose = 'stand', o = {}) {
   const P = buildPerson(o); P.pose = pose; P.x = x; P.y = y; P.z = z; P.yaw = o.yaw !== undefined ? o.yaw : rr(0, TAU);
@@ -2742,7 +2863,7 @@ function pickCallType() {
 }
 function startCall(type, o = {}) {
   const T = CALL_TYPES[type];
-  const c = { id: ++CALLS.n, type, def: CALL[type], t: 0, state: 'open', stage: '', people: [], objs: [], x: 0, y: 0, z: 0, pay: CITY.def.pay, child: o.child || null };
+  const c = { id: ++CALLS.n, type, def: CALL[type], t: 0, state: 'open', stage: '', people: [], objs: [], solids: [], dyn: [], x: 0, y: 0, z: 0, pay: CITY.def.pay, child: o.child || null };
   let ok;
   try { ok = T.start(c, o); } catch (e) { console.error(e); ok = false; }
   if (ok === false) { cleanupCall(c); return null; }
@@ -2777,6 +2898,8 @@ function cleanupCall(c) {
   for (const o of c.objs) if (o.parent) o.parent.remove(o);
   if (c.marker && c.marker.parent) c.marker.parent.remove(c.marker);
   if (c.cleanup) c.cleanup();
+  killSolids(c.solids);
+  if (c.dyn) G.dynCars = (G.dynCars || []).filter((d) => !c.dyn.includes(d));
   unboard((s) => s.call === c && c.state === 'failed');
 }
 bus.on('mega', (x, z, alt) => { for (const c of G.calls.slice()) if (c.onMega) c.onMega(x, z, alt); });
@@ -2886,7 +3009,7 @@ CALL_TYPES.medevac = {
     c.title = o.title || 'Car crash';
     c.radio = o.radio || `Two-car collision ${c.where}. Injured on the scene. Land nearby and fly them to a hospital.`;
     if (!o.noWrecks) {
-      for (let i = 0; i < 2; i++) { const car = buildCar('car'); wreckCar(car); car.group.position.set(s.x + (i ? 2.5 : -2), 0.05, s.z + (i ? 1.5 : -1.8)); car.group.rotation.y = s.yaw + (i ? 0.9 : -0.4); addObj(car.group); c.objs.push(car.group); }
+      for (let i = 0; i < 2; i++) { const car = buildCar('car'); wreckCar(car); car.group.position.set(s.x + (i ? 2.5 : -2), 0.05, s.z + (i ? 1.5 : -1.8)); car.group.rotation.y = s.yaw + (i ? 0.9 : -0.4); addObj(car.group); c.objs.push(car.group); c.solids.push(...propSolids(car.group.position.x, car.group.position.z, car.group.rotation.y, 4.2, 1.9, 0, 1.7)); }
       igniteSpot(s.x + 2.5, 0.5, s.z + 1.5, 3, 4, 1.2, 0.2, null);
       c.edge = blockEdgeAt(s.x, s.z, true);
     }
@@ -3003,13 +3126,13 @@ CALL_TYPES.jam = {
     c.where = whereText(n.x, n.z);
     c.title = 'Traffic jam';
     c.radio = `Gridlock ${c.where}. A stalled truck has the intersection blocked. Get down there with the megaphone.`;
-    const tr = buildCar('truck', 0xd8d8d0); tr.group.position.set(n.x + 1, 0.05, n.z - 1); tr.group.rotation.y = 0.6; addObj(tr.group); c.objs.push(tr.group);
+    const tr = buildCar('truck', 0xd8d8d0); tr.group.position.set(n.x + 1, 0.05, n.z - 1); tr.group.rotation.y = 0.6; addObj(tr.group); c.objs.push(tr.group); c.solids.push(...propSolids(n.x + 1 - Math.sin(0.6) * 1.2, n.z - 1 - Math.cos(0.6) * 1.2, 0.6, 9, 2.4, 0, 3.4));
     c.stage = 'Hover low over the jam and use the megaphone (4, then F).';
     c.timeoutText = 'The jam cleared on its own. No pay this time.';
     c.onMega = (x, z, alt) => {
       if (c.state !== 'open' || dist(x, z, c.n.x, c.n.z) > 55 || alt > 70) return;
       c.n.jam = 0;
-      c.objs.forEach((o) => { o.visible = false; });
+      c.objs.forEach((o) => { o.visible = false; }); killSolids(c.solids);
       finishCall(c, true, c.def.reward * c.pay * timeBonus(c.t, 45, 90), 'Traffic is moving again.');
     };
   },
@@ -3028,6 +3151,7 @@ CALL_TYPES.crime = {
     c.car = { e: s.e, dir: 1, t: s.t, v: 0, vmax: 19, lane: 2.8, x: s.x, z: s.z, yaw: 0, model: car };
     addObj(car.group); c.objs.push(car.group);
     c.x = s.x; c.z = s.z;
+    c.dyn.push(c.car); G.dynCars = (G.dynCars || []).concat([c.car]);
     c.where = whereText(s.x, s.z);
     c.title = pick(['Bank robbery', 'Armed robbery', 'Jewelry heist', 'Stolen armored car']);
     c.radio = `${c.title} ${c.where}! Suspects fleeing in a black sedan. Keep them in sight, and gas them if you can.`;
@@ -3052,7 +3176,8 @@ CALL_TYPES.crime = {
       if (sees) { c.seen += dt; c.lost = 0; } else c.lost += dt;
       if (c.seen > 8 && c.police.length < 2 && c.police.length < Math.floor(c.seen / 8)) {
         const pc = buildCar('police'); addObj(pc.group); c.objs.push(pc.group);
-        c.police.push({ e: car.e, dir: car.dir, t: Math.max(0, car.t - 40), v: 16, vmax: 21, lane: 2.8, x: 0, z: 0, yaw: 0, model: pc });
+        const cop = { e: car.e, dir: car.dir, t: Math.max(0, car.t - 40), v: 16, vmax: 21, lane: 2.8, x: car.x, z: car.z, yaw: 0, model: pc };
+        c.police.push(cop); c.dyn.push(cop); G.dynCars.push(cop);
         msg('Units joining the pursuit.', 'radio');
       }
       if (c.seen > 75) { c.stopped = 0.01; msg('Police have them boxed in!', 'good'); c.boxed = true; }
@@ -3123,7 +3248,7 @@ CALL_TYPES.riot = {
     c.rioters = [];
     for (let i = 0; i < 12; i++) { const P = spawnPerson(c.x + rr(-12, 12), CURB, c.z + rr(-12, 12), 'riot', { shirt: pick([0x2a2a2a, 0x5a2a2a, 0x3a3a5a, 0x6a6a6a]) }); P.home = { x: P.x, z: P.z }; c.people.push(P); c.rioters.push(P); }
     const s = roadSpot((e) => dist(e.a.x, e.a.z, c.x, c.z) < 110);
-    const car = buildCar('car'); wreckCar(car); car.group.position.set(s.x, 0.05, s.z); car.group.rotation.y = s.yaw + 1; addObj(car.group); c.objs.push(car.group);
+    const car = buildCar('car'); wreckCar(car); car.group.position.set(s.x, 0.05, s.z); car.group.rotation.y = s.yaw + 1; addObj(car.group); c.objs.push(car.group); c.solids.push(...propSolids(s.x, s.z, s.yaw + 1, 4.2, 1.9, 0, 1.7));
     c.inc = newIncident({ call: c });
     igniteSpot(s.x, 0.4, s.z, 3, 4, 1.4, 0.6, c.inc);
     c.anger = 0; c.megaHits = 0;
@@ -3178,7 +3303,7 @@ CALL_TYPES.flood = {
     for (let i = 0; i < n; i++) {
       const s = { x: rr(b.sx0 - 4, b.sx1 + 4), z: rr(b.sz0, b.sz1) };
       if (i % 2 === 0) { s.x = b.sx0 - 3; s.z = rr(b.sz0 + 5, b.sz1 - 5); } // on a car in the street
-      const car = buildCar('car'); car.group.position.set(s.x, 0.05, s.z); car.group.rotation.y = rr(0, TAU); addObj(car.group); c.objs.push(car.group);
+      const car = buildCar('car'); car.group.position.set(s.x, 0.05, s.z); car.group.rotation.y = rr(0, TAU); addObj(car.group); c.objs.push(car.group); c.solids.push(...propSolids(s.x, s.z, car.group.rotation.y, 4.2, 1.9, 0, 1.5));
       const P = spawnPerson(s.x, 1.55, s.z, 'wave'); P.baseY = P.y; P.hp = 100; c.people.push(P); c.victims.push(P);
     }
     c.where = whereText(b.cx, b.cz);
@@ -3222,7 +3347,11 @@ CALL_TYPES.ship = {
     const cy = Math.cos(c.ship.rotation.y), sy = Math.sin(c.ship.rotation.y);
     c.fire = igniteSpot(c.x + sy * -5, 2, c.z + cy * -5, 6, 9, 2.5, 0.6, c.inc);
     c.victims = [];
-    for (let i = 0; i < 3; i++) { const lz = 6 + i * 1.6; const P = spawnPerson(c.x + sy * lz + rr(-1.5, 1.5), WATER_Y + 1.85, c.z + cy * lz, 'wave'); P.baseY = P.y; c.people.push(P); c.victims.push(P); }
+    for (let i = 0; i < 3; i++) { const lz = -10.6, lx = (i - 1) * 1.6; const P = spawnPerson(c.x + sy * lz + cy * lx, WATER_Y + 1.85, c.z + cy * lz - sy * lx, 'wave'); P.baseY = P.y; c.people.push(P); c.victims.push(P); }
+    // the hull, the container stack, the bridge and the funnel, as offsets above the waterline (they sink with her)
+    c.shipParts = [[-8.5, 3.1, 1.9], [-3, 3.1, 1.9], [3, 3.1, 1.9], [9, 3.1, 1.9], [-3.5, 3, 3.8], [8, 2.6, 4.8], [9.5, 0.8, 7.5]].map(([k, r, top]) => {
+      const sol = addPost(c.x + sy * k, c.z + cy * k, r, WATER_Y - 2, WATER_Y + top); sol.top = top; c.solids.push(sol); return sol;
+    });
     c.title = 'Ship on fire';
     c.where = 'out on the water';
     c.radio = 'Mayday from the freighter "Dorothy B": engine room fire and crew on deck! Put out the fire and lift the crew off.';
@@ -3233,6 +3362,7 @@ CALL_TYPES.ship = {
     if (fireLeft) c.sink += dt;
     if (c.sink > 260) { // she's going down
       c.ship.position.y = WATER_Y - (c.sink - 260) * 0.15;
+      for (const sol of c.shipParts) sol.y1 = c.ship.position.y + sol.top;
       for (const P of c.victims) if (!P.state && c.sink > 285) { P.state = 'lost'; removePerson(P); }
       if (c.sink > 300 && fireLeft) removeFire(c.fire);
     }
@@ -3264,7 +3394,7 @@ CALL_TYPES.spill = {
   start(c) {
     const s = roadSpot((e) => dist(e.a.x, e.a.z, CITY.home.x, CITY.home.z) > 200);
     c.x = s.x; c.z = s.z; c.y = 0;
-    const tk = buildCar('tanker'); tk.group.position.set(s.x, 0.6, s.z); tk.group.rotation.set(0, s.yaw + 0.5, 1.4); addObj(tk.group); c.objs.push(tk.group);
+    const tk = buildCar('tanker'); tk.group.position.set(s.x, 0.6, s.z); tk.group.rotation.set(0, s.yaw + 0.5, 1.4); addObj(tk.group); c.objs.push(tk.group); c.solids.push(...propSolids(s.x, s.z, s.yaw + 0.5, 9, 2.6, 0, 2.6));
     const pool = mesh(GM.disc(), mat(0x8aff3a, { basic: true, t: true, o: 0.6 }), s.x + 3, 0.08, s.z, 14, 1, 14); addObj(pool); c.objs.push(pool); c.pool = pool;
     c.edge = blockEdgeAt(s.x, s.z, true);
     c.tox = 1; c.r = 14;
@@ -4539,7 +4669,7 @@ function autopilot(dt) {
   const surf = surfaceY(H.x, H.z, H.y + 1);
   let alt = a.alt !== undefined ? a.alt : 60;
   // look ahead for tall buildings
-  if (!a.exact) for (let k = 20; k < Math.min(Math.max(120, speedH() * 4), d + 10); k += 20) { const x = H.x + (d > 1 ? dx / d : 0) * k, z = H.z + (d > 1 ? dz / d : 0) * k; alt = Math.max(alt, roofBelow(x, z) + 15); }
+  if (!a.exact) for (let k = 10; k < Math.min(Math.max(120, speedH() * 4), d + 10); k += 10) for (const side of [-8, 0, 8]) { const ux = d > 1 ? dx / d : 0, uz = d > 1 ? dz / d : 0, x = H.x + ux * k - uz * side, z = H.z + uz * k + ux * side; alt = Math.max(alt, roofBelow(x, z) + 15); }
   if (d < 120 && !a.land && !a.exact) alt = Math.max(alt, roofBelow(a.x, a.z) + 15);
   if (a.land && d < 12) alt = -5;
   const tgtY = (a.land && d < 12 ? surf : surfaceY(a.x, a.z) * 0) + alt;

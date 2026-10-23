@@ -6,7 +6,7 @@ CALL_TYPES.spill = {
   start(c) {
     const s = roadSpot((e) => dist(e.a.x, e.a.z, CITY.home.x, CITY.home.z) > 200);
     c.x = s.x; c.z = s.z; c.y = 0;
-    const tk = buildCar('tanker'); tk.group.position.set(s.x, 0.6, s.z); tk.group.rotation.set(0, s.yaw + 0.5, 1.4); addObj(tk.group); c.objs.push(tk.group);
+    const tk = buildCar('tanker'); tk.group.position.set(s.x, 0.6, s.z); tk.group.rotation.set(0, s.yaw + 0.5, 1.4); addObj(tk.group); c.objs.push(tk.group); c.solids.push(...propSolids(s.x, s.z, s.yaw + 0.5, 9, 2.6, 0, 2.6));
     const pool = mesh(GM.disc(), mat(0x8aff3a, { basic: true, t: true, o: 0.6 }), s.x + 3, 0.08, s.z, 14, 1, 14); addObj(pool); c.objs.push(pool); c.pool = pool;
     c.edge = blockEdgeAt(s.x, s.z, true);
     c.tox = 1; c.r = 14;
