@@ -1,0 +1,202 @@
+<title>Act of God</title>
+<meta name="description" content="Choose a city, from a crossroads town to an endless megacity, then decide what kind of god you are. Lightning, tornadoes, earthquakes, volcanoes, meteors, floods and plagues, or healing, rain, rainbows, golden ages and the dead raised. The city lives, reacts and reports every act on the news.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #f2efe8; --dim: #b4b0a6; --faint: #7a776f; --red: #e2483c; --gold: #e8c46a; --panel: rgba(12,13,16,.74); --line: rgba(255,255,255,.12);
+    --ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; --serif: 'Cinzel', 'Trajan Pro', Georgia, 'Times New Roman', serif; }
+  html, body { margin: 0; height: 100%; background: #0a0b0d; overflow: hidden; color: var(--ink); font-family: var(--ui); font-size: 14px; -webkit-user-select: none; user-select: none; touch-action: none; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  body.casting #c { cursor: crosshair; }
+  button { font-family: var(--ui); color: var(--ink); cursor: pointer; }
+  #nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; z-index: 50; background: #0a0b0d; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .btn { background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 500; }
+  .btn:hover { background: rgba(255,255,255,.14); }
+  .btn.primary { background: var(--ink); color: #111; border-color: var(--ink); font-weight: 700; letter-spacing: .5px; }
+  .btn.primary:hover { background: #fff; }
+  /* title */
+  #title { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 14px; padding: 16px; background: radial-gradient(ellipse at center, rgba(0,0,0,.05), rgba(0,0,0,.6)); overflow: auto; }
+  #title > .logo { margin-top: auto; } #title > .foot { margin-bottom: auto; }
+  .logo { font-family: var(--serif); font-weight: 700; font-size: clamp(42px, 9vw, 96px); letter-spacing: .12em; text-shadow: 0 4px 30px rgba(0,0,0,.6), 0 0 2px #000; line-height: 1; text-align: center; }
+  .logo span { font-size: .45em; letter-spacing: .1em; color: var(--gold); vertical-align: middle; margin: 0 .2em; }
+  .tag { font-size: 16px; color: #ddd8cc; text-shadow: 0 2px 8px #000; text-align: center; max-width: 560px; }
+  #sizes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 980px; margin-top: 6px; }
+  .size { width: 176px; text-align: left; padding: 12px 13px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 4px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .size b { font-family: var(--serif); font-size: 17px; letter-spacing: .05em; }
+  .size span { color: var(--dim); font-size: 12.5px; line-height: 1.35; }
+  .size i { font-style: normal; color: var(--gold); font-size: 12px; margin-top: 2px; }
+  .size:hover { border-color: rgba(255,255,255,.35); }
+  .size.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+  #cityCard { text-align: center; padding: 12px 20px; max-width: 620px; }
+  #cityName { font-family: var(--serif); font-size: 28px; letter-spacing: .06em; }
+  #cityDesc { color: var(--dim); margin-top: 4px; line-height: 1.4; }
+  .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  #title .foot { color: var(--faint); font-size: 12px; text-align: center; text-shadow: 0 1px 3px #000; margin-top: 6px; }
+  #gen { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 30; padding: 8px 16px; font-family: var(--serif); letter-spacing: .1em; }
+  /* HUD */
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud { display: block; }
+  body.nohud .hud { display: none !important; }
+  .hud .panel, .hud button, .hud input { pointer-events: auto; }
+  #tl { position: absolute; left: 12px; top: 12px; padding: 10px 14px; min-width: 210px; }
+  #cName { font-family: var(--serif); font-size: 20px; letter-spacing: .05em; }
+  #cPopRow { color: var(--dim); font-size: 12.5px; margin-top: 2px; } #cPop { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  #mood { margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+  #moodTrack { flex: 1; height: 5px; background: rgba(255,255,255,.12); border-radius: 3px; overflow: hidden; } #moodBar { height: 100%; width: 50%; transition: width .5s, background .5s; }
+  #time { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  #clock { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; min-width: 44px; } #day { color: var(--dim); font-size: 12px; flex: 1; }
+  .ib { width: 30px; height: 28px; padding: 0; border-radius: 6px; background: rgba(255,255,255,.07); border: 1px solid var(--line); font-size: 13px; }
+  .ib:hover { background: rgba(255,255,255,.16); } .ib.on { background: var(--gold); color: #111; }
+  #tr { position: absolute; right: 12px; top: 12px; padding: 8px 12px; min-width: 170px; }
+  #toll div { display: flex; justify-content: space-between; gap: 16px; font-size: 12.5px; line-height: 1.75; }
+  #toll span { color: var(--dim); } #toll b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  #toll .bad b { color: #ff8a7a; } #toll .warn b { color: #f0b860; } #toll .good b { color: var(--gold); }
+  #btnMenu { position: absolute; right: 12px; top: 12px; }
+  #tr { top: 48px; }
+  #banner { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); width: min(620px, calc(100vw - 480px)); min-width: 280px; text-align: center; padding: 10px 18px; border-radius: 10px; background: rgba(140,18,14,.86); border: 1px solid rgba(255,120,100,.4); animation: drop .5s; }
+  #banner.good { background: rgba(120,92,20,.86); border-color: rgba(255,220,120,.5); }
+  #banner small { display: block; text-transform: uppercase; letter-spacing: .2em; font-size: 10.5px; font-weight: 700; opacity: .85; }
+  #banner b { display: block; font-size: 18px; margin-top: 3px; } #banner span { display: block; color: rgba(255,255,255,.8); font-size: 13px; margin-top: 2px; }
+  @keyframes drop { from { opacity: 0; transform: translate(-50%, -12px); } }
+  #toasts { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(520px, 92vw); }
+  .toast { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; text-align: center; transition: opacity .6s, transform .6s; }
+  .toast.bad { border-color: rgba(226,72,60,.6); } .toast.out { opacity: 0; transform: translateY(-8px); }
+  /* the dock */
+  #dock { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); width: min(1180px, calc(100vw - 24px)); padding: 8px 10px 10px; }
+  #tabs { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .tab { padding: 6px 14px; border-radius: 7px; background: transparent; border: 1px solid var(--line); font-family: var(--serif); font-size: 14px; letter-spacing: .12em; color: var(--dim); }
+  .tab.on#tabWrath { background: var(--red); border-color: var(--red); color: #fff; }
+  .tab.on#tabGrace { background: var(--gold); border-color: var(--gold); color: #1a1408; }
+  #hand { margin-left: auto; }
+  .pws { display: none; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  body[data-side="wrath"] #pw-wrath, body[data-side="grace"] #pw-grace { display: flex; }
+  .grp label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .14em; color: var(--faint); margin: 0 0 4px 2px; }
+  .gb { display: flex; gap: 4px; }
+  .pw { position: relative; width: 70px; height: 60px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 2px; }
+  .pw:hover { background: rgba(255,255,255,.12); }
+  .pw .ic { font-size: 22px; line-height: 1; } .pw .nm { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 66px; }
+  .pw kbd { position: absolute; top: 2px; right: 4px; font-family: var(--ui); font-size: 9px; color: var(--faint); }
+  body[data-side="wrath"] .pw.on { background: rgba(226,72,60,.3); border-color: var(--red); }
+  body[data-side="grace"] .pw.on { background: rgba(232,196,106,.25); border-color: var(--gold); }
+  .pw.on .nm { color: var(--ink); }
+  #info { display: flex; align-items: center; gap: 14px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); min-height: 34px; }
+  #pName { font-family: var(--serif); font-size: 15px; letter-spacing: .06em; min-width: 110px; }
+  #pDesc { flex: 1; color: var(--dim); font-size: 12.5px; line-height: 1.35; }
+  #sizeBox { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+  #info.none #sizeBox { visibility: hidden; }
+  #size { width: 130px; accent-color: var(--gold); }
+  body[data-side="wrath"] #size { accent-color: var(--red); }
+  #pSize { min-width: 92px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  #ticker { position: absolute; left: 0; right: 0; bottom: 0; height: 34px; display: flex; align-items: center; gap: 12px; background: rgba(8,9,11,.86); border-top: 1px solid var(--line); padding: 0 12px; overflow: hidden; pointer-events: auto; }
+  #tickerOut { flex: none; background: var(--red); color: #fff; font-weight: 700; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; }
+  #tickerText { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+  #tickerText.in { animation: tin .6s; }
+  #tickerText b { font-weight: 600; } #tickerText b.good { color: var(--gold); } #tickerText span { color: var(--dim); }
+  @keyframes tin { from { opacity: 0; transform: translateY(8px); } }
+  /* menus */
+  .menu { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(0,0,0,.45); padding: 16px; }
+  .menu .panel { padding: 22px 24px; width: min(460px, 92vw); max-height: 86vh; overflow: auto; }
+  .menu h2 { font-family: var(--serif); letter-spacing: .1em; margin: 0 0 14px; font-weight: 700; font-size: 22px; }
+  .menu .btn { display: block; width: 100%; margin: 6px 0; text-align: left; }
+  #help .panel { width: min(620px, 94vw); }
+  #help p, #help li { color: #d8d4ca; line-height: 1.5; font-size: 13.5px; } #help ul { padding-left: 18px; margin: 8px 0; }
+  #help kbd { background: rgba(255,255,255,.12); border-radius: 4px; padding: 1px 6px; font-family: var(--ui); font-size: 12px; color: var(--ink); }
+  #help .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .touchOnly { display: none; } body.touch .touchOnly { display: block; } body.touch .kbOnly { display: none; }
+  /* phones */
+  @media (max-width: 760px), (max-height: 520px) {
+    #tl { left: 8px; top: 8px; padding: 7px 10px; min-width: 0; } #cName { font-size: 16px; }
+    #tr { right: 8px; top: 44px; padding: 6px 9px; min-width: 0; } #toll div { font-size: 11px; line-height: 1.6; gap: 10px; }
+    #btnMenu { right: 8px; top: 8px; }
+    #banner { width: calc(100vw - 24px); top: auto; bottom: 240px; }
+    #dock { bottom: 38px; width: calc(100vw - 16px); padding: 6px; }
+    .pws { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+    .grp label { display: none; }
+    .pw { width: 58px; height: 52px; } .pw .ic { font-size: 19px; } .pw .nm { font-size: 9.5px; max-width: 54px; } .pw kbd { display: none; }
+    #pDesc { display: none; } #pName { min-width: 0; flex: 1; font-size: 13px; }
+    #size { width: 110px; } #pSize { min-width: 70px; }
+    #ticker { height: 30px; } #tickerText { font-size: 12px; }
+    #help .two { grid-template-columns: 1fr; }
+    .size { width: calc(50vw - 24px); }
+  }
+  @media (max-height: 520px) {
+    #tr { display: none; } #banner { bottom: auto; top: 8px; width: min(520px, calc(100vw - 300px)); padding: 6px 12px; } #banner b { font-size: 15px; } #banner span { display: none; }
+    #mood, #day { display: none; } #tl { padding: 6px 10px; } #time { margin-top: 4px; }
+    #dock { width: min(760px, calc(100vw - 16px)); } #tabs { margin-bottom: 4px; } .tab { padding: 4px 10px; font-size: 12px; }
+    .logo { font-size: 40px; } .tag { font-size: 14px; } .size { width: 150px; padding: 8px 10px; } .size span { display: none; } #cityCard { padding: 8px 14px; } #cityName { font-size: 20px; }
+  }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="nogl" hidden><div><h2>WebGL is not available</h2><p>Act of God needs a browser with 3D graphics turned on.</p></div></div>
+  <div id="gen" class="panel" hidden>Raising a city…</div>
+
+  <div id="title">
+    <div class="logo">ACT<span>of</span>GOD</div>
+    <div class="tag">Choose a city. Then decide what kind of god you are.</div>
+    <div id="sizes"></div>
+    <div id="cityCard" class="panel"><div id="cityName"></div><div id="cityDesc"></div></div>
+    <div class="row"><button id="reroll" class="btn">Another city</button><button id="begin" class="btn primary">Begin</button></div>
+    <div class="foot">Every city is generated fresh. Fifteen powers of wrath, thirteen of grace.</div>
+  </div>
+
+  <div class="hud">
+    <div id="tl" class="panel">
+      <div id="cName"></div>
+      <div id="cPopRow">Population <span id="cPop"></span></div>
+      <div id="mood"><span id="moodTxt"></span><div id="moodTrack"><div id="moodBar"></div></div></div>
+      <div id="time"><span id="clock"></span><span id="day"></span>
+        <button id="btnPause" class="ib" title="Pause (Space)">⏸</button><button id="btnSpeed" class="ib" title="Speed (T)">1×</button><button id="btnHour" class="ib" title="Skip to dawn, noon, dusk or night (N)">☾</button></div>
+    </div>
+    <button id="btnMenu" class="ib" title="Menu (Esc)">☰</button>
+    <div id="tr" class="panel"><div id="toll"></div></div>
+    <div id="banner" hidden></div>
+    <div id="toasts"></div>
+    <div id="dock" class="panel">
+      <div id="tabs"><button id="tabWrath" class="tab">WRATH</button><button id="tabGrace" class="tab">GRACE</button><button id="hand" class="ib" title="Put the power down and move the camera (Esc)">✋</button></div>
+      <div id="pw-wrath" class="pws"></div>
+      <div id="pw-grace" class="pws"></div>
+      <div id="info"><div id="pName"></div><div id="pDesc"></div><div id="sizeBox">Size <input id="size" type="range" min="0" max="100" value="35"><span id="pSize"></span></div></div>
+    </div>
+    <div id="ticker"><span id="tickerOut">News</span><div id="tickerText"></div></div>
+  </div>
+
+  <div id="menu" class="menu" hidden><div class="panel">
+    <h2>Act of God</h2>
+    <button id="mResume" class="btn">Resume</button>
+    <button id="mNew" class="btn">Choose another city</button>
+    <button id="mHelp" class="btn">How to play</button>
+    <button id="mQuality" class="btn">Quality: high</button>
+    <button id="mSound" class="btn">Sound: on</button>
+    <button id="mHud" class="btn">Hide the interface</button>
+  </div></div>
+
+  <div id="help" class="menu" hidden><div class="panel">
+    <h2>You are a god</h2>
+    <p>The city below goes about its day. Pick a power from <b>Wrath</b> or <b>Grace</b>, set its size, and use it. The people react: they flee, fire engines and ambulances race to help, and the news reports everything you do.</p>
+    <div class="two">
+      <div class="kbOnly"><ul>
+        <li><b>Left click</b> to use a power. Some need holding: Lightning, Wildfire, Deluge, Heal, Restore, Prosper, Bloom, Raise land.</li>
+        <li><b>Drag</b> across water with Part the waters.</li>
+        <li><b>Right drag</b> to turn, <b>wheel</b> to zoom, <b>drag</b> with no power (or <kbd>Shift</kbd>) to move.</li>
+      </ul></div>
+      <div class="kbOnly"><ul>
+        <li><kbd>1</kbd>–<kbd>0</kbd>, <kbd>Z</kbd>–<kbd>B</kbd> powers, <kbd>Tab</kbd> wrath or grace</li>
+        <li><kbd>[</kbd> <kbd>]</kbd> size, <kbd>Esc</kbd> put the power down</li>
+        <li><kbd>WASD</kbd> move, <kbd>Q</kbd> <kbd>E</kbd> turn, <kbd>R</kbd> <kbd>F</kbd> zoom</li>
+        <li><kbd>Space</kbd> pause, <kbd>T</kbd> speed, <kbd>N</kbd> time of day, <kbd>H</kbd> hide the interface</li>
+      </ul></div>
+      <div class="touchOnly"><ul>
+        <li><b>Tap</b> or hold to use a power. Drag across water with Part the waters.</li>
+        <li><b>Two fingers</b> move, pinch to zoom and twist to turn.</li>
+        <li>Tap <b>✋</b> to put the power down and drag the view with one finger.</li>
+      </ul></div>
+    </div>
+    <p>Grace can mend most of what wrath does. Restore raises ruins and heals the land; only Resurrection brings back the dead.</p>
+    <div class="row" style="justify-content:flex-start"><button id="helpClose" class="btn primary">Begin</button></div>
+  </div></div>
+</div>
