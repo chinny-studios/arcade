@@ -8,7 +8,7 @@ not covered by that license, or is covered by its own.
 [three.js](https://threejs.org/) is MIT-licensed, © 2010-2021 three.js authors.
 
 - Vendored (and inlined into each built `index.html`, with its license header
-  kept) in: `apogee`, `ashreach`, `calamity-bay`, `copter-city`, `farhold`, `hollowmere`, `iron-saber`, `mud-and-iron`, `revenant-protocol`, `ricky-rescue`, `roma-aeterna`, `studworks`, `time-apprentice`, `tokoyo`, `veyra-below`, `vyrium`, `willow-lane`
+  kept) in: `apogee`, `ashreach`, `calamity-bay`, `copter-city`, `farhold`, `hollowmere`, `iron-saber`, `mud-and-iron`, `revenant-protocol`, `ricky-rescue`, `roma-aeterna`, `shot-heard`, `studworks`, `time-apprentice`, `tokoyo`, `veyra-below`, `vyrium`, `willow-lane`
   (`*/source/vendor/three.min.js`).
 - Loaded from public CDNs (cdnjs, jsDelivr) by the other 3D games.
 

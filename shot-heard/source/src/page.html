@@ -1,0 +1,268 @@
+<title>Shot Heard</title>
+<meta name="description" content="A first-person battle of the American Revolution. Conquest and Breakthrough at Lexington, Bunker Hill, Saratoga and Yorktown: 32 against 32 with muskets, bayonets, cannon, cavalry and gunboats.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=EB+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #efe6cf; --dim: #b4a888; --faint: #7a705a; --paper: #e9dfc6; --paper2: #d9cba8; --dark: #241c14;
+    --red: #c8433a; --blue: #4f8fe0; --gold: #d7b45a; --green: #9ccb6a; --friend: #63b0ff; --foe: #ff6a48; --neutral: #e8e2d0;
+    --panel: rgba(20,16,12,.82); --line: rgba(215,180,90,.28);
+    --title: 'IM Fell English SC', 'IM Fell English', Georgia, 'Times New Roman', serif;
+    --fell: 'IM Fell English', Georgia, serif;
+    --body: 'EB Garamond', Garamond, Georgia, 'Times New Roman', serif; }
+  html, body { margin: 0; height: 100%; background: #14100c; overflow: hidden; color: var(--ink); font-family: var(--body); -webkit-user-select: none; user-select: none; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c, #hud2d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud2d { pointer-events: none; }
+  button { font-family: var(--body); cursor: pointer; }
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud { display: block; }
+  body[data-state="play"] #hud2d { display: block; }
+  #hud2d { display: none; }
+  .sh { text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.6); }
+
+  /* tickets and flags (top centre) */
+  #top { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; }
+  .tk { display: flex; flex-direction: column; align-items: center; min-width: 120px; }
+  .tk .nm { font-family: var(--title); font-size: 13px; letter-spacing: .08em; opacity: .9; }
+  .tk b { font-family: var(--title); font-size: 26px; line-height: 1; font-weight: 400; }
+  .tk .bar { width: 120px; height: 5px; background: rgba(0,0,0,.5); border-radius: 3px; overflow: hidden; margin-top: 3px; }
+  .tk .bar i { display: block; height: 100%; width: 100%; transition: width .3s; }
+  .tk.fr b, .tk.fr .nm { color: var(--friend); } .tk.fr .bar i { background: var(--friend); }
+  .tk.fo b, .tk.fo .nm { color: var(--foe); } .tk.fo .bar i { background: var(--foe); }
+  .tk.bleed b { animation: bleed 1s infinite; }
+  @keyframes bleed { 50% { opacity: .45; } }
+  #flagRow { display: flex; gap: 6px; }
+  .fl { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--title); font-size: 17px;
+    background: rgba(0,0,0,.55); border: 2px solid var(--neutral); color: var(--neutral); box-sizing: border-box; }
+  .fl.fr { border-color: var(--friend); color: var(--friend); } .fl.fo { border-color: var(--foe); color: var(--foe); }
+  .fl.lock { opacity: .35; } .fl.cont { animation: bleed .6s infinite; }
+  .fl.cur::after { content: ''; position: absolute; left: 50%; bottom: -8px; width: 6px; height: 3px; margin-left: -3px; background: var(--gold); border-radius: 2px; }
+  #sector { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); font-size: 14px; color: var(--dim); white-space: nowrap; }
+
+  /* feed and messages */
+  #feed { position: absolute; right: 16px; top: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-size: 14px; }
+  .kf { background: rgba(0,0,0,.42); padding: 2px 9px; border-radius: 4px; transition: opacity .6s; white-space: nowrap; }
+  .kf .fr { color: var(--friend); } .kf .fo { color: var(--foe); } .kf .me { color: var(--gold); font-weight: 600; } .kf .wp { color: var(--dim); font-style: italic; margin: 0 6px; }
+  #msgs { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .msg { font-size: 17px; animation: msgIn .25s ease-out; transition: opacity .6s; white-space: nowrap; }
+  .msg.bad { color: #ff9a80; } .msg.good { color: var(--green); } .msg.gold { color: var(--gold); }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(-6px); } }
+  #banner { position: absolute; left: 0; right: 0; top: 17%; text-align: center; font-family: var(--title); font-size: clamp(28px, 4.2vw, 56px); letter-spacing: .05em;
+    opacity: 0; transition: opacity .7s, transform .7s; transform: translateY(6px); padding: 0 16px; }
+  #banner.on { opacity: 1; transform: none; } #banner small { display: block; font-family: var(--fell); font-style: italic; font-size: .42em; color: var(--dim); letter-spacing: 0; margin-top: 4px; }
+  #banner.fr { color: var(--friend); } #banner.fo { color: var(--foe); } #banner.gold { color: var(--gold); }
+  #pops { position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .pop { font-size: 15px; color: var(--gold); font-weight: 600; animation: popIn .2s ease-out; transition: opacity .5s, transform .5s; white-space: nowrap; }
+  .pop b { color: #fff; margin-left: 6px; }
+  @keyframes popIn { from { opacity: 0; transform: scale(1.3); } }
+  #prompt { position: absolute; left: 50%; top: calc(50% + 120px); transform: translateX(-50%); font-size: 17px; white-space: nowrap; }
+  #prompt b { color: var(--gold); font-family: var(--title); }
+  #capbar { position: absolute; left: 50%; top: 116px; transform: translateX(-50%); width: 260px; text-align: center; }
+  #capbar .lbl { font-family: var(--title); font-size: 15px; margin-bottom: 4px; }
+  #capbar .bar { height: 8px; background: rgba(0,0,0,.55); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,.15); }
+  #capbar .bar i { display: block; height: 100%; width: 0; }
+
+  /* vitals and weapon */
+  #vitals { position: absolute; left: 18px; bottom: 18px; width: 230px; }
+  #cls { font-family: var(--title); font-size: 15px; color: var(--gold); margin-bottom: 4px; }
+  .hbar { position: relative; height: 12px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.14); border-radius: 7px; overflow: hidden; }
+  .hbar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#e8e0c8, #b0a284); transition: width .15s; }
+  .hbar.low i { background: linear-gradient(#e8604a, #a02818); }
+  .hbar span { position: absolute; inset: 0; text-align: center; font-size: 10px; line-height: 12px; font-weight: 700; color: #000; mix-blend-mode: screen; }
+  #stam { height: 3px; margin-top: 4px; background: rgba(0,0,0,.4); border-radius: 2px; overflow: hidden; }
+  #stam i { display: block; height: 100%; background: var(--gold); width: 100%; }
+  #weapon { position: absolute; right: 18px; bottom: 18px; text-align: right; min-width: 240px; }
+  #wpName { font-family: var(--title); font-size: 18px; }
+  #wpState { font-size: 15px; margin-top: 1px; }
+  #wpState .ld { color: var(--green); font-weight: 600; } #wpState .ul { color: #ff9a80; font-weight: 600; }
+  #wpAmmo { font-family: var(--title); font-size: 30px; line-height: 1; }
+  #wpAmmo small { font-size: 14px; color: var(--dim); }
+  #reload { margin-top: 6px; }
+  #reload .stage { font-style: italic; font-size: 14px; color: var(--paper2); }
+  #reload .rb { height: 5px; background: rgba(0,0,0,.55); border-radius: 3px; overflow: hidden; margin-top: 3px; margin-left: auto; width: 220px; }
+  #reload .rb i { display: block; height: 100%; background: var(--gold); width: 0; }
+  #slots { display: flex; gap: 5px; justify-content: flex-end; margin-top: 8px; }
+  .sl { font-size: 12px; padding: 2px 7px; border: 1px solid rgba(255,255,255,.18); border-radius: 4px; background: rgba(0,0,0,.4); color: var(--dim); }
+  .sl.on { border-color: var(--gold); color: var(--ink); }
+  .sl .n { color: var(--gold); margin-right: 4px; font-weight: 700; }
+  #downed { position: absolute; left: 50%; top: 60%; transform: translateX(-50%); text-align: center; }
+  #downed .t { font-family: var(--title); font-size: 34px; color: #ff9a80; }
+  #downed .s { font-size: 17px; margin-top: 6px; }
+  #downed .s b { color: var(--gold); }
+  #oob { position: absolute; left: 50%; top: 40%; transform: translateX(-50%); text-align: center; font-family: var(--title); font-size: 28px; color: #ff9a80; }
+  #oob b { display: block; font-size: 54px; }
+  #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(120,0,0,0) 45%, rgba(120,0,0,.55) 100%); opacity: 0; transition: opacity .25s; }
+  #fps { position: absolute; left: 8px; top: 8px; font: 11px monospace; color: #9f9; background: rgba(0,0,0,.5); padding: 2px 6px; }
+  #keyHint { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--dim); line-height: 1.6; transition: opacity 1s; }
+  #keyHint b { color: var(--gold); font-family: var(--title); font-weight: 400; }
+
+  /* screens */
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; }
+  .veil { background: radial-gradient(ellipse at 50% 40%, rgba(20,14,8,.25), rgba(12,8,4,.82)); }
+  .card { background: linear-gradient(#efe5cc, #dccfae); color: var(--dark); border-radius: 4px; box-shadow: 0 10px 40px rgba(0,0,0,.6), inset 0 0 60px rgba(120,90,40,.25); }
+  h1, h2, h3 { font-family: var(--title); font-weight: 400; margin: 0; }
+  #logo { font-size: clamp(54px, 9vw, 120px); letter-spacing: .04em; line-height: .9; text-shadow: 0 3px 0 rgba(0,0,0,.45), 0 0 40px rgba(0,0,0,.6); color: var(--paper); }
+  #logo em { font-style: normal; color: var(--gold); }
+  .tag { font-family: var(--fell); font-style: italic; font-size: clamp(16px, 2vw, 22px); color: var(--paper2); margin: 12px 0 30px; text-shadow: 0 1px 3px #000; text-align: center; padding: 0 16px; }
+  .menu { display: flex; flex-direction: column; gap: 10px; align-items: stretch; min-width: 260px; }
+  .btn { font-family: var(--title); font-size: 20px; letter-spacing: .06em; padding: 10px 26px; border-radius: 3px; border: 1px solid rgba(215,180,90,.55);
+    background: rgba(20,14,8,.72); color: var(--paper); transition: background .15s, color .15s, transform .1s; }
+  .btn:hover:not(:disabled), .btn.focus { background: var(--gold); color: var(--dark); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.big { font-size: 24px; padding: 12px 40px; }
+  .btn.sm { font-size: 15px; padding: 6px 14px; }
+  #loading { margin-top: 18px; font-style: italic; color: var(--dim); min-height: 1.4em; text-shadow: 0 1px 2px #000; }
+  .foot { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; font-size: 13px; color: var(--faint); }
+  .foot a { color: var(--dim); }
+
+  /* setup */
+  #setup .card, #deploy .card { width: min(1100px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 26px; box-sizing: border-box; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .lbl2 { font-family: var(--title); font-size: 14px; letter-spacing: .1em; color: #6a5a3c; margin: 16px 0 6px; }
+  #maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .mapc { position: relative; border: 2px solid rgba(60,40,20,.25); border-radius: 4px; padding: 10px 12px 12px; cursor: pointer; background: rgba(255,255,255,.25); transition: border-color .15s, background .15s; }
+  .mapc:hover { background: rgba(255,255,255,.45); }
+  .mapc.on { border-color: #8a5a1a; background: rgba(255,250,235,.7); box-shadow: inset 0 0 0 1px #8a5a1a; }
+  .mapc h3 { font-size: 21px; color: #3a2a16; }
+  .mapc .d { font-style: italic; font-size: 14px; color: #7a6040; }
+  .mapc p { font-size: 14.5px; line-height: 1.35; margin: 6px 0 0; color: #3a2e20; }
+  .mapc canvas { width: 100%; aspect-ratio: 1.6; display: block; border-radius: 3px; margin-bottom: 8px; background: #b8a880; }
+  .seg { display: inline-flex; border: 1px solid rgba(60,40,20,.35); border-radius: 3px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; padding: 7px 14px; font-size: 16px; color: #3a2a16; border-right: 1px solid rgba(60,40,20,.25); }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: #3a2a16; color: var(--paper); }
+  .opt { display: flex; flex-direction: column; }
+  .desc { font-size: 14px; font-style: italic; color: #6a5a3c; margin-top: 6px; max-width: 520px; }
+  .act { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .card .btn { background: #3a2a16; color: var(--paper); border-color: #3a2a16; }
+  .card .btn:hover:not(:disabled), .card .btn.focus { background: #8a5a1a; color: #fff; }
+  .card .btn.ghost { background: transparent; color: #3a2a16; }
+
+  /* deploy */
+  #deploy .card { display: grid; grid-template-columns: 290px 1fr 250px; gap: 18px; }
+  @media (max-width: 900px) { #deploy .card { grid-template-columns: 1fr; } }
+  #dpHead { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  #dpHead h2 { font-size: 30px; color: #3a2a16; }
+  #dpHead .tix { font-family: var(--title); font-size: 18px; }
+  .clsc { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid rgba(60,40,20,.2); border-radius: 3px; margin-bottom: 6px; cursor: pointer; background: rgba(255,255,255,.2); }
+  .clsc:hover { background: rgba(255,255,255,.45); }
+  .clsc.on { border-color: #8a5a1a; background: rgba(255,250,235,.75); box-shadow: inset 0 0 0 1px #8a5a1a; }
+  .clsc canvas { width: 44px; height: 44px; flex: none; }
+  .clsc b { font-family: var(--title); font-weight: 400; font-size: 17px; display: block; color: #3a2a16; }
+  .clsc span { font-size: 13px; color: #6a5a3c; line-height: 1.25; display: block; }
+  #loadout { margin-top: 8px; }
+  #loadout select { width: 100%; font-family: var(--body); font-size: 15px; padding: 5px; margin-top: 3px; background: rgba(255,255,255,.6); border: 1px solid rgba(60,40,20,.35); border-radius: 3px; }
+  #loadout .wd { font-size: 13px; font-style: italic; color: #6a5a3c; margin-top: 3px; line-height: 1.3; }
+  #dpMapWrap { position: relative; }
+  #dpMap { width: 100%; aspect-ratio: 1; display: block; border-radius: 3px; cursor: pointer; background: #b8a880; box-shadow: inset 0 0 0 1px rgba(60,40,20,.4); }
+  #spawns { display: flex; flex-direction: column; gap: 5px; }
+  .sp { text-align: left; padding: 7px 10px; border: 1px solid rgba(60,40,20,.25); border-radius: 3px; background: rgba(255,255,255,.25); font-size: 15.5px; color: #3a2a16; }
+  .sp:hover { background: rgba(255,255,255,.5); }
+  .sp.on { border-color: #8a5a1a; background: rgba(255,250,235,.8); box-shadow: inset 0 0 0 1px #8a5a1a; }
+  .sp small { color: #7a6040; font-style: italic; }
+  .sp:disabled { opacity: .45; cursor: default; }
+  #dpTimer { font-style: italic; color: #7a3020; min-height: 1.3em; margin-top: 8px; }
+  #deployBtn { margin-top: 10px; width: 100%; }
+
+  /* scoreboard, pause, end */
+  #scoreboard { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 6; pointer-events: none; }
+  #scoreboard .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: min(1000px, calc(100vw - 32px)); background: rgba(14,10,6,.86); padding: 16px 18px; border-radius: 4px; border: 1px solid var(--line); }
+  #scoreboard h3 { font-size: 20px; margin-bottom: 6px; }
+  #scoreboard table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  #scoreboard td, #scoreboard th { padding: 1px 6px; text-align: right; white-space: nowrap; }
+  #scoreboard th { color: var(--dim); font-weight: 500; font-size: 12px; }
+  #scoreboard td:nth-child(2), #scoreboard th:nth-child(2) { text-align: left; }
+  #scoreboard tr.me td { color: var(--gold); font-weight: 600; }
+  #scoreboard tr.dead td { opacity: .55; }
+  #pause .menu { margin-top: 20px; }
+  #pause h2, #end h2 { font-size: 54px; text-shadow: 0 2px 6px #000; }
+  #end .res { font-family: var(--fell); font-style: italic; font-size: 20px; color: var(--paper2); margin: 8px 0 20px; text-align: center; padding: 0 16px; }
+  #endStats { display: flex; gap: 26px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }
+  #endStats div { text-align: center; } #endStats b { display: block; font-family: var(--title); font-size: 32px; font-weight: 400; color: var(--gold); }
+  #endStats span { font-size: 14px; color: var(--dim); }
+  #end .menu { flex-direction: row; }
+
+  /* settings, help */
+  #settings .card, #help .card { width: min(640px, calc(100vw - 32px)); padding: 22px 26px; box-sizing: border-box; max-height: calc(100vh - 32px); overflow: auto; }
+  .set { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 7px 0; border-bottom: 1px solid rgba(60,40,20,.15); font-size: 17px; color: #3a2a16; }
+  .set input[type=range] { width: 220px; accent-color: #8a5a1a; }
+  .set .v { width: 46px; text-align: right; font-variant-numeric: tabular-nums; color: #6a5a3c; }
+  #help .card { width: min(820px, calc(100vw - 32px)); }
+  #help .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 28px; font-size: 15.5px; color: #3a2a16; }
+  @media (max-width: 640px) { #help .cols { grid-template-columns: 1fr; } }
+  #help .cols div { display: flex; justify-content: space-between; border-bottom: 1px dotted rgba(60,40,20,.25); padding: 3px 0; }
+  #help .cols b { font-family: var(--title); font-weight: 400; color: #8a5a1a; }
+  #help p { font-size: 15.5px; line-height: 1.45; color: #3a2a16; }
+  #bigmap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); z-index: 4; pointer-events: none; }
+  #bigmap canvas { width: min(86vh, 86vw); height: min(86vh, 86vw); border-radius: 4px; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+  #nogl { background: #14100c; font-size: 20px; text-align: center; padding: 20px; }
+  #fade { position: absolute; inset: 0; background: #0c0905; opacity: 0; pointer-events: none; transition: opacity .5s; z-index: 9; display: flex; align-items: center; justify-content: center; font-family: var(--fell); font-style: italic; font-size: 22px; color: var(--paper2); }
+  #fade.on { opacity: 1; pointer-events: auto; }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <canvas id="hud2d"></canvas>
+  <div class="hud sh" id="hud">
+    <div id="vignette"></div>
+    <div id="top"><div class="tk fr" id="tkF"><span class="nm"></span><b></b><div class="bar"><i></i></div></div><div id="flagRow"></div><div class="tk fo" id="tkE"><span class="nm"></span><b></b><div class="bar"><i></i></div></div></div>
+    <div id="sector"></div>
+    <div id="capbar" hidden><div class="lbl"></div><div class="bar"><i></i></div></div>
+    <div id="feed"></div>
+    <div id="msgs"></div>
+    <div id="banner"></div>
+    <div id="pops"></div>
+    <div id="prompt"></div>
+    <div id="keyHint"></div>
+    <div id="vitals"><div id="cls"></div><div class="hbar" id="hp"><i></i><span></span></div><div id="stam"><i></i></div></div>
+    <div id="weapon"><div id="wpName"></div><div id="wpState"></div><div id="wpAmmo"></div><div id="reload" hidden><div class="stage"></div><div class="rb"><i></i></div></div><div id="slots"></div></div>
+    <div id="downed" hidden><div class="t">Wounded</div><div class="s"></div></div>
+    <div id="oob" hidden>Return to the field<b>10</b></div>
+    <div id="fps" hidden></div>
+  </div>
+  <div id="title" class="screen veil">
+    <h1 id="logo">Shot <em>Heard</em></h1>
+    <div class="tag">The War of Independence &middot; 1775&ndash;1781 &middot; thirty-two against thirty-two</div>
+    <div class="menu">
+      <button class="btn big" id="btnPlay" disabled>Take the Field</button>
+      <button class="btn" id="btnHelp">Drill &amp; Controls</button>
+      <button class="btn" id="btnSet">Settings</button>
+    </div>
+    <div id="loading">Mustering the companies&hellip;</div>
+    <div class="foot">Mouse &amp; keyboard or gamepad &middot; <a href="../">Chinny's Arcade</a></div>
+  </div>
+  <div id="setup" class="screen veil" hidden>
+    <div class="card">
+      <h2 style="font-size:34px;color:#3a2a16">Choose the Field</h2>
+      <div class="lbl2">Battle</div>
+      <div id="maps"></div>
+      <div class="row">
+        <div class="opt"><div class="lbl2">Mode</div><div class="seg" id="segMode"><button data-v="conquest">Conquest</button><button data-v="breakthrough">Breakthrough</button></div></div>
+        <div class="opt"><div class="lbl2">Fight for</div><div class="seg" id="segSide"><button data-v="0">Patriots</button><button data-v="1">The Crown</button><button data-v="r">Either</button></div></div>
+        <div class="opt"><div class="lbl2">Men per side</div><div class="seg" id="segSize"><button data-v="16">16</button><button data-v="24">24</button><button data-v="32">32</button></div></div>
+        <div class="opt"><div class="lbl2">Tickets</div><div class="seg" id="segTix"><button data-v="0.5">Short</button><button data-v="1">Standard</button><button data-v="1.7">Long</button></div></div>
+        <div class="opt"><div class="lbl2">Enemy</div><div class="seg" id="segDiff"><button data-v="0">Recruits</button><button data-v="1">Regulars</button><button data-v="2">Veterans</button></div></div>
+      </div>
+      <div class="desc" id="modeDesc"></div>
+      <div class="act"><button class="btn ghost" id="setupBack">Back</button><button class="btn big" id="setupGo">March</button></div>
+    </div>
+  </div>
+  <div id="deploy" class="screen veil" hidden>
+    <div class="card">
+      <div id="dpHead"><h2 id="dpTitle">Deploy</h2><div class="tix" id="dpTix"></div></div>
+      <div><div class="lbl2" style="margin-top:0">Class</div><div id="classes"></div><div id="loadout"></div></div>
+      <div id="dpMapWrap"><canvas id="dpMap" width="640" height="640"></canvas></div>
+      <div><div class="lbl2" style="margin-top:0">Spawn</div><div id="spawns"></div><div id="dpTimer"></div><button class="btn big" id="deployBtn">Deploy</button>
+        <div class="act" style="justify-content:space-between"><button class="btn sm ghost" id="dpTeam">Switch side</button><button class="btn sm ghost" id="dpQuit">Leave battle</button></div></div>
+    </div>
+  </div>
+  <div id="scoreboard" hidden><div class="wrap"><div id="sbF"></div><div id="sbE"></div></div></div>
+  <div id="bigmap" hidden><canvas width="900" height="900"></canvas></div>
+  <div id="pause" class="screen veil" hidden><h2>Halt</h2><div class="menu"><button class="btn" id="pResume">Resume</button><button class="btn" id="pDeploy">Redeploy</button><button class="btn" id="pSet">Settings</button><button class="btn" id="pHelp">Controls</button><button class="btn" id="pQuit">Leave battle</button></div></div>
+  <div id="end" class="screen veil" hidden><h2 id="endT"></h2><div class="res" id="endR"></div><div id="endStats"></div><div class="menu"><button class="btn" id="endAgain">Fight again</button><button class="btn" id="endMenu">Choose another field</button></div></div>
+  <div id="settings" class="screen veil" hidden><div class="card"><h2 style="font-size:30px;color:#3a2a16;margin-bottom:10px">Settings</h2><div id="setList"></div><div class="act"><button class="btn" id="setDone">Done</button></div></div></div>
+  <div id="help" class="screen veil" hidden><div class="card"><h2 style="font-size:30px;color:#3a2a16;margin-bottom:8px">Drill &amp; Controls</h2><div id="helpBody"></div><div class="act"><button class="btn" id="helpDone">Done</button></div></div></div>
+  <div id="nogl" class="screen" hidden>This game needs WebGL. Try a recent desktop browser.</div>
+  <div id="fade"></div>
+</div>
