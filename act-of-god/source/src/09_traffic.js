@@ -7,8 +7,8 @@ const PED_COLS = [0x3a4a6a, 0x8a3030, 0x2a2a2a, 0xd8d0c0, 0x5a7a4a, 0x7a5a3a, 0x
 
 function buildTraffic() {
   for (const k of ['body', 'cab', 'ped']) if (TR[k]) { R.scene.remove(TR[k].mesh); TR[k].dispose(); }
-  const nCars = { mega: 1100, metro: 950, city: 800, town: 450, small: 160 }[W.sizeKey];
-  const nPeds = { mega: 1200, metro: 1100, city: 900, town: 600, small: 260 }[W.sizeKey];
+  const nCars = { mega: 1100, metro: 950, city: 800, town: 650, small: 320 }[W.sizeKey];
+  const nPeds = { mega: 1400, metro: 1300, city: 1100, town: 900, small: 520 }[W.sizeKey];
   const nEms = W.fireSt.length * 2 + W.hospitals.length * 2 + W.police.length * 2;
   TR.body = new Batch(SHAPES.box, nCars + nEms + 10); TR.cab = new Batch(SHAPES.box, nCars + nEms + 10); TR.ped = new Batch(SHAPES.box, nPeds + 10);
   for (const k of ['body', 'cab', 'ped']) R.scene.add(TR[k].mesh);
@@ -93,7 +93,7 @@ function spawnCar(c) {
 function spawnPed(p) {
   const f = TR.focus;
   for (let tries = 0; tries < 10; tries++) {
-    const a = rr(0, TAU), d = Math.sqrt(Math.random()) * Math.min(f.r, 420);
+    const a = rr(0, TAU), d = Math.sqrt(Math.random()) * Math.min(f.r, 900);
     const x = f.x + Math.cos(a) * d, z = f.z + Math.sin(a) * d;
     let cand = null;
     edgesNear(x, z, 60, (e) => { if (!cand && !e.bridge) cand = e; });
@@ -112,7 +112,9 @@ function updateTraffic(dt) {
   const f = TR.focus;
   const cam = CAM;
   f.x = cam.tx; f.z = cam.tz; f.r = clamp(cam.dist * 1.1, 260, 1600);
-  const showPeds = cam.dist < 900;
+  const showPeds = cam.dist < 1700;
+  // from god height true-scale cars and people are smaller than a pixel, so they grow a little as the camera pulls back
+  TR.carK = clamp(cam.dist / 420, 1, 2.3); TR.pedK = clamp(cam.dist / 230, 1, 3.2);
   const quake = G.quake || 0;
   // cars
   let k = 0;
@@ -128,7 +130,7 @@ function updateTraffic(dt) {
   for (const p of TR.peds) {
     if (!showPeds) { if (p.on) { p.on = false; writePed(p); } continue; }
     if (!p.on) { if (k++ < 8) spawnPed(p); writePed(p); continue; }
-    if (dist2(p.x, p.z, f.x, f.z) > Math.min(f.r, 420) ** 2 * 1.8) { p.on = false; writePed(p); continue; }
+    if (dist2(p.x, p.z, f.x, f.z) > Math.min(f.r, 900) ** 2 * 1.8) { p.on = false; writePed(p); continue; }
     walkPed(p, dt);
     writePed(p);
   }
@@ -166,10 +168,11 @@ function writeCar(c) {
   const big = c.kind === 'fire', van = c.kind === 'amb';
   const L = big ? 8.5 : van ? 6 : 4.4, Wd = big ? 2.5 : van ? 2.2 : 1.85, Hh = big ? 2.2 : van ? 2.4 : 1.0;
   _q4.setFromAxisAngle(_ax.set(0, 1, 0), c.yaw);
-  _m.compose(_p4.set(c.x, c.y + 0.35, c.z), _q4, _s4.set(Wd, Hh, L)); B.mesh.setMatrixAt(c.bi, _m);
-  const cabL = big ? 2.4 : van ? 1.6 : 2.3;
-  _v1.set(0, 0, big ? L * 0.32 : van ? L * 0.34 : -0.2).applyQuaternion(_q4);
-  _m.compose(_p4.set(c.x + _v1.x, c.y + 0.35 + (big || van ? Hh * 0.45 : Hh), c.z + _v1.z), _q4, _s4.set(Wd * 0.94, big || van ? Hh * 0.6 : 0.75, cabL)); C.mesh.setMatrixAt(c.ci, _m);
+  const k = TR.carK || 1;
+  _m.compose(_p4.set(c.x, c.y + 0.35, c.z), _q4, _s4.set(Wd * k, Hh * k, L * k)); B.mesh.setMatrixAt(c.bi, _m);
+  const cabL = (big ? 2.4 : van ? 1.6 : 2.3) * k;
+  _v1.set(0, 0, (big ? L * 0.32 : van ? L * 0.34 : -0.2) * k).applyQuaternion(_q4);
+  _m.compose(_p4.set(c.x + _v1.x, c.y + 0.35 + (big || van ? Hh * 0.45 : Hh) * k, c.z + _v1.z), _q4, _s4.set(Wd * 0.94 * k, (big || van ? Hh * 0.6 : 0.75) * k, cabL)); C.mesh.setMatrixAt(c.ci, _m);
   _col.setHex(c.col);
   B.aCol.setXYZ(c.bi, _col.r, _col.g, _col.b);
   B.aSt.setXYZW(c.bi, 0, 0, 0, 0); B.aSt2.setXYZW(c.bi, 6, 0, -100, 0);
@@ -215,7 +218,7 @@ function writePed(p) {
   if (!p.on) { B.mesh.setMatrixAt(p.pi, ZERO_M); B.touch(p.pi); return; }
   _q4.setFromAxisAngle(_ax.set(0, 1, 0), p.yaw || 0);
   const bob = p.mode === 'flee' ? Math.abs(Math.sin(G.t * 14 + p.pi)) * 0.15 : 0;
-  _m.compose(_p4.set(p.x, p.y + 0.1 + bob, p.z), _q4, _s4.set(0.55, 1.75, 0.38)); B.mesh.setMatrixAt(p.pi, _m);
+  _m.compose(_p4.set(p.x, p.y + 0.1 + bob, p.z), _q4, _s4.set(0.55 * (TR.pedK || 1), 1.75 * (TR.pedK || 1), 0.38 * (TR.pedK || 1))); B.mesh.setMatrixAt(p.pi, _m);
   _col.setHex(p.col);
   B.aCol.setXYZ(p.pi, _col.r, _col.g, _col.b); B.aSt.setXYZW(p.pi, 0, 0, 0, 0); B.aSt2.setXYZW(p.pi, 6, 0, -100, 0);
   B.touch(p.pi);

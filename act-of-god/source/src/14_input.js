@@ -149,12 +149,14 @@ function initInput() {
   const up = (e) => { if (e.pointerType === 'touch') return; if (INP.down && INP.btn === 0) endCast(); INP.down = false; INP.btn = -1; };
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointercancel', up);
-  cv.addEventListener('pointerleave', () => { INP.overUI = true; });
+  // only a mouse leaving the canvas means it is over the interface; a lifted finger fires this too
+  cv.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') INP.overUI = true; });
   cv.addEventListener('wheel', (e) => { e.preventDefault(); if (e.ctrlKey && G.power) { setSize(G.size - Math.sign(e.deltaY) * 0.05); return; } zoomBy(Math.exp(clamp(e.deltaY, -200, 200) * 0.0012), e.clientX, e.clientY); }, { passive: false });
   // touch: one finger casts (or pans with no power), two fingers pan, pinch and twist
   cv.addEventListener('touchstart', (e) => {
     e.preventDefault(); AUDIO.init();
     document.body.classList.add('touch');
+    INP.overUI = false;
     for (const t of e.changedTouches) INP.touches.set(t.identifier, { x: t.clientX, y: t.clientY, x0: t.clientX, y0: t.clientY });
     if (INP.touches.size === 1) {
       const t = [...INP.touches.values()][0];
