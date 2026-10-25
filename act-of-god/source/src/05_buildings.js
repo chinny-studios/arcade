@@ -242,7 +242,11 @@ function tUpdate(t) {
   TB.aSt2.setXYZW(t.ti, 6, t.id, t.y, 0);
   TB.touch(t.ti);
 }
-function flushBatches() { for (const k in BAT) BAT[k].flush(); }
+// every instanced batch uploads what changed this frame: buildings and trees (BAT), traffic and flying debris
+function flushBatches() {
+  for (const k in BAT) BAT[k].flush();
+  for (const b of [TR.body, TR.cab, TR.ped, FX.deb]) if (b) b.flush();
+}
 
 // ---------- spatial hash for buildings and trees ----------
 const SH = { cell: 50, n: 0, b: null, t: null };
