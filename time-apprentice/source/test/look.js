@@ -40,4 +40,20 @@ await __look('apollo11', 2);
 //--- shot look_apollo11_2
 await __look('apollo11', 3);
 //--- shot look_apollo11_3
+await __look('kowloon', 0);
+//--- shot look_kowloon_0
+await __look('kowloon', 1);
+//--- shot look_kowloon_1
+await __look('kowloon', 2);
+//--- shot look_kowloon_2
+await __look('kowloon', 3);
+//--- shot look_kowloon_3
+await __look('kowloon', 4);
+//--- shot look_kowloon_4
+await __look('kowloon', 5);
+//--- shot look_kowloon_5
+await __look('kowloon', 6);
+//--- shot look_kowloon_6
+await __look('kowloon', 7);
+//--- shot look_kowloon_7
 document.getElementById('dlg').style.visibility = ''; document.getElementById('banner').style.visibility = ''; return 'ok';

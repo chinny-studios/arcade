@@ -1,5 +1,6 @@
 // Minigame "pour": hold to pour, let go when the level is in the band. Several rounds.
-// params: { rounds: 3, labels: ['G', 'O', 'T'], scene: 'mould' | 'jar', liquid: '#c8ccd4', band: [0.72, 0.86], speed }
+// params: { rounds: 3, labels: ['G', 'O', 'T'], liquid: '#c8ccd4', band: [0.72, 0.86], speed,
+//           scene: fn(c, g) to draw something else than Gutenberg's type mould (g.level, g.band, g.state2, g.round) }
 
 Minigames.add('pour', {
   title: 'Fill it just right',
@@ -34,6 +35,7 @@ Minigames.add('pour', {
     const p = g.p;
     D.sky(c, p.bg || '#3a2a20', p.bg2 || '#1e140e');
     D.text(c, `${Math.min(g.round + 1, g.rounds)} of ${g.rounds}`, 480, 40, { size: 22, align: 'center', color: '#ffe2a0' });
+    if (typeof p.scene === 'function') { p.scene(c, g); return; }
     // made pieces along the bottom
     for (let i = 0; i < g.rounds; i++) {
       const x = 380 + i * 70 - (g.rounds - 3) * 35, y = 470;

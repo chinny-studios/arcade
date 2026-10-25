@@ -19,6 +19,12 @@ runtime (nothing is bundled here). Those families are published under the SIL
 Open Font License or the Apache License 2.0; each family's license is on its
 Google Fonts page.
 
+One font is bundled: The Time Apprentice embeds a small subset of **Noto Sans TC**
+(Bold; only the Chinese characters its signs and tiles use), © Google LLC, under
+the [SIL Open Font License 1.1](https://openfontlicense.org/). It comes from the
+`@fontsource/noto-sans-tc` npm package and is made by
+`time-apprentice/source/tools/cjk_font.py` into `time-apprentice/source/vendor/cjk/`.
+
 ## Music
 
 The music files were generated with Google Gemini (Lyria) and carry a SynthID
