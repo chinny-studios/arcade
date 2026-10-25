@@ -118,21 +118,24 @@ function makeGen(sizeKey, seed) {
   if (water === 'bay') {
     const along = r.range(0.35, 0.65) * M, d = g.coastDir;
     const bx = d === 0 ? along : d === 1 ? M - g.coastPos : d === 2 ? along : g.coastPos, bz = d === 0 ? g.coastPos : d === 1 ? along : d === 2 ? M - g.coastPos : along;
-    g.bay = { x: bx, z: bz, rx: M * r.range(0.14, 0.24), rz: M * r.range(0.14, 0.24) };
+    g.bay = { x: bx, z: bz, rx: M * r.range(0.08, 0.14), rz: M * r.range(0.08, 0.14) };
   }
   if (water === 'island') g.island = { r: M * r.range(0.4, 0.46) };
-  if (water === 'river' || water === 'delta' || (water === 'none' && r.chance(0.35)) || (water === 'lake' && r.chance(0.3))) {
+  if (water === 'river' || water === 'delta' || (water === 'none' && r.chance(0.2)) || (water === 'lake' && r.chance(0.2))) {
     const axis = r.chance(0.5) ? 'x' : 'z';
     let ax = axis;
     if (water === 'delta') ax = g.coastDir === 0 || g.coastDir === 2 ? 'z' : 'x'; // runs into the sea
     const wide = water === 'none' ? 0.5 : 1;
-    g.river = { axis: ax, base: M * r.range(0.38, 0.62), a1: M * r.range(0.04, 0.1), f1: TAU / (M * r.range(0.7, 1.3)), p1: r.range(0, TAU), a2: M * r.range(0.01, 0.03), f2: TAU / (M * r.range(0.2, 0.35)), p2: r.range(0, TAU), w: Math.max(18, M * r.range(0.012, 0.022)) * wide };
+    g.river = { axis: ax, base: M * (0.5 + (r.chance(0.5) ? 1 : -1) * r.range(0.2, 0.3)), a1: M * r.range(0.025, 0.06), f1: TAU / (M * r.range(0.7, 1.3)), p1: r.range(0, TAU), a2: M * r.range(0.01, 0.03), f2: TAU / (M * r.range(0.2, 0.35)), p2: r.range(0, TAU), w: Math.max(18, M * r.range(0.012, 0.022)) * wide };
   }
-  if (water === 'lake') { const a = r.range(0, TAU); g.lake = { x: M / 2 + Math.cos(a) * M * 0.24, z: M / 2 + Math.sin(a) * M * 0.24, rx: M * r.range(0.12, 0.2), rz: M * r.range(0.1, 0.18) }; }
+  if (water === 'lake') { const a = r.range(0, TAU); g.lake = { x: M / 2 + Math.cos(a) * M * 0.34, z: M / 2 + Math.sin(a) * M * 0.34, rx: M * r.range(0.08, 0.13), rz: M * r.range(0.07, 0.12), a }; }
   // city centres: the main one near the middle (pushed inland), smaller boroughs around
   const mainR = M * def.spread;
   let cx = M / 2 + r.range(-0.06, 0.06) * M, cz = M / 2 + r.range(-0.06, 0.06) * M;
   if (g.coast) { const k = 0.08 * M; if (g.coastDir === 0) cz += k; if (g.coastDir === 1) cx -= k; if (g.coastDir === 2) cz -= k; if (g.coastDir === 3) cx += k; }
+  // and away from a lake or river, so downtown sits on dry land beside the water rather than in it
+  if (g.lake) { cx -= Math.cos(g.lake.a) * M * 0.05; cz -= Math.sin(g.lake.a) * M * 0.05; }
+  if (g.river && !g.coast) { const k = Math.sign(g.river.base - M / 2) * M * 0.05; if (g.river.axis === 'x') cz -= k; else cx -= k; }
   g.centers.push({ x: cx, z: cz, r: mainR, w: 1 });
   for (let i = 1; i < def.centers; i++) {
     const a = r.range(0, TAU), d = M * r.range(0.18, 0.32);

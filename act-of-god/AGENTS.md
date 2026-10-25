@@ -17,8 +17,8 @@ reports everything on the news.
   `test/wrath2.js` finds a coastal city for quake, sinkhole, smite and tsunami; `test/wrath3.js` does lightning,
   wildfire, locusts, blizzard, plague, a night blackout, hurricane and deluge in a town; `test/grace.js` covers every
   grace power; `test/ui.js --no-start` clicks through the title, dock and menu with pointer events; `test/mobile.js
-  --no-start --w 390 --h 844` (and `--w 844 --h 390`) checks phone layouts; `test/gen.js --pretty` generates fifty
-  cities and lists them; `test/perf.js` times generation and a step; `test/look.js`, `look2.js`, `mega.js` are
+  --no-start --w 390 --h 844` (and `--w 844 --h 390`) checks phone layouts; `node test/touch.mjs` taps powers and the map with real touch input on an emulated phone; `test/water.js` measures how much of each city's centre is water; `test/gen.js --pretty` generates fifty
+  cities and lists them; `test/perf.js` times generation and a step; `test/look.js`, `look2.js`, `look3.js`, `mega.js` are
   screenshot tours. Screenshots land in `test/out/`.
 - **Gotchas:** Steps files split by `//--- shot` run as separate evaluations: share values through `out`, and never
   name a variable `c` without declaring it (the canvas has `id="c"`, so a bare `c` is the canvas). Buildings are
