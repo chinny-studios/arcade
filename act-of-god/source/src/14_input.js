@@ -29,7 +29,10 @@ function camUpdate(dt) {
   CAM.ty = damp(CAM.ty, gy, 4, dt);
   const cp = Math.cos(CAM.pitch), sp2 = Math.sin(CAM.pitch);
   let x = CAM.tx + Math.sin(CAM.yaw) * cp * CAM.dist, z = CAM.tz + Math.cos(CAM.yaw) * cp * CAM.dist, y = CAM.ty + sp2 * CAM.dist;
-  const floor = Math.max(heightAt(x, z), waterSurface(x, z)) + 12;
+  let floor = Math.max(heightAt(x, z), waterSurface(x, z)) + 12;
+  // never inside a building: stay above the roof under the camera
+  const under = buildingAt(x, z);
+  if (under) floor = Math.max(floor, under.y + under.h * (1 - under.c * 0.94) + 6);
   if (y < floor) y = floor;
   // shake
   const sh = G.shake || 0;

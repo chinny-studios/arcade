@@ -3,7 +3,8 @@
 
 const TR = { cars: [], peds: [], ems: [], ehash: null, ecell: 120, focus: { x: 0, z: 0, r: 500 }, body: null, cab: null, ped: null, light: null };
 const CAR_COLS = [0xd8d8d8, 0x202020, 0x8a1a1a, 0x1a3a7a, 0x9a9a9a, 0xe8e8e0, 0x2a5a3a, 0xc8a020, 0x5a5a60, 0x4a2a1a, 0xb04020, 0x304a6a];
-const PED_COLS = [0x3a4a6a, 0x8a3030, 0x2a2a2a, 0xd8d0c0, 0x5a7a4a, 0x7a5a3a, 0x4a6a8a, 0xb89060, 0x6a3a6a, 0xa0a0a0];
+// bright clothes so people read against asphalt and pavement
+const PED_COLS = [0xd83a2a, 0x2a6ad8, 0xe8c030, 0xf0f0e8, 0x3aa84a, 0xe07a20, 0x9a4ac8, 0x30b0c0, 0xe85a9a, 0x1a1a1a];
 
 function buildTraffic() {
   for (const k of ['body', 'cab', 'ped']) if (TR[k]) { R.scene.remove(TR[k].mesh); TR[k].dispose(); }
@@ -114,12 +115,12 @@ function updateTraffic(dt) {
   f.x = cam.tx; f.z = cam.tz; f.r = clamp(cam.dist * 1.1, 260, 1600);
   const showPeds = cam.dist < 1700;
   // from god height true-scale cars and people are smaller than a pixel, so they grow a little as the camera pulls back
-  TR.carK = clamp(cam.dist / 420, 1, 2.3); TR.pedK = clamp(cam.dist / 230, 1, 3.2);
+  TR.carK = clamp(cam.dist / 420, 1, 2.3); TR.pedK = clamp(cam.dist / 200, 1.25, 3.2);
   const quake = G.quake || 0;
   // cars
   let k = 0;
   for (const c of TR.cars) {
-    if (!c.on) { if (k++ < 6) spawnCar(c); writeCar(c); continue; }
+    if (!c.on) { if (k++ < 16) spawnCar(c); writeCar(c); continue; }
     if (dist2(c.x, c.z, f.x, f.z) > f.r * f.r * 1.7) { c.on = false; writeCar(c); continue; }
     driveCar(c, dt, quake);
     writeCar(c);
@@ -129,7 +130,7 @@ function updateTraffic(dt) {
   k = 0;
   for (const p of TR.peds) {
     if (!showPeds) { if (p.on) { p.on = false; writePed(p); } continue; }
-    if (!p.on) { if (k++ < 8) spawnPed(p); writePed(p); continue; }
+    if (!p.on) { if (k++ < 24) spawnPed(p); writePed(p); continue; }
     if (dist2(p.x, p.z, f.x, f.z) > Math.min(f.r, 900) ** 2 * 1.8) { p.on = false; writePed(p); continue; }
     walkPed(p, dt);
     writePed(p);
