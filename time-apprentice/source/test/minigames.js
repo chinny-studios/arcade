@@ -37,4 +37,24 @@ const M = TA.Minigames, show = window.__show;
 M.finish(); await show('apollo11', 2, 1, 0, 200);
 //--- shot mg_lander
 const M = TA.Minigames, show = window.__show;
-M.finish(); return 'ok';
+M.finish();
+// the Kowloon City minigames, found by id in their chapter; keys are pressed through Input, as a player would
+window.__play = async (ci, id, n, f) => { const M = TA.Minigames; if (M.g) M.finish(); await TA.go('kowloon', ci); TA.sim(0.2); const st = TA.Story.sc.chapters[ci].steps.find((s) => s.play === id); M.open(st.play, st, () => {}); M.start(); for (let i = 0; i < n; i++) { if (f) f(M.g, i); M.update(1/30); } };
+await __play(0, 'maze', 40, (g, i) => { if (i === 0) TA.Input.press('ArrowRight'); if (i === 20) { TA.Input.release('ArrowRight'); TA.Input.press('ArrowDown'); } });
+//--- shot mg_maze
+TA.Input.release('ArrowDown'); TA.Input.press('Space');
+await __play(3, 'milktea', 30);
+//--- shot mg_milktea
+TA.Input.release('Space');
+await __play(4, 'neon', 40, (g, i) => { if (i === 2) TA.Input.press('Space'); if (i === 35) TA.Input.release('Space'); });
+//--- shot mg_neon
+TA.Input.release('Space');
+await __play(5, 'minibus', 150);
+//--- shot mg_minibus
+await __play(6, 'mahjong', 5, (g, i) => { if (i === 1) g.def.pickTile(g, 0); });
+//--- shot mg_mahjong
+await __play(7, 'approach', 150);
+//--- shot mg_approach
+await __play(5, 'rhythm', 120);
+//--- shot mg_ferry
+TA.Minigames.finish(); return 'ok';

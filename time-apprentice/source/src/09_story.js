@@ -43,7 +43,22 @@ const Scenarios = {
         if (st.a) for (const a of st.a) if (a.length < 3 && !a[1]) out.push(w + ': wrong answer without a reply');
       });
     });
+    // odd jobs (see 11_extras.js) and the photo album
+    for (const [jid, j] of Object.entries(sc.jobs || {})) {
+      const w = 'job ' + jid;
+      if (!sc.cast[j.giver]) out.push(w + ': unknown giver "' + j.giver + '"');
+      if (j.set && !sc.sets[j.set]) out.push(w + ': unknown set "' + j.set + '"');
+      fact(j.fact, w);
+      for (const l of (j.intro || []).concat(j.end || [])) who(l[0], w);
+      (j.steps || []).forEach((st, si) => {
+        if (st.play && !Minigames.defs[st.play]) out.push(w + ' step ' + si + ': unknown minigame "' + st.play + '"');
+        if (st.talk && !sc.cast[st.talk]) out.push(w + ' step ' + si + ': unknown person "' + st.talk + '"');
+        if (!st.play && !st.talk && !st.use) out.push(w + ' step ' + si + ': needs talk, use or play');
+        for (const l of st.say || []) who(l[0], w);
+      });
+    }
     const used = new Set();
+    for (const j of Object.values(sc.jobs || {})) if (j.fact) used.add(j.fact);
     for (const ch of sc.chapters || []) for (const st of ch.steps || []) { if (st.fact) used.add(st.fact); if (st.each) for (const e of st.each) if (e.fact) used.add(e.fact); }
     for (const c of Object.values(sc.cast)) for (const l of c.lines || []) if (typeof l === 'object' && l.fact) used.add(l.fact);
     for (const f in sc.facts) if (!used.has(f)) out.push('fact "' + f + '" is never unlocked');
@@ -68,6 +83,8 @@ const Story = {
     rseed(sc.id + ':' + setId);
     setEnv(set.env);
     set.build(Stage);
+    this.setId = setId;
+    if (!sc.hub) Jobs.markers();
     Stage.finish();
     AU.setAmb(set.amb || null); AU.surf = set.surf || 'sand';
     this.setId = setId;
@@ -94,8 +111,11 @@ const Story = {
     if (typeof s[2] === 'string') faceThing(s[2]);
     if (!sc.hub) { SAVE.data.prog[sc.id] = ci; SAVE.data.at = sc.id; SAVE.save(); }
     HUD.goal(null); HUD.mark(null);
-    HUD.where(sc.place, sc.when);
-    if (!sc.hub && !ch.quiet) HUD.banner(sc.chapters.length > 1 ? 'Chapter ' + (ci + 1) : '', ch.title, ci === 0 ? sc.when : '');
+    // a chapter may move the story to another date or place (ch.when, ch.place); the banner says so when it changes
+    const when = ch.when || sc.when, prev = ci > 0 ? sc.chapters[ci - 1].when || sc.when : null;
+    HUD.where(ch.place || sc.place, when);
+    if (!sc.hub && !ch.quiet) HUD.banner(sc.chapters.length > 1 ? 'Chapter ' + (ci + 1) : '', ch.title, ci === 0 || when !== prev ? when : '');
+    if (!sc.hub) Jobs.show(); else $('#job').classList.remove('on');
     this.next();
   },
   restartChapter() { if (this.sc) this.startChapter(this.ci); },

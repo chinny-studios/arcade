@@ -111,7 +111,7 @@ Set `build(S)` functions, `setup(S)` and `do(S)` steps all get the stage:
   `beard`, `top`/`topStyle`, `bottom`/`bottomStyle`, `hat`, `collar`, `vest`, `tie`, `apron`, `glasses`, `h`, `kid` …
 - Environments are data: `{ top, hor, bot, sun: [x, y, z], sunCol, sunI, hemiSky, hemiGround, hemiI, amb, fog, fogD,
   stars, clouds, sky: false }` (see `ENV_DEFAULT` in `src/02_render.js`). Ambience beds: `desert, wind, workshop,
-  control, moon, hub, night`. Footstep sounds: `sand, wood, stone, carpet, moon`.
+  control, moon, hub, night, city, lanes, harbour, citynight`; `AU.jet(seconds)` roars a plane overhead. Footstep sounds: `sand, wood, stone, carpet, moon`.
 
 ## Minigames
 
@@ -120,9 +120,9 @@ Minigames are generic and take their words and numbers from the step, so most ne
 | id | What you do | Main params |
 | :--- | :--- | :--- |
 | `rhythm` | Press on the beat, one or two lanes | `lanes: [{label, color}]`, `pattern: '0.0.1.'`, `bpm`, `need`, `chant`, `scene: 'sledge' | 'press' | fn(c, g, k)` |
-| `spell` | Fill slots in order from a palette of tiles | `target: [...]`, `tiles: {id: {label, glyph, sound}}`, `decoys`, `mirror`, `frame: 'cartouche' | 'stick'`, `prompt` |
+| `spell` | Fill slots in order from a palette of tiles | `target: [...]`, `tiles: {id: {label, glyph, sound, mean}}`, `decoys`, `mirror`, `frame: 'cartouche' | 'stick' | 'sign'`, `prompt`, `wrong` |
 | `order` | Put the steps of a job in order | `steps: [{t, hint}]`, `prompt` |
-| `pour` | Hold to pour, stop in the band | `rounds`, `labels`, `band`, `speed` |
+| `pour` | Hold to pour, stop in the band | `rounds`, `labels`, `band`, `speed`, `scene: fn(c, g)` |
 | `align` | Line up a plumb line with two turning stars | `stars`, `speed` |
 | `count` | Read Egyptian numerals, hand out that many | `rounds: [n, ...]`, `who: [...]` |
 | `tunnel` | Test options, record results, choose the best | `wings: [{name, camber, aspect, lift, note}]`, `need` |
@@ -130,6 +130,12 @@ Minigames are generic and take their words and numbers from the step, so most ne
 | `photo` | Press the shutter at the right moment | `speed` |
 | `lookup` | Find a code on a list | `codes: [[code, text, explanation]]`, `alarms: [...]` |
 | `lander` | Land gently on flat ground | `fuel` |
+| `milktea` | Pull milk tea: lift the pot into a band, keep the stream in the cup | `pours`, `need` |
+| `neon` | Heat a glass tube, turn it to match a pattern, bend; then it lights | `pattern: [[x, y]]` (600 × 360), `color`, `gas`, `label` |
+| `maze` | Walk dark lanes with a torch to find doors | `w`, `h`, `seed`, `stops: [{label, short, cjk, color, found}]`, `battery`, `start`, `listTitle` |
+| `approach` | Fly the checkerboard turn into Kai Tak on a map | `wind` |
+| `minibus` | Shout your stop in time, then pay the exact fare in coins | `rides: [{stop, sign, before: [...], after, fare, who, thanks, intro}]` |
+| `mahjong` | Sort tiles into four sets and a pair; find the winning tile | `rounds: ['sets', 'wait']`, `seed` |
 
 Every minigame also takes `title`, `how`, `intro`, `winText` and `fact`. Failing makes the next try easier
 (`g.assist` goes up), and after three tries a Skip button appears: history is fixed, so no one gets stuck.
@@ -137,6 +143,30 @@ Every minigame also takes `title`, `how`, `intro`, `winText` and `fact`. Failing
 A new minigame is a file `src/3N_mg_name.js` with `Minigames.add('name', { title, how, buttons(g), init(g, p),
 update(g, dt), draw(g, c), tap(g, x, y) })`, drawing on a 960 × 540 canvas. Copy a short one (`order` or `pour`) to
 start. Use `D.*` helpers for rounded boxes, wrapped text and bars, and `g.win()`, `g.fail(text)`, `g.tip(text)`.
+
+## Dates, places, Chinese text
+
+- A chapter can move the story: `{ title, set, when: '5 July 1998', place: 'Kowloon City', year: 1998, ... }`. The
+  banner shows the new date when it changes, and the time-travel animation uses the chapter's `year` when a save
+  resumes there. To jump in the middle of an event, end a chapter with `{ do: () => warpTo(1998, 'label') }` and start
+  the next with `{ do: () => warpEnd() }` (see `54_kowloon.js`).
+- Chinese characters work in signs and minigames (draw them with the `CJK` font stack). Run
+  `python3 tools/cjk_font.py` after adding new ones, so they are in the embedded font.
+
+## Extras: a photo album and odd jobs
+
+Both are optional and live in `src/11_extras.js`.
+
+**Album.** `album: { title, text, shots: { id: { t: 'what to photograph', x: 'caption' } } }`, and in a set
+`S.shot(id, x, z, { dy, reach, when })` where the shot is taken from: look at `(x, y + dy, z)` within `reach` and press E.
+`when(S)` may return a hint string while the shot isn't possible yet (no plane overhead, say). A story step can take a
+shot too: `{ goal, use: spotId, then: () => Album.snap('yourid', 'shotId') }`. The journal shows the photos.
+
+**Odd jobs.** `jobs: { id: { t, giver, set, fact, intro: [[who, text]], busy, steps: [...], end: [[who, text]] } }`.
+Talking to the giver (marked with a floating "!") offers the job; steps are `{ goal, talk, bring?, say? }`,
+`{ goal, use, bring?, say? }` or `{ play: minigameId, ...params }` (starts at once). Job items are ordinary `S.item()`s
+that can be picked up while a job wants them. Jobs only run in their own set, alongside the main story, so keep `bring`
+goals out of the chapters that offer jobs. Finishing a job unlocks its `fact`; the journal lists the jobs.
 
 ## Writing for this game
 

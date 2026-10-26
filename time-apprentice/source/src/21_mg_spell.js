@@ -1,6 +1,7 @@
 // Minigame "spell": fill the slots in order by picking tiles: hieroglyphs for a cartouche, or metal letters for a line of type.
 // params: { target: ['kh','w','f','w'], tiles: { id: { label, glyph, sound } }, decoys: [...], mirror: bool,
-//           frame: 'cartouche' | 'stick', prompt, wrong: (picked, wanted) => text }
+//           frame: 'cartouche' | 'stick' | 'sign', prompt, wrong: (picked, wanted) => text }
+// 'sign' paints Chinese characters in gold on a red shop board: tiles are { label: '九', sound: 'gau', mean: 'nine' }
 
 // Egyptian signs that each stand for one sound (the "alphabet" signs), drawn with a few strokes
 const GLYPHS = {
@@ -91,7 +92,11 @@ Minigames.add('spell', {
   },
   drawTile(g, c, t, x, y, s, hl) {
     const p = g.p, tile = (p.tiles && p.tiles[t.id]) || { label: t.id };
-    if (p.frame === 'stick') {
+    if (p.frame === 'sign') {
+      D.rr(c, x, y, s, s, 10); c.fillStyle = hl ? '#c8302a' : '#a8221e'; c.fill(); c.strokeStyle = '#e8b84a'; c.lineWidth = 3; c.stroke();
+      D.text(c, tile.label || t.id, x + s / 2, y + s * 0.6, { size: s * 0.52, align: 'center', color: '#ffd76a', font: CJK, w: 700 });
+      if (tile.sound) D.text(c, tile.sound, x + s / 2, y + s - 7, { size: Math.max(11, s * 0.15), align: 'center', color: '#f8e2b0', w: 700 });
+    } else if (p.frame === 'stick') {
       // a piece of metal type seen from the end: a grey block with a raised letter
       D.rr(c, x, y, s, s, 8); c.fillStyle = hl ? '#9aa4b0' : '#7d8794'; c.fill();
       c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(x + 4, y + 4, s - 8, 6);
@@ -109,13 +114,16 @@ Minigames.add('spell', {
   },
   draw(g, c) {
     const p = g.p;
-    D.sky(c, p.frame === 'stick' ? '#3a2a1e' : '#d9b77a', p.frame === 'stick' ? '#241810' : '#c9a060');
+    D.sky(c, p.frame === 'stick' ? '#3a2a1e' : p.frame === 'sign' ? '#3a3640' : '#d9b77a', p.frame === 'stick' ? '#241810' : p.frame === 'sign' ? '#22202a' : '#c9a060');
     D.text(c, p.prompt || '', 480, 44, { size: 24, align: 'center', color: '#fff8e8', stroke: 'rgba(0,0,0,.35)' });
     // the slots
     const n = g.slots.length, s = Math.min(78, 860 / n - 6), w = n * (s + 6) - 6, x0 = 480 - w / 2, y0 = 110;
     if (p.frame === 'cartouche') {
       D.rr(c, x0 - 34, y0 - 26, w + 68, s + 52, (s + 52) / 2); c.fillStyle = '#efe4c8'; c.fill(); c.lineWidth = 6; c.strokeStyle = '#7a4a1e'; c.stroke();
       c.fillStyle = '#7a4a1e'; c.fillRect(x0 + w + 34, y0 - 30, 10, s + 60);
+    } else if (p.frame === 'sign') {
+      D.rr(c, x0 - 30, y0 - 20, w + 60, s + 40, 8); c.fillStyle = '#8a1a16'; c.fill(); c.lineWidth = 6; c.strokeStyle = '#e8b84a'; c.stroke();
+      c.fillStyle = '#5a4a3a'; c.fillRect(x0 - 10, y0 - 46, 6, 26); c.fillRect(x0 + w + 4, y0 - 46, 6, 26);
     } else {
       c.fillStyle = '#5a4030'; D.rr(c, x0 - 24, y0 - 14, w + 48, s + 28, 6); c.fill(); c.fillStyle = '#8a8a90'; c.fillRect(x0 - 24, y0 + s + 6, w + 48, 8);
     }
@@ -131,6 +139,8 @@ Minigames.add('spell', {
     g.pal.forEach((t, i) => {
       const dx = i === g.shakeI && g.shake > 0 ? Math.sin(g.shake * 60) * 6 : 0;
       this.drawTile(g, c, t, t.x + dx, t.y, g.tw, i === g.sel);
+      const tl = p.tiles && p.tiles[t.id];
+      if (p.frame === 'sign' && tl && tl.mean) D.text(c, tl.mean, t.x + g.tw / 2 + dx, t.y + g.tw + 12, { size: 12, align: 'center', color: '#d8d0e0', w: 700 });
       if (i === g.sel && (Input.pad.on || g.kb)) { D.rr(c, t.x - 4, t.y - 4, g.tw + 8, g.tw + 8, 12); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); }
     });
   },

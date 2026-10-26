@@ -190,6 +190,7 @@ const HUD = {
         : '<div class="jf lock"><b>? ? ?</b><p>A page you haven\'t found yet. Keep exploring and talking to people!</p></div>').join('');
       const people = Object.values(sc.cast || {}).filter((c) => c.real && c.about);
       if (people.length) body += '<h3>Real people in this story</h3>' + people.map((c) => `<div class="jp"><b>${esc(c.name)}</b> <span>${rich(c.about)}</span></div>`).join('');
+      body += Album.html(sc) + Jobs.html(sc);
       if (sc.note) body += `<p class="jnote">${rich(sc.note)}</p>`;
     }
     const total = list.reduce((s, q) => s + Journal.count(q.id), 0), all = list.reduce((s, q) => s + Object.keys(q.facts).length, 0);

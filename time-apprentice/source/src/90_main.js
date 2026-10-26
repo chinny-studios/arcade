@@ -3,16 +3,17 @@
 const G = { state: 'title', time: 0, frame: 0, autoQ: true, noPause: false };
 const clock = { last: performance.now(), fpsT: 0, fpsN: 0, fps: 60, lowT: 0, startT: 0 };
 
-// save: which events are done, which chapter you're on in the others, and the journal pages you've found
+// save: which events are done, which chapter you're on in the others, the journal pages you've found, the photos
+// you've taken (the pictures themselves are kept apart, see Album) and how far you got with each odd job
 const SAVE = {
   key: 'time-apprentice.save',
-  data: { v: 1, done: {}, prog: {}, facts: {}, at: 'hub', intro: false },
+  data: { v: 1, done: {}, prog: {}, facts: {}, shots: {}, jobs: {}, at: 'hub', intro: false },
   save() { try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) { /* ignore */ } },
   load() {
-    try { const d = JSON.parse(localStorage.getItem(this.key) || 'null'); if (d && d.v === 1) { this.data = Object.assign({ done: {}, prog: {}, facts: {}, at: 'hub' }, d); return true; } } catch (e) { /* ignore */ }
+    try { const d = JSON.parse(localStorage.getItem(this.key) || 'null'); if (d && d.v === 1) { this.data = Object.assign({ done: {}, prog: {}, facts: {}, shots: {}, jobs: {}, at: 'hub' }, d); return true; } } catch (e) { /* ignore */ }
     return false;
   },
-  wipe() { this.data = { v: 1, done: {}, prog: {}, facts: {}, at: 'hub', intro: false }; try { localStorage.removeItem(this.key); } catch (e) { /* ignore */ } },
+  wipe() { this.data = { v: 1, done: {}, prog: {}, facts: {}, shots: {}, jobs: {}, at: 'hub', intro: false }; try { localStorage.removeItem(this.key); } catch (e) { /* ignore */ } Album.wipe(); },
 };
 
 function boot() {
@@ -21,7 +22,8 @@ function boot() {
   if (!G.autoQ) applyQuality(SETTINGS.quality);
   initHand();
   HUD.init(); AU.init(); Voice.init();
-  const had = SAVE.load();
+  const had = SAVE.load(); Album.load();
+  loadFonts();
   $('#bContinue').hidden = !had; $('#bNew').hidden = !had;
   $('#bStart').hidden = had;
   $('#bStart').onclick = () => { AU.resume(); startGame(false); };
@@ -38,6 +40,7 @@ function boot() {
 
 async function startGame(cont) {
   $('#title').hidden = true;
+  await FONTS;
   G.state = 'play'; document.body.dataset.state = 'play';
   clock.startT = performance.now();
   Input.lock();
@@ -58,7 +61,8 @@ function enterHub() {
   HUD.where("Aunt Clio's workshop", 'Today');
 }
 async function enterScenario(sc, ci = 0, anim = true) {
-  if (anim) await warpTo(sc.year, sc.place);
+  const ch = sc.chapters[ci] || {};
+  if (anim) await warpTo(ch.year || sc.year, ch.place || sc.place);
   Story.begin(sc, ci);
   if (anim) warpEnd();
 }
@@ -138,7 +142,7 @@ addEventListener('beforeunload', () => SAVE.save());
 function setupDebug() {
   G.noPause = true;
   const TA = window.TA = {
-    G, PL, R, Stage, Story, HUD, Minigames, Scenarios, SAVE, Journal, AU, Input,
+    G, PL, R, Stage, Story, HUD, Minigames, Scenarios, SAVE, Journal, AU, Input, Album, Jobs,
     f: { step, placePlayer, findTarget, interact, travel, goHome, enterHub, enterScenario, makePerson, posePerson, fmtYear, hubSteps },
     // start in the workshop (fresh: wipes the save first)
     async start(o = {}) { if (o.fresh !== false) SAVE.wipe(); SETTINGS.voice = false; await startGame(false); return true; },
@@ -180,6 +184,11 @@ function setupDebug() {
       return log;
     },
     solve() { return Minigames.solve(); },
+    // odd jobs and the photo album: finish a job here (offering it first), or take an album shot from where it stands
+    job(id) { return Jobs.auto(id); },
+    jobs() { return Jobs.list().map(([id]) => [id, Jobs.st(id)]); },
+    shot(id) { const s = Stage.spots['shot:' + id]; if (!s) return 'no shot ' + id + ' in this set'; PL.x = s.x; PL.z = s.z; return Album.snap(Story.sc.id, id); },
+    shots() { const o = {}; for (const sc of Scenarios.sorted()) if (sc.album) o[sc.id] = Album.count(sc.id) + '/' + Album.total(sc.id); return o; },
     facts() { const o = {}; for (const sc of Scenarios.sorted()) o[sc.id] = Journal.count(sc.id) + '/' + Object.keys(sc.facts).length; return o; },
     check() { const o = {}; for (const sc of Scenarios.list) o[sc.id] = Scenarios.check(sc); return o; },
     stats() { return { tris: R.renderer.info.render.triangles, calls: R.renderer.info.render.calls, solids: Stage.solids.length, actors: Stage.actorList().length, pos: [PL.x, PL.y, PL.z] }; },

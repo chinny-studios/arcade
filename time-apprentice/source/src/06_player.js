@@ -101,10 +101,10 @@ function findTarget() {
     if (sc > bs) { bs = sc; best = { kind, ref, label }; }
   };
   for (const a of Stage.actorList()) if (a.talkable && a.g.visible) consider('actor', a, a.x, a.headY - 0.25, a.z, 3.6, 'Talk to ' + a.name);
-  if (!PL.carry) for (const id in Stage.items) { const it = Stage.items[id]; if (it.taken || it.gone || !it.obj.visible) continue; if (!Story.wants('item', id) && !it.free) continue; const p = it.obj.getWorldPosition(new V3()); consider('item', it, p.x, p.y + (it.dy || 0.2), p.z, 3.2, 'Pick up ' + it.label); }
+  if (!PL.carry) for (const id in Stage.items) { const it = Stage.items[id]; if (it.taken || it.gone || !it.obj.visible) continue; if (!Story.wants('item', id) && !it.free && !Jobs.wants('item', id)) continue; const p = it.obj.getWorldPosition(new V3()); consider('item', it, p.x, p.y + (it.dy || 0.2), p.z, 3.2, 'Pick up ' + it.label); }
   for (const id in Stage.spots) {
     const s = Stage.spots[id];
-    if (!s.label || (!s.use && !Story.wants('spot', id))) continue;
+    if (!s.label || (!s.use && !Story.wants('spot', id) && !Jobs.wants('spot', id))) continue;
     consider('spot', s, s.x, s.y + (s.dy != null ? s.dy : 1), s.z, s.reach || 3.4, s.label);
   }
   PL.target = best;
@@ -113,6 +113,7 @@ function findTarget() {
 function interact() {
   const t = PL.target; if (!t) return;
   if (Story.interact(t.kind, t.ref)) return;
+  if (Jobs.interact(t.kind, t.ref)) return;
   if (t.kind === 'actor') Story.chatter(t.ref);
   else if (t.kind === 'spot' && typeof t.ref.use === 'function') t.ref.use(t.ref);
   else if (t.kind === 'item' && t.ref.free) carryItem(t.ref);

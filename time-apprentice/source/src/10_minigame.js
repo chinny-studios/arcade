@@ -64,8 +64,8 @@ const Minigames = {
     g.blist = g.def.buttons ? g.def.buttons(g) : [];
     for (const b of g.blist) {
       const e = document.createElement('button'); e.className = 'mgb' + (b.cls ? ' ' + b.cls : ''); e.innerHTML = `<span>${esc(b.label)}</span>${b.key ? `<small>${esc(b.key)}</small>` : ''}`;
-      const on = (ev) => { ev.preventDefault(); if (!g.btn[b.id]) g.hits[b.id] = true; g.btn[b.id] = true; e.classList.add('dn'); };
-      const off = (ev) => { if (ev) ev.preventDefault(); g.btn[b.id] = false; e.classList.remove('dn'); };
+      const on = (ev) => { ev.preventDefault(); if (!g.btn[b.id]) g.hits[b.id] = true; g.btn[b.id] = true; b.ptr = true; e.classList.add('dn'); };
+      const off = (ev) => { if (ev) ev.preventDefault(); g.btn[b.id] = false; b.ptr = false; e.classList.remove('dn'); };
       e.addEventListener('pointerdown', on); e.addEventListener('pointerup', off); e.addEventListener('pointerleave', off); e.addEventListener('pointercancel', off);
       b.el = e; box.appendChild(e);
     }
@@ -106,7 +106,8 @@ const Minigames = {
     for (const b of g.blist || []) {
       const keys = b.keys || [];
       if (Input.anyHit(keys)) g.hits[b.id] = true;
-      if (keys.length) { const dn = Input.anyDown(keys); if (dn) g.btn[b.id] = true; else if (!b.el || !b.el.classList.contains('dn')) g.btn[b.id] = false; }
+      // held while a key is down or a finger/mouse is on the button
+      if (keys.length) g.btn[b.id] = Input.anyDown(keys) || !!b.ptr;
       if (b.el) b.el.classList.toggle('dn', !!g.btn[b.id]);
     }
     g.t += dt;

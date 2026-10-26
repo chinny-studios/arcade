@@ -75,6 +75,20 @@ const Stage = {
   },
   // ---- named places, things to pick up, people ----
   spot(id, x, z, o = {}) { const s = Object.assign({ id, x, z, y: o.y != null ? o.y : this.height(x, z), r: 2.2, label: null }, o); this.spots[id] = s; return s; },
+  // where an album shot (sc.album.shots[id]) is taken from: look toward (x, y + dy, z) from within `reach` and press E.
+  // o.when(S) may return a string (a hint, like "Wait for a plane!") while the shot isn't possible yet.
+  shot(id, x, z, o = {}) {
+    const sc = this.sc, def = sc && sc.album && sc.album.shots[id]; if (!def) { console.warn('no album shot ' + id); return null; }
+    const s = this.spot('shot:' + id, x, z, Object.assign({ r: 1, dy: 1.6, reach: 7 }, o, {
+      label: (Album.has(sc.id, id) ? 'Photograph again: ' : 'Take a photo: ') + def.t,
+      use: () => {
+        const why = o.when ? o.when(this) : true;
+        if (why !== true) { HUD.toast('Not yet', typeof why === 'string' ? why : 'Wait for the right moment.', 'hint'); return; }
+        Album.snap(sc.id, id); s.label = 'Photograph again: ' + def.t;
+      },
+    }));
+    return s;
+  },
   item(id, obj, o = {}) { const it = Object.assign({ id, obj, label: id, taken: false, gone: false }, o); this.items[id] = it; return it; },
   actor(id, x, z, yaw = 0, o = {}) {
     const def = Object.assign({}, (this.sc && this.sc.cast && this.sc.cast[o.cast || id]) || {}, o);
