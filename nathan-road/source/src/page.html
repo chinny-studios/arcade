@@ -1,0 +1,197 @@
+<title>Nathan Road</title>
+<meta name="description" content="Walk Tsim Sha Tsui at true scale in first person, built from real map data: Nathan Road, Milton Mansion, Chungking Mansions, the Clock Tower, the Avenue of Stars and the Star Ferry, from afternoon into neon night.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Noto+Sans+TC:wght@500;900&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #f2efe6; --dim: #b9b4a8; --faint: #77736a; --red: #e8334a; --neon: #ff4f7a; --teal: #3ee6d8; --gold: #ffd25a;
+    --panel: rgba(12,10,16,.88); --line: rgba(62,230,216,.35);
+    --pix: 'VT323', 'Courier New', monospace; --zh: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif; }
+  html, body { margin: 0; height: 100%; background: #07060a; overflow: hidden; color: var(--ink); font-family: var(--pix); font-size: 20px;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; image-rendering: pixelated; }
+  button { font-family: var(--pix); font-size: 22px; color: var(--ink); background: rgba(255,255,255,.05); border: 1px solid var(--line); padding: 6px 16px; cursor: pointer; }
+  button:hover, button:focus-visible { background: rgba(62,230,216,.18); outline: none; border-color: var(--teal); }
+  .zh { font-family: var(--zh); }
+  /* ---- title */
+  #title { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    background: radial-gradient(ellipse at 50% 60%, rgba(40,10,30,.25), rgba(5,4,8,.75)); text-align: center; padding: 16px; box-sizing: border-box; }
+  #title h1 { margin: 0; font-weight: 400; font-size: clamp(54px, 11vw, 120px); line-height: .9; letter-spacing: .06em; color: var(--neon);
+    text-shadow: 0 0 6px var(--neon), 0 0 24px rgba(255,79,122,.6), 3px 3px 0 #300; }
+  #title .zhT { font-family: var(--zh); font-weight: 900; font-size: clamp(30px, 6vw, 58px); color: var(--teal); letter-spacing: .3em; margin-left: .3em;
+    text-shadow: 0 0 6px var(--teal), 0 0 22px rgba(62,230,216,.5); }
+  #title .sub { color: var(--dim); font-size: 22px; max-width: 640px; line-height: 1.15; }
+  #title .menu { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; min-width: 260px; }
+  #title .menu button { font-size: 26px; }
+  #title .foot { position: absolute; bottom: 10px; left: 0; right: 0; font-size: 16px; color: var(--faint); padding: 0 12px; }
+  #loading { font-size: 22px; color: var(--gold); min-height: 26px; }
+  /* ---- HUD */
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud { display: block; }
+  #cross { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: rgba(255,255,255,.7); box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  #clock { position: absolute; right: 14px; top: 10px; text-align: right; text-shadow: 2px 2px 0 #000; }
+  #clock b { display: block; font-size: 34px; font-weight: 400; color: var(--gold); line-height: .9; }
+  #clock span { font-size: 20px; color: var(--dim); }
+  #where { position: absolute; left: 14px; bottom: 12px; text-shadow: 2px 2px 0 #000; }
+  #where b { display: block; font-size: 30px; font-weight: 400; line-height: 1; }
+  #where span { font-family: var(--zh); font-weight: 500; font-size: 18px; color: var(--teal); }
+  #compass { position: absolute; left: 50%; top: 10px; width: min(520px, 60vw); height: 30px; transform: translateX(-50%); overflow: hidden;
+    border-bottom: 1px solid var(--line); background: linear-gradient(90deg, transparent, rgba(0,0,0,.45) 20%, rgba(0,0,0,.45) 80%, transparent);
+    -webkit-mask: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); mask: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
+  #compass::after { content: ''; position: absolute; left: 50%; bottom: 0; width: 2px; height: 8px; margin-left: -1px; background: var(--gold); }
+  #ctrack i { position: absolute; top: 3px; width: 30px; margin-left: -15px; text-align: center; font-style: normal; font-size: 20px; color: var(--dim); }
+  #ctrack i.cd { color: var(--ink); }
+  #ctrack i.mk { color: var(--gold); font-size: 18px; }
+  #ctrack i.mk.lm { color: var(--teal); }
+  #prompt { position: absolute; left: 50%; top: calc(50% + 26px); transform: translateX(-50%); font-size: 24px; white-space: nowrap; text-shadow: 2px 2px 0 #000; }
+  #prompt b { display: inline-block; padding: 0 6px; margin-right: 6px; border: 1px solid var(--gold); color: var(--gold); font-weight: 400; }
+  #toasts { position: absolute; left: 14px; top: 46%; display: flex; flex-direction: column; gap: 4px; max-width: min(480px, 70vw); }
+  .toast { font-size: 21px; text-shadow: 2px 2px 0 #000; animation: tIn .25s ease-out; transition: opacity .8s; background: rgba(0,0,0,.35); padding: 2px 8px; }
+  @keyframes tIn { from { opacity: 0; transform: translateX(-10px); } }
+  #banner { position: absolute; left: 0; right: 0; top: 16%; text-align: center; opacity: 0; transition: opacity .8s; padding: 0 16px; }
+  #banner.on { opacity: 1; }
+  #banner .k { font-size: 20px; color: var(--teal); letter-spacing: .2em; text-shadow: 2px 2px 0 #000; }
+  #banner .l { font-size: clamp(34px, 5vw, 60px); color: var(--ink); text-shadow: 3px 3px 0 #000, 0 0 18px rgba(255,79,122,.7); line-height: 1; }
+  #banner .z { font-family: var(--zh); font-weight: 900; font-size: clamp(22px, 3vw, 34px); color: var(--neon); text-shadow: 2px 2px 0 #000; }
+  #task { position: absolute; left: 14px; top: 10px; max-width: min(380px, 40vw); text-shadow: 2px 2px 0 #000; font-size: 20px; }
+  #task b { display: block; color: var(--gold); font-weight: 400; font-size: 22px; }
+  #task span { color: var(--dim); }
+  #money { color: var(--teal); }
+  /* ---- dialogue */
+  #dlg { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); width: min(720px, 94vw); pointer-events: auto; box-sizing: border-box;
+    background: var(--panel); border: 2px solid var(--line); border-left: 6px solid var(--neon); padding: 12px 18px; box-shadow: 6px 6px 0 rgba(0,0,0,.5); }
+  #dlg .who { color: var(--gold); font-size: 24px; }
+  #dlg .who i { font-family: var(--zh); font-style: normal; color: var(--teal); font-size: 17px; margin-left: 8px; }
+  #dlg .say { font-size: 23px; line-height: 1.2; margin: 6px 0 8px; }
+  #dlg .opts { display: flex; flex-direction: column; gap: 4px; }
+  #dlg .opts button { text-align: left; font-size: 21px; padding: 4px 10px; }
+  #dlg .more { color: var(--faint); font-size: 17px; text-align: right; }
+  /* ---- panels */
+  .panel { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4,3,8,.72); pointer-events: auto; padding: 12px; box-sizing: border-box; }
+  .card { background: var(--panel); border: 2px solid var(--line); box-shadow: 8px 8px 0 rgba(0,0,0,.5); padding: 14px 18px; max-width: min(900px, 96vw); max-height: 92vh; overflow: auto; box-sizing: border-box; }
+  .card h2 { margin: 0 0 8px; font-weight: 400; font-size: 32px; color: var(--neon); }
+  .card h3 { margin: 10px 0 4px; font-weight: 400; color: var(--gold); font-size: 24px; }
+  .card p { margin: 4px 0; line-height: 1.15; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tabs button.on { background: rgba(255,79,122,.25); border-color: var(--neon); }
+  #map { position: absolute; inset: 0; background: #0b0d12; pointer-events: auto; }
+  #mapc { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #map .legend { position: absolute; left: 12px; bottom: 10px; font-size: 18px; color: var(--dim); text-shadow: 1px 1px 0 #000; background: rgba(0,0,0,.5); padding: 4px 10px; }
+  #map .close { position: absolute; right: 12px; top: 10px; }
+  #map .mtitle { position: absolute; left: 12px; top: 8px; font-size: 30px; color: var(--neon); text-shadow: 2px 2px 0 #000; }
+  .lmlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px; }
+  .lm { border: 1px solid rgba(255,255,255,.12); padding: 6px 10px; cursor: pointer; }
+  .lm.found { border-color: var(--line); }
+  .lm b { font-weight: 400; color: var(--ink); font-size: 21px; } .lm i { font-style: normal; font-family: var(--zh); color: var(--teal); font-size: 15px; margin-left: 6px; }
+  .lm.locked b { color: var(--faint); }
+  .plaque { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; font-size: 21px; line-height: 1.2; }
+  .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  .photos figure { margin: 0; } .photos img { width: 100%; image-rendering: pixelated; border: 2px solid #eee; display: block; }
+  .photos figcaption { font-size: 16px; color: var(--dim); }
+  .vp { display: flex; gap: 8px; align-items: baseline; } .vp.done b { color: var(--teal); } .vp b { font-weight: 400; }
+  .set { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; }
+  .set select, .set input { font-family: var(--pix); font-size: 20px; background: #111; color: var(--ink); border: 1px solid var(--line); }
+  /* ---- photo mode */
+  #vf { position: absolute; inset: 0; pointer-events: none; }
+  #vf .fr { position: absolute; inset: 8% 10%; border: 2px solid rgba(255,255,255,.8); box-shadow: 0 0 0 9999px rgba(0,0,0,.25); }
+  #vf .fr::before, #vf .fr::after { content: ''; position: absolute; left: 50%; top: 50%; background: rgba(255,255,255,.8); }
+  #vf .fr::before { width: 20px; height: 2px; margin: -1px 0 0 -10px; } #vf .fr::after { width: 2px; height: 20px; margin: -10px 0 0 -1px; }
+  #vf .info { position: absolute; left: 0; right: 0; bottom: 3%; text-align: center; font-size: 22px; text-shadow: 2px 2px 0 #000; }
+  #vf .rec { position: absolute; left: 11%; top: 9.5%; color: var(--red); font-size: 22px; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .35s; }
+  #fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .4s; }
+  /* ---- lift and shop */
+  #lift .btns { display: grid; grid-template-columns: repeat(4, 64px); gap: 6px; margin: 10px 0; }
+  #lift .btns button { font-size: 24px; padding: 6px 0; border-radius: 50%; width: 60px; height: 60px; }
+  #lift .btns button.cur { border-color: var(--gold); color: var(--gold); }
+  /* ---- touch */
+  #touch { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body.touch[data-state="play"] #touch { display: block; }
+  #stick { position: absolute; left: 22px; bottom: 26px; width: 130px; height: 130px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); background: rgba(0,0,0,.18); pointer-events: auto; touch-action: none; }
+  #knob { position: absolute; left: 41px; top: 41px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.35); }
+  #tbtns { position: absolute; right: 14px; bottom: 22px; display: grid; grid-template-columns: repeat(3, 62px); gap: 8px; pointer-events: auto; }
+  #tbtns button { width: 62px; height: 62px; border-radius: 50%; font-size: 18px; padding: 0; background: rgba(0,0,0,.35); }
+  #tmenu { position: absolute; right: 12px; top: 64px; pointer-events: auto; display: flex; gap: 6px; }
+  #tmenu button { font-size: 18px; padding: 4px 10px; background: rgba(0,0,0,.4); }
+  body.touch #where { bottom: 170px; }
+  body.touch #toasts { top: 74px; max-width: 55vw; } body.touch .toast { font-size: 17px; }
+  #fps { position: absolute; left: 8px; bottom: 4px; font-size: 14px; color: #9f9; display: none; }
+  body.debug #fps { display: block; }
+  @media (max-width: 640px) { #task { max-width: 46vw; font-size: 17px; } #clock b { font-size: 26px; } #compass { top: 52px; width: 80vw; } }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div class="hud">
+    <div id="cross"></div>
+    <div id="compass"><div id="ctrack"></div></div>
+    <div id="clock"><b id="time">16:30</b><span id="money">HK$ 300.0</span></div>
+    <div id="task" hidden></div>
+    <div id="where"><b id="street"></b><span id="streetZh"></span></div>
+    <div id="prompt" hidden></div>
+    <div id="toasts"></div>
+    <div id="banner"><div class="k" id="bk"></div><div class="l" id="bl"></div><div class="z" id="bz"></div></div>
+    <div id="vf" hidden><div class="fr"></div><div class="rec">● REC</div><div class="info" id="vfInfo"></div></div>
+    <div id="dlg" hidden><div class="who" id="dWho"></div><div class="say" id="dSay"></div><div class="opts" id="dOpts"></div><div class="more" id="dMore"></div></div>
+    <div id="fps"></div>
+  </div>
+  <div id="touch">
+    <div id="stick"><div id="knob"></div></div>
+    <div id="tbtns"><button id="tCam">CAM</button><button id="tRun">RUN</button><button id="tUse">USE</button></div>
+    <div id="tmenu"><button id="tMap">MAP</button><button id="tJ">BOOK</button><button id="tMenu">II</button></div>
+  </div>
+  <div id="map" hidden><canvas id="mapc"></canvas><div class="mtitle">TSIM SHA TSUI <span class="zh">尖沙咀</span></div>
+    <button class="close" id="mapClose">CLOSE [M]</button>
+    <div class="legend">Drag to pan, wheel or pinch to zoom. <span style="color:#ff4f7a">▲</span> you <span style="color:#3ee6d8">◆</span> landmark <span style="color:#ffd25a">!</span> errand <span style="color:#fff">▣</span> viewpoint</div></div>
+  <div id="journal" class="panel" hidden><div class="card" style="width:min(900px,96vw)">
+    <div class="row" style="justify-content:space-between"><h2>Notebook</h2><button id="jClose">CLOSE [J]</button></div>
+    <div class="tabs" id="jTabs"><button data-t="lm" class="on">Landmarks</button><button data-t="er">Errands</button><button data-t="vp">Viewpoints</button><button data-t="ph">Photos</button></div>
+    <div id="jBody"></div></div></div>
+  <div id="pause" class="panel" hidden><div class="card" style="min-width:300px">
+    <h2>Paused</h2>
+    <div class="menu" style="display:flex;flex-direction:column;gap:8px">
+      <button id="pResume">Resume</button><button id="pMap">Map</button><button id="pJournal">Notebook</button><button id="pSettings">Settings</button><button id="pHelp">Controls</button><button id="pTitle">Save and quit to title</button>
+    </div></div></div>
+  <div id="settings" class="panel" hidden><div class="card" style="min-width:min(520px,94vw)">
+    <h2>Settings</h2>
+    <div class="set">
+      <label for="sLines">Resolution</label><select id="sLines"><option value="240">240p (PS1)</option><option value="360">360p</option><option value="480">480p</option><option value="720">720p</option></select>
+      <label for="sWob">Vertex wobble</label><select id="sWob"><option value="1">On</option><option value="0">Off</option></select>
+      <label for="sFov">Field of view</label><input id="sFov" type="range" min="50" max="90" step="1">
+      <label for="sSens">Look speed</label><input id="sSens" type="range" min="0.3" max="2.5" step="0.1">
+      <label for="sInv">Invert look</label><select id="sInv"><option value="0">No</option><option value="1">Yes</option></select>
+      <label for="sCrowd">Crowds</label><select id="sCrowd"><option value="1">Busy</option><option value="0.5">Light</option><option value="0.2">Very light</option></select>
+      <label for="sTime">Time speed</label><select id="sTime"><option value="60">1 hour = 1 minute</option><option value="30">1 hour = 2 minutes</option><option value="12">1 hour = 5 minutes</option><option value="1">Real time</option><option value="0">Stopped</option></select>
+      <label for="sHour">Set the clock</label><select id="sHour"></select>
+      <label for="sVol">Volume</label><input id="sVol" type="range" min="0" max="1" step="0.05">
+    </div>
+    <div class="row" style="margin-top:12px"><button id="sClose">Done</button></div></div></div>
+  <div id="help" class="panel" hidden><div class="card" style="max-width:640px">
+    <h2>Controls</h2>
+    <p><b style="color:var(--gold);font-weight:400">Keyboard and mouse:</b> WASD to walk, mouse to look, Shift to run, E or click to use and talk, C for the camera (click or Space to take a photo), M for the map, J for the notebook, T to wait an hour, Esc to pause.</p>
+    <p><b style="color:var(--gold);font-weight:400">Touch:</b> left stick to walk, drag anywhere to look, USE, RUN and CAM on the right, MAP and BOOK at the top.</p>
+    <p><b style="color:var(--gold);font-weight:400">Gamepad:</b> left stick to walk, right stick to look, A to use, X for the camera, click the left stick or hold RT to run, Y for the map, Back for the notebook, Start to pause.</p>
+    <div class="row" style="margin-top:10px"><button id="hClose">OK</button></div></div></div>
+  <div id="credits" class="panel" hidden><div class="card" style="max-width:680px">
+    <h2>About this map</h2>
+    <p>Streets, buildings, trees, bus stops, crossings and shop positions come from <b style="font-weight:400;color:var(--teal)">Overture Maps</b> (2026-10-21 release), which is built from <b style="font-weight:400;color:var(--teal)">OpenStreetMap</b> (© OpenStreetMap contributors, ODbL) and other open sources. Hills come from the AWS Terrain Tiles (Mapzen). Distances are true to scale: one metre in the game is one metre in Tsim Sha Tsui.</p>
+    <p>Shop signs carry the real names from the Overture places listings (from Meta, Microsoft and others), placed on the shopfront facing the street in each listing's address. Milton Mansion's directory and door plates list the tenants in those listings. Listings go out of date and some positions are approximate, so expect the odd shop that has moved or closed. Buildings carry their mapped names; where the data has no height, a building gets a plausible one, and facades are generic textures.</p>
+    <p>The people you meet, their stalls and their errands are made up. Landmark notes are short and simplified.</p>
+    <p>Sign lettering uses Noto Sans TC (SIL Open Font License). Engine: three.js. All sound is synthesized.</p>
+    <div class="row" style="margin-top:10px"><button id="cClose">OK</button></div></div></div>
+  <div id="lift" class="panel" hidden><div class="card" style="text-align:center">
+    <h2>Lift <span class="zh" style="font-size:22px">升降機</span></h2><div class="btns" id="liftBtns"></div><button id="liftClose">Step out</button></div></div>
+  <div id="title">
+    <h1>NATHAN ROAD</h1><div class="zhT">彌敦道</div>
+    <div class="sub">Tsim Sha Tsui, Hong Kong, at true scale. Start outside Milton Mansion and walk.</div>
+    <div id="loading">Loading the city…</div>
+    <div class="menu" id="tmenuMain" hidden>
+      <button id="bStart">Start walking</button><button id="bNew" hidden>New walk</button><button id="bSettings">Settings</button><button id="bHelp">Controls</button><button id="bCredits">About the map</button>
+    </div>
+    <div class="foot">Map data © OpenStreetMap contributors, via Overture Maps. Click to capture the mouse; Esc to release.</div>
+  </div>
+  <div id="flash"></div>
+  <div id="fade"></div>
+</div>

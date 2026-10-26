@@ -9,3 +9,6 @@ midnight-in-the-sprawl/midnight-in-the-sprawl.html
 # tools/covers: npm tarball cache and full-size shots
 tools/covers/.cache/
 tools/covers/out/
+
+# Nathan Road raw map extracts (fetched by tools/get_data.sh)
+nathan-road/source/tools/raw/
