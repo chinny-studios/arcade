@@ -222,6 +222,31 @@ FORCE = {   # real figures where the data has none
     'Mirador Mansion': (17 * 3.0 + 2.5, 0),
 }
 
+# Parks: buildings in them with no mapped height are low park structures, not towers. Kowloon Park's Nathan Road edge
+# is a row of single-storey shops (Park Lane Shopper's Boulevard) with the park on its roof.
+park_polys = []
+for r in load('land_use'):
+    if r['class'] == 'park' or r['subtype'] == 'park':
+        g = pgeom(wkb.loads(r['geometry']))
+        if g.intersects(detail_box): park_polys += polys(g)
+parks = unary_union(park_polys).buffer(0) if park_polys else Polygon()
+parks_near = parks.buffer(15)
+
+
+def low_guess(src, poly, kind, named):
+    """single-storey height for unmeasured shop strips and park buildings, or None"""
+    k = h01(src['id'])
+    rr = poly.minimum_rotated_rectangle
+    if rr.geom_type == 'Polygon':
+        c = list(rr.exterior.coords); a, b = Point(c[0]).distance(Point(c[1])), Point(c[1]).distance(Point(c[2]))
+        long, short = max(a, b), min(a, b)
+    else: long, short = 1, 1
+    strip = short < 30 and long / max(short, 1) >= 3.5
+    if kind == 5 and strip and parks_near.intersects(poly): return 5.6
+    if parks.contains(poly.representative_point()) and not named: return 4 + 3 * k
+    return None
+
+
 bout, fout, landmarks = [], [], []
 detail_polys = []
 nb = {'h': 0, 'f': 0, 'g': 0}
@@ -249,13 +274,17 @@ for r in brows:
                 area = poly.area
                 h, how = hgt(src, area, kind)
                 if src is r and en in FORCE: h = FORCE[en][0]; how = 'f'
+                park_roof = False
+                if how == 'g' and detail:
+                    lg = low_guess(src, poly, kind, bool(name) and src is r and 'Park Lane' not in name)
+                    if lg is not None: h = lg; park_roof = True
                 nb[how] += 1
                 mh = src.get('min_height') or 0
                 if src.get('min_floor') and not mh: mh = src['min_floor'] * 3.2
                 if detail:
                     sp = poly.simplify(0.25)
                     if sp.is_empty or sp.area < 2: continue
-                    flags = 1 if how == 'g' else 0
+                    flags = (1 if how == 'g' else 0) | (2 if park_roof else 0)
                     rings = poly_out(sp)
                     pn = primary(src) if src is not r else ''
                     pen = re.sub(r'^[^A-Za-z]*', '', pn).strip()
