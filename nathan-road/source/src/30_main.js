@@ -108,6 +108,13 @@ function installDebug() {
     ferryState() { return FERRY.boats.map((b) => [b.state, b.left | 0, b.x | 0, b.z | 0]); },
     map() { openMap(); }, journal(t) { openJournal(t); }, closePanels() { if (panelOpen) closePanel(panelOpen); },
     vps() { return VIEWPOINTS.filter((v) => v.test()).map((v) => v.id); },
+    MET, STATIONS, EXITS,
+    // into a station at an exit's passage ('A1'), or onto a platform ('platform', track 0 or 1)
+    metro(st = 'TST', where = 'platform', si = 0) { const S = STATIONS[st]; enterMetroAt(S, where === 'platform' ? 'platform' : EXITS.find((X) => X.st === st && X.id === where), si); return NR.state(); },
+    // make the train on a track stand at the platform with its doors open in `in` seconds
+    trainIn(st, si, inS = 0) { const T2 = MET.trains.find((q) => q.S.id === st && q.si === si); T2.phase = ((15 - inS - UNI.uTime.value) % HEADWAY + HEADWAY) % HEADWAY; return T2.phase; },
+    trains() { return MET.trains.map((q) => [q.S.id, q.si, q.state, q.open, q.grp.position.z | 0]); },
+    ride() { return MET.ride && { from: MET.ride.from, to: MET.ride.to, t: +MET.ride.t.toFixed(1), dur: MET.ride.dur }; },
   };
   NR.ready = true;
 }

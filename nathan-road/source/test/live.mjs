@@ -29,7 +29,8 @@ ok(await page.evaluate(() => document.body.dataset.state === 'play'), 'title Sta
 const p0 = await page.evaluate(() => window.NR.state());
 await page.keyboard.down('KeyW'); await page.waitForTimeout(2500); await page.keyboard.up('KeyW');
 const p1 = await page.evaluate(() => window.NR.state());
-ok(Math.hypot(p1.x - p0.x, p1.z - p0.z) > 1, `W walks (${(Math.hypot(p1.x - p0.x, p1.z - p0.z)).toFixed(1)} m)`);
+// SwiftShader can drop to a few fps here, and a frame's step is capped at 0.05 s, so any real movement counts
+ok(Math.hypot(p1.x - p0.x, p1.z - p0.z) > 0.4, `W walks (${(Math.hypot(p1.x - p0.x, p1.z - p0.z)).toFixed(1)} m)`);
 // headless Chromium sometimes drops pointer lock, which (rightly) opens the pause menu: resume first
 if (await page.evaluate(() => !document.querySelector('#pause').hidden)) await page.click('#pResume');
 await page.keyboard.press('KeyM'); await page.waitForTimeout(300);

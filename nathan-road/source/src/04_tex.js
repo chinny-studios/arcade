@@ -246,6 +246,7 @@ const CAT_BG = {
   pharmacy: [['#0a7a5a', '#fff'], ['#fff', '#0a7a5a']], jewel: [['#141414', '#e8c060'], ['#8a0a14', '#f0d070']], fashion: [['#f2f2f2', '#111'], ['#111', '#f2f2f2']],
   tech: [['#0a3a8a', '#fff'], ['#e8e8e8', '#0a3a8a']], beauty: [['#f8e0ea', '#8a1a4a'], ['#fff', '#c8306a']], conv: [['#e0601a', '#fff'], ['#1a8a3a', '#fff']],
   travel: [['#fff', '#0a3a8a'], ['#2a6aaa', '#fff']], other: [['#e8e8e8', '#111'], ['#5a1a6a', '#ffd0f0']], building: [['#d8d4c8', '#2a2a2a'], ['#2a2a2a', '#e8e0c8']],
+  mtr: [['#b3141b', '#fff']], exit: [['#1a1a1a', '#f0d040']], lineTWL: [['#e2231a', '#fff']], lineTML: [['#923011', '#fff']],
 };
 const NEON = ['#ff3a6a', '#3af0ff', '#ffde3a', '#7aff5a', '#ff7a1a', '#c86aff', '#ff4a3a'];
 const SA = { w: 2048, h: 2048 };

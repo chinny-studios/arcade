@@ -1,6 +1,6 @@
 // 13_audio: every sound is synthesized. Beds of filtered noise for traffic, crowds and the harbour; the tick-tock of
 // Hong Kong's pedestrian crossings (slow while you wait, fast when it's your turn); footsteps, horns, the lift, the
-// ferry; and a small piece of music for A Symphony of Lights.
+// ferry, the MTR (the Octopus beep, the door chime, the rush of air as a train comes in, the rumble on board); and a small piece of music for A Symphony of Lights.
 const AU = { ctx: null, master: null, beds: {}, clickT: 0, stepPhase: 0, showT: 0 };
 function audioStart() {
   if (AU.ctx) { if (AU.ctx.state === 'suspended') AU.ctx.resume(); return; }
@@ -66,6 +66,9 @@ const SFX = {
   honk: () => { tone(410, 0, 0.35, 'square', 0.05); tone(520, 0, 0.35, 'square', 0.04); },
   horn: () => { tone(110, 0, 1.6, 'sawtooth', 0.08); tone(138, 0, 1.6, 'sawtooth', 0.06); },
   step: (k) => burst(0, 0.05, k ? 900 : 500, 0.08),
+  octopus: () => tone(2730, 0, 0.16, 'square', 0.05),
+  doorChime: () => { for (let i = 0; i < 6; i++) tone(i % 2 ? 1250 : 1560, i * 0.22, 0.16, 'square', 0.04); },
+  trainIn: () => { burst(0, 4.5, 260, 0.5, 'lowpass'); tone(70, 0.2, 4, 'sawtooth', 0.04, 38); },
 };
 bus.on('sfx', (k, a) => { if (AU.ctx && SFX[k]) SFX[k](a); });
 bus.on('honk', (car) => { if (AU.ctx && dist2(car.grp.position.x, car.grp.position.z, PL.x, PL.z) < 900) SFX.honk(); });
@@ -90,6 +93,7 @@ const _ab = { lastPhase: 0 };
 function updateAudio(dt) {
   if (!AU.ctx || GAME.state !== 'play') return;
   const B = AU.beds, street = PL.space === STREET || PL.space === ROOF, high = PL.space === ROOF;
+  const under = PL.space === METRO_SPACE, riding = PL.space === RIDE_SPACE;
   const set = (k, v, rate = 2) => { const g = B[k].g.gain; g.value += (v - g.value) * clamp(dt * rate, 0, 1); };
   // traffic: the nearest few cars
   let tr = 0;
@@ -98,11 +102,12 @@ function updateAudio(dt) {
   for (const p of CROWD.peds) if (p.on) { const d2 = dist2(p.x, p.z, PL.x, PL.z); if (d2 < 900) cr += 1 / (1 + d2 / 40); }
   let sea = 0;
   if (street || PL.space === FERRY_SPACE) { for (const [dx, dz] of [[0, 30], [30, 0], [-30, 0], [0, -30], [0, 12]]) if (gclass(PL.x + dx, PL.z + dz) === G.SEA) sea += 0.25; if (PL.space === FERRY_SPACE) sea = 1; }
-  set('traffic', street ? clamp(0.06 + tr * 0.25, 0, 0.6) * (high ? 0.5 : 1) : PL.space === MILTON_SPACE ? 0.03 : 0.02);
-  set('crowd', street && !high ? clamp(cr * 0.04, 0, 0.35) : PL.space === MILTON_SPACE && MILTON.floor === 'G' ? 0.05 : 0);
+  const trainNear = under && MET.trains.some((t) => t.S.id === MET.station && t.state !== 'away' && t.state !== 'dwell');
+  set('traffic', riding ? 0.4 * (MET.ride ? clamp(Math.min(MET.ride.t, MET.ride.dur - MET.ride.t) / 6, 0.15, 1) : 0) : trainNear ? 0.25 : street ? clamp(0.06 + tr * 0.25, 0, 0.6) * (high ? 0.5 : 1) : PL.space === MILTON_SPACE ? 0.03 : 0.02);
+  set('crowd', street && !high ? clamp(cr * 0.04, 0, 0.35) : under ? 0.08 : riding ? 0.04 : PL.space === MILTON_SPACE && MILTON.floor === 'G' ? 0.05 : 0);
   set('harbour', clamp(sea, 0, 1) * 0.25);
   set('wind', high ? 0.12 : PL.space === FERRY_SPACE ? 0.08 : 0);
-  set('hum', PL.space === MILTON_SPACE ? 0.015 : 0);
+  set('hum', PL.space === MILTON_SPACE || under ? 0.015 : 0);
   set('engine', PL.space === FERRY_SPACE ? 0.12 : 0);
   // crossings: the nearest signalised junction ticks
   if (street && !high) {
@@ -116,7 +121,7 @@ function updateAudio(dt) {
   }
   // footsteps
   const ph = Math.floor(PL.bob / Math.PI);
-  if (ph !== _ab.lastPhase && PL.speed > 0.3) { _ab.lastPhase = ph; SFX.step(PL.space === MILTON_SPACE ? 1 : 0); }
+  if (ph !== _ab.lastPhase && PL.speed > 0.3) { _ab.lastPhase = ph; SFX.step(PL.space === MILTON_SPACE || under || riding ? 1 : 0); }
   // the light show
   const showVol = SKY.show * (PL.space === FERRY_SPACE || PL.space === ROOF ? 1 : clamp(sea * 1.5, 0, 1));
   showMusic(dt, showVol);

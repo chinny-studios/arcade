@@ -6,7 +6,12 @@ A first-person exploration game of Hong Kong, starting with the area around Milt
 to scale. Chosen with the owner: the **TST core plus a harbour view** (Hong Kong Island across the water as a backdrop
 you can see but not reach), **today with a day/night cycle**, a **PS1-era look**, no player backstory, a **Star Ferry
 round trip**, **busy streets**, and four activities: landmark discovery, going inside Milton Mansion, small errands,
-and a photo mode with famous views. Later the owner asked that buildings and shops be real places, true to life.
+and a photo mode with famous views. Later the owner asked that buildings and shops be real places, true to life,
+and then for the MTR: **walk-in stations** (street exit, concourse, gates, escalator, island platform with screen doors,
+a ride in a carriage), **four stations on two lines** (Tsim Sha Tsui and Jordan on the Tsuen Wan Line, East Tsim Sha
+Tsui and Austin on the Tuen Ma Line, with the Mody Road subway between TST and East TST), an **Octopus card**, and a
+**busy, authentic** feel (frequent trains, screen doors, trilingual announcements and the door chime, crowds by hour,
+no trains from 1 am to 6 am).
 
 ## What is real and what isn't
 
@@ -17,6 +22,13 @@ and a photo mode with famous views. Later the owner asked that buildings and sho
 - **Approximate:** heights where the data has none (about half the buildings: a plausible guess by size and use), the
   hand-made landmark models, facade textures (the data has colours for only 2 buildings), shop positions (geocodes
   snapped to a frontage), listings that may be stale, the flat ground (the city is flat; only the backdrop has hills).
+- **MTR:** the four stations are under their real spots and their exits have their real letters and streets (from
+  the MTR exit lists as quoted by Gwulo and news reports: TST A1 Kowloon Park, A2 Humphreys Avenue, B1/C1/D1 Nathan
+  Road, B2 Cameron Road, C2 Peking Road, D2 Carnarvon Road; East TST K Middle Road, P1 Mody Road, P3 Chatham Road South;
+  Jordan C1 Nathan Road, E Prudential Hotel; Austin F Austin Road West). Approximate: where each exit opens on the
+  pavement, the concourse and platform layouts (one generic island-platform station), the 150 s headway and 30 s dwell,
+  the fares (about HK$5–6), and the ride times. Leaving the map by train (towards Central, Tsuen Wan, Wu Kai Sha,
+  Tuen Mun) brings you back on the next train with the clock moved on 7 minutes.
 - **Made up:** every person, their stalls and their errands (no fictional business names; stall signs say only what
   they sell), crowds and traffic, the guard, Milton Mansion's interior layout. The credits panel says this in game.
 
@@ -65,10 +77,22 @@ and a photo mode with famous views. Later the owner asked that buildings and sho
   route, 50 s at each pier and 150 s crossing; the ferry space carries you, and you can only leave at TST.
 - **Sky (10):** real sun for the date; sky and fog share the horizon colour. The show lights windows of Island towers
   over 45 m on the north shore and sweeps beams from the tallest tower in each 300 m of skyline.
+- **MTR (09c):** `STATIONS`, `EXITS` and `FARES` at the top. Street exits are canopies with stairs painted on the
+  pavement (the street scene has no holes). Underground is one more scene: per station a concourse at y = −10 with exit
+  passages in its walls, gate lines (a collision segment you pass by tapping), a Customer Service Centre and an add
+  value machine on the first unpaid side, and an escalator ramp down to an island platform at y = −20 with screen
+  doors. One train per track loops arrive (10 s), dwell (30 s, doors open 12–36 s, chime at 33 s), leave (10 s) every
+  150 s; screen doors and train doors are separate meshes hidden while open. Boarding moves you to a carriage set at
+  x = 4000 with passengers, the line strip and tunnel lights streaming past; on arrival the train you rode is set to
+  stand at the far platform. Announcements are captions plus `speechSynthesis` in Cantonese, Mandarin and English
+  where the browser has those voices. The Octopus (HK$150, HK$100 on it) pays gates, the Star Ferry and stalls when it
+  has the value, and may go HK$35 negative once at the gates.
 - **Game (12):** errands are small state machines (`ERRANDS`, `talk(id)`), photos are tested against `VIEWPOINTS`
   (projected points in frame, distance, time, where you stand), and progress saves to `nathan-road-save`.
 
 ## Ideas for later
 
-More of Hong Kong (Mong Kok, Central across the ferry), walk-in shops from the listings, the MTR, the Peninsula's
-lobby, rain and typhoon signals, minibus rides, footbridges and the TST East subway, real terrain for Kowloon's slopes.
+More of Hong Kong (Mong Kok, Central across the ferry, and the MTR stations to get there), walk-in shops from the
+listings, the Peninsula's lobby, rain and typhoon signals, minibus rides, footbridges, real station layouts (TST's
+concourse runs under Nathan Road from Kowloon Park to Peking Road and its exits come in through long passages, which
+the game shortens to a fade), real terrain for Kowloon's slopes.

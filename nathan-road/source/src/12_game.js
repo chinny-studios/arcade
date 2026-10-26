@@ -131,7 +131,11 @@ function activeErrand() {
 const hasItem = (k) => (ST.items[k] || 0) > 0;
 function giveItem(k, n = 1) { ST.items[k] = (ST.items[k] || 0) + n; }
 function takeItem(k) { if (ST.items[k]) ST.items[k]--; if (!ST.items[k]) delete ST.items[k]; }
-function pay(n) { if (ST.money < n) { toast('Not enough money.'); return false; } ST.money -= n; bus.emit('sfx', 'coins'); return true; }
+// with an Octopus card that has the value, you tap it; otherwise cash
+function pay(n, what) {
+  if (ST.octopus && ST.octopus.balance >= n) return octoPay(n, what);
+  if (ST.money < n) { toast('Not enough money.'); return false; } ST.money -= n; bus.emit('sfx', 'coins'); return true;
+}
 function earn(n) { ST.money += n; bus.emit('sfx', 'coins'); toast(`+HK$${n}`); }
 const ITEM_NAMES = { tarts: 'Box of egg tarts', curry: 'Mutton curry (takeaway)', suit: 'Mr Fenwick\'s suit', paper: 'Newspaper', milktea: 'Two milk teas', postcard: 'Postcard from Ingrid' };
 
@@ -238,7 +242,7 @@ function buildInteractions() {
   }, use: () => {
     const [t, b] = nextFerryAtTST();
     if (t > 0) { toast(`The next ferry docks in about ${Math.ceil(t / 60)} minute${t > 60 ? 's' : ''}. The board shows ${b.name[0]}.`); return; }
-    if (!ST.freeRide && !pay(5)) return;
+    if (!ST.freeRide && !pay(5, 'Star Ferry')) return;
     if (ST.freeRide) { ST.freeRide = false; toast('Uncle Sam waves you through.'); }
     bus.emit('sfx', 'turnstile');
     fadeOut(() => { boardFerry(b); fadeIn(); banner('THE STAR FERRY', b.name[0], b.name[1]); });
@@ -256,6 +260,7 @@ function findInteract() {
     let x = it.x, z = it.z;
     if (it.id === 'roofdoor') { x = MILTON.roofDoor[0]; z = MILTON.roofDoor[1]; }
     if (it.id === 'ferryOff') return it;
+    if (it.near) { if (it.near()) return it; continue; }
     const dx = x - PL.x, dz = z - PL.z, d = Math.hypot(dx, dz);
     if (d > it.r) continue;
     const dot = d < 0.8 ? 1 : (dx * f.x + dz * f.z) / (d * Math.hypot(f.x, f.z) || 1);
@@ -366,7 +371,7 @@ function nearestPlaceName() {
 // ---------------------------------------------------------------- save
 function save() {
   ST.t = CLOCK.t; ST.day = CLOCK.day;
-  ST.pos = { space: PL.space ? PL.space.name : 'street', x: PL.x, z: PL.z, yaw: PL.yaw, floor: MILTON.floor };
+  ST.pos = { space: PL.space ? PL.space.name : 'street', x: PL.x, z: PL.z, yaw: PL.yaw, floor: MILTON.floor, level: MET.level };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(ST)); } catch (e) { /* storage full or blocked */ }
 }
 function load() {
@@ -425,10 +430,11 @@ function startGame(o = {}) {
     CLOCK.t = s.t !== undefined ? s.t : 16.5; CLOCK.day = s.day || 0;
     const p = s.pos;
     if (p && p.space === 'milton') enterMilton(p.floor || 'G');
+    else if (p && (p.space === 'metro' || p.space === 'ride')) resumeMetro(p);
     else if (p && p.space === 'street' && STREET.allowed(p.x, p.z)) placePlayer(p.x, p.z, p.yaw, STREET);
     else setStartPos();
   } else {
-    Object.assign(ST, { money: 300, items: {}, found: {}, er: {}, photos: [], vps: {}, roofKey: false, zoom: false, freeRide: false, walked: 0 });
+    Object.assign(ST, { money: 300, items: {}, found: {}, er: {}, photos: [], vps: {}, roofKey: false, zoom: false, freeRide: false, walked: 0, octopus: null, metroIn: null });
     if (o.hour === undefined) CLOCK.t = 16.5;
     setStartPos();
   }
@@ -453,12 +459,16 @@ function initGame() {
   initCrowd();
   initTraffic();
   initFerry();
+  buildMetroExits();
+  buildMetro();
   placeStreetNPCs();
   buildInteractions();
+  metroInteractions();
 }
 function initWorldLife() { }
 function updateWorldLife(dt) {
   if (!GAME.ready) return;
   updateFerry(dt);
+  updateMetro(dt);
   if (GAME.state === 'play' || GAME.state === 'title') { updateCrowd(dt); updateTraffic(dt); }
 }
