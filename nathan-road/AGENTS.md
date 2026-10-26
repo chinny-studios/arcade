@@ -2,7 +2,8 @@
 
 A first-person walk around Tsim Sha Tsui at true scale, built from real map data, in a PS1-style renderer. Start
 outside Milton Mansion (96 Nathan Road); go inside and up to the roof, find 28 landmarks with short notes, run seven
-errands for made-up characters, ride the Star Ferry to Central and back, photograph famous views, and watch A Symphony
+errands for made-up characters, ride the Star Ferry to Central and back, take the MTR between four walk-in stations with an Octopus card, photograph
+famous views, and watch A Symphony
 of Lights at 8 pm.
 
 - **Read first:** `source/DESIGN.md`.
@@ -17,18 +18,24 @@ of Lights at 8 pm.
   `NR.go(landmarkId)`, `NR.toNPC(id)`, `NR.look(yaw, pitch)`, `NR.lookAt(x, y, z)`, `NR.cam(x, y, z, tx, ty, tz)`
   (free camera), `NR.time(hour)`, `NR.talk(id)` / `NR.choose(i)` / `NR.close()`, `NR.focus()` / `NR.use()` (the
   interaction in front of you), `NR.enterMilton(floor)`, `NR.lift(floor)`, `NR.roof()`, `NR.board()`,
-  `NR.ferryState()`, `NR.camera(on)`, `NR.photo()`, `NR.vps()` (famous views in frame), `NR.map()`, `NR.journal(tab)`,
+  `NR.ferryState()`, `NR.metro(station, exitId | 'platform', track)` (into a station: `'TST'`, `'JOR'`, `'ETS'`, `'AUS'`),
+  `NR.trainIn(station, track, seconds)` (that train stands with its doors open then), `NR.trains()`, `NR.ride()`, `NR.camera(on)`, `NR.photo()`, `NR.vps()` (famous views in frame), `NR.map()`, `NR.journal(tab)`,
   `NR.closePanels()`, `NR.render()`, `NR.stats()`, `NR.state()`. Internals: `NR.W` (world: buildings, edges, raster),
-  `NR.MAP`, `NR.ST` (save state), `NR.NPC`, `NR.CROWD`, `NR.TRAFFIC`, `NR.FERRY`, `NR.LANDMARKS`, `NR.gclass(x, z)`,
+  `NR.MAP`, `NR.ST` (save state), `NR.NPC`, `NR.CROWD`, `NR.TRAFFIC`, `NR.FERRY`, `NR.MET`, `NR.STATIONS`, `NR.EXITS`, `NR.LANDMARKS`, `NR.gclass(x, z)`,
   `NR.groundAt(x, z)`.
 - **Tests (in `source/`):** `node test/smoke.mjs --steps test/play.js` plays every errand, the lift and doors, the
   roof, the ferry round trip, photos, landmarks and saving, and prints `{fails: [...]}` per segment (all should be
-  empty). `node test/live.mjs` uses real key presses, clicks and a touch stick. Screenshot tours: `look.js`,
+  empty). `node test/smoke.mjs --hour 10 --steps test/metro.js` does the same for the MTR: an exit, buying an Octopus,
+  the gates, the escalator, rides on both lines and off the map, fares, the Mody Road subway, a stall paid by Octopus,
+  closing time. `node test/live.mjs` uses real key presses, clicks and a touch stick. Screenshot tours: `look.js`,
   `look2.js`, `look3.js`, `real.js`, `real2.js`. Smoke takes `--hour H`.
 - **Gotchas:** coordinates are metres from Milton Mansion, x east, z south. Rings in the bake are counter-clockwise
   in x/z maths terms and `Geo.wall(a, b)` faces outward for them. The street scene renders in two depth passes (far,
   then near over a cleared depth buffer); anything that must only draw in the far pass goes in `FAR_ONLY`. Shop signs
   are drawn into the sign atlas on first use (`signH`, `signV`), so add signs before `finishSigns()` in boot. Window
   lighting hashes whole numbers only: feeding it an interpolated float makes windows shimmer. The debug runner keeps
-  real time nearly still, so anything cached on `performance.now()` must also check position (see `nearLanes`).
+  real time nearly still, so anything cached on `performance.now()` must also check position (see `nearLanes`). The
+  MTR's underground is its own scene (`MET.scene`) in the same street coordinates, 10 m (concourse) and 20 m (platforms)
+  down; its two levels have separate collision lists and `MET.level` says which one you're on (the escalator ramps
+  switch it). The carriage you ride in is a fixed set off to the side at x = 4000.
 - **Input:** mouse and keyboard, touch (left stick, drag to look, buttons) and gamepad (standard mapping).

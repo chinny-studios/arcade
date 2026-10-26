@@ -89,7 +89,7 @@ function renderJournal() {
     el.innerHTML = h;
     el.querySelectorAll('.lm').forEach((d) => d.onclick = () => { jSel = d.dataset.id; renderJournal(); });
   } else if (jTab === 'er') {
-    let h = `<p>Money: <span style="color:var(--teal)">HK$${ST.money.toFixed(1)}</span>. Carrying: ${Object.keys(ST.items).map((k) => esc(ITEM_NAMES[k] || k)).join(', ') || 'nothing'}.</p>`;
+    let h = `<p>Money: <span style="color:var(--teal)">HK$${ST.money.toFixed(1)}</span>${ST.octopus ? `, and HK$${ST.octopus.balance.toFixed(1)} on your Octopus card` : ''}. Carrying: ${Object.keys(ST.items).map((k) => esc(ITEM_NAMES[k] || k)).join(', ') || 'nothing'}.</p>`;
     let any = false;
     for (const e of ERRANDS) {
       const s = erStage(e.id); if (!s) continue; any = true;
@@ -168,8 +168,15 @@ function drawMap() {
     const [px, pz] = sp === 'street' ? P(tx, tz) : P(W.LP.milton[0], W.LP.milton[1]);
     x.font = '26px VT323, monospace'; x.fillStyle = '#000'; x.fillText('!', px + 1, pz + 1); x.fillStyle = '#ffd25a'; x.fillText('!', px, pz);
   }
+  // MTR exits
+  for (const X of EXITS) {
+    if (X.sx === undefined) continue;
+    const [px, pz] = P(X.sx, X.sz);
+    x.fillStyle = '#b3141b'; x.fillRect(px - 5, pz - 5, 10, 10); x.fillStyle = '#fff'; x.fillRect(px - 3, pz - 1, 6, 2);
+    if (s > 0.7) { x.font = '15px VT323, monospace'; x.fillStyle = '#000'; x.fillText(X.id, px + 1, pz - 10); x.fillStyle = '#ffb0b0'; x.fillText(X.id, px, pz - 11); }
+  }
   // you
-  const pp = PL.space === STREET || PL.space === ROOF ? [PL.x, PL.z] : PL.space === FERRY_SPACE ? [PL.x, PL.z] : W.LP.milton;
+  const pp = PL.space === STREET || PL.space === ROOF || PL.space === FERRY_SPACE || PL.space === METRO_SPACE ? [PL.x, PL.z] : PL.space === RIDE_SPACE ? [STATIONS[MET.ride ? MET.ride.from : 'TST'].cx, STATIONS[MET.ride ? MET.ride.from : 'TST'].cz] : W.LP.milton;
   const [px, pz] = P(pp[0], pp[1]);
   x.save(); x.translate(px, pz); x.rotate(-PL.yaw);
   x.fillStyle = '#ff4f7a'; x.strokeStyle = '#000'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, -11); x.lineTo(7, 8); x.lineTo(0, 4); x.lineTo(-7, 8); x.closePath(); x.stroke(); x.fill(); x.restore();
@@ -202,7 +209,7 @@ const CDIR = [['N', 0], ['NE', 45], ['E', 90], ['SE', 135], ['S', 180], ['SW', 2
 let hudT = 0, lastStreet = '';
 function updateHUD() {
   $('#time').textContent = clockStr();
-  $('#money').textContent = 'HK$ ' + ST.money.toFixed(1);
+  $('#money').textContent = 'HK$ ' + ST.money.toFixed(1) + (ST.octopus ? ` · 八達通 ${ST.octopus.balance.toFixed(1)}` : '');
   // prompt
   const pr = $('#prompt');
   if (IFOCUS && !PHOTO.on && !DLG) { pr.hidden = false; const k = document.body.classList.contains('touch') ? 'USE' : padMode ? 'A' : 'E'; pr.innerHTML = `<b>${k}</b>${esc(IFOCUS.label())}`; }
@@ -215,6 +222,8 @@ function updateHUD() {
   else if (PL.space === MILTON_SPACE) { st = MILTON.floor === 'G' ? 'Milton Mansion lobby' : `Milton Mansion, floor ${MILTON.floor}`; zh = '美敦大廈'; }
   else if (PL.space === ROOF) { st = 'Roof of Milton Mansion'; zh = '天台'; }
   else if (PL.space === FERRY_SPACE) { const b = FERRY_SPACE.boat; st = `${b.name[0]}, ${b.state === 'tst' ? 'at Tsim Sha Tsui' : b.state === 'central' ? 'at Central' : b.state === 'toCentral' ? 'to Central' : 'to Tsim Sha Tsui'}`; zh = b.name[1]; }
+  else if (PL.space === METRO_SPACE) { const S = STATIONS[stationAt(PL.x, PL.z)]; if (S) { st = `MTR ${S.en}, ${MET.level === 'p' ? 'platform' : 'concourse'}`; zh = S.zh; } else { st = 'Mody Road subway'; zh = '麼地道隧道'; } }
+  else if (PL.space === RIDE_SPACE && MET.ride) { const R = MET.ride, d = R.d; st = `${LINES[R.line].en} to ${d.to}`; zh = `${LINES[R.line].zh} 往${d.toZh}`; }
   if (st !== lastStreet) { lastStreet = st; $('#street').textContent = st; $('#streetZh').textContent = zh; }
   // errand tracker
   const e = activeErrand(), tk = $('#task');
