@@ -21,7 +21,7 @@ function decodeBuildings() {
     let o = 6 + nr; const rings = [];
     for (const n of lens) { rings.push(dmRing(b.slice(o, o + n * 2))); o += n * 2; }
     const [cx, cz] = ringCentroid(rings[0]);
-    const B = { kind, h: h / 10, mh: mh / 10, guessed: !!(flags & 1), name: nameOf(name), rings, cx, cz, area: Math.abs(ringArea(rings[0])) };
+    const B = { kind, h: h / 10, mh: mh / 10, guessed: !!(flags & 1), parkRoof: !!(flags & 2), name: nameOf(name), rings, cx, cz, area: Math.abs(ringArea(rings[0])) };
     B.inWalk = cx > W.walk[0] - 40 && cx < W.walk[2] + 40 && cz > W.walk[1] - 40 && cz < W.walk[3] + 40;
     W.buildings.push(B);
     const en = enName(B.name);
@@ -291,23 +291,29 @@ const SHOP_TILES = ['shopOpen', 'shopOpen', 'shopGlass', 'shopFood', 'shopShut',
 function buildBuildings() {
   const CH = 200, chunks = new Map();
   const chunkGeo = (x, z) => { const k = Math.floor(x / CH) * 1000 + Math.floor(z / CH); let g = chunks.get(k); if (!g) chunks.set(k, g = new Geo()); return g; };
+  const customs = W.buildings.filter((B) => SKIP_NAMES.test(enName(B.name)));
   W.buildings.forEach((B, bi) => {
     const en = enName(B.name);
     if (SKIP_NAMES.test(en)) { B.custom = true; for (const r of B.rings) addRingSegs(r, 0); return; }
+    // unnamed parts inside a hand-built landmark (the mosque's dome and minarets are mapped as separate blocks)
+    if (!B.name && customs.some((C) => pointInRing(B.cx, B.cz, C.rings[0]))) { B.custom = true; return; }
     rseed('b' + bi);
     let style = rpick(FACADES[B.kind] || FACADES[0]);
     if (B.kind === 0 && B.h > 70) style = rpick(['ten6', 'hotel1', 'office2']);
     if (B.kind === 1 && B.h < 14 && B.area < 400) style = rpick(['ten3', 'concrete']);
     for (const [re, s] of STYLE_BY_NAME) if (re.test(en)) style = s;
     for (const [x, z, r, lo, hi] of STYLE_AT) if (dist2(B.cx, B.cz, x, z) < r * r) style = B.h < 50 ? lo : hi;
+    // single-storey shops along a park's edge, the park planted on their roof (Kowloon Park on Nathan Road)
+    const shopStrip = B.parkRoof && B.kind === 5;
+    if (shopStrip) style = 'mall';
     B.style = style;
     const g = chunkGeo(B.cx, B.cz);
     const tint = 0.84 + RNG() * 0.22;
     g.col = [tint, tint * (0.97 + RNG() * 0.06), tint * (0.95 + RNG() * 0.08)];
     g.aux = [0, RNG()];
     const y0 = B.mh, y1 = B.h;
-    const low = y1 < 6, groundFloor = y0 < 0.5 && !low && B.inWalk && ['ten1', 'ten2', 'ten3', 'ten4', 'ten5', 'ten6', 'office2', 'hotel1', 'concrete', 'mall'].includes(style);
-    const GF = 4.6, FL = 3.2, BAY = 3.6;
+    const low = y1 < 6 && !shopStrip, groundFloor = y0 < 0.5 && !low && B.inWalk && ['ten1', 'ten2', 'ten3', 'ten4', 'ten5', 'ten6', 'office2', 'hotel1', 'concrete', 'mall'].includes(style);
+    const GF = shopStrip ? Math.min(4.6, y1 - 0.8) : 4.6, FL = 3.2, BAY = 3.6;
     for (const r of B.rings) {
       for (let i = 0, n = r.length; i < n; i += 2) {
         const j = (i + 2) % n, ax = r[i], az = r[i + 1], bx = r[j], bz = r[j + 1];
@@ -337,7 +343,8 @@ function buildBuildings() {
     }
     // roof, and the underside of raised parts
     g.col = [0.9, 0.9, 0.9];
-    g.flat(B.rings, y1, B.kind === 3 ? T.roofGreen : T.roof, 4);
+    if (shopStrip) { g.col = [0.95, 1, 0.95]; g.flat(B.rings, y1, T.grass, 4); }
+    else g.flat(B.rings, y1, B.kind === 3 || B.parkRoof ? T.roofGreen : T.roof, 4);
     if (y0 > 0.5) {
       const G2 = new Geo(); G2.flat(B.rings, y0, T.concrete, 4);
       // flip the underside to face down
