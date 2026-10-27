@@ -35,7 +35,8 @@ function startGame() {
   MIL.t = 0;
   MON.roared = MON.burst = MON.rumbled = false;
   const d = MON.def;
-  if (d.id === 'sea') {
+  if (d.fly) shipIntroStart();
+  else if (d.id === 'sea') {
     MON.x = 0; MON.z = 860; MON.yaw = Math.PI; MON.y = terrainH(0, 860);
     CAM.pos.set(-70, 26, 470);
   } else {
@@ -52,6 +53,7 @@ function updateIntro(dt) {
   AIM.yaw = MON.yaw; AIM.pitch = 0;
   const d = MON.def;
   const t = introT;
+  if (d.fly) { shipIntro(dt, t); return; }
   if (d.id === 'sea') {
     // wade in from the deep, head breaking the surface, then come ashore
     const done = MON.z <= 560;
@@ -122,6 +124,7 @@ function skipIntro() {
   if (state !== 'intro' || introT < 0.8) return;
   const d = MON.def;
   MON.act = null;
+  if (d.fly) { skipShipIntro(); endIntro(); return; }
   if (d.id === 'sea') { MON.z = 560; }
   else {
     if (!MON.burst) { introT = 2.6; return; }
@@ -135,9 +138,10 @@ function endIntro() {
   if (state !== 'intro') return;
   setState('play');
   MON.ctl = true;
-  CAM.yaw = MON.yaw; CAM.pitch = 0.22; CAM.init = false;
+  const fly = MON.def.fly;
+  CAM.yaw = fly ? Math.PI : MON.yaw; CAM.pitch = fly ? SHIP_PITCH : 0.22; CAM.init = false;
   mouse.dx = mouse.dy = 0;
-  say(MON.def.id === 'sea' ? 'TIDEMAW HAS COME ASHORE' : 'OROGEN HAS AWAKENED', 3);
+  say(fly ? 'UMBRA IS OVER THE CITY' : MON.def.id === 'sea' ? 'TIDEMAW HAS COME ASHORE' : 'OROGEN HAS AWAKENED', 3);
   setTimeout(() => showHint(`Destroy ${GOAL * 100}% of Calamity Bay`, 5), 2600);
 }
 
@@ -156,6 +160,7 @@ function applyShake(dt) {
   }
 }
 function updateCamera(dt) {
+  if (MON.def.fly) { shipCamera(dt); return; }
   const H = MON.def.H;
   CAM.yaw -= mouse.dx * 0.0024;
   CAM.pitch = clamp(CAM.pitch + mouse.dy * 0.002, -0.3, 1.2);
@@ -205,28 +210,33 @@ function nextCombo() {
 }
 function primary() {
   if (state !== 'play' || MON.dead || MON.air) return;
+  if (MON.def.fly) { if (MON.held) throwHeld(); else shipFire(); return; }
   if (MON.beamOn) return;
   if (MON.held) { if (!MON.act) startAct('throw'); return; }
   if (MON.act) { if (COMBO.has(MON.act.type) && MON.act.t > MON.act.dur * 0.4) MON.queue = nextCombo; return; }
   nextCombo();
 }
 function heavy() {
+  if (MON.def.fly) { if (state === 'play' && !MON.dead) launchFighters(); return; }
   if (state !== 'play' || MON.dead || MON.air || MON.act || MON.held || MON.cool.heavy > 0) return;
   startAct(MON.def.id === 'sea' ? 'tailSpin' : 'pound');
   MON.cool.heavy = 1.8;
 }
 function grabThrow() {
+  if (MON.def.fly) { if (state === 'play' && !MON.dead) { if (MON.held) throwHeld(); else tractorGrab(); } return; }
   if (state !== 'play' || MON.dead || MON.air || MON.act) return;
   startAct(MON.held ? 'throw' : 'grab');
 }
 function special() {
   if (state !== 'play' || MON.dead || MON.air) return;
   if (MON.beamOn) { stopBeam(); return; }
+  if (MON.def.fly && SHIP.dest) return;
   if (MON.rage < 100) { showHint('Rage builds as you destroy things', 2); return; }
-  if (MON.held) return;
+  if (MON.held) { if (MON.def.fly) showHint('Let go of what the tractor beam holds first', 1.8); return; }
   startSpecial();
 }
 function roarAct() {
+  if (MON.def.fly) { if (state === 'play' && !MON.dead && MON.cool.roar <= 0) { doRoar(); MON.cool.roar = 9; } return; }
   if (state !== 'play' || MON.dead || MON.air || MON.act || MON.cool.roar > 0) return;
   startAct('roar'); MON.cool.roar = 9;
 }
@@ -334,10 +344,11 @@ function tick(dt) {
     if (state === 'play') { playT += dt; updateMonster(dt, readInput()); updateCamera(dt); }
     else { mouse.dx = mouse.dy = 0; updateMonster(dt, null); updateCamera(dt); }
     updateMilitary(dt);
+    if (MON.def.fly) updateFleet(dt);
     const pct = STATS.wGone / STATS.wTotal;
     if (!won && pct >= GOAL && state === 'play' && !MON.dead) { won = true; winT = 2.5; say('CALAMITY BAY HAS FALLEN', 3); }
     if (winT > 0 && state === 'play') { winT -= dt; if (winT <= 0) finish(true); }
-    if (MON.dead && state === 'play') { endT += dt; if (endT > 4.5) finish(won); }
+    if (MON.dead && state === 'play') { endT += dt; if (endT > (MON.def.fly ? 7.5 : 4.5)) finish(won); }
     updateHUD(dt);
     updateMusic(MIL.level);
   }
@@ -380,6 +391,7 @@ requestAnimationFrame(frame);
 if (DEBUG) window.CB = {
   MON, STATS, BLD, BLK_, bodies, UNITS, CARS, PPL, MIL, AIM, CAM, camera, scene, renderer, startGame, skipIntro, hitSphere, shockwave,
   selectMonster, primary, heavy, grabThrow, special, roarAct, keys, mouse, startAct, damageBlock, staticAt, terrainH, spawnJets, spawnHeli, spawnGround,
+  SHIP, WING, BOLTS, launchFighters, tractorGrab, shipFire, hurtMonster,
   audioOff() { AC = null; }, PT, get awake() { return physAwake; }, tryGrab, AG, agentsNear, blocksInSphere, handPos, LOTS, THROWN, PROJ,
   sim(sec, dt = 1 / 30) { const t0 = performance.now(); for (let t = 0; t < sec; t += dt) tick(dt); return performance.now() - t0; }, get state() { return state; }, set state(s) { setState(s); }, get pct() { return STATS.wGone / STATS.wTotal; },
 };

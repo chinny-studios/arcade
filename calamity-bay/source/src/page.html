@@ -30,6 +30,8 @@
   .lbl { font-size: 14px; font-weight: 700; letter-spacing: .14em; color: var(--dim); margin-top: 6px; display: flex; justify-content: space-between; text-shadow: 0 1px 0 #000; }
   #ready { color: var(--accent); }
   #homeTag { color: #9effa8; }
+  #homeTag.warn { color: var(--red); animation: pulse .35s infinite alternate; }
+  #wingTag { color: var(--accent); }
   #right { position: absolute; right: 18px; top: 14px; text-align: right; width: min(300px, 44vw); }
   #pct { font-size: 52px; line-height: .9; text-shadow: 0 2px 0 rgba(0,0,0,.6); }
   #pct small { font-size: 22px; color: var(--dim); margin-left: 4px; }
@@ -65,8 +67,8 @@
     text-shadow: 0 4px 0 #7a1d12, 0 8px 30px rgba(0,0,0,.6); }
   #logo em { font-style: normal; color: var(--hz); }
   .tag { font-size: clamp(16px, 2.2vw, 22px); color: var(--ink); text-shadow: 0 1px 3px rgba(0,0,0,.8), 0 0 18px rgba(0,0,0,.5); letter-spacing: .2em; margin: 8px 0 22px; text-transform: uppercase; }
-  #cards { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 980px; }
-  .card { width: min(440px, 92vw); text-align: left; padding: 16px 18px 14px; background: var(--panel); border: 2px solid var(--line); border-radius: 6px; cursor: pointer;
+  #cards { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 1060px; }
+  .card { width: min(340px, 92vw); text-align: left; padding: 16px 18px 14px; background: var(--panel); border: 2px solid var(--line); border-radius: 6px; cursor: pointer;
     box-sizing: border-box; transition: border-color .15s, transform .15s, background .15s; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
   .card:hover { transform: translateY(-2px); }
   .card.sel { border-color: var(--c); background: rgba(14,12,10,.8); box-shadow: 0 0 0 1px var(--c), 0 10px 40px rgba(0,0,0,.4); }
@@ -135,7 +137,7 @@
         <div class="bar" id="hp"><i></i></div>
         <div class="bar" id="rage"><i></i></div>
         <div class="lbl"><span>RAGE</span><span id="ready"></span></div>
-        <div class="lbl"><span id="homeTag"></span></div>
+        <div class="lbl"><span id="homeTag"></span><span id="wingTag"></span></div>
       </div>
       <div id="right">
         <div id="pct" class="bebas">0%<small>DESTROYED</small></div>

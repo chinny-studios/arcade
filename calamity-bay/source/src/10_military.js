@@ -105,7 +105,7 @@ function spawnHeli() {
   const g = HELI_POOL.find((h) => !h.visible);
   if (!g) return;
   const a = Math.random() * TAU;
-  const u = { type: 'heli', alive: true, g, x: MON.x + Math.cos(a) * 900, z: MON.z + Math.sin(a) * 900, y: 95, yaw: 0, stun: 0, fireT: rr(5, 8), orb: a, R: rr(85, 115), alt: rr(55, 80), vx: 0, vy: 0, vz: 0, salvo: 0, run: 0, falling: false };
+  const u = { type: 'heli', alive: true, g, x: MON.x + Math.cos(a) * 900, z: MON.z + Math.sin(a) * 900, y: MON.def.fly ? MON.y : 95, yaw: 0, stun: 0, fireT: rr(5, 8), orb: a, R: rr(85, 115), alt: rr(55, 80), vx: 0, vy: 0, vz: 0, salvo: 0, run: 0, falling: false };
   g.visible = true; g.position.set(u.x, u.y, u.z);
   UNITS.push(u);
 }
@@ -115,7 +115,7 @@ function spawnJets() {
     const g = JET_POOL.find((h) => !h.visible);
     if (!g) return;
     const off = (k ? 1 : -1) * 22;
-    const u = { type: 'jet', alive: true, g, x: MON.x - ca * 1500 - sa * off, z: MON.z - sa * 1500 + ca * off, y: 150 + k * 8, vx: ca * 170, vz: sa * 170, fired: false, life: 20 };
+    const u = { type: 'jet', alive: true, g, x: MON.x - ca * 1500 - sa * off, z: MON.z - sa * 1500 + ca * off, y: (MON.def.fly ? MON.y + 70 : 150) + k * 8, vx: ca * 170, vz: sa * 170, fired: false, life: 20 };
     g.visible = true;
     UNITS.push(u);
   }
@@ -181,6 +181,13 @@ function updateMilitary(dt) {
   }
 }
 function aimAtMonster(x, y, z, spread, out) {
+  if (MON.def.fly) {
+    // anywhere on the hull; homing weapons (no spread) go for the middle
+    const a = Math.random() * TAU, r = spread ? Math.sqrt(Math.random()) * 120 : 0;
+    out.set(MON.x + Math.cos(a) * r - x, MON.y + (spread ? rr(-10, 8) : 0) - y, MON.z + Math.sin(a) * r - z).normalize();
+    out.x += frand(-spread, spread); out.y += frand(-spread, spread); out.z += frand(-spread, spread);
+    return out.normalize();
+  }
   const ty = MON.y + MON.def.H * rr(0.35, 0.8);
   out.set(MON.x + frand(-3, 3) - x, ty - y, MON.z + frand(-3, 3) - z).normalize();
   out.x += frand(-spread, spread); out.y += frand(-spread, spread); out.z += frand(-spread, spread);
@@ -188,7 +195,7 @@ function aimAtMonster(x, y, z, spread, out) {
 }
 function updateGround(u, dt) {
   const dm = Math.hypot(MON.x - u.x, MON.z - u.z);
-  const engaged = dm < u.range;
+  const engaged = dm < u.range * (MON.def.fly ? 1.6 : 1); // a saucer overhead is in range from further off
   let want = engaged ? 0 : u.vmax;
   if (dm < 45 && u.type === 'police') want = -8; // back off
   u.speed += clamp(want - u.speed, -20 * dt, 8 * dt);
@@ -256,8 +263,9 @@ function updateHeli(u, dt) {
   // orbit the monster, dipping in for rocket runs
   u.orb += dt * 22 / u.R;
   u.run -= dt;
-  const R = u.run > 0 ? 62 : u.R, alt = u.run > 0 ? Math.max(38, u.alt - 18) : u.alt;
+  const fly = MON.def.fly, R = (u.run > 0 ? 62 : u.R) + (fly ? 175 : 0), alt = u.run > 0 ? Math.max(38, u.alt - 18) : u.alt;
   let tx = MON.x + Math.cos(u.orb) * R, tz = MON.z + Math.sin(u.orb) * R, ty = Math.max(terrainH(tx, tz), 0) + alt;
+  if (fly) ty = Math.max(ty, MON.y + alt - 85); // circle the saucer at its own height
   if (staticAt(tx, ty, tz) >= 0 || staticAt(tx, ty - 15, tz) >= 0) ty += 40;
   const k = 1 - Math.exp(-dt * (u.stun > 0 ? 0.5 : 0.9));
   if (u.stun > 0) { tx = u.x + (u.x - MON.x) * 0.2; tz = u.z + (u.z - MON.z) * 0.2; }
@@ -268,7 +276,7 @@ function updateHeli(u, dt) {
   g.rotation.set(clamp(Math.hypot(u.x - ox, u.z - oz) / dt * 0.004, 0, 0.3), yaw, 0, 'YXZ');
   if (u.stun > 0) return;
   u.fireT -= dt;
-  if (u.fireT <= 0 && Math.hypot(u.x - MON.x, u.z - MON.z) < 260) {
+  if (u.fireT <= 0 && Math.hypot(u.x - MON.x, u.z - MON.z) < (fly ? 430 : 260)) {
     u.fireT = rr(8, 11); u.salvo = 4; u.salvoT = 0; u.run = 3;
   }
   if (u.salvo > 0) {
@@ -325,7 +333,7 @@ function updateProjectiles(dt) {
     for (let s = 0; s < steps && !done; s++) {
       p.x += p.vx * dt / steps; p.y += p.vy * dt / steps; p.z += p.vz * dt / steps;
       if (MON.on && !MON.dead && monsterCapsuleDist(p.x, p.y, p.z) < 0) {
-        hurtMonster(p.dmg, null);
+        hurtMonster(p.dmg, _v3.set(p.x, p.y, p.z));
         if (p.type === 'bullet') sparkBurst(p.x, p.y, p.z, 2);
         else { explosionFx(p.x, p.y, p.z, p.type === 'shell' ? 1.6 : 1.3); boom(_v3.set(p.x, p.y, p.z), 0.6); }
         done = true;

@@ -29,6 +29,12 @@ function audioInit() {
   const bo = AC.createOscillator(), bg = AC.createGain();
   bo.type = 'sawtooth'; bo.frequency.value = 55; bo.connect(bg); bg.gain.value = 0; bg.connect(sfx); bo.start();
   loops.beamTone = { g: bg, o: bo };
+  // the mothership's engine drone and tractor beam
+  const ho = AC.createOscillator(), hf = AC.createBiquadFilter(), hg = AC.createGain();
+  ho.type = 'sawtooth'; ho.frequency.value = 36; hf.type = 'lowpass'; hf.frequency.value = 140; hf.Q.value = 3;
+  ho.connect(hf); hf.connect(hg); hg.gain.value = 0; hg.connect(sfx); ho.start();
+  loops.ship = { g: hg };
+  loops.tractor = noiseLoop('bandpass', 520, 6, 0, 7);
   musicNext = AC.currentTime + 0.5;
 }
 function noiseLoop(type, f, q, gain, tremolo) {
@@ -137,6 +143,7 @@ function jetSound(pos) { nz({ type: 'bandpass', f0: 500, f1: 2600, dur: 2.6, gai
 function hornSound(pos) { tone({ type: 'square', f0: 410, dur: 0.35, gain: 0.06, pos, range: 600 }); tone({ type: 'square', f0: 520, dur: 0.35, gain: 0.05, pos, range: 600 }); }
 function roarSound(kind, pos) {
   if (!AC) return;
+  if (kind === 'ufo') { shipHorn(pos); return; }
   const t = AC.currentTime, dur = kind === 'sea' ? 2.6 : 2.4;
   const [sg, pan] = spatial(pos, 4000);
   const g = out(0, pan);
@@ -167,6 +174,41 @@ function roarSound(kind, pos) {
   flt.frequency.exponentialRampToValueAtTime(400, t + dur);
   nz({ type: 'bandpass', f0: kind === 'sea' ? 1800 : 700, f1: 500, dur, gain: 0.35, q: 1.2, attack: 0.2, pos, range: 4000 });
 }
+// The mothership's horn: a slow, brassy chord that rattles the windows.
+function shipHorn(pos) {
+  const t = AC.currentTime, dur = 4.5;
+  const [sg, pan] = spatial(pos, 6000);
+  const g = out(0, pan);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.7 * sg, t + 0.9);
+  g.gain.setValueAtTime(0.7 * sg, t + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  const flt = AC.createBiquadFilter(); flt.type = 'lowpass'; flt.Q.value = 6;
+  flt.frequency.setValueAtTime(160, t);
+  flt.frequency.linearRampToValueAtTime(900, t + 1.2);
+  flt.frequency.exponentialRampToValueAtTime(220, t + dur);
+  flt.connect(g);
+  for (const f of [41.2, 61.7, 82.4, 83.1, 123.5]) { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(flt); o.start(t); o.stop(t + dur + 0.1); }
+  nz({ type: 'lowpass', f0: 200, f1: 90, dur, gain: 0.4, attack: 0.8, pos, range: 6000 });
+}
+let zapNext = 0;
+function zapSound(pos, big = 1) {
+  if (!AC || (big < 1 && AC.currentTime < zapNext)) return;
+  zapNext = AC.currentTime + 0.07;
+  tone({ type: 'square', f0: big < 1 ? 1900 : 1300, f1: 160, dur: 0.18, gain: 0.03 + 0.06 * big, pos, range: 2500 });
+  nz({ type: 'bandpass', f0: 3000, f1: 700, dur: 0.14, gain: 0.08 * big, q: 3, pos, range: 2500 });
+}
+function fighterSound(pos) { nz({ type: 'bandpass', f0: 900, f1: 3200, dur: 0.7, gain: 0.12, q: 3, pos, range: 2000 }); }
+function tractorSound() { tone({ f0: 110, f1: 420, dur: 1.8, gain: 0.18, attack: 0.4 }); }
+function destroyerCharge() {
+  tone({ type: 'sawtooth', f0: 40, f1: 160, dur: DT_FIRE, gain: 0.3, attack: 2.5 });
+  nz({ type: 'bandpass', f0: 200, f1: 1800, dur: DT_FIRE, gain: 0.25, q: 3, attack: 2.6 });
+}
+function arrivalRumble() {
+  tone({ type: 'sawtooth', f0: 34, f1: 26, dur: 8, gain: 0.35, attack: 2 });
+  nz({ f0: 320, f1: 110, dur: 8, gain: 0.55, attack: 1.5 });
+}
+function powerDownSound() { tone({ type: 'sawtooth', f0: 140, f1: 22, dur: 3.5, gain: 0.35, attack: 0.05 }); nz({ f0: 900, f1: 120, dur: 3, gain: 0.3 }); }
 function chargeSound() { tone({ type: 'sawtooth', f0: 80, f1: 900, dur: 0.9, gain: 0.25, attack: 0.6 }); nz({ type: 'bandpass', f0: 300, f1: 3000, dur: 0.9, gain: 0.25, q: 2, attack: 0.7 }); }
 function hurtSound() { nz({ f0: 2400, f1: 400, dur: 0.25, gain: 0.25 }); }
 
