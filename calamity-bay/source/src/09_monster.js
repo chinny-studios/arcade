@@ -1,4 +1,4 @@
-// Calamity Bay — the two monsters: low-poly rigs, procedural animation, movement, attacks, specials
+// Calamity Bay — the monsters: low-poly rigs, procedural animation, movement, attacks, specials (the mothership lives in 11_mothership.js)
 
 const MDEF = {
   sea: {
@@ -12,6 +12,12 @@ const MDEF = {
     heal: 'Heals while standing on the mountain', heavy: 'Ground Pound', special: 'Magma Leap', roar: 'Chest Beat',
     blurb: 'A lava-veined ape made of the mountain itself. Fast, furious, and it can jump a city block.',
     stats: { HEALTH: 0.75, SPEED: 0.85, POWER: 0.9 }, color: '#ff8a2a',
+  },
+  ufo: {
+    id: 'ufo', name: 'UMBRA', origin: 'Descends through a burning sky', H: 60, rad: 150, walk: 7.5, run: 13, hp: 1500, armor: 1, fly: true, rageMul: 0.45,
+    heal: 'Shielded, except while the beam fires', heavy: 'Fighter Swarm', special: 'Destroyer Beam', roar: 'Harbinger Horn',
+    blurb: 'A saucer three blocks wide that came down out of a burning sky. It drifts slowly behind its shield, launches swarms of fighters, and when the dish beneath it opens, whole districts burn.',
+    stats: { HEALTH: 0.9, SPEED: 0.3, POWER: 1 }, color: '#9cff7a',
   },
 };
 const MON = {
@@ -170,11 +176,12 @@ function captureRest(R) {
 function createMonster(id) {
   if (MON.rig) scene.remove(MON.rig.root);
   const def = MDEF[id];
-  const R = id === 'sea' ? buildTidemaw() : buildOrogen();
+  const R = id === 'sea' ? buildTidemaw() : id === 'mtn' ? buildOrogen() : buildMothership();
   captureRest(R);
   scene.add(R.root);
   Object.assign(MON, { on: true, def, rig: R, hp: def.hp, rage: 0, act: null, queue: null, combo: 0, comboT: 0, held: null, speed: 0, turn: 0, dead: false, deadT: 0, hurtT: 0, air: null, beamOn: false, ctl: false });
   MON.cool.heavy = 0; MON.cool.roar = 0;
+  if (def.fly) initShip();
   return R;
 }
 
@@ -182,10 +189,11 @@ function createMonster(id) {
 const wp = new V3(), wp2 = new V3();
 function jointPos(j, out, x = 0, y = 0, z = 0) { return out.set(x, y, z).applyMatrix4(j.matrixWorld); }
 function handPos(out, side = 1) {
+  if (MON.def.fly) return out.set(MON.x, MON.y - 18, MON.z); // the tractor beam holds things under the belly
   const a = MON.rig.arms[side > 0 ? 1 : 0];
   return jointPos(a.hand, out, 0, MON.def.id === 'mtn' ? -2.4 : -1.2, 0.5);
 }
-function mouthPos(out) { return jointPos(MON.rig.head, out, 0, 0.6, MON.def.id === 'sea' ? 7.5 : 4.5); }
+function mouthPos(out) { if (MON.def.fly) return out.set(MON.x, MON.y - 16, MON.z); return jointPos(MON.rig.head, out, 0, 0.6, MON.def.id === 'sea' ? 7.5 : 4.5); }
 function facing(out) { return out.set(Math.sin(MON.yaw), 0, Math.cos(MON.yaw)); }
 const ease = (k) => k * k * (3 - 2 * k);
 const seg01 = (k, a, b) => clamp((k - a) / (b - a), 0, 1);
@@ -372,7 +380,7 @@ function hitSphere(x, y, z, r, dmg, dx, dy, dz, force, tags) {
     crushTrees(x, z, r * 0.8, _v4.set(dx * force, 0, dz * force));
   }
   hitUnits(x, y, z, r, dx, dz, force);
-  if (blocks) { addShake(Math.min(0.5, 0.08 + blocks * 0.03), _v3.set(x, y, z)); MON.rage = Math.min(100, MON.rage + blocks * 0.6); }
+  if (blocks) { addShake(Math.min(0.5, 0.08 + blocks * 0.03), _v3.set(x, y, z)); MON.rage = Math.min(100, MON.rage + blocks * 0.6 * (MON.def.rageMul || 1)); }
   return blocks;
 }
 // A foot or fist hitting the ground: crush the small stuff, crack the base of big things.
@@ -506,17 +514,19 @@ function projectileImpact(b, p) {
 function doRoar() {
   const d = MON.def;
   roarSound(d.id, mouthPos(wp));
-  ring(MON.x, MON.y + d.H * 0.8, MON.z, 160, 1.4, d.id === 'sea' ? 0x8fe8ff : 0xffb070);
+  if (d.fly) ring(MON.x, MON.y - 20, MON.z, 260, 1.8, 0x9cff7a);
+  else ring(MON.x, MON.y + d.H * 0.8, MON.z, 160, 1.4, d.id === 'sea' ? 0x8fe8ff : 0xffb070);
   addShake(0.5);
-  stunUnits(MON.x, MON.z, 220, 3.5);
+  stunUnits(MON.x, MON.z, d.fly ? 320 : 220, 3.5);
   for (const p of PPL) if (p.alive && Math.hypot(p.x - MON.x, p.z - MON.z) < 300) { p.flee = true; p.speed = rr(6, 8); p.fx = p.x - MON.x; p.fz = p.z - MON.z; }
   MON.rage = Math.min(100, MON.rage + 10);
 }
 
 // ---------- specials ----------
 function startSpecial() {
-  if (MON.rage < 100 || MON.act || MON.air) return;
-  if (MON.def.id === 'sea') {
+  if (MON.rage < 100 || MON.act || MON.air || SHIP.dest) return;
+  if (MON.def.fly) startDestroyer();
+  else if (MON.def.id === 'sea') {
     startAct('beam');
     MON.beamOn = true;
     chargeSound();
@@ -627,6 +637,7 @@ function updateMonster(dt, input) {
   // reset pose
   for (const j of R.joints) { j.rotation.copy(j.userData.r0); j.position.copy(j.userData.p0); }
   R.glow.emissiveIntensity = 0.9 + Math.sin(clock * 2.2) * 0.25 + MON.rage / 100 * 1.2;
+  if (d.fly) { if (MON.dead) updateShipDeath(dt); else updateShip(dt, input); return; }
 
   if (MON.dead) { updateDeath(dt); placeRig(); return; }
   if (MON.air) { updateLeap(dt); placeRig(); updateHeld(dt); return; }
@@ -768,13 +779,15 @@ function updateHeld(dt) {
 }
 function hurtMonster(dmg, pos) {
   if (MON.dead || !MON.on) return;
-  MON.hp -= dmg * MON.def.armor;
+  MON.hp -= dmg * (MON.def.fly ? shipArmor() : MON.def.armor);
+  if (MON.def.fly) shipHit(dmg, pos);
   MON.hurtT = Math.max(MON.hurtT, Math.min(0.25, dmg * 0.014)); MON.calm = 0;
   MON.rage = Math.min(100, MON.rage + dmg * 0.08);
   if (Math.random() < 0.15) hurtSound();
   if (MON.hp <= 0) { MON.hp = 0; monsterDies(); }
 }
 function monsterCapsuleDist(x, y, z) {
+  if (MON.def.fly) return shipDist(x, y, z);
   const y0 = MON.y + 4, y1 = MON.y + MON.def.H * 0.85;
   const cy = clamp(y, y0, y1);
   return Math.hypot(x - MON.x, y - cy, z - MON.z) - MON.def.rad - 1.5;
@@ -785,6 +798,7 @@ function monsterDies() {
   MON.dead = true; MON.deadT = 0; MON.act = null;
   if (MON.beamOn) stopBeam();
   if (MON.held) { MON.held.held = false; MON.held = null; }
+  if (MON.def.fly) { shipDies(); powerDownSound(); return; }
   roarSound(MON.def.id, _v3.set(MON.x, MON.y + 30, MON.z));
 }
 function updateDeath(dt) {

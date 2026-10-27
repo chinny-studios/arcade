@@ -15,7 +15,7 @@ function showHint(text, secs = 4) {
 
 function buildCards() {
   const wrap = $('#cards');
-  for (const id of ['sea', 'mtn']) {
+  for (const id of Object.keys(MDEF)) {
     const d = MDEF[id];
     const el = document.createElement('div');
     el.className = 'card'; el.dataset.id = id; el.style.setProperty('--c', d.color);
@@ -51,8 +51,10 @@ function updateHUD(dt) {
   $('#hp').classList.toggle('low', hp < 0.25);
   $('#rage i').style.width = MON.rage.toFixed(1) + '%';
   $('#rage').classList.toggle('full', MON.rage >= 100);
-  $('#ready').textContent = MON.beamOn ? 'F TO STOP' : MON.rage >= 100 ? (isTouch ? `${d.special.toUpperCase()} READY` : `F · ${d.special.toUpperCase()} READY`) : '';
-  $('#homeTag').textContent = MON.home && MON.hp < d.hp ? 'HEALING' : '';
+  $('#ready').textContent = MON.beamOn ? 'F TO STOP' : d.fly && SHIP.dest ? 'FIRING' : MON.rage >= 100 ? (isTouch ? `${d.special.toUpperCase()} READY` : `F · ${d.special.toUpperCase()} READY`) : '';
+  $('#homeTag').textContent = d.fly ? (SHIP.dest ? 'SHIELD DOWN' : MON.calm > 6 && MON.hp < d.hp ? 'REPAIRING' : '') : MON.home && MON.hp < d.hp ? 'HEALING' : '';
+  $('#homeTag').classList.toggle('warn', !!(d.fly && SHIP.dest));
+  $('#wingTag').textContent = d.fly ? (SHIP.wingT > 0 ? `FIGHTERS ${Math.ceil(SHIP.wingT)}s` : 'FIGHTERS READY') : '';
   const pct = STATS.wGone / STATS.wTotal;
   $('#pct').innerHTML = `${Math.floor(pct * 100)}%<small>DESTROYED</small>`;
   $('#dbar i').style.width = Math.min(100, pct / GOAL * 100) + '%';
@@ -62,7 +64,10 @@ function updateHUD(dt) {
 }
 function setKeysHelp() {
   const d = MON.def;
-  $('#keys').innerHTML = isTouch ? '' : `<b>LMB</b> combo · <b>RMB</b> ${d.heavy} · <b>E</b> grab/throw · <b>F</b> ${d.special} · <b>Space</b> ${d.roar} · <b>Shift</b> charge · <b>Wheel</b> zoom · <b>M</b> mute`;
+  const lab = d.fly ? ['FIRE', 'SWARM', 'LIFT', 'SPECIAL', 'HORN', 'FAST'] : ['SMASH', 'HEAVY', 'GRAB', 'SPECIAL', 'ROAR', 'RUN'];
+  ['#tAtk', '#tHvy', '#tGrab', '#tSp', '#tRoar', '#tRun'].forEach((s, i) => { $(s).textContent = lab[i]; });
+  if (d.fly) $('#keys').innerHTML = isTouch ? '' : `<b>LMB</b> plasma cannons · <b>RMB</b> ${d.heavy} · <b>E</b> tractor beam · <b>F</b> ${d.special} · <b>Space</b> ${d.roar} · <b>Shift</b> full thrust · <b>Wheel</b> zoom · <b>M</b> mute`;
+  else $('#keys').innerHTML = isTouch ? '' : `<b>LMB</b> combo · <b>RMB</b> ${d.heavy} · <b>E</b> grab/throw · <b>F</b> ${d.special} · <b>Space</b> ${d.roar} · <b>Shift</b> charge · <b>Wheel</b> zoom · <b>M</b> mute`;
   setTimeout(() => { $('#keys').style.opacity = 0.35; }, 20000);
 }
 

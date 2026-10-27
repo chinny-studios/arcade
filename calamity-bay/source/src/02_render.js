@@ -18,13 +18,19 @@ const hemi = new THREE.HemisphereLight(0xb9d0ef, 0x6e5b48, 0.72);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffd4a0, 1.05);
 sun.castShadow = true;
-const SHADOW_R = 190;
+let SHADOW_R = 190;
 sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -SHADOW_R, right: SHADOW_R, top: SHADOW_R, bottom: -SHADOW_R, near: 10, far: 1400 });
 sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.4;
 scene.add(sun, sun.target);
 
+// The mothership is much bigger than the walkers, so it widens the shadow map.
+function setShadowRange(r) {
+  SHADOW_R = r;
+  Object.assign(sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r });
+  sun.shadow.camera.updateProjectionMatrix();
+}
 // Keep the shadow frustum centred on the action, snapped to texels so edges don't crawl.
 function placeSun(x, z) {
   const texel = (SHADOW_R * 2) / sun.shadow.mapSize.x;
