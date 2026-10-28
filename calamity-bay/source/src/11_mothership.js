@@ -6,7 +6,7 @@ const SHIP_PITCH = 0.58; // default camera pitch in flight
 const DT_FIRE = 3.2, DT_BLAST = 4.8, DT_END = 9, STORM_R = 170;  // destroyer beam timeline (s) and firestorm reach (m)
 const SHIP = {
   vx: 0, vz: 0, shieldA: 0, cannonT: 0, cannonQ: false, wingT: 0, launchQ: 0, launchT: 0, bay: 0, wingTgt: new V3(),
-  lift: 0, liftFrom: new V3(), dest: null, open: 0, crash: null, sweepT: 0, flash: 0,
+  lift: 0, liftFrom: new V3(), dest: null, open: 0, crash: null, sweepT: 0, flash: 0, fp: false,
 };
 const WING = [], BOLTS = [];
 const BAYS = [0.785, 2.356, 3.927, 5.498].map((a) => [Math.sin(a) * 104, -10, Math.cos(a) * 104]);
@@ -96,7 +96,7 @@ function buildMothership() {
   return R;
 }
 function initShip() {
-  Object.assign(SHIP, { vx: 0, vz: 0, shieldA: 0, cannonT: 0, cannonQ: false, wingT: 0, launchQ: 0, lift: 0, dest: null, open: 0, crash: null, flash: 0 });
+  Object.assign(SHIP, { vx: 0, vz: 0, shieldA: 0, cannonT: 0, cannonQ: false, wingT: 0, launchQ: 0, lift: 0, dest: null, open: 0, crash: null, flash: 0, fp: false });
   if (!wingMesh) initFleet();
   setShadowRange(340);
 }
@@ -631,6 +631,7 @@ function shipCamPose(yaw, pitch, distT, pos, tgt) {
   return dist;
 }
 function shipCamera(dt) {
+  if (SHIP.fp) { bellyCamera(dt); return; }
   CAM.yaw -= mouse.dx * 0.0024;
   CAM.pitch = clamp(CAM.pitch + mouse.dy * 0.002, 0.12, 1.1);
   mouse.dx = mouse.dy = 0;
@@ -668,6 +669,45 @@ function shipCamera(dt) {
   applyShake(dt);
   shipSun();
 }
+// First person from under the hull, riding near the rim on the side you face so the dish and its beam stay in view.
+function bellyCamera(dt) {
+  CAM.yaw -= mouse.dx * 0.0024;
+  CAM.pitch = clamp(CAM.pitch + mouse.dy * 0.002, -0.2, 1.5);
+  mouse.dx = mouse.dy = 0; mouse.wheel = 0;
+  const fx = Math.sin(CAM.yaw), fz = Math.cos(CAM.yaw), cp = Math.cos(CAM.pitch), r = 52;
+  CAM.pos.set(MON.x + fx * r * SHIP_S, MON.y + (hullY(r) - 7) * SHIP_S, MON.z + fz * r * SHIP_S);
+  CAM.tgt.set(CAM.pos.x + fx * cp, CAM.pos.y - Math.sin(CAM.pitch), CAM.pos.z + fz * cp);
+  CAM.init = false; // the chase camera snaps into place when switched back
+  camera.position.copy(CAM.pos);
+  camera.lookAt(CAM.tgt);
+  camera.getWorldDirection(AIM.d);
+  AIM.o.copy(camera.position);
+  AIM.yaw = CAM.yaw;
+  AIM.pitch = Math.asin(clamp(AIM.d.y, -1, 1));
+  const ah = raycastCity(AIM.o.x, AIM.o.y, AIM.o.z, AIM.d.x, AIM.d.y, AIM.d.z, 1100, 3);
+  AIM.id = ah ? ah.id : -1;
+  if (ah) AIM.p.set(ah.x, ah.y, ah.z); else AIM.p.copy(AIM.o).addScaledVector(AIM.d, 1100);
+  applyShake(dt);
+  shipSun();
+}
+function setShipCam(fp, announce) {
+  SHIP.fp = fp;
+  CAM.pitch = fp ? 0.35 : SHIP_PITCH; CAM.init = false;
+  const fov = fp ? 72 : 58;
+  if (camera.fov !== fov) { camera.fov = fov; resize(); }
+  if (announce) showHint(fp ? (isTouch ? 'Belly camera · VIEW to switch back' : 'Belly camera · V to switch back') : 'Chase camera', 1.6);
+}
+function toggleShipCam() {
+  if (state !== 'play' || !MON.def.fly || MON.dead) return;
+  setShipCam(!SHIP.fp, true);
+  try { localStorage.setItem('calamity-bay-shipcam', SHIP.fp ? 'belly' : 'chase'); } catch (e) { /* storage blocked */ }
+}
+// Start in whichever view the player used last.
+function restoreShipCam() {
+  let v = null;
+  try { v = localStorage.getItem('calamity-bay-shipcam'); } catch (e) { /* storage blocked */ }
+  setShipCam(v === 'belly', false);
+}
 // Centre the shadow map between the hull and the ground it shades.
 function shipSun() {
   const h = MON.y - groundUnderShip(MON.x, MON.z);
@@ -678,6 +718,7 @@ function shipSun() {
 function shipDies() {
   if (SHIP.dest) endDestroyer();
   SHIP.launchQ = 0;
+  if (SHIP.fp) setShipCam(false, false); // watch it go down from outside
   SHIP.crash = { t: 0, vy: 0, landed: false, tilt: Math.random() < 0.5 ? -1 : 1, boomT: 0 };
   for (const f of WING) f.st = 'fall';
   if (tractorFx) tractorFx.visible = false;

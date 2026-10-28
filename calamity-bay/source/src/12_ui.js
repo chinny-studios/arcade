@@ -66,7 +66,8 @@ function setKeysHelp() {
   const d = MON.def;
   const lab = d.fly ? ['FIRE', 'SWARM', 'LIFT', 'SPECIAL', 'HORN', 'FAST'] : ['SMASH', 'HEAVY', 'GRAB', 'SPECIAL', 'ROAR', 'RUN'];
   ['#tAtk', '#tHvy', '#tGrab', '#tSp', '#tRoar', '#tRun'].forEach((s, i) => { $(s).textContent = lab[i]; });
-  if (d.fly) $('#keys').innerHTML = isTouch ? '' : `<b>LMB</b> plasma cannons · <b>RMB</b> ${d.heavy} · <b>E</b> tractor beam · <b>F</b> ${d.special} · <b>Space</b> ${d.roar} · <b>Shift</b> full thrust · <b>Wheel</b> zoom · <b>M</b> mute`;
+  $('#tView').hidden = !d.fly;
+  if (d.fly) $('#keys').innerHTML = isTouch ? '' : `<b>LMB</b> plasma cannons · <b>RMB</b> ${d.heavy} · <b>E</b> tractor beam · <b>F</b> ${d.special} · <b>Space</b> ${d.roar} · <b>Shift</b> full thrust · <b>V</b> belly camera · <b>Wheel</b> zoom · <b>M</b> mute`;
   else $('#keys').innerHTML = isTouch ? '' : `<b>LMB</b> combo · <b>RMB</b> ${d.heavy} · <b>E</b> grab/throw · <b>F</b> ${d.special} · <b>Space</b> ${d.roar} · <b>Shift</b> charge · <b>Wheel</b> zoom · <b>M</b> mute`;
   setTimeout(() => { $('#keys').style.opacity = 0.35; }, 20000);
 }
