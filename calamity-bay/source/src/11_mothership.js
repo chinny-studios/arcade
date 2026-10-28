@@ -1,11 +1,12 @@
 // Calamity Bay — Umbra, the mothership: saucer rig, hover flight, shield, plasma cannons, tractor beam, fighter swarm, destroyer beam
 
-const SHIP_R = 150, SHIP_ALT = 255, SHIP_START = 330;  // hull radius, hover height of the hull's centre, where the intro leaves it
+// The rig is modelled 300 m across and scaled by SHIP_S; world-space sizes below are multiplied by it too.
+const SHIP_S = 0.6, SHIP_R = 150 * SHIP_S, SHIP_ALT = 255, SHIP_START = 330;  // scale, hull radius, hover height of the hull's centre, where the intro leaves it
 const SHIP_PITCH = 0.58; // default camera pitch in flight
 const DT_FIRE = 3.2, DT_BLAST = 4.8, DT_END = 9, STORM_R = 170;  // destroyer beam timeline (s) and firestorm reach (m)
 const SHIP = {
   vx: 0, vz: 0, shieldA: 0, cannonT: 0, cannonQ: false, wingT: 0, launchQ: 0, launchT: 0, bay: 0, wingTgt: new V3(),
-  lift: 0, liftFrom: new V3(), dest: null, open: 0, crash: null, sweepT: 0, flash: 0,
+  lift: 0, liftFrom: new V3(), dest: null, open: 0, crash: null, sweepT: 0, flash: 0, fp: false,
 };
 const WING = [], BOLTS = [];
 const BAYS = [0.785, 2.356, 3.927, 5.498].map((a) => [Math.sin(a) * 104, -10, Math.cos(a) * 104]);
@@ -25,6 +26,7 @@ function buildMothership() {
   hull.metalness = 0.3; dark.metalness = 0.3;
   const glow = mmat([1, 0.86, 0.6], [1, 0.6, 0.22]);
   const R = { mats: { skin: hull, belly: dark, dark }, glow, root: new THREE.Group(), legs: [], arms: [], tail: [], mouthGlow: new THREE.Object3D() };
+  R.root.scale.setScalar(SHIP_S);
   R.body = joint(R.root, 0, 0, 0);
   part(R.body, new THREE.LatheGeometry(HULL_PROFILE.map(([r, y]) => new THREE.Vector2(r, y)), 48), hull);
   part(R.body, new THREE.CylinderGeometry(151, 151, 3, 48, 1, true), dark, [0, 0.2, 0]);
@@ -94,7 +96,7 @@ function buildMothership() {
   return R;
 }
 function initShip() {
-  Object.assign(SHIP, { vx: 0, vz: 0, shieldA: 0, cannonT: 0, cannonQ: false, wingT: 0, launchQ: 0, lift: 0, dest: null, open: 0, crash: null, flash: 0 });
+  Object.assign(SHIP, { vx: 0, vz: 0, shieldA: 0, cannonT: 0, cannonQ: false, wingT: 0, launchQ: 0, lift: 0, dest: null, open: 0, crash: null, flash: 0, fp: false });
   if (!wingMesh) initFleet();
   setShadowRange(340);
 }
@@ -122,7 +124,7 @@ function initFleet() {
 // ---------- flight ----------
 function groundUnderShip(x, z) {
   let gy = WATER_Y;
-  for (let i = 0; i < 7; i++) { const a = i / 6 * TAU, r = i ? 120 : 0; gy = Math.max(gy, terrainH(x + Math.sin(a) * r, z + Math.cos(a) * r)); }
+  for (let i = 0; i < 7; i++) { const a = i / 6 * TAU, r = i ? 120 * SHIP_S : 0; gy = Math.max(gy, terrainH(x + Math.sin(a) * r, z + Math.cos(a) * r)); }
   return gy;
 }
 function updateShip(dt, input) {
@@ -185,10 +187,10 @@ function shipLooks(dt) {
 function skyFlash(a) { SHIP.flash = Math.min(1.2, SHIP.flash + a); }
 // Anything tall the hull drifts into is sheared off.
 function hullSweep() {
-  const y = MON.y - 14;
+  const y = MON.y - 14 * SHIP_S;
   for (let i = 0; i < 13; i++) {
-    const a = i / 12 * TAU, r = i ? 125 : 0;
-    blocksInSphere(MON.x + Math.sin(a) * r, y, MON.z + Math.cos(a) * r, 32, (id) => {
+    const a = i / 12 * TAU, r = i ? 125 * SHIP_S : 0;
+    blocksInSphere(MON.x + Math.sin(a) * r, y, MON.z + Math.cos(a) * r, 32 * SHIP_S, (id) => {
       const B = BLK_[id];
       if (B.y + B.hy > y - 2) detachBlock(id, SHIP.vx + frand(-2, 2), -2, SHIP.vz + frand(-2, 2));
     });
@@ -204,8 +206,8 @@ function shipHit(dmg, pos) {
 }
 // Signed distance (roughly) to the shield, or to the bare hull while the beam is out.
 function shipDist(x, y, z) {
-  const sx = SHIP.dest ? SHIP_R : 170, sy = SHIP.dest ? 22 : 44;
-  const dx = (x - MON.x) / sx, dy = (y - MON.y - 3) / sy, dz = (z - MON.z) / sx;
+  const sx = (SHIP.dest ? 150 : 170) * SHIP_S, sy = (SHIP.dest ? 22 : 44) * SHIP_S;
+  const dx = (x - MON.x) / sx, dy = (y - MON.y - 3 * SHIP_S) / sy, dz = (z - MON.z) / sx;
   return (Math.sqrt(dx * dx + dy * dy + dz * dz) - 1) * sy;
 }
 
@@ -216,7 +218,7 @@ function shipFire() {
   const a0 = Math.atan2(AIM.p.x - MON.x, AIM.p.z - MON.z);
   for (let k = -1; k <= 1; k++) {
     const a = a0 + k * 0.22;
-    sA.set(MON.x + Math.sin(a) * 140, MON.y - 5, MON.z + Math.cos(a) * 140);
+    sA.set(MON.x + Math.sin(a) * 140 * SHIP_S, MON.y - 5 * SHIP_S, MON.z + Math.cos(a) * 140 * SHIP_S);
     sB.set(AIM.p.x + frand(-5, 5) - sA.x, AIM.p.y - sA.y, AIM.p.z + frand(-5, 5) - sA.z).normalize();
     shipBolt(sA, sB, 300, true);
     emit(glowPS, sA.x, sA.y, sA.z, 0, 0, 0, 9, 4, 0.12, 0.6, 1, 0.6, 1, 0, 0);
@@ -458,13 +460,13 @@ function updateDestroyer(dt) {
   if (D.t < DT_FIRE - 0.6) aimDestroyer(1 - Math.exp(-dt * 4));
   const gy = Math.max(terrainH(D.x, D.z), WATER_Y);
   MON.rage = Math.max(0, 100 * (1 - D.t / DT_FIRE));
-  const from = sA.set(MON.x, MON.y - 16, MON.z);
+  const from = sA.set(MON.x, MON.y - 16 * SHIP_S, MON.z);
   if (D.t < DT_FIRE) {
     // charge: light gathers in the dish while a pilot beam reaches down to the target
     const c = D.t / DT_FIRE;
     for (let i = 0; i < 4; i++) {
-      const a = Math.random() * TAU, r = frand(30, 70);
-      emit(glowPS, from.x + Math.cos(a) * r, from.y - frand(0, 10), from.z + Math.sin(a) * r, -Math.cos(a) * r * 1.6, 4, -Math.sin(a) * r * 1.6, 3 + c * 3, -2, 0.55, 0.7, 0.95, 1, 0.9, 0, 0);
+      const a = Math.random() * TAU, r = frand(30, 70) * SHIP_S;
+      emit(glowPS, from.x + Math.cos(a) * r, from.y - frand(0, 10) * SHIP_S, from.z + Math.sin(a) * r, -Math.cos(a) * r * 1.6, 4, -Math.sin(a) * r * 1.6, 3 + c * 3, -2, 0.55, 0.7, 0.95, 1, 0.9, 0, 0);
     }
     D.ringT -= dt;
     if (D.ringT <= 0) { D.ringT = 0.45; ring(D.x, gy + 1, D.z, 34, 0.6, 0x9cff7a); }
@@ -590,10 +592,10 @@ function shipIntro(dt, t) {
   if (t < 7) {
     const n = Math.round((isTouch ? 3 : 6) * (1 - t / 7)) + 1;
     for (let i = 0; i < n; i++) {
-      const a = Math.random() * TAU, r = frand(60, 200);
-      const x = MON.x + Math.sin(a) * r, y = MON.y + frand(-30, 25), z = MON.z + Math.cos(a) * r;
-      emit(smokePS, x, y, z, SHIP.vx * 0.3 + Math.sin(a) * 10, frand(-4, 6), SHIP.vz * 0.3 + Math.cos(a) * 10, frand(50, 90), 20, frand(3, 4.5), 0.95, 0.55, 0.28, 0.85, 0.5, 0, 0.32, 0.27, 0.26);
-      if (i % 2 === 0) emit(glowPS, x, MON.y - frand(10, 30), z, SHIP.vx * 0.2, 0, SHIP.vz * 0.2, frand(25, 45), 10, frand(0.6, 1.2), 1, 0.65, 0.3, 0.7, 0.5, 0, 0.9, 0.3, 0.05);
+      const a = Math.random() * TAU, r = frand(60, 200) * SHIP_S;
+      const x = MON.x + Math.sin(a) * r, y = MON.y + frand(-30, 25) * SHIP_S, z = MON.z + Math.cos(a) * r;
+      emit(smokePS, x, y, z, SHIP.vx * 0.3 + Math.sin(a) * 10, frand(-4, 6), SHIP.vz * 0.3 + Math.cos(a) * 10, frand(50, 90) * SHIP_S, 20, frand(3, 4.5), 0.95, 0.55, 0.28, 0.85, 0.5, 0, 0.32, 0.27, 0.26);
+      if (i % 2 === 0) emit(glowPS, x, MON.y - frand(10, 30) * SHIP_S, z, SHIP.vx * 0.2, 0, SHIP.vz * 0.2, frand(25, 45) * SHIP_S, 10, frand(0.6, 1.2), 1, 0.65, 0.3, 0.7, 0.5, 0, 0.9, 0.3, 0.05);
     }
   }
   if (t > 0.2 && !MON.rumbled) { MON.rumbled = true; arrivalRumble(); }
@@ -604,7 +606,7 @@ function shipIntro(dt, t) {
   const dist = shipCamPose(Math.PI, SHIP_PITCH, 1, sA, sB);
   const ky = smooth(7.6, 9.4, t), kz = smooth(9, 11.4, t);
   CAM.pos.set(lerp(50, sA.x, kz), lerp(6, sA.y, ky), lerp(120, sA.z, kz));
-  sC.set(MON.x, MON.y - 10, MON.z).lerp(sB, kz);
+  sC.set(MON.x, MON.y - 10 * SHIP_S, MON.z).lerp(sB, kz);
   camera.position.copy(CAM.pos);
   applyShake(dt);
   camera.lookAt(sC);
@@ -623,12 +625,13 @@ function skipShipIntro() {
 // ---------- camera ----------
 // The camera orbits a point just beyond the far rim, so the crosshair always looks past the hull.
 function shipCamPose(yaw, pitch, distT, pos, tgt) {
-  const cp = Math.cos(pitch), dist = 470 * distT;
-  tgt.set(MON.x + Math.sin(yaw) * 165, MON.y + 45, MON.z + Math.cos(yaw) * 165);
+  const cp = Math.cos(pitch), dist = 470 * (0.5 + 0.5 * SHIP_S) * distT, ahead = SHIP_R + 15;
+  tgt.set(MON.x + Math.sin(yaw) * ahead, MON.y + 45 * SHIP_S, MON.z + Math.cos(yaw) * ahead);
   pos.set(tgt.x - Math.sin(yaw) * cp * dist, tgt.y + Math.sin(pitch) * dist, tgt.z - Math.cos(yaw) * cp * dist);
   return dist;
 }
 function shipCamera(dt) {
+  if (SHIP.fp) { bellyCamera(dt); return; }
   CAM.yaw -= mouse.dx * 0.0024;
   CAM.pitch = clamp(CAM.pitch + mouse.dy * 0.002, 0.12, 1.1);
   mouse.dx = mouse.dy = 0;
@@ -666,6 +669,45 @@ function shipCamera(dt) {
   applyShake(dt);
   shipSun();
 }
+// First person from under the hull, riding near the rim on the side you face so the dish and its beam stay in view.
+function bellyCamera(dt) {
+  CAM.yaw -= mouse.dx * 0.0024;
+  CAM.pitch = clamp(CAM.pitch + mouse.dy * 0.002, -0.2, 1.5);
+  mouse.dx = mouse.dy = 0; mouse.wheel = 0;
+  const fx = Math.sin(CAM.yaw), fz = Math.cos(CAM.yaw), cp = Math.cos(CAM.pitch), r = 52;
+  CAM.pos.set(MON.x + fx * r * SHIP_S, MON.y + (hullY(r) - 7) * SHIP_S, MON.z + fz * r * SHIP_S);
+  CAM.tgt.set(CAM.pos.x + fx * cp, CAM.pos.y - Math.sin(CAM.pitch), CAM.pos.z + fz * cp);
+  CAM.init = false; // the chase camera snaps into place when switched back
+  camera.position.copy(CAM.pos);
+  camera.lookAt(CAM.tgt);
+  camera.getWorldDirection(AIM.d);
+  AIM.o.copy(camera.position);
+  AIM.yaw = CAM.yaw;
+  AIM.pitch = Math.asin(clamp(AIM.d.y, -1, 1));
+  const ah = raycastCity(AIM.o.x, AIM.o.y, AIM.o.z, AIM.d.x, AIM.d.y, AIM.d.z, 1100, 3);
+  AIM.id = ah ? ah.id : -1;
+  if (ah) AIM.p.set(ah.x, ah.y, ah.z); else AIM.p.copy(AIM.o).addScaledVector(AIM.d, 1100);
+  applyShake(dt);
+  shipSun();
+}
+function setShipCam(fp, announce) {
+  SHIP.fp = fp;
+  CAM.pitch = fp ? 0.35 : SHIP_PITCH; CAM.init = false;
+  const fov = fp ? 72 : 58;
+  if (camera.fov !== fov) { camera.fov = fov; resize(); }
+  if (announce) showHint(fp ? (isTouch ? 'Belly camera · VIEW to switch back' : 'Belly camera · V to switch back') : 'Chase camera', 1.6);
+}
+function toggleShipCam() {
+  if (state !== 'play' || !MON.def.fly || MON.dead) return;
+  setShipCam(!SHIP.fp, true);
+  try { localStorage.setItem('calamity-bay-shipcam', SHIP.fp ? 'belly' : 'chase'); } catch (e) { /* storage blocked */ }
+}
+// Start in whichever view the player used last.
+function restoreShipCam() {
+  let v = null;
+  try { v = localStorage.getItem('calamity-bay-shipcam'); } catch (e) { /* storage blocked */ }
+  setShipCam(v === 'belly', false);
+}
 // Centre the shadow map between the hull and the ground it shades.
 function shipSun() {
   const h = MON.y - groundUnderShip(MON.x, MON.z);
@@ -676,6 +718,7 @@ function shipSun() {
 function shipDies() {
   if (SHIP.dest) endDestroyer();
   SHIP.launchQ = 0;
+  if (SHIP.fp) setShipCam(false, false); // watch it go down from outside
   SHIP.crash = { t: 0, vy: 0, landed: false, tilt: Math.random() < 0.5 ? -1 : 1, boomT: 0 };
   for (const f of WING) f.st = 'fall';
   if (tractorFx) tractorFx.visible = false;
@@ -703,20 +746,21 @@ function updateShipDeath(dt) {
     MON.x += SHIP.vx * dt; MON.z += SHIP.vz * dt;
     const tk = Math.min(1, (C.t - 0.8) / 2.5);
     R.body.rotation.z = C.tilt * 0.16 * tk; R.body.rotation.x = 0.05 * tk;
-    if (Math.random() < 0.6) { const a = Math.random() * TAU; smokePuff(MON.x + Math.sin(a) * 140, MON.y + 4, MON.z + Math.cos(a) * 140, 22, 0.2); }
+    if (Math.random() < 0.6) { const a = Math.random() * TAU; smokePuff(MON.x + Math.sin(a) * 140 * SHIP_S, MON.y + 4 * SHIP_S, MON.z + Math.cos(a) * 140 * SHIP_S, 22 * SHIP_S, 0.2); }
     // the hull crushes whatever it sinks onto
-    const y = MON.y - 16;
+    const y = MON.y - 16 * SHIP_S, st = 55 * SHIP_S;
     for (let gx = -2; gx <= 2; gx++) for (let gz = -2; gz <= 2; gz++) {
       if (gx * gx + gz * gz > 6) continue;
-      blocksInSphere(MON.x + gx * 55, y, MON.z + gz * 55, 34, (id) => { if (Math.random() < 0.75) removeStatic(id); else detachBlock(id, frand(-6, 6), -8, frand(-6, 6)); });
+      blocksInSphere(MON.x + gx * st, y, MON.z + gz * st, 34 * SHIP_S, (id) => { if (Math.random() < 0.75) removeStatic(id); else detachBlock(id, frand(-6, 6), -8, frand(-6, 6)); });
     }
     const gy = Math.max(terrainH(MON.x, MON.z), WATER_Y);
-    if (MON.y - 12 <= gy) {
-      C.landed = true; MON.landed = true; MON.y = gy + 10;
-      shockwave(MON.x, MON.z, 150, 420, 45);
-      for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; groundImpact(MON.x + Math.sin(a) * 120, MON.z + Math.cos(a) * 120, 22, 400, 20, 0.6); }
-      for (let i = 0; i < 10; i++) { const a = Math.random() * TAU, r = frand(20, 150); explosionFx(MON.x + Math.sin(a) * r, gy + frand(5, 30), MON.z + Math.cos(a) * r, 4); }
-      for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; addEmitter({ kind: 'fire', x: MON.x + Math.sin(a) * 100, y: gy + 14, z: MON.z + Math.cos(a) * 100, life: 60, size: 12 }); }
+    if (MON.y - 12 * SHIP_S <= gy) {
+      const S = SHIP_S;
+      C.landed = true; MON.landed = true; MON.y = gy + 10 * S;
+      shockwave(MON.x, MON.z, 150 * S, 420, 45 * S);
+      for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; groundImpact(MON.x + Math.sin(a) * 120 * S, MON.z + Math.cos(a) * 120 * S, 22 * S, 400, 20, 0.6); }
+      for (let i = 0; i < 10; i++) { const a = Math.random() * TAU, r = frand(20, 150) * S; explosionFx(MON.x + Math.sin(a) * r, gy + frand(5, 30) * S, MON.z + Math.cos(a) * r, 4); }
+      for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; addEmitter({ kind: 'fire', x: MON.x + Math.sin(a) * 100 * S, y: gy + 14 * S, z: MON.z + Math.cos(a) * 100 * S, life: 60, size: 12 * S }); }
       sA.set(MON.x, gy, MON.z);
       boom(sA, 3);
       skyFlash(0.6); addShake(1.6, sA);

@@ -140,6 +140,7 @@ function endIntro() {
   MON.ctl = true;
   const fly = MON.def.fly;
   CAM.yaw = fly ? Math.PI : MON.yaw; CAM.pitch = fly ? SHIP_PITCH : 0.22; CAM.init = false;
+  if (fly) restoreShipCam();
   mouse.dx = mouse.dy = 0;
   say(fly ? 'UMBRA IS OVER THE CITY' : MON.def.id === 'sea' ? 'TIDEMAW HAS COME ASHORE' : 'OROGEN HAS AWAKENED', 3);
   setTimeout(() => showHint(`Destroy ${GOAL * 100}% of Calamity Bay`, 5), 2600);
@@ -265,6 +266,7 @@ addEventListener('keydown', (e) => {
   else if (e.code === 'KeyF') special();
   else if (e.code === 'Space') { roarAct(); e.preventDefault(); }
   else if (e.code === 'KeyQ') heavy();
+  else if (e.code === 'KeyV') toggleShipCam();
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -329,6 +331,7 @@ if (isTouch) {
   btn('#tAtk', primary); btn('#tHvy', heavy); btn('#tGrab', grabThrow); btn('#tSp', special); btn('#tRoar', roarAct);
   btn('#tRun', () => { touchRun = !touchRun; $('#tRun').classList.toggle('on', touchRun); });
   btn('#tPause', pause);
+  btn('#tView', toggleShipCam);
 }
 
 // ---------- loop ----------
@@ -391,7 +394,7 @@ requestAnimationFrame(frame);
 if (DEBUG) window.CB = {
   MON, STATS, BLD, BLK_, bodies, UNITS, CARS, PPL, MIL, AIM, CAM, camera, scene, renderer, startGame, skipIntro, hitSphere, shockwave,
   selectMonster, primary, heavy, grabThrow, special, roarAct, keys, mouse, startAct, damageBlock, staticAt, terrainH, spawnJets, spawnHeli, spawnGround,
-  SHIP, WING, BOLTS, launchFighters, tractorGrab, shipFire, hurtMonster,
+  SHIP, WING, BOLTS, launchFighters, tractorGrab, shipFire, hurtMonster, toggleShipCam,
   audioOff() { AC = null; }, PT, get awake() { return physAwake; }, tryGrab, AG, agentsNear, blocksInSphere, handPos, LOTS, THROWN, PROJ,
   sim(sec, dt = 1 / 30) { const t0 = performance.now(); for (let t = 0; t < sec; t += dt) tick(dt); return performance.now() - t0; }, get state() { return state; }, set state(s) { setState(s); }, get pct() { return STATS.wGone / STATS.wTotal; },
 };
