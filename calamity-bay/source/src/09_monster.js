@@ -14,9 +14,9 @@ const MDEF = {
     stats: { HEALTH: 0.75, SPEED: 0.85, POWER: 0.9 }, color: '#ff8a2a',
   },
   ufo: {
-    id: 'ufo', name: 'UMBRA', origin: 'Descends through a burning sky', H: 60, rad: 150, walk: 7.5, run: 13, hp: 1500, armor: 1, fly: true, rageMul: 0.45,
+    id: 'ufo', name: 'UMBRA', origin: 'Descends through a burning sky', H: 60, rad: 90, walk: 7.5, run: 13, hp: 1500, armor: 1, fly: true, rageMul: 0.45,
     heal: 'Shielded, except while the beam fires', heavy: 'Fighter Swarm', special: 'Destroyer Beam', roar: 'Harbinger Horn',
-    blurb: 'A saucer three blocks wide that came down out of a burning sky. It drifts slowly behind its shield, launches swarms of fighters, and when the dish beneath it opens, whole districts burn.',
+    blurb: 'A saucer nearly two blocks wide that came down out of a burning sky. It drifts slowly behind its shield, launches swarms of fighters, and when the dish beneath it opens, whole districts burn.',
     stats: { HEALTH: 0.9, SPEED: 0.3, POWER: 1 }, color: '#9cff7a',
   },
 };
@@ -189,11 +189,11 @@ function createMonster(id) {
 const wp = new V3(), wp2 = new V3();
 function jointPos(j, out, x = 0, y = 0, z = 0) { return out.set(x, y, z).applyMatrix4(j.matrixWorld); }
 function handPos(out, side = 1) {
-  if (MON.def.fly) return out.set(MON.x, MON.y - 18, MON.z); // the tractor beam holds things under the belly
+  if (MON.def.fly) return out.set(MON.x, MON.y - 18 * SHIP_S, MON.z); // the tractor beam holds things under the belly
   const a = MON.rig.arms[side > 0 ? 1 : 0];
   return jointPos(a.hand, out, 0, MON.def.id === 'mtn' ? -2.4 : -1.2, 0.5);
 }
-function mouthPos(out) { if (MON.def.fly) return out.set(MON.x, MON.y - 16, MON.z); return jointPos(MON.rig.head, out, 0, 0.6, MON.def.id === 'sea' ? 7.5 : 4.5); }
+function mouthPos(out) { if (MON.def.fly) return out.set(MON.x, MON.y - 16 * SHIP_S, MON.z); return jointPos(MON.rig.head, out, 0, 0.6, MON.def.id === 'sea' ? 7.5 : 4.5); }
 function facing(out) { return out.set(Math.sin(MON.yaw), 0, Math.cos(MON.yaw)); }
 const ease = (k) => k * k * (3 - 2 * k);
 const seg01 = (k, a, b) => clamp((k - a) / (b - a), 0, 1);
@@ -514,7 +514,7 @@ function projectileImpact(b, p) {
 function doRoar() {
   const d = MON.def;
   roarSound(d.id, mouthPos(wp));
-  if (d.fly) ring(MON.x, MON.y - 20, MON.z, 260, 1.8, 0x9cff7a);
+  if (d.fly) ring(MON.x, MON.y - 20 * SHIP_S, MON.z, 200, 1.8, 0x9cff7a);
   else ring(MON.x, MON.y + d.H * 0.8, MON.z, 160, 1.4, d.id === 'sea' ? 0x8fe8ff : 0xffb070);
   addShake(0.5);
   stunUnits(MON.x, MON.z, d.fly ? 320 : 220, 3.5);

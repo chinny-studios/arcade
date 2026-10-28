@@ -183,8 +183,8 @@ function updateMilitary(dt) {
 function aimAtMonster(x, y, z, spread, out) {
   if (MON.def.fly) {
     // anywhere on the hull; homing weapons (no spread) go for the middle
-    const a = Math.random() * TAU, r = spread ? Math.sqrt(Math.random()) * 120 : 0;
-    out.set(MON.x + Math.cos(a) * r - x, MON.y + (spread ? rr(-10, 8) : 0) - y, MON.z + Math.sin(a) * r - z).normalize();
+    const a = Math.random() * TAU, r = spread ? Math.sqrt(Math.random()) * SHIP_R * 0.8 : 0;
+    out.set(MON.x + Math.cos(a) * r - x, MON.y + (spread ? rr(-6, 5) : 0) - y, MON.z + Math.sin(a) * r - z).normalize();
     out.x += frand(-spread, spread); out.y += frand(-spread, spread); out.z += frand(-spread, spread);
     return out.normalize();
   }
@@ -263,7 +263,7 @@ function updateHeli(u, dt) {
   // orbit the monster, dipping in for rocket runs
   u.orb += dt * 22 / u.R;
   u.run -= dt;
-  const fly = MON.def.fly, R = (u.run > 0 ? 62 : u.R) + (fly ? 175 : 0), alt = u.run > 0 ? Math.max(38, u.alt - 18) : u.alt;
+  const fly = MON.def.fly, R = (u.run > 0 ? 62 : u.R) + (fly ? SHIP_R + 25 : 0), alt = u.run > 0 ? Math.max(38, u.alt - 18) : u.alt;
   let tx = MON.x + Math.cos(u.orb) * R, tz = MON.z + Math.sin(u.orb) * R, ty = Math.max(terrainH(tx, tz), 0) + alt;
   if (fly) ty = Math.max(ty, MON.y + alt - 85); // circle the saucer at its own height
   if (staticAt(tx, ty, tz) >= 0 || staticAt(tx, ty - 15, tz) >= 0) ty += 40;
