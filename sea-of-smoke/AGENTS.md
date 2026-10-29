@@ -17,7 +17,8 @@ fire rafts and smoke screens, fog banks and a squall. Three maps, about nine min
 - **Tests (in `source/`):** `node test/smoke.mjs --steps test/player.js` (broadside, chain shot, boarding and capture,
   repair, squall), `--start '{"cls":"fireship"}' --steps test/fireship.js` (fire rafts, smoke screen, ramming),
   `--steps test/play.js` and `test/full.js` (a battle on fast forward), `--no-start --steps test/balance.js` (AI-only
-  battles on every map: length, result, losses), `test/inputs.js` (real DOM key and mouse events), `test/visual.js` and
+  battles on every map: length, result, losses), `test/flow.js` (sink, spectate, skip to results), `test/inputs.js`
+  (real DOM key and mouse events), `test/visual.js` and
   `test/look.js` (fort, fog bank, spyglass, port, results screenshots). Screenshots land in `test/out/`.
 - **Gotchas:** SwiftShader runs the real-time loop at a few frames a second, so a test that waits in real time sees
   little game time; use `sim` or `run`, or `manual(true)`. `peace()` must also furl sails: bots set sail on the first
