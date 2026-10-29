@@ -289,7 +289,7 @@ const camera = new THREE.PerspectiveCamera(58, 16 / 9, 1, 6000);
 const SUN_DIR = new V3(-0.72, 0.42, 0.3).normalize();
 const HORIZON = new THREE.Color(0xf0c49a);
 const ZENITH = new THREE.Color(0x4f79b8);
-scene.fog = new THREE.Fog(0xe4bf9c, 420, 2900);
+scene.fog = new THREE.Fog(0xe4bf9c, 480, 3400);
 renderer.setClearColor(scene.fog.color);
 
 const hemi = new THREE.HemisphereLight(0xb9d0ef, 0x6e5b48, 0.72);
@@ -357,20 +357,21 @@ function resize() {
 
 // Calamity Bay — terrain (bay to the south, Mount Kessel to the north), water, city ground and trees
 
-const R0 = -450, BLK = 100, NROAD = 10, ROAD_HW = 9, LANE = 4.5, WALK_OFF = 11.5;
+const R0 = -650, BLK = 100, NROAD = 14, ROAD_HW = 9, LANE = 4.5, WALK_OFF = 11.5;
 const roadPos = (i) => R0 + i * BLK;
-const CITY_HALF = 528;      // the flat, paved city square
+const CITY_HALF = -R0 + 78; // the flat, paved city square
 const WATER_Y = -3;
-const MAP = { x0: -900, x1: 900, z0: -900, z1: 1100 }; // where the monster may roam
+const MAP = { x0: -CITY_HALF - 420, x1: CITY_HALF + 420, z0: -CITY_HALF - 420, z1: CITY_HALF + 570 }; // where the monster may roam
 
 function coastZ(x) {
   const ax = Math.abs(x);
-  return 534 + Math.max(0, ax - 520) * 0.45 + (ax > 520 ? (vnoise(x * 0.012, 7.7) - 0.5) * 50 : 0);
+  const e = CITY_HALF - 8;
+  return CITY_HALF + 6 + Math.max(0, ax - e) * 0.45 + (ax > e ? (vnoise(x * 0.012, 7.7) - 0.5) * 50 : 0);
 }
 function landH(x, z) {
   const ax = Math.abs(x);
-  let h = smooth(520, 800, ax) * (14 + 60 * fbm(x * 0.0042, z * 0.0042, 3));
-  const t = -z - 500;
+  let h = smooth(CITY_HALF - 8, CITY_HALF + 272, ax) * (14 + 60 * fbm(x * 0.0042, z * 0.0042, 3));
+  const t = -z - (CITY_HALF - 28);
   if (t > 0) {
     const n = fbm(x * 0.0035 + 5, z * 0.0035, 4);
     const ridge = 1 - Math.abs(vnoise(x * 0.005 + 11, z * 0.005 - 3) * 2 - 1);
@@ -393,7 +394,7 @@ const inCity = (x, z) => Math.abs(x) < CITY_HALF && z > -CITY_HALF && z < coastZ
 
 // ---------- terrain mesh ----------
 function buildTerrain() {
-  const g = new THREE.PlaneGeometry(3600, 3400, 180, 170);
+  const g = new THREE.PlaneGeometry(4600, 4400, 230, 220);
   g.rotateX(-Math.PI / 2);
   const P = g.attributes.position;
   for (let i = 0; i < P.count; i++) {
@@ -416,7 +417,7 @@ function buildTerrain() {
     else if (z > cz - 30 && y < 4) c.setRGB(0.85, 0.77, 0.56);
     else if (y > 330 && ny > 0.55) c.setRGB(0.95, 0.95, 0.97);
     else if (ny < 0.72 || y > 170) c.setRGB(0.47, 0.44, 0.41).lerp(new THREE.Color(0.58, 0.55, 0.5), n);
-    else if (z < -520 && y > 25) c.setRGB(0.27, 0.38, 0.22).lerp(new THREE.Color(0.36, 0.44, 0.27), n);
+    else if (z < -CITY_HALF + 8 && y > 25) c.setRGB(0.27, 0.38, 0.22).lerp(new THREE.Color(0.36, 0.44, 0.27), n);
     else c.setRGB(0.42, 0.55, 0.28).lerp(new THREE.Color(0.52, 0.6, 0.3), n);
     c.multiplyScalar(j);
     for (let k = 0; k < 3; k++) { col[(i + k) * 3] = c.r; col[(i + k) * 3 + 1] = c.g; col[(i + k) * 3 + 2] = c.b; }
@@ -461,45 +462,46 @@ const waterMat = new THREE.ShaderMaterial({
   }`,
 });
 function buildWater() {
-  const g = new THREE.PlaneGeometry(4200, 2600, 140, 80);
+  const g = new THREE.PlaneGeometry(5200, 2600, 170, 80);
   g.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(g, waterMat);
-  m.position.set(0, WATER_Y, 520 + 1300);
+  m.position.set(0, WATER_Y, CITY_HALF - 8 + 1300);
   m.renderOrder = 2;
   scene.add(m);
 }
 
 // ---------- city plan ----------
-// 9 x 9 blocks between 10 roads each way, plus a port strip on the bay.
+// 13 x 13 blocks between 14 roads each way, plus a port strip on the bay.
 const LOTS = [];
-const PARKS = new Set(['2,6', '6,2', '1,3', '7,6', '3,1', '5,7']);
+const NLOT = NROAD - 1, MID = (NLOT - 1) / 2;
+const PARKS = new Set(['3,9', '9,3', '1,4', '10,8', '4,1', '7,10', '1,11', '11,1', '11,11', '2,7']);
 function planLots() {
-  for (let bi = 0; bi < 9; bi++) for (let bj = 0; bj < 9; bj++) {
+  for (let bi = 0; bi < NLOT; bi++) for (let bj = 0; bj < NLOT; bj++) {
     const x0 = roadPos(bi) + ROAD_HW + 4, x1 = roadPos(bi + 1) - ROAD_HW - 4;
     const z0 = roadPos(bj) + ROAD_HW + 4, z1 = roadPos(bj + 1) - ROAD_HW - 4;
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, d = Math.max(Math.abs(cx), Math.abs(cz));
-    let kind = d < 150 ? 'downtown' : d < 250 ? 'midtown' : 'residential';
-    if (bj === 0) kind = 'suburb';
+    let kind = d < 210 ? 'downtown' : d < 360 ? 'midtown' : 'residential';
+    if (bj === 0 || (Math.abs(cx) > 540 && cz < 300)) kind = 'suburb'; // the edges toward the hills
     if (PARKS.has(bi + ',' + bj)) kind = 'park';
-    if (bi === 4 && bj === 4) kind = 'plaza';
+    if (bi === MID && bj === MID) kind = 'plaza';
     LOTS.push({ bi, bj, x0, z0, x1, z1, cx, cz, kind });
   }
-  for (let bi = 0; bi < 9; bi++) {
-    const x0 = roadPos(bi) + 4, x1 = roadPos(bi + 1) - 4;
-    LOTS.push({ bi, bj: 9, x0, z0: 450 + ROAD_HW + 4, x1, z1: 526, cx: (x0 + x1) / 2, cz: 492, kind: 'port' });
+  for (let bi = 0; bi < NLOT; bi++) {
+    const x0 = roadPos(bi) + 4, x1 = roadPos(bi + 1) - 4, z0 = -R0 + ROAD_HW + 4, z1 = CITY_HALF - 2;
+    LOTS.push({ bi, bj: NLOT, x0, z0, x1, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, kind: 'port' });
   }
 }
 
 const LOT_COL = { downtown: '#8f8d88', plaza: '#a29d93', midtown: '#97948c', residential: '#6f9150', suburb: '#729552', park: '#5f8f45', port: '#8a877f' };
 function buildCityGround() {
-  const N = 2048, W = CITY_HALF * 2, s = N / W;
+  const N = isTouch ? 2048 : 3072, W = CITY_HALF * 2, s = N / W;
   const cv = document.createElement('canvas'); cv.width = cv.height = N;
   const g = cv.getContext('2d');
   const X = (x) => (x + CITY_HALF) * s, Z = (z) => (z + CITY_HALF) * s;
   const rect = (x0, z0, x1, z1, c) => { g.fillStyle = c; g.fillRect(X(x0), Z(z0), (x1 - x0) * s, (z1 - z0) * s); };
   rect(-CITY_HALF, -CITY_HALF, CITY_HALF, CITY_HALF, '#6e8f4c');
   // ground speckle
-  for (let i = 0; i < 26000; i++) {
+  for (let i = 0; i < 48000; i++) {
     g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '0,0,0'},${0.03 + Math.random() * 0.04})`;
     g.fillRect(Math.random() * N, Math.random() * N, 2 + Math.random() * 5, 2 + Math.random() * 5);
   }
@@ -523,7 +525,7 @@ function buildCityGround() {
     }
   }
   // quay edge
-  rect(-CITY_HALF, 522, CITY_HALF, 528, '#a8a49a');
+  rect(-CITY_HALF, CITY_HALF - 6, CITY_HALF, CITY_HALF, '#a8a49a');
   // roads
   const asphalt = '#3d3f44';
   for (let i = 0; i < NROAD; i++) {
@@ -578,15 +580,15 @@ function addTree(x, z, kind, s) {
 function buildTrees() {
   // outskirts and mountains
   let n = 0;
-  for (let tries = 0; n < (isTouch ? 1800 : 3200) && tries < 40000; tries++) {
-    const x = rr(-1500, 1500), z = rr(-1350, 900);
+  for (let tries = 0; n < (isTouch ? 2400 : 4400) && tries < 60000; tries++) {
+    const x = rr(-1900, 1900), z = rr(-1800, CITY_HALF + 370);
     if (Math.abs(x) < CITY_HALF + 15 && z > -CITY_HALF - 15) continue;
     const h = terrainH(x, z);
     if (h < 1.5 || h > 260) continue;
     const slope = Math.abs(terrainH(x + 4, z) - h) + Math.abs(terrainH(x, z + 4) - h);
     if (slope > 7) continue;
     if (vnoise(x * 0.008, z * 0.008) < 0.38) continue;   // clumps and clearings
-    addTree(x, z, z < -480 || h > 40 ? 1 : (rand() < 0.3 ? 1 : 0), rr(0.8, 1.35));
+    addTree(x, z, z < -CITY_HALF + 48 || h > 40 ? 1 : (rand() < 0.3 ? 1 : 0), rr(0.8, 1.35));
     n++;
   }
   // parks and street trees
@@ -712,12 +714,13 @@ const BLD = [];
 const BLK_ = [];       // every block: {x,y,z,hx,hy,hz,hp,max,b,ci,j,alive,vol,w,info:[4],col:[3]}
 const STATS = { volTotal: 0, wTotal: 0, wGone: 0, money: 0, blocks: 0, down: 0, cars: 0, units: 0, people: 0 };
 let staticMesh = null, staticInfo = null, staticDirtyM = false, staticDirtyI = false;
+let CITY_TOP = 0; // height of the tallest building
 let roofMesh = null;
 const ROOFS = [];
 const dirtyB = [];
 
 // ---------- spatial grid of buildings ----------
-const BG_CELL = 32, BG_N = 44, BG_OFF = 22;
+const BG_CELL = 32, BG_OFF = Math.ceil((CITY_HALF + 40) / BG_CELL), BG_N = BG_OFF * 2;
 const BGRID = Array.from({ length: BG_N * BG_N }, () => []);
 const bgIdx = (x, z) => {
   const gx = Math.floor(x / BG_CELL) + BG_OFF, gz = Math.floor(z / BG_CELL) + BG_OFF;
@@ -773,7 +776,8 @@ const jit = (c, a = 0.06) => c.map((v) => clamp(v * (1 - a + rand() * a * 2), 0,
 
 function tower(x0, z0, w, d, h, style, opts = {}) {
   const nx = clamp(Math.round(w / 8), 2, 6), nz = clamp(Math.round(d / 8), 2, 6);
-  const ch = opts.ch || 8, ny = Math.max(3, Math.round(h / ch));
+  // taller blocks on taller towers keep the block count down (the windows are drawn by the shader, not per block)
+  const ch = opts.ch || (h > 200 ? 12 : h > 110 ? 10 : 8), ny = Math.max(3, Math.round(h / ch));
   const s1 = rand() < 0.6 ? Math.floor(ny * rr(0.55, 0.75)) : 999;
   const s2 = s1 < 999 && rand() < 0.5 ? Math.floor(lerp(s1, ny, rr(0.4, 0.7))) : 999;
   const base = jit(pick(style === ST.GLASS ? PAL.glass : PAL.office));
@@ -790,7 +794,7 @@ function tower(x0, z0, w, d, h, style, opts = {}) {
 }
 function midrise(x0, z0, w, d, h, style) {
   const nx = clamp(Math.round(w / 7.5), 2, 5), nz = clamp(Math.round(d / 7.5), 2, 5);
-  const ch = 7, ny = Math.max(2, Math.round(h / ch));
+  const ch = h > 45 ? 9 : 7, ny = Math.max(2, Math.round(h / ch));
   const base = jit(pick(style === ST.APT ? PAL.apt : PAL.office));
   const lShape = rand() < 0.3 && nx >= 3 && nz >= 3, cut = ri(0, 3), cutH = ri(1, ny - 1);
   return makeBuilding({
@@ -844,13 +848,13 @@ function radioTower(x0, z0) {
 function landmark(x0, z0) {
   const cream = [0.86, 0.8, 0.66], gold = [0.85, 0.68, 0.32];
   return makeBuilding({
-    x0, z0, nx: 4, nz: 4, ny: 29, cw: 8.5, cd: 8.5, ch: 8, style: ST.OFFICE, kind: 'tower', name: 'Meridian Tower', hp: 170,
+    x0, z0, nx: 4, nz: 4, ny: 40, cw: 8.5, cd: 8.5, ch: 10, style: ST.OFFICE, kind: 'tower', name: 'Meridian Tower', hp: 170,
     occ: (i, j, k) => {
-      if (j < 16) return true;
-      if (j < 25) return i >= 1 && i <= 2 && k >= 1 && k <= 2;
+      if (j < 22) return true;
+      if (j < 34) return i >= 1 && i <= 2 && k >= 1 && k <= 2;
       return i === 1 && k === 1;
     },
-    color: (i, j) => (j === 15 || j === 24 ? gold : j >= 25 ? gold : cream),
+    color: (i, j) => (j === 21 || j === 33 ? gold : j >= 34 ? gold : cream),
   });
 }
 
@@ -862,14 +866,15 @@ function fillLot(L) {
   }
   if (L.kind === 'park') return;
   if (L.kind === 'downtown') {
-    const r = rand();
+    // the skyline peaks toward the middle: f is 1 next to the plaza and 0 at the edge of downtown
+    const r = rand(), f = clamp(1 - (Math.hypot(L.cx, L.cz) - 100) / 190, 0, 1);
     if (r < 0.3) {
       const w = rr(40, 56), d = rr(40, 56);
-      tower(L.cx - w / 2, L.cz - d / 2, w, d, rr(120, 185), rand() < 0.6 ? ST.GLASS : ST.OFFICE);
+      tower(L.cx - w / 2, L.cz - d / 2, w, d, Math.min(320, lerp(180, 300, f) * rr(0.92, 1.08)), rand() < 0.6 ? ST.GLASS : ST.OFFICE);
     } else if (r < 0.65) {
       const alongX = rand() < 0.5;
       for (let s = 0; s < 2; s++) {
-        const w = rr(26, 32), d = rr(28, 36), h = rr(75, 165);
+        const w = rr(26, 32), d = rr(28, 36), h = rr(100, 190) + 70 * f;
         const cx = alongX ? x0 + W * (s ? 0.75 : 0.25) : L.cx, cz = alongX ? L.cz : z0 + D * (s ? 0.75 : 0.25);
         tower(cx - (alongX ? w : d) / 2, cz - (alongX ? d : w) / 2, alongX ? w : d, alongX ? d : w, h, rand() < 0.55 ? ST.GLASS : ST.OFFICE);
       }
@@ -877,7 +882,7 @@ function fillLot(L) {
       for (let s = 0; s < 4; s++) {
         const cx = x0 + W * (s & 1 ? 0.75 : 0.25), cz = z0 + D * (s & 2 ? 0.75 : 0.25);
         const w = rr(22, 30), d = rr(22, 30);
-        tower(cx - w / 2, cz - d / 2, w, d, rr(48, 120), rand() < 0.5 ? ST.GLASS : ST.OFFICE);
+        tower(cx - w / 2, cz - d / 2, w, d, rr(60, 140) + 40 * f, rand() < 0.5 ? ST.GLASS : ST.OFFICE);
       }
     }
     return;
@@ -885,10 +890,10 @@ function fillLot(L) {
   if (L.kind === 'midtown') {
     for (let s = 0; s < 4; s++) {
       const cx = x0 + W * (s & 1 ? 0.75 : 0.25), cz = z0 + D * (s & 2 ? 0.75 : 0.25);
-      if (L.bi === 6 && L.bj === 4 && s === 0) { radioTower(cx - 9, cz - 9); continue; }
+      if (L.bi === MID + 3 && L.bj === MID && s === 0) { radioTower(cx - 9, cz - 9); continue; }
       if (rand() < 0.08) { for (let t = 0; t < 4; t++) addTree(cx + rr(-12, 12), cz + rr(-12, 12), 0, 0.7); continue; }
       const w = rr(22, 32), d = rr(22, 32);
-      midrise(cx - w / 2, cz - d / 2, w, d, rr(22, 62), rand() < 0.5 ? ST.APT : ST.OFFICE);
+      midrise(cx - w / 2, cz - d / 2, w, d, rr(26, 80), rand() < 0.5 ? ST.APT : ST.OFFICE);
     }
     return;
   }
@@ -927,7 +932,7 @@ function genCity() {
   planLots();
   for (const L of LOTS) fillLot(L);
   // structural weighting: very large buildings count a little less per unit volume
-  for (const b of BLD) b.wPer = Math.pow(b.vol, -0.2);
+  for (const b of BLD) { b.wPer = Math.pow(b.vol, -0.2); CITY_TOP = Math.max(CITY_TOP, b.y1); }
   for (const k of BLK_) { k.w = k.vol * BLD[k.b].wPer; STATS.wTotal += k.w; STATS.volTotal += k.vol; }
   // static instanced mesh for every block in the city
   const n = BLK_.length;
@@ -1546,8 +1551,8 @@ function stepBodies(dt) {
     let maxPen = 0, hitV = 0, touched = false;
     pn.set(0, 1, 0);
     rotOf(b.q);
-    const flat = Math.abs(b.p.x) < CITY_HALF && b.p.z > -CITY_HALF && b.p.z < 520;
-    const nearB = b.p.y - b.r * 2 < 235 && bgIdx(b.p.x, b.p.z) >= 0 && BGRID[bgIdx(b.p.x, b.p.z)].length > 0;
+    const flat = Math.abs(b.p.x) < CITY_HALF && b.p.z > -CITY_HALF && b.p.z < CITY_HALF - 8;
+    const nearB = b.p.y - b.r * 2 < CITY_TOP + 3 && bgIdx(b.p.x, b.p.z) >= 0 && BGRID[bgIdx(b.p.x, b.p.z)].length > 0;
     const hx = b.h.x, hy = b.h.y, hz = b.h.z;
     for (let c = 0; c < 8; c++) {
       const lx = c & 1 ? hx : -hx, ly = c & 2 ? hy : -hy, lz = c & 4 ? hz : -hz;
@@ -2384,7 +2389,7 @@ function updatePeople(dt) {
         p.fx = -az * rot + ax * 0.2; p.fz = ax * rot + az * 0.2;
         nx = p.x; nz = p.z;
       } else { p.fx = ax; p.fz = az; }
-      p.x = clamp(nx, -CITY_HALF + 2, CITY_HALF - 2); p.z = clamp(nz, -CITY_HALF + 2, 524);
+      p.x = clamp(nx, -CITY_HALF + 2, CITY_HALF - 2); p.z = clamp(nz, -CITY_HALF + 2, CITY_HALF - 4);
       p.yaw = Math.atan2(ax, az);
       if (dm > 420) {
         // calm down onto the nearest sidewalk
@@ -3364,7 +3369,7 @@ function spawnGround(type) {
   let best = null;
   for (let t = 0; t < 30; t++) {
     const edge = Math.random() < 0.7;
-    const i = edge ? (Math.random() < 0.5 ? 0 : 9) : ri(0, 9), j = ri(0, 9);
+    const i = edge ? (Math.random() < 0.5 ? 0 : NROAD - 1) : ri(0, NROAD - 1), j = ri(0, NROAD - 1);
     const swap = Math.random() < 0.5;
     const x = roadPos(swap ? j : i), z = roadPos(swap ? i : j);
     const d = Math.hypot(x - MON.x, z - MON.z);
@@ -3397,7 +3402,7 @@ function spawnJets() {
     const g = JET_POOL.find((h) => !h.visible);
     if (!g) return;
     const off = (k ? 1 : -1) * 22;
-    const u = { type: 'jet', alive: true, g, x: MON.x - ca * 1500 - sa * off, z: MON.z - sa * 1500 + ca * off, y: (MON.def.fly ? MON.y + 70 : 150) + k * 8, vx: ca * 170, vz: sa * 170, fired: false, life: 20 };
+    const u = { type: 'jet', alive: true, g, x: MON.x - ca * 1500 - sa * off, z: MON.z - sa * 1500 + ca * off, y: (MON.def.fly ? MON.y + 70 : CITY_TOP - 40) + k * 8, vx: ca * 170, vz: sa * 170, fired: false, life: 20 };
     g.visible = true;
     UNITS.push(u);
   }
@@ -3723,7 +3728,7 @@ function beamUnits(a, b) {
 // Calamity Bay — Umbra, the mothership: saucer rig, hover flight, shield, plasma cannons, tractor beam, fighter swarm, destroyer beam
 
 // The rig is modelled 300 m across and scaled by SHIP_S; world-space sizes below are multiplied by it too.
-const SHIP_S = 0.6, SHIP_R = 150 * SHIP_S, SHIP_ALT = 255, SHIP_START = 330;  // scale, hull radius, hover height of the hull's centre, where the intro leaves it
+const SHIP_S = 0.6, SHIP_R = 150 * SHIP_S, SHIP_ALT = 345, SHIP_START = 530;  // scale, hull radius, hover height of the hull's centre, where the intro leaves it
 const SHIP_PITCH = 0.58; // default camera pitch in flight
 const DT_FIRE = 3.2, DT_BLAST = 4.8, DT_END = 9, STORM_R = 170;  // destroyer beam timeline (s) and firestorm reach (m)
 const SHIP = {
@@ -4302,8 +4307,9 @@ function endDestroyer() {
 // ---------- arrival ----------
 function shipIntroStart() {
   MON.x = 0; MON.z = 1500; MON.y = 1400; MON.yaw = 0;
-  CAM.pos.set(50, 6, 120);
+  CAM.pos.set(...STREET_CAM);
 }
+const STREET_CAM = [50, 6, SHIP_START - 210]; // where the arrival is watched from
 // It comes down out of a burning cloud over the bay while you watch from the street.
 function shipIntro(dt, t) {
   const R = MON.rig, c = clamp(t / 8.5, 0, 1), k = 1 - Math.pow(1 - c, 3);
@@ -4327,7 +4333,7 @@ function shipIntro(dt, t) {
   // street level looking up, then climb clear of the rim and swing round behind the ship
   const dist = shipCamPose(Math.PI, SHIP_PITCH, 1, sA, sB);
   const ky = smooth(7.6, 9.4, t), kz = smooth(9, 11.4, t);
-  CAM.pos.set(lerp(50, sA.x, kz), lerp(6, sA.y, ky), lerp(120, sA.z, kz));
+  CAM.pos.set(lerp(STREET_CAM[0], sA.x, kz), lerp(STREET_CAM[1], sA.y, ky), lerp(STREET_CAM[2], sA.z, kz));
   sC.set(MON.x, MON.y - 10 * SHIP_S, MON.z).lerp(sB, kz);
   camera.position.copy(CAM.pos);
   applyShake(dt);
@@ -4370,7 +4376,7 @@ function shipCamera(dt) {
       px /= pl; pz /= pl;
       if (px * (CAM.pos.x - mx) + pz * (CAM.pos.z - mz) < 0) { px = -px; pz = -pz; }
       const gy = Math.max(terrainH(mx, mz), WATER_Y);
-      sA.lerp(sC.set(mx + px * 420 + (MON.x - D.x) * 0.3, gy + 270, mz + pz * 420 + (MON.z - D.z) * 0.3), w);
+      sA.lerp(sC.set(mx + px * 420 + (MON.x - D.x) * 0.3, gy + SHIP_ALT + 15, mz + pz * 420 + (MON.z - D.z) * 0.3), w);
       sB.lerp(sC.set(lerp(mx, D.x, 0.4), gy + 50, lerp(mz, D.z, 0.4)), w);
     }
   }
@@ -4630,11 +4636,11 @@ function startGame() {
   const d = MON.def;
   if (d.fly) shipIntroStart();
   else if (d.id === 'sea') {
-    MON.x = 0; MON.z = 860; MON.yaw = Math.PI; MON.y = terrainH(0, 860);
-    CAM.pos.set(-70, 26, 470);
+    MON.x = 0; MON.z = CITY_HALF + 330; MON.yaw = Math.PI; MON.y = terrainH(0, MON.z);
+    CAM.pos.set(-70, 26, CITY_HALF - 60);
   } else {
-    MON.x = 0; MON.z = -650; MON.yaw = 0; MON.surf = terrainH(0, -650); MON.y = MON.surf - 48;
-    CAM.pos.set(120, MON.surf + 30, -470);
+    MON.x = 0; MON.z = -CITY_HALF - 120; MON.yaw = 0; MON.surf = terrainH(0, MON.z); MON.y = MON.surf - 48;
+    CAM.pos.set(120, MON.surf + 30, -CITY_HALF + 60);
     MON.rig.root.visible = false;
   }
   placeRig();
@@ -4649,14 +4655,14 @@ function updateIntro(dt) {
   if (d.fly) { shipIntro(dt, t); return; }
   if (d.id === 'sea') {
     // wade in from the deep, head breaking the surface, then come ashore
-    const done = MON.z <= 560;
+    const done = MON.z <= CITY_HALF + 30;
     updateMonster(dt, done ? null : { f: 0, s: 0, auto: { x: 0, z: -1 }, autoSpeed: 24 });
     if (t > 0.5 && t < 6 && Math.random() < dt * 8) splashAt(MON.x + frand(-14, 14), MON.z + frand(-14, 14), 3);
     if (t > 0.3 && t < 1.4 && Math.random() < dt * 20) emit(smokePS, MON.x + frand(-20, 20), WATER_Y + 0.5, MON.z + frand(-20, 20), 0, 2, 0, 6, 4, 2, 0.9, 0.95, 1, 0.6, 0.5, 0);
     if (!MON.roared && MON.y + d.H > WATER_Y + 18) { MON.roared = true; startAct('roar'); }
     _v1.set(MON.x, MON.y + d.H * 0.7, MON.z);
     const k = smooth(5, 11, t);
-    const cx = lerp(-70, MON.x + 60, k), cy = lerp(26, MON.y + d.H * 1.1, k), cz = lerp(470, MON.z - 120, k);
+    const cx = lerp(-70, MON.x + 60, k), cy = lerp(26, MON.y + d.H * 1.1, k), cz = lerp(CITY_HALF - 60, MON.z - 120, k);
     CAM.pos.lerp(_v2.set(cx, cy, cz), 1 - Math.exp(-dt * 3));
     camera.position.copy(CAM.pos);
     camera.lookAt(_v1);
@@ -4704,7 +4710,7 @@ function updateIntro(dt) {
     _v1.set(MON.x, MON.surf + 20, MON.z);
     const k = smooth(6.5, 10.5, t);
     if (MON.burst) _v1.y = MON.y + d.H * 0.75;
-    const cx = lerp(120, MON.x - 40, k), cy = lerp(MON.surf + 30, MON.y + d.H * 1.15, k), cz = lerp(-470, MON.z - 110, k);
+    const cx = lerp(120, MON.x - 40, k), cy = lerp(MON.surf + 30, MON.y + d.H * 1.15, k), cz = lerp(-CITY_HALF + 60, MON.z - 110, k);
     CAM.pos.lerp(_v2.set(cx, cy, cz), 1 - Math.exp(-dt * 3));
     camera.position.copy(CAM.pos);
     applyShake(dt);
@@ -4718,10 +4724,10 @@ function skipIntro() {
   const d = MON.def;
   MON.act = null;
   if (d.fly) { skipShipIntro(); endIntro(); return; }
-  if (d.id === 'sea') { MON.z = 560; }
+  if (d.id === 'sea') { MON.z = CITY_HALF + 30; }
   else {
     if (!MON.burst) { introT = 2.6; return; }
-    MON.z = Math.max(MON.z, -600);
+    MON.z = Math.max(MON.z, -CITY_HALF - 70);
   }
   MON.rig.root.visible = true;
   MON.y = terrainH(MON.x, MON.z);
@@ -4789,8 +4795,8 @@ function updateCamera(dt) {
 }
 function titleCamera(dt) {
   const a = clock * 0.03 + 2.2;
-  camera.position.set(Math.sin(a) * 560, 170 + Math.sin(clock * 0.07) * 30, Math.cos(a) * 560);
-  camera.lookAt(0, 40, 0);
+  camera.position.set(Math.sin(a) * 820, 260 + Math.sin(clock * 0.07) * 40, Math.cos(a) * 820);
+  camera.lookAt(0, 90, 0);
   placeSun(0, 0);
 }
 

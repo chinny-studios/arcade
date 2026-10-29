@@ -37,11 +37,11 @@ function startGame() {
   const d = MON.def;
   if (d.fly) shipIntroStart();
   else if (d.id === 'sea') {
-    MON.x = 0; MON.z = 860; MON.yaw = Math.PI; MON.y = terrainH(0, 860);
-    CAM.pos.set(-70, 26, 470);
+    MON.x = 0; MON.z = CITY_HALF + 330; MON.yaw = Math.PI; MON.y = terrainH(0, MON.z);
+    CAM.pos.set(-70, 26, CITY_HALF - 60);
   } else {
-    MON.x = 0; MON.z = -650; MON.yaw = 0; MON.surf = terrainH(0, -650); MON.y = MON.surf - 48;
-    CAM.pos.set(120, MON.surf + 30, -470);
+    MON.x = 0; MON.z = -CITY_HALF - 120; MON.yaw = 0; MON.surf = terrainH(0, MON.z); MON.y = MON.surf - 48;
+    CAM.pos.set(120, MON.surf + 30, -CITY_HALF + 60);
     MON.rig.root.visible = false;
   }
   placeRig();
@@ -56,14 +56,14 @@ function updateIntro(dt) {
   if (d.fly) { shipIntro(dt, t); return; }
   if (d.id === 'sea') {
     // wade in from the deep, head breaking the surface, then come ashore
-    const done = MON.z <= 560;
+    const done = MON.z <= CITY_HALF + 30;
     updateMonster(dt, done ? null : { f: 0, s: 0, auto: { x: 0, z: -1 }, autoSpeed: 24 });
     if (t > 0.5 && t < 6 && Math.random() < dt * 8) splashAt(MON.x + frand(-14, 14), MON.z + frand(-14, 14), 3);
     if (t > 0.3 && t < 1.4 && Math.random() < dt * 20) emit(smokePS, MON.x + frand(-20, 20), WATER_Y + 0.5, MON.z + frand(-20, 20), 0, 2, 0, 6, 4, 2, 0.9, 0.95, 1, 0.6, 0.5, 0);
     if (!MON.roared && MON.y + d.H > WATER_Y + 18) { MON.roared = true; startAct('roar'); }
     _v1.set(MON.x, MON.y + d.H * 0.7, MON.z);
     const k = smooth(5, 11, t);
-    const cx = lerp(-70, MON.x + 60, k), cy = lerp(26, MON.y + d.H * 1.1, k), cz = lerp(470, MON.z - 120, k);
+    const cx = lerp(-70, MON.x + 60, k), cy = lerp(26, MON.y + d.H * 1.1, k), cz = lerp(CITY_HALF - 60, MON.z - 120, k);
     CAM.pos.lerp(_v2.set(cx, cy, cz), 1 - Math.exp(-dt * 3));
     camera.position.copy(CAM.pos);
     camera.lookAt(_v1);
@@ -111,7 +111,7 @@ function updateIntro(dt) {
     _v1.set(MON.x, MON.surf + 20, MON.z);
     const k = smooth(6.5, 10.5, t);
     if (MON.burst) _v1.y = MON.y + d.H * 0.75;
-    const cx = lerp(120, MON.x - 40, k), cy = lerp(MON.surf + 30, MON.y + d.H * 1.15, k), cz = lerp(-470, MON.z - 110, k);
+    const cx = lerp(120, MON.x - 40, k), cy = lerp(MON.surf + 30, MON.y + d.H * 1.15, k), cz = lerp(-CITY_HALF + 60, MON.z - 110, k);
     CAM.pos.lerp(_v2.set(cx, cy, cz), 1 - Math.exp(-dt * 3));
     camera.position.copy(CAM.pos);
     applyShake(dt);
@@ -125,10 +125,10 @@ function skipIntro() {
   const d = MON.def;
   MON.act = null;
   if (d.fly) { skipShipIntro(); endIntro(); return; }
-  if (d.id === 'sea') { MON.z = 560; }
+  if (d.id === 'sea') { MON.z = CITY_HALF + 30; }
   else {
     if (!MON.burst) { introT = 2.6; return; }
-    MON.z = Math.max(MON.z, -600);
+    MON.z = Math.max(MON.z, -CITY_HALF - 70);
   }
   MON.rig.root.visible = true;
   MON.y = terrainH(MON.x, MON.z);
@@ -196,8 +196,8 @@ function updateCamera(dt) {
 }
 function titleCamera(dt) {
   const a = clock * 0.03 + 2.2;
-  camera.position.set(Math.sin(a) * 560, 170 + Math.sin(clock * 0.07) * 30, Math.cos(a) * 560);
-  camera.lookAt(0, 40, 0);
+  camera.position.set(Math.sin(a) * 820, 260 + Math.sin(clock * 0.07) * 40, Math.cos(a) * 820);
+  camera.lookAt(0, 90, 0);
   placeSun(0, 0);
 }
 

@@ -55,12 +55,13 @@ const BLD = [];
 const BLK_ = [];       // every block: {x,y,z,hx,hy,hz,hp,max,b,ci,j,alive,vol,w,info:[4],col:[3]}
 const STATS = { volTotal: 0, wTotal: 0, wGone: 0, money: 0, blocks: 0, down: 0, cars: 0, units: 0, people: 0 };
 let staticMesh = null, staticInfo = null, staticDirtyM = false, staticDirtyI = false;
+let CITY_TOP = 0; // height of the tallest building
 let roofMesh = null;
 const ROOFS = [];
 const dirtyB = [];
 
 // ---------- spatial grid of buildings ----------
-const BG_CELL = 32, BG_N = 44, BG_OFF = 22;
+const BG_CELL = 32, BG_OFF = Math.ceil((CITY_HALF + 40) / BG_CELL), BG_N = BG_OFF * 2;
 const BGRID = Array.from({ length: BG_N * BG_N }, () => []);
 const bgIdx = (x, z) => {
   const gx = Math.floor(x / BG_CELL) + BG_OFF, gz = Math.floor(z / BG_CELL) + BG_OFF;
@@ -116,7 +117,8 @@ const jit = (c, a = 0.06) => c.map((v) => clamp(v * (1 - a + rand() * a * 2), 0,
 
 function tower(x0, z0, w, d, h, style, opts = {}) {
   const nx = clamp(Math.round(w / 8), 2, 6), nz = clamp(Math.round(d / 8), 2, 6);
-  const ch = opts.ch || 8, ny = Math.max(3, Math.round(h / ch));
+  // taller blocks on taller towers keep the block count down (the windows are drawn by the shader, not per block)
+  const ch = opts.ch || (h > 200 ? 12 : h > 110 ? 10 : 8), ny = Math.max(3, Math.round(h / ch));
   const s1 = rand() < 0.6 ? Math.floor(ny * rr(0.55, 0.75)) : 999;
   const s2 = s1 < 999 && rand() < 0.5 ? Math.floor(lerp(s1, ny, rr(0.4, 0.7))) : 999;
   const base = jit(pick(style === ST.GLASS ? PAL.glass : PAL.office));
@@ -133,7 +135,7 @@ function tower(x0, z0, w, d, h, style, opts = {}) {
 }
 function midrise(x0, z0, w, d, h, style) {
   const nx = clamp(Math.round(w / 7.5), 2, 5), nz = clamp(Math.round(d / 7.5), 2, 5);
-  const ch = 7, ny = Math.max(2, Math.round(h / ch));
+  const ch = h > 45 ? 9 : 7, ny = Math.max(2, Math.round(h / ch));
   const base = jit(pick(style === ST.APT ? PAL.apt : PAL.office));
   const lShape = rand() < 0.3 && nx >= 3 && nz >= 3, cut = ri(0, 3), cutH = ri(1, ny - 1);
   return makeBuilding({
@@ -187,13 +189,13 @@ function radioTower(x0, z0) {
 function landmark(x0, z0) {
   const cream = [0.86, 0.8, 0.66], gold = [0.85, 0.68, 0.32];
   return makeBuilding({
-    x0, z0, nx: 4, nz: 4, ny: 29, cw: 8.5, cd: 8.5, ch: 8, style: ST.OFFICE, kind: 'tower', name: 'Meridian Tower', hp: 170,
+    x0, z0, nx: 4, nz: 4, ny: 40, cw: 8.5, cd: 8.5, ch: 10, style: ST.OFFICE, kind: 'tower', name: 'Meridian Tower', hp: 170,
     occ: (i, j, k) => {
-      if (j < 16) return true;
-      if (j < 25) return i >= 1 && i <= 2 && k >= 1 && k <= 2;
+      if (j < 22) return true;
+      if (j < 34) return i >= 1 && i <= 2 && k >= 1 && k <= 2;
       return i === 1 && k === 1;
     },
-    color: (i, j) => (j === 15 || j === 24 ? gold : j >= 25 ? gold : cream),
+    color: (i, j) => (j === 21 || j === 33 ? gold : j >= 34 ? gold : cream),
   });
 }
 
@@ -205,14 +207,15 @@ function fillLot(L) {
   }
   if (L.kind === 'park') return;
   if (L.kind === 'downtown') {
-    const r = rand();
+    // the skyline peaks toward the middle: f is 1 next to the plaza and 0 at the edge of downtown
+    const r = rand(), f = clamp(1 - (Math.hypot(L.cx, L.cz) - 100) / 190, 0, 1);
     if (r < 0.3) {
       const w = rr(40, 56), d = rr(40, 56);
-      tower(L.cx - w / 2, L.cz - d / 2, w, d, rr(120, 185), rand() < 0.6 ? ST.GLASS : ST.OFFICE);
+      tower(L.cx - w / 2, L.cz - d / 2, w, d, Math.min(320, lerp(180, 300, f) * rr(0.92, 1.08)), rand() < 0.6 ? ST.GLASS : ST.OFFICE);
     } else if (r < 0.65) {
       const alongX = rand() < 0.5;
       for (let s = 0; s < 2; s++) {
-        const w = rr(26, 32), d = rr(28, 36), h = rr(75, 165);
+        const w = rr(26, 32), d = rr(28, 36), h = rr(100, 190) + 70 * f;
         const cx = alongX ? x0 + W * (s ? 0.75 : 0.25) : L.cx, cz = alongX ? L.cz : z0 + D * (s ? 0.75 : 0.25);
         tower(cx - (alongX ? w : d) / 2, cz - (alongX ? d : w) / 2, alongX ? w : d, alongX ? d : w, h, rand() < 0.55 ? ST.GLASS : ST.OFFICE);
       }
@@ -220,7 +223,7 @@ function fillLot(L) {
       for (let s = 0; s < 4; s++) {
         const cx = x0 + W * (s & 1 ? 0.75 : 0.25), cz = z0 + D * (s & 2 ? 0.75 : 0.25);
         const w = rr(22, 30), d = rr(22, 30);
-        tower(cx - w / 2, cz - d / 2, w, d, rr(48, 120), rand() < 0.5 ? ST.GLASS : ST.OFFICE);
+        tower(cx - w / 2, cz - d / 2, w, d, rr(60, 140) + 40 * f, rand() < 0.5 ? ST.GLASS : ST.OFFICE);
       }
     }
     return;
@@ -228,10 +231,10 @@ function fillLot(L) {
   if (L.kind === 'midtown') {
     for (let s = 0; s < 4; s++) {
       const cx = x0 + W * (s & 1 ? 0.75 : 0.25), cz = z0 + D * (s & 2 ? 0.75 : 0.25);
-      if (L.bi === 6 && L.bj === 4 && s === 0) { radioTower(cx - 9, cz - 9); continue; }
+      if (L.bi === MID + 3 && L.bj === MID && s === 0) { radioTower(cx - 9, cz - 9); continue; }
       if (rand() < 0.08) { for (let t = 0; t < 4; t++) addTree(cx + rr(-12, 12), cz + rr(-12, 12), 0, 0.7); continue; }
       const w = rr(22, 32), d = rr(22, 32);
-      midrise(cx - w / 2, cz - d / 2, w, d, rr(22, 62), rand() < 0.5 ? ST.APT : ST.OFFICE);
+      midrise(cx - w / 2, cz - d / 2, w, d, rr(26, 80), rand() < 0.5 ? ST.APT : ST.OFFICE);
     }
     return;
   }
@@ -270,7 +273,7 @@ function genCity() {
   planLots();
   for (const L of LOTS) fillLot(L);
   // structural weighting: very large buildings count a little less per unit volume
-  for (const b of BLD) b.wPer = Math.pow(b.vol, -0.2);
+  for (const b of BLD) { b.wPer = Math.pow(b.vol, -0.2); CITY_TOP = Math.max(CITY_TOP, b.y1); }
   for (const k of BLK_) { k.w = k.vol * BLD[k.b].wPer; STATS.wTotal += k.w; STATS.volTotal += k.vol; }
   // static instanced mesh for every block in the city
   const n = BLK_.length;

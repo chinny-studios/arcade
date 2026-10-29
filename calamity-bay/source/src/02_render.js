@@ -11,7 +11,7 @@ const camera = new THREE.PerspectiveCamera(58, 16 / 9, 1, 6000);
 const SUN_DIR = new V3(-0.72, 0.42, 0.3).normalize();
 const HORIZON = new THREE.Color(0xf0c49a);
 const ZENITH = new THREE.Color(0x4f79b8);
-scene.fog = new THREE.Fog(0xe4bf9c, 420, 2900);
+scene.fog = new THREE.Fog(0xe4bf9c, 480, 3400);
 renderer.setClearColor(scene.fog.color);
 
 const hemi = new THREE.HemisphereLight(0xb9d0ef, 0x6e5b48, 0.72);
