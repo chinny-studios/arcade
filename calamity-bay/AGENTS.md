@@ -7,7 +7,7 @@ Kaiju rampage: play Tidemaw (sea), Orogen (mountain) or Umbra (an alien mothersh
 - **Build:** `cd source && python3 build.py`, which writes `../index.html`.
 - **Debug hook:** `#debug` → `window.CB`. `CB.sim(seconds)` fast-forwards. Also `startGame()`, `skipIntro()`,
   `selectMonster(id)`, attacks (`primary`, `heavy`, `grabThrow`, `special`, `roarAct`), spawners (`spawnHeli`, `spawnJets`,
-  `spawnGround`), `MON`, `STATS`, `BLD`, `keys`, `audioOff()` and `state`. For Umbra: `SHIP` (flight, shield, destroyer
+  `spawnGround`), `MON`, `STATS`, `BLD`, `keys`, `audioOff()`, `state` and `shake` (read-only). For Umbra: `SHIP` (flight, shield, destroyer
   state), `WING` (fighters), `BOLTS`, `shipFire()`, `launchFighters()`, `tractorGrab()`, `toggleShipCam()` (V: chase or belly camera) and `hurtMonster(dmg, pos)`.
 - **Gotchas:** `skipIntro()` does nothing until the intro has run 0.8 s, so `sim(1)` first. Umbra's camera aims past the
   hull, so `AIM.p` depends on `CAM.pitch`; set it before firing in tests. Its destroyer beam takes over the camera for a

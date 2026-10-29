@@ -71,7 +71,7 @@ function updateIntro(dt) {
   } else {
     const R = MON.rig;
     if (t < 2.6) {
-      addShake(dt * 0.9);
+      addShake(dt * 0.9, null, true);
       if (Math.random() < dt * 9) {
         const a = Math.random() * TAU, r = rr(10, 45);
         const x = MON.x + Math.cos(a) * r, z = MON.z + Math.sin(a) * r;
@@ -153,11 +153,14 @@ function finish(win) {
 }
 
 // ---------- camera ----------
+// A smooth rumble rather than a new random offset every frame.
 function applyShake(dt) {
   if (shake > 0.001) {
-    const s = shake * shake * 2.2;
-    camera.position.x += frand(-s, s); camera.position.y += frand(-s, s); camera.position.z += frand(-s, s);
-    shake = Math.max(0, shake - dt * 2.2);
+    const s = shake * shake * 1.4, t = clock;
+    camera.position.x += s * (Math.sin(t * 23.1) + Math.sin(t * 37.3 + 1.7)) * 0.5;
+    camera.position.y += s * (Math.sin(t * 19.7 + 0.6) + Math.sin(t * 31.1 + 2.9)) * 0.5;
+    camera.position.z += s * (Math.sin(t * 27.9 + 2.2) + Math.sin(t * 41.3 + 0.4)) * 0.5;
+    shake = Math.max(0, shake - dt * 2.6);
   }
 }
 function updateCamera(dt) {
@@ -395,6 +398,6 @@ if (DEBUG) window.CB = {
   MON, STATS, BLD, BLK_, bodies, UNITS, CARS, PPL, MIL, AIM, CAM, camera, scene, renderer, startGame, skipIntro, hitSphere, shockwave,
   selectMonster, primary, heavy, grabThrow, special, roarAct, keys, mouse, startAct, damageBlock, staticAt, terrainH, spawnJets, spawnHeli, spawnGround,
   SHIP, WING, BOLTS, launchFighters, tractorGrab, shipFire, hurtMonster, toggleShipCam,
-  audioOff() { AC = null; }, PT, get awake() { return physAwake; }, tryGrab, AG, agentsNear, blocksInSphere, handPos, LOTS, THROWN, PROJ,
+  audioOff() { AC = null; }, PT, get awake() { return physAwake; }, get shake() { return shake; }, tryGrab, AG, agentsNear, blocksInSphere, handPos, LOTS, THROWN, PROJ,
   sim(sec, dt = 1 / 30) { const t0 = performance.now(); for (let t = 0; t < sec; t += dt) tick(dt); return performance.now() - t0; }, get state() { return state; }, set state(s) { setState(s); }, get pct() { return STATS.wGone / STATS.wTotal; },
 };
