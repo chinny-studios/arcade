@@ -65,7 +65,7 @@ function makeStars() {
   const m = new THREE.ShaderMaterial({
     uniforms: { px: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: 'attribute float size; attribute vec3 color; varying vec3 vc; uniform float px; void main(){ vc = color; gl_PointSize = size * px; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-    fragmentShader: 'varying vec3 vc; void main(){ vec2 d = gl_PointCoord - .5; float a = smoothstep(.5, 0., length(d)); gl_FragColor = vec4(vc*a, 1.); }',
+    fragmentShader: 'varying vec3 vc; void main(){ vec2 d = gl_PointCoord - .5; float a = 1. - smoothstep(0., .5, length(d)); gl_FragColor = vec4(vc*a, 1.); }',
   });
   m.uniforms.px.value = Math.max(1, R.pixel);
   R.stars = new THREE.Points(g, m); R.stars.frustumCulled = false; R.bg.add(R.stars);

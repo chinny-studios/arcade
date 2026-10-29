@@ -1,7 +1,7 @@
-// ---- 16_main: boot, frame loop, #debug hook (window.HG) ----
+// ---- 17_main: boot, frame loop, #debug hook (window.HG) ----
 function boot() {
   try { R.init(); } catch (e) { $('nogl').hidden = false; console.error(e); return; }
-  Models.init(); Fx.init(); Craft.init();
+  Models.init(); Fx.init(); Damage.init(); Craft.init();
   Hud.init(); Ui.init();
   $('c').addEventListener('mousedown', () => { Sfx.init(); if (G.state === 'play' && !G.paused && !Input.locked && !DEBUG) Input.lock(); });
   addEventListener('keydown', () => Sfx.init(), { once: true });
@@ -20,7 +20,7 @@ function step(dt) {
   if (playing) { PC.update(dt); Mission.update(dt); }
   else if (G.state === 'title' || G.state === 'menu') Ui.backdrop(dt);
   else if (G.state === 'over') Mission.update(dt);
-  if (!G.paused) { Fx.update(dt); R.update(dt); }
+  if (!G.paused) { Fx.update(dt); R.update(dt); Damage.update(dt); }
   draw(G.paused ? 0 : dt);
   Ui.update(dt);
   const p = G.player;
@@ -57,7 +57,7 @@ function debugHook() {
       return H.state();
     },
     // Advance with effects (unlike sim), for screenshots.
-    run(sec, dt) { dt = dt || 1 / 30; for (let t = 0; t < sec; t += dt) { Mission.update(dt); Fx.update(dt); R.update(dt); draw(dt); } return H.state(); },
+    run(sec, dt) { dt = dt || 1 / 30; for (let t = 0; t < sec; t += dt) { Mission.update(dt); Fx.update(dt); R.update(dt); Damage.update(dt); draw(dt); } return H.state(); },
     render() { draw(0.016); R.render(); return true; },
     manual(on) { G.manual = on !== false; },
     state: () => ({ mission: Mission.def && Mission.def.id, phase: Mission.phase, result: Mission.result, reason: Mission.reason, time: +Mission.time.toFixed(1), grade: Mission.grade,
@@ -96,7 +96,7 @@ function debugHook() {
     god(on) { G.god = on !== false; },
     killAll(team) { for (const s of G.ships) if (s.alive && s.team === team && s.arrived) { s.hull = 0; s.die(null); } },
     peace() { for (const s of G.ships) if (s.ai) { s.ai.update = () => {}; s.thr = 0; s.yawCmd = 0; s.pitchCmd = 0; } },
-    input: Input, hud: Hud, mission: Mission, combat: Combat, pc: PC, ui: Ui, G, R, Fx, Craft, CLASSES, MISSIONS, progress,
+    input: Input, hud: Hud, mission: Mission, combat: Combat, pc: PC, ui: Ui, G, R, Fx, Craft, Damage, CLASSES, MISSIONS, progress,
   };
   return H;
 }
