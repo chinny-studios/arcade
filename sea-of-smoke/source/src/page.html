@@ -1,0 +1,274 @@
+<title>Sea of Smoke</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Spectral:wght@400;600&family=Spectral+SC:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root { --brass: #d9b45a; --brass2: #8a6a2a; --ink: #efe6d2; --dim: #a99f8a; --panel: rgba(12,18,24,.78); --line: rgba(217,180,90,.35);
+    --ally: #6fe09a; --enemy: #ff5d4d; --serif: 'Spectral', Georgia, 'Times New Roman', serif; --sc: 'Spectral SC', Georgia, serif; --fell: 'IM Fell English SC', Georgia, serif; }
+  html, body { margin: 0; height: 100%; background: #0b1218; overflow: hidden; color: var(--ink); font-family: var(--serif);
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c, #ov { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #ov { pointer-events: none; }
+  kbd { font-family: var(--sc); font-size: .85em; color: #1a1408; background: var(--brass); border-radius: 3px; padding: 0 5px; box-shadow: 0 1px 0 var(--brass2); }
+
+  /* ---- HUD ---- */
+  #hud { position: absolute; inset: 0; pointer-events: none; display: none; text-shadow: 0 1px 2px #000; }
+  body[data-state="play"] #hud, body[data-state="pause"] #hud { display: block; }
+  #top { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #score { display: flex; align-items: center; gap: 10px; }
+  .fleet { display: flex; gap: 3px; min-width: 120px; }
+  #fleet0 { justify-content: flex-end; }
+  .fi { font-size: 15px; line-height: 1; width: 16px; text-align: center; }
+  .fi.a { color: var(--ally); } .fi.e { color: var(--enemy); } .fi.dead { color: #555 !important; opacity: .6; }
+  .pts { display: flex; align-items: center; gap: 6px; }
+  .pts b { font-family: var(--sc); font-size: 20px; min-width: 40px; text-align: center; }
+  .track { width: clamp(80px, 14vw, 200px); height: 8px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.15); position: relative; }
+  .track i { position: absolute; top: 0; bottom: 0; }
+  #barL { right: 0; background: var(--ally); } #barR { left: 0; background: var(--enemy); }
+  #ptsL { color: var(--ally); } #ptsR { color: var(--enemy); }
+  #clock { font-family: var(--sc); font-size: 18px; min-width: 96px; text-align: center; color: var(--brass); background: var(--panel); border: 1px solid var(--line); padding: 1px 8px; }
+  #caps { display: flex; gap: 8px; }
+  .cap { width: 34px; height: 30px; background: var(--panel); border: 2px solid #d8d2c4; position: relative; display: flex; align-items: center; justify-content: center; }
+  .cap b { font-family: var(--sc); font-size: 16px; } .cap i { position: absolute; left: 0; bottom: 0; height: 4px; width: 0; }
+  .cap.a { border-color: var(--ally); color: var(--ally); } .cap.e { border-color: var(--enemy); color: var(--enemy); }
+  .cap.capa i { background: var(--ally); } .cap.cape i { background: var(--enemy); }
+  .cap.cont { animation: blink .5s infinite alternate; }
+  @keyframes blink { to { border-color: #fff; } }
+  #feed { position: absolute; top: 10px; right: 12px; width: min(340px, 40vw); font-size: 13px; text-align: right; line-height: 1.5; }
+  #feed div { transition: opacity 1s; } #feed .a { color: #bdf3cf; } #feed .e { color: #ffc2b8; } #feed .old { opacity: .45; }
+  #banner { position: absolute; top: 19%; left: 0; right: 0; text-align: center; opacity: 0; transition: opacity .6s; }
+  #banner.on { opacity: 1; }
+  #banner h2 { font-family: var(--fell); font-weight: 400; font-size: clamp(28px, 5vw, 52px); margin: 0; color: var(--brass); letter-spacing: .04em; }
+  #banner p { margin: 4px 0 0; font-size: 16px; color: var(--ink); }
+  #ribbons { position: absolute; left: 50%; bottom: 190px; transform: translateX(-50%); display: flex; flex-direction: column-reverse; align-items: center; gap: 4px; }
+  .rib { font-family: var(--sc); font-size: 15px; padding: 3px 14px; background: var(--panel); border-left: 3px solid var(--brass); transition: opacity .6s, transform .6s; }
+  .rib.good { border-color: var(--ally); } .rib.bad { border-color: var(--enemy); color: #ffd2c8; } .rib.kill { border-color: #ffd34a; color: #ffe9a0; font-size: 18px; } .rib.info { border-color: #8ac4ff; }
+  .rib.out { opacity: 0; transform: translateY(-8px); }
+  #deny { position: absolute; left: 0; right: 0; top: 62%; text-align: center; font-size: 15px; color: #ffcf9a; opacity: 0; transition: opacity .3s; }
+  #deny.on { opacity: 1; }
+  #boardhint { position: absolute; left: 0; right: 0; top: 66%; text-align: center; font-size: 16px; }
+  #boardbar { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); width: 260px; text-align: center; font-family: var(--sc); }
+  #boardbar div { height: 10px; background: var(--enemy); border: 1px solid #000; margin-top: 4px; } #boardbar i { display: block; height: 100%; background: var(--ally); }
+
+  .pod { position: absolute; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+  #shippanel { left: 12px; bottom: 12px; width: 270px; padding: 9px 12px; }
+  #shippanel h4 { margin: 0; font-family: var(--sc); font-size: 17px; color: var(--brass); display: flex; justify-content: space-between; }
+  #shippanel h4 small { font-family: var(--serif); font-size: 12px; color: var(--dim); font-weight: 400; }
+  .meter { display: grid; grid-template-columns: 42px 1fr 86px; align-items: center; gap: 6px; font-size: 12px; margin-top: 4px; color: var(--dim); }
+  .meter div { height: 7px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.12); } .meter i { display: block; height: 100%; }
+  .meter em { font-style: normal; color: var(--ink); text-align: right; }
+  #hpbar { background: #7ed67a; } #sailbar { background: #e8dfc8; } #crewbar { background: #8ac4ff; }
+  #helm { display: flex; justify-content: space-between; align-items: end; margin-top: 7px; }
+  #speed { font-family: var(--sc); font-size: 19px; } #tele { font-size: 12px; color: var(--dim); }
+  #telebar { display: flex; gap: 2px; margin-top: 3px; } #telebar i { width: 16px; height: 6px; background: rgba(255,255,255,.12); }
+  #telebar i.past { background: rgba(217,180,90,.45); } #telebar i.on { background: var(--brass); }
+  #telebar i:first-child.on { background: #ff9a6a; }
+  #rudder { width: 90px; height: 6px; background: rgba(255,255,255,.12); position: relative; margin-top: 4px; }
+  #rudder::after { content: ''; position: absolute; left: 50%; top: -2px; width: 1px; height: 10px; background: rgba(255,255,255,.4); }
+  #rudderdot { position: absolute; top: -2px; width: 6px; height: 10px; margin-left: -3px; background: var(--brass); left: 50%; }
+  #status { display: flex; gap: 5px; margin-top: 7px; }
+  .ic { width: 22px; height: 18px; border: 1px solid rgba(255,255,255,.12); font-size: 12px; display: flex; align-items: center; justify-content: center; opacity: .3; }
+  .ic.fire::before { content: '🔥'; } .ic.leak::before { content: '💧'; } .ic.board::before { content: '⚔'; }
+  .ic.on { opacity: 1; border-color: #ff9a3a; background: rgba(255,120,40,.25); }
+  .ic.leak.on { border-color: #6ab0ff; background: rgba(60,130,255,.25); }
+  #bottom { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #weap, #cons { display: flex; gap: 5px; }
+  .slot { background: var(--panel); border: 1px solid var(--line); padding: 4px 10px 3px; min-width: 86px; text-align: center; opacity: .7; }
+  .slot kbd { font-size: 11px; } .slot span { display: block; font-family: var(--sc); font-size: 13px; margin-top: 2px; } .slot small { color: var(--dim); font-size: 11px; }
+  .slot.sel { opacity: 1; border-color: var(--brass); box-shadow: inset 0 -3px 0 var(--brass); }
+  .slot.raft span { color: #ffb070; }
+  .con { background: var(--panel); border: 1px solid var(--line); padding: 3px 9px; font-size: 12px; display: flex; gap: 6px; align-items: center; opacity: .55; }
+  .con em { font-style: normal; font-family: var(--sc); color: var(--dim); min-width: 22px; }
+  .con.rdy { opacity: 1; } .con.rdy em { color: var(--ally); } .con.act { opacity: 1; border-color: #8ac4ff; } .con.act em { color: #8ac4ff; }
+  body.chart #bottom, body.chart #shippanel, body.chart #ribbons { display: none; }
+  #mini { position: absolute; right: 12px; bottom: 12px; border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,.5); background: #183a50; }
+  #dead { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); text-align: center; pointer-events: auto; padding: 16px 28px; }
+  #dead h2 { font-family: var(--fell); font-weight: 400; font-size: clamp(26px, 4vw, 40px); margin: 0; color: var(--enemy); }
+  #dead p { margin: 6px 0 12px; }
+
+  /* ---- Screens ---- */
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; overflow-y: auto; z-index: 5; }
+  .screen.shade { justify-content: flex-start; background: radial-gradient(ellipse at 50% 45%, rgba(8,14,20,.45), rgba(4,8,12,.88)); }
+  h1, h2, h3 { margin: 0; font-weight: 400; }
+  #title { justify-content: flex-end; padding-bottom: 9vh; background: linear-gradient(to bottom, rgba(5,10,15,.0) 40%, rgba(5,10,15,.75)); }
+  #title h1 { font-family: var(--fell); font-size: clamp(48px, 10vw, 120px); color: var(--brass); line-height: .95; letter-spacing: .03em; text-shadow: 0 3px 18px rgba(0,0,0,.6), 0 2px 0 #3b2a0c; text-align: center; }
+  #title .sub { font-size: clamp(14px, 2vw, 19px); color: var(--ink); margin: 10px 0 26px; letter-spacing: .12em; text-align: center; text-shadow: 0 1px 4px #000; }
+  .menu { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  button.b { font-family: var(--sc); font-size: clamp(17px, 2.2vw, 21px); letter-spacing: .08em; color: var(--ink); background: rgba(10,16,22,.6); border: 1px solid var(--line);
+    cursor: pointer; padding: 8px 26px; min-width: 240px; transition: background .15s, color .15s; }
+  button.b:hover, button.b:focus-visible { background: var(--brass); color: #1a1408; outline: none; }
+  button.b.main { background: var(--brass); color: #1a1408; font-size: clamp(19px, 2.6vw, 24px); }
+  button.b.main:hover { background: #f0cf7a; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .screen > .card { margin: auto 0; flex-shrink: 0; }
+  .card { background: rgba(10,15,21,.88); border: 1px solid var(--line); padding: 20px 24px; max-width: 980px; width: 100%; box-sizing: border-box; box-shadow: 0 8px 40px rgba(0,0,0,.5); }
+  .card h2 { font-family: var(--fell); font-size: clamp(26px, 4vw, 38px); color: var(--brass); }
+  #port { align-items: flex-start; justify-content: space-between; flex-direction: row; gap: 14px; background: linear-gradient(to right, rgba(5,10,15,.8), rgba(5,10,15,.15) 40%, rgba(5,10,15,.15) 65%, rgba(5,10,15,.8)); }
+  #portL { width: min(400px, 100%); display: flex; flex-direction: column; gap: 10px; }
+  #portR { width: min(430px, 100%); }
+  #portL > h2 { font-family: var(--fell); font-size: 34px; color: var(--brass); }
+  #ships { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .shipbtn, .mapbtn { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); cursor: pointer; text-align: left; padding: 6px 9px; display: flex; gap: 9px; align-items: center; }
+  .shipbtn b { font-size: 20px; color: var(--brass); width: 20px; text-align: center; } .shipbtn span { font-family: var(--sc); font-size: 15px; }
+  .shipbtn small, .mapbtn small { display: block; font-family: var(--serif); font-size: 11.5px; color: var(--dim); }
+  .shipbtn.sel, .mapbtn.sel { border-color: var(--brass); background: rgba(217,180,90,.18); }
+  .shipbtn:hover, .mapbtn:hover { border-color: var(--brass); }
+  #shipinfo { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; }
+  #shipinfo h3 { font-family: var(--sc); font-size: 13px; color: var(--dim); letter-spacing: .1em; } #shipinfo h2 { font-family: var(--fell); font-size: 30px; color: var(--brass); }
+  #shipinfo p { margin: 4px 0 10px; font-size: 14.5px; line-height: 1.45; }
+  .stat { display: grid; grid-template-columns: 84px 1fr 136px; gap: 8px; align-items: center; font-size: 13px; margin: 3px 0; }
+  .stat span { color: var(--dim); } .stat i { height: 6px; background: rgba(255,255,255,.1); } .stat i b { display: block; height: 100%; background: var(--brass); }
+  .stat em { font-style: normal; font-size: 12.5px; }
+  .kit { list-style: none; padding: 0; margin: 10px 0 0; font-size: 13px; line-height: 1.6; color: var(--ink); }
+  #portL > h2 + #maps, #portL h2 { margin-top: 4px; }
+  #maps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; } .mapbtn { flex-direction: column; align-items: flex-start; gap: 0; } .mapbtn b { font-family: var(--sc); font-weight: 600; font-size: 14px; }
+  #mapdesc { font-size: 13px; color: var(--dim); margin: 0; min-height: 36px; }
+  #help .card, #settings .card { max-width: 760px; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 15px; margin: 14px 0; }
+  .keys dt { text-align: right; } .keys dd { margin: 0; color: var(--ink); }
+  .tips { font-size: 14.5px; line-height: 1.55; color: var(--dim); }
+  .tips b { color: var(--ink); font-weight: 600; }
+  #setform { display: grid; gap: 10px; margin: 16px 0; }
+  .set { display: grid; grid-template-columns: 220px 1fr; align-items: center; gap: 12px; font-size: 16px; }
+  .set input[type=range] { width: 100%; accent-color: var(--brass); } .set select { font: inherit; background: #111; color: var(--ink); border: 1px solid var(--line); padding: 3px; }
+  .set input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--brass); justify-self: start; }
+  #results .card { max-width: 820px; }
+  #restitle { font-family: var(--fell); font-size: clamp(38px, 6vw, 62px); text-align: center; line-height: 1.1; }
+  #restitle.victory { color: var(--brass); } #restitle.defeat { color: var(--enemy); } #restitle.draw { color: var(--ink); }
+  #reswhy { text-align: center; color: var(--dim); margin: 0 0 14px; }
+  #resme h3 { font-family: var(--sc); color: var(--brass); font-size: 17px; }
+  .mine { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
+  .mine div { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); padding: 5px 6px; text-align: center; flex: 1 1 0; min-width: 70px; }
+  .mine b { display: block; font-family: var(--sc); font-size: 20px; } .mine span { font-size: 12px; color: var(--dim); }
+  #restable { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+  #restable th { text-align: left; color: var(--dim); font-weight: 400; border-bottom: 1px solid var(--line); padding: 3px 6px; }
+  #restable td { padding: 1px 6px; } #restable tr.a td:first-child { color: var(--ally); } #restable tr.e td:first-child { color: var(--enemy); }
+  #restable tr.me { background: rgba(217,180,90,.15); }
+  #nogl { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; font-size: 18px; z-index: 9; }
+  @media (max-width: 900px) { #port { flex-direction: column; } #portR { width: 100%; } #ships { grid-template-columns: 1fr; } .stat { grid-template-columns: 70px 1fr 110px; } #feed { display: none; } }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <canvas id="ov"></canvas>
+  <div id="hud">
+    <div id="top">
+      <div id="score">
+        <div class="fleet" id="fleet0"></div>
+        <div class="pts"><b id="ptsL">300</b><div class="track"><i id="barL"></i></div></div>
+        <div id="clock">9:00</div>
+        <div class="pts"><div class="track"><i id="barR"></i></div><b id="ptsR">300</b></div>
+        <div class="fleet" id="fleet1"></div>
+      </div>
+      <div id="caps"></div>
+    </div>
+    <div id="feed"></div>
+    <div id="banner"></div>
+    <div id="ribbons"></div>
+    <div id="deny"></div>
+    <div id="boardhint" hidden></div>
+    <div id="boardbar" hidden>Boarding · <span></span><div><i></i></div></div>
+    <div id="shippanel" class="pod">
+      <h4><span id="cname">Ship</span><small id="cclass"></small></h4>
+      <div class="meter">Hull<div><i id="hpbar"></i></div><em id="hpnum"></em></div>
+      <div class="meter">Sails<div><i id="sailbar"></i></div><em id="sailnum"></em></div>
+      <div class="meter">Crew<div><i id="crewbar"></i></div><em id="crewnum"></em></div>
+      <div id="helm">
+        <div><div id="speed">0 kn</div><div id="tele">Heave to</div><div id="telebar"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div style="text-align:right;font-size:11px;color:var(--dim)">Helm<div id="rudder"><span id="rudderdot"></span></div></div>
+      </div>
+      <div id="status"><span class="ic fire"></span><span class="ic fire"></span><span class="ic fire"></span><span class="ic leak"></span><span class="ic leak"></span><span class="ic board"></span></div>
+    </div>
+    <div id="bottom">
+      <div id="cons">
+        <div class="con" id="repair"><kbd>R</kbd>Repair party<em></em></div>
+        <div class="con" id="special"><kbd>T</kbd><span id="spname"></span><em></em></div>
+        <div class="con" id="ignite" hidden><kbd>Y</kbd>Set alight<em></em></div>
+      </div>
+      <div id="weap"></div>
+    </div>
+    <canvas id="mini"></canvas>
+    <div id="dead" class="pod" hidden>
+      <h2 id="deadtitle">Your ship has gone down</h2>
+      <p id="deadsub"></p>
+      <p style="color:var(--dim);font-size:14px">Watching the fleet · <kbd>Tab</kbd> next ship</p>
+      <button class="b" id="btnSkip">Skip to the end</button>
+    </div>
+  </div>
+
+  <div class="screen" id="title">
+    <h1>Sea of Smoke</h1>
+    <div class="sub">Fleet battles under sail · the Caribbean, 1715</div>
+    <div class="menu">
+      <button class="b main" id="btnSail">Set sail</button>
+      <button class="b" id="btnHelp">How to fight</button>
+      <button class="b" id="btnSet">Settings</button>
+    </div>
+  </div>
+
+  <div class="screen" id="port" hidden>
+    <div id="portL">
+      <h2>Choose your ship</h2>
+      <div id="ships"></div>
+      <h2 style="font-size:24px">Choose the waters</h2>
+      <div id="maps"></div>
+      <p id="mapdesc"></p>
+      <div class="row" style="justify-content:flex-start"><button class="b main" id="btnGo">Weigh anchor</button><button class="b" data-back style="min-width:0">Back</button></div>
+    </div>
+    <div id="portR"><div id="shipinfo"></div></div>
+  </div>
+
+  <div class="screen shade" id="help" hidden>
+    <div class="card">
+      <h2>How to fight</h2>
+      <dl class="keys">
+        <dt><kbd>W</kbd> <kbd>S</kbd></dt><dd>Set more or less sail: back sails, heave to, quarter, half, three-quarter, full</dd>
+        <dt><kbd>A</kbd> <kbd>D</kbd></dt><dd>Helm to port or starboard (<kbd>Q</kbd> <kbd>E</kbd> for half rudder)</dd>
+        <dt>Mouse</dt><dd>Look around; up and down sets the range. The centre of the screen is where your balls will fall</dd>
+        <dt>Left click / <kbd>Space</kbd></dt><dd>Fire every loaded battery that bears on the aim point: port or starboard broadside, bow or stern chasers</dd>
+        <dt>Right click / <kbd>Shift</kbd></dt><dd>Spyglass</dd>
+        <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>Round shot (hulls, fires, leaks) · chain shot (sails, slows them) · grapeshot (crew, before boarding)</dd>
+        <dt><kbd>4</kbd></dt><dd>Fireship only: fire rafts, aimed like the guns</dd>
+        <dt><kbd>R</kbd> <kbd>T</kbd> <kbd>Y</kbd></dt><dd>Repair party · ship's special · set the fireship alight</dd>
+        <dt><kbd>G</kbd></dt><dd>Board an enemy alongside: a battered hull or a smaller crew can be taken</dd>
+        <dt><kbd>M</kbd> · wheel · <kbd>Esc</kbd></dt><dd>Chart · camera distance · pause</dd>
+        <dt>Gamepad</dt><dd>Left stick helm and sail · right stick aim · RT fire · LT spyglass · LB/RB ammunition · X repair · Y special · B board · A set alight · View chart</dd>
+      </dl>
+      <div class="tips">
+        <b>Win</b> by reaching 1000 points, sinking the enemy fleet, or leading when the clock runs out. Held points add to your score; a ship lost or taken costs her fleet dearly.
+        <b>Lead your shots:</b> balls take seconds to arrive, so aim where a moving ship will be (the yellow diamond helps).
+        <b>Stay hidden:</b> ships are seen at their concealment range, much farther just after firing. Fog banks, the squall and smoke screens hide you.
+        <b>Forts</b> fire for whoever holds their point. Silence an enemy fort with round shot.
+      </div>
+      <div class="row" style="margin-top:14px"><button class="b" data-back>Back</button></div>
+    </div>
+  </div>
+
+  <div class="screen shade" id="settings" hidden>
+    <div class="card"><h2>Settings</h2><div id="setform"></div><div class="row"><button class="b" data-back>Back</button></div></div>
+  </div>
+
+  <div class="screen shade" id="pause" hidden>
+    <div class="card" style="max-width:420px;text-align:center">
+      <h2>Paused</h2>
+      <div class="menu" style="margin-top:14px">
+        <button class="b main" id="btnResume">Resume</button>
+        <button class="b" id="btnPHelp">How to fight</button>
+        <button class="b" id="btnPSet">Settings</button>
+        <button class="b" id="btnLeave">Leave the battle</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen shade" id="results" hidden>
+    <div class="card">
+      <h2 id="restitle">Victory</h2>
+      <p id="reswhy"></p>
+      <div id="resme"></div>
+      <table id="restable"></table>
+      <div class="row"><button class="b main" id="btnAgain">Sail again</button><button class="b" id="btnPort">Back to port</button></div>
+    </div>
+  </div>
+  <div id="nogl" hidden>Sea of Smoke needs WebGL. Try another browser or turn on hardware acceleration.</div>
+</div>
