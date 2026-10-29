@@ -82,7 +82,7 @@ function spawnGround(type) {
   let best = null;
   for (let t = 0; t < 30; t++) {
     const edge = Math.random() < 0.7;
-    const i = edge ? (Math.random() < 0.5 ? 0 : 9) : ri(0, 9), j = ri(0, 9);
+    const i = edge ? (Math.random() < 0.5 ? 0 : NROAD - 1) : ri(0, NROAD - 1), j = ri(0, NROAD - 1);
     const swap = Math.random() < 0.5;
     const x = roadPos(swap ? j : i), z = roadPos(swap ? i : j);
     const d = Math.hypot(x - MON.x, z - MON.z);
@@ -115,7 +115,7 @@ function spawnJets() {
     const g = JET_POOL.find((h) => !h.visible);
     if (!g) return;
     const off = (k ? 1 : -1) * 22;
-    const u = { type: 'jet', alive: true, g, x: MON.x - ca * 1500 - sa * off, z: MON.z - sa * 1500 + ca * off, y: (MON.def.fly ? MON.y + 70 : 150) + k * 8, vx: ca * 170, vz: sa * 170, fired: false, life: 20 };
+    const u = { type: 'jet', alive: true, g, x: MON.x - ca * 1500 - sa * off, z: MON.z - sa * 1500 + ca * off, y: (MON.def.fly ? MON.y + 70 : CITY_TOP - 40) + k * 8, vx: ca * 170, vz: sa * 170, fired: false, life: 20 };
     g.visible = true;
     UNITS.push(u);
   }

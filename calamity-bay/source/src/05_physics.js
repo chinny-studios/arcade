@@ -374,8 +374,8 @@ function stepBodies(dt) {
     let maxPen = 0, hitV = 0, touched = false;
     pn.set(0, 1, 0);
     rotOf(b.q);
-    const flat = Math.abs(b.p.x) < CITY_HALF && b.p.z > -CITY_HALF && b.p.z < 520;
-    const nearB = b.p.y - b.r * 2 < 235 && bgIdx(b.p.x, b.p.z) >= 0 && BGRID[bgIdx(b.p.x, b.p.z)].length > 0;
+    const flat = Math.abs(b.p.x) < CITY_HALF && b.p.z > -CITY_HALF && b.p.z < CITY_HALF - 8;
+    const nearB = b.p.y - b.r * 2 < CITY_TOP + 3 && bgIdx(b.p.x, b.p.z) >= 0 && BGRID[bgIdx(b.p.x, b.p.z)].length > 0;
     const hx = b.h.x, hy = b.h.y, hz = b.h.z;
     for (let c = 0; c < 8; c++) {
       const lx = c & 1 ? hx : -hx, ly = c & 2 ? hy : -hy, lz = c & 4 ? hz : -hz;

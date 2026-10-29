@@ -210,7 +210,7 @@ function updatePeople(dt) {
         p.fx = -az * rot + ax * 0.2; p.fz = ax * rot + az * 0.2;
         nx = p.x; nz = p.z;
       } else { p.fx = ax; p.fz = az; }
-      p.x = clamp(nx, -CITY_HALF + 2, CITY_HALF - 2); p.z = clamp(nz, -CITY_HALF + 2, 524);
+      p.x = clamp(nx, -CITY_HALF + 2, CITY_HALF - 2); p.z = clamp(nz, -CITY_HALF + 2, CITY_HALF - 4);
       p.yaw = Math.atan2(ax, az);
       if (dm > 420) {
         // calm down onto the nearest sidewalk

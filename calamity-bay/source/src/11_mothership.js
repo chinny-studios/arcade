@@ -1,7 +1,7 @@
 // Calamity Bay — Umbra, the mothership: saucer rig, hover flight, shield, plasma cannons, tractor beam, fighter swarm, destroyer beam
 
 // The rig is modelled 300 m across and scaled by SHIP_S; world-space sizes below are multiplied by it too.
-const SHIP_S = 0.6, SHIP_R = 150 * SHIP_S, SHIP_ALT = 255, SHIP_START = 330;  // scale, hull radius, hover height of the hull's centre, where the intro leaves it
+const SHIP_S = 0.6, SHIP_R = 150 * SHIP_S, SHIP_ALT = 345, SHIP_START = 530;  // scale, hull radius, hover height of the hull's centre, where the intro leaves it
 const SHIP_PITCH = 0.58; // default camera pitch in flight
 const DT_FIRE = 3.2, DT_BLAST = 4.8, DT_END = 9, STORM_R = 170;  // destroyer beam timeline (s) and firestorm reach (m)
 const SHIP = {
@@ -580,8 +580,9 @@ function endDestroyer() {
 // ---------- arrival ----------
 function shipIntroStart() {
   MON.x = 0; MON.z = 1500; MON.y = 1400; MON.yaw = 0;
-  CAM.pos.set(50, 6, 120);
+  CAM.pos.set(...STREET_CAM);
 }
+const STREET_CAM = [50, 6, SHIP_START - 210]; // where the arrival is watched from
 // It comes down out of a burning cloud over the bay while you watch from the street.
 function shipIntro(dt, t) {
   const R = MON.rig, c = clamp(t / 8.5, 0, 1), k = 1 - Math.pow(1 - c, 3);
@@ -605,7 +606,7 @@ function shipIntro(dt, t) {
   // street level looking up, then climb clear of the rim and swing round behind the ship
   const dist = shipCamPose(Math.PI, SHIP_PITCH, 1, sA, sB);
   const ky = smooth(7.6, 9.4, t), kz = smooth(9, 11.4, t);
-  CAM.pos.set(lerp(50, sA.x, kz), lerp(6, sA.y, ky), lerp(120, sA.z, kz));
+  CAM.pos.set(lerp(STREET_CAM[0], sA.x, kz), lerp(STREET_CAM[1], sA.y, ky), lerp(STREET_CAM[2], sA.z, kz));
   sC.set(MON.x, MON.y - 10 * SHIP_S, MON.z).lerp(sB, kz);
   camera.position.copy(CAM.pos);
   applyShake(dt);
@@ -648,7 +649,7 @@ function shipCamera(dt) {
       px /= pl; pz /= pl;
       if (px * (CAM.pos.x - mx) + pz * (CAM.pos.z - mz) < 0) { px = -px; pz = -pz; }
       const gy = Math.max(terrainH(mx, mz), WATER_Y);
-      sA.lerp(sC.set(mx + px * 420 + (MON.x - D.x) * 0.3, gy + 270, mz + pz * 420 + (MON.z - D.z) * 0.3), w);
+      sA.lerp(sC.set(mx + px * 420 + (MON.x - D.x) * 0.3, gy + SHIP_ALT + 15, mz + pz * 420 + (MON.z - D.z) * 0.3), w);
       sB.lerp(sC.set(lerp(mx, D.x, 0.4), gy + 50, lerp(mz, D.z, 0.4)), w);
     }
   }

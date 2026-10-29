@@ -1,19 +1,20 @@
 // Calamity Bay — terrain (bay to the south, Mount Kessel to the north), water, city ground and trees
 
-const R0 = -450, BLK = 100, NROAD = 10, ROAD_HW = 9, LANE = 4.5, WALK_OFF = 11.5;
+const R0 = -650, BLK = 100, NROAD = 14, ROAD_HW = 9, LANE = 4.5, WALK_OFF = 11.5;
 const roadPos = (i) => R0 + i * BLK;
-const CITY_HALF = 528;      // the flat, paved city square
+const CITY_HALF = -R0 + 78; // the flat, paved city square
 const WATER_Y = -3;
-const MAP = { x0: -900, x1: 900, z0: -900, z1: 1100 }; // where the monster may roam
+const MAP = { x0: -CITY_HALF - 420, x1: CITY_HALF + 420, z0: -CITY_HALF - 420, z1: CITY_HALF + 570 }; // where the monster may roam
 
 function coastZ(x) {
   const ax = Math.abs(x);
-  return 534 + Math.max(0, ax - 520) * 0.45 + (ax > 520 ? (vnoise(x * 0.012, 7.7) - 0.5) * 50 : 0);
+  const e = CITY_HALF - 8;
+  return CITY_HALF + 6 + Math.max(0, ax - e) * 0.45 + (ax > e ? (vnoise(x * 0.012, 7.7) - 0.5) * 50 : 0);
 }
 function landH(x, z) {
   const ax = Math.abs(x);
-  let h = smooth(520, 800, ax) * (14 + 60 * fbm(x * 0.0042, z * 0.0042, 3));
-  const t = -z - 500;
+  let h = smooth(CITY_HALF - 8, CITY_HALF + 272, ax) * (14 + 60 * fbm(x * 0.0042, z * 0.0042, 3));
+  const t = -z - (CITY_HALF - 28);
   if (t > 0) {
     const n = fbm(x * 0.0035 + 5, z * 0.0035, 4);
     const ridge = 1 - Math.abs(vnoise(x * 0.005 + 11, z * 0.005 - 3) * 2 - 1);
@@ -36,7 +37,7 @@ const inCity = (x, z) => Math.abs(x) < CITY_HALF && z > -CITY_HALF && z < coastZ
 
 // ---------- terrain mesh ----------
 function buildTerrain() {
-  const g = new THREE.PlaneGeometry(3600, 3400, 180, 170);
+  const g = new THREE.PlaneGeometry(4600, 4400, 230, 220);
   g.rotateX(-Math.PI / 2);
   const P = g.attributes.position;
   for (let i = 0; i < P.count; i++) {
@@ -59,7 +60,7 @@ function buildTerrain() {
     else if (z > cz - 30 && y < 4) c.setRGB(0.85, 0.77, 0.56);
     else if (y > 330 && ny > 0.55) c.setRGB(0.95, 0.95, 0.97);
     else if (ny < 0.72 || y > 170) c.setRGB(0.47, 0.44, 0.41).lerp(new THREE.Color(0.58, 0.55, 0.5), n);
-    else if (z < -520 && y > 25) c.setRGB(0.27, 0.38, 0.22).lerp(new THREE.Color(0.36, 0.44, 0.27), n);
+    else if (z < -CITY_HALF + 8 && y > 25) c.setRGB(0.27, 0.38, 0.22).lerp(new THREE.Color(0.36, 0.44, 0.27), n);
     else c.setRGB(0.42, 0.55, 0.28).lerp(new THREE.Color(0.52, 0.6, 0.3), n);
     c.multiplyScalar(j);
     for (let k = 0; k < 3; k++) { col[(i + k) * 3] = c.r; col[(i + k) * 3 + 1] = c.g; col[(i + k) * 3 + 2] = c.b; }
@@ -104,45 +105,46 @@ const waterMat = new THREE.ShaderMaterial({
   }`,
 });
 function buildWater() {
-  const g = new THREE.PlaneGeometry(4200, 2600, 140, 80);
+  const g = new THREE.PlaneGeometry(5200, 2600, 170, 80);
   g.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(g, waterMat);
-  m.position.set(0, WATER_Y, 520 + 1300);
+  m.position.set(0, WATER_Y, CITY_HALF - 8 + 1300);
   m.renderOrder = 2;
   scene.add(m);
 }
 
 // ---------- city plan ----------
-// 9 x 9 blocks between 10 roads each way, plus a port strip on the bay.
+// 13 x 13 blocks between 14 roads each way, plus a port strip on the bay.
 const LOTS = [];
-const PARKS = new Set(['2,6', '6,2', '1,3', '7,6', '3,1', '5,7']);
+const NLOT = NROAD - 1, MID = (NLOT - 1) / 2;
+const PARKS = new Set(['3,9', '9,3', '1,4', '10,8', '4,1', '7,10', '1,11', '11,1', '11,11', '2,7']);
 function planLots() {
-  for (let bi = 0; bi < 9; bi++) for (let bj = 0; bj < 9; bj++) {
+  for (let bi = 0; bi < NLOT; bi++) for (let bj = 0; bj < NLOT; bj++) {
     const x0 = roadPos(bi) + ROAD_HW + 4, x1 = roadPos(bi + 1) - ROAD_HW - 4;
     const z0 = roadPos(bj) + ROAD_HW + 4, z1 = roadPos(bj + 1) - ROAD_HW - 4;
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, d = Math.max(Math.abs(cx), Math.abs(cz));
-    let kind = d < 150 ? 'downtown' : d < 250 ? 'midtown' : 'residential';
-    if (bj === 0) kind = 'suburb';
+    let kind = d < 210 ? 'downtown' : d < 360 ? 'midtown' : 'residential';
+    if (bj === 0 || (Math.abs(cx) > 540 && cz < 300)) kind = 'suburb'; // the edges toward the hills
     if (PARKS.has(bi + ',' + bj)) kind = 'park';
-    if (bi === 4 && bj === 4) kind = 'plaza';
+    if (bi === MID && bj === MID) kind = 'plaza';
     LOTS.push({ bi, bj, x0, z0, x1, z1, cx, cz, kind });
   }
-  for (let bi = 0; bi < 9; bi++) {
-    const x0 = roadPos(bi) + 4, x1 = roadPos(bi + 1) - 4;
-    LOTS.push({ bi, bj: 9, x0, z0: 450 + ROAD_HW + 4, x1, z1: 526, cx: (x0 + x1) / 2, cz: 492, kind: 'port' });
+  for (let bi = 0; bi < NLOT; bi++) {
+    const x0 = roadPos(bi) + 4, x1 = roadPos(bi + 1) - 4, z0 = -R0 + ROAD_HW + 4, z1 = CITY_HALF - 2;
+    LOTS.push({ bi, bj: NLOT, x0, z0, x1, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, kind: 'port' });
   }
 }
 
 const LOT_COL = { downtown: '#8f8d88', plaza: '#a29d93', midtown: '#97948c', residential: '#6f9150', suburb: '#729552', park: '#5f8f45', port: '#8a877f' };
 function buildCityGround() {
-  const N = 2048, W = CITY_HALF * 2, s = N / W;
+  const N = isTouch ? 2048 : 3072, W = CITY_HALF * 2, s = N / W;
   const cv = document.createElement('canvas'); cv.width = cv.height = N;
   const g = cv.getContext('2d');
   const X = (x) => (x + CITY_HALF) * s, Z = (z) => (z + CITY_HALF) * s;
   const rect = (x0, z0, x1, z1, c) => { g.fillStyle = c; g.fillRect(X(x0), Z(z0), (x1 - x0) * s, (z1 - z0) * s); };
   rect(-CITY_HALF, -CITY_HALF, CITY_HALF, CITY_HALF, '#6e8f4c');
   // ground speckle
-  for (let i = 0; i < 26000; i++) {
+  for (let i = 0; i < 48000; i++) {
     g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '0,0,0'},${0.03 + Math.random() * 0.04})`;
     g.fillRect(Math.random() * N, Math.random() * N, 2 + Math.random() * 5, 2 + Math.random() * 5);
   }
@@ -166,7 +168,7 @@ function buildCityGround() {
     }
   }
   // quay edge
-  rect(-CITY_HALF, 522, CITY_HALF, 528, '#a8a49a');
+  rect(-CITY_HALF, CITY_HALF - 6, CITY_HALF, CITY_HALF, '#a8a49a');
   // roads
   const asphalt = '#3d3f44';
   for (let i = 0; i < NROAD; i++) {
@@ -221,15 +223,15 @@ function addTree(x, z, kind, s) {
 function buildTrees() {
   // outskirts and mountains
   let n = 0;
-  for (let tries = 0; n < (isTouch ? 1800 : 3200) && tries < 40000; tries++) {
-    const x = rr(-1500, 1500), z = rr(-1350, 900);
+  for (let tries = 0; n < (isTouch ? 2400 : 4400) && tries < 60000; tries++) {
+    const x = rr(-1900, 1900), z = rr(-1800, CITY_HALF + 370);
     if (Math.abs(x) < CITY_HALF + 15 && z > -CITY_HALF - 15) continue;
     const h = terrainH(x, z);
     if (h < 1.5 || h > 260) continue;
     const slope = Math.abs(terrainH(x + 4, z) - h) + Math.abs(terrainH(x, z + 4) - h);
     if (slope > 7) continue;
     if (vnoise(x * 0.008, z * 0.008) < 0.38) continue;   // clumps and clearings
-    addTree(x, z, z < -480 || h > 40 ? 1 : (rand() < 0.3 ? 1 : 0), rr(0.8, 1.35));
+    addTree(x, z, z < -CITY_HALF + 48 || h > 40 ? 1 : (rand() < 0.3 ? 1 : 0), rr(0.8, 1.35));
     n++;
   }
   // parks and street trees
