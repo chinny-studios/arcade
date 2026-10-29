@@ -9,7 +9,7 @@ const CLASSES = {
     blurb: 'A single-masted cutter that outruns anything afloat. Light guns, a small crew, two smoke pots. Take the points and spot for the fleet.',
     len: 22, beam: 6.4, fb: 2.4, draft: 1.8, mastH: 24, masts: 1, decks: 1, rig: 'sloop',
     hp: 3500, crew: 70, speed: 23, accel: 5, turnR: 105, rudderT: 1.0, conceal: 540,
-    guns: { side: 6, cal: '6-pounders', dmg: 55, reload: 6, range: 470, vel: 210, disp: 1.0, bow: 1, stern: 0 },
+    guns: { side: 6, cal: '6-pounders', dmg: 66, reload: 6, range: 470, vel: 210, disp: 1.0, bow: 1, stern: 0 },
     repair: { charges: 2, cd: 40 }, special: 'smoke', value: 35,
   },
   brig: {
@@ -17,7 +17,7 @@ const CLASSES = {
     blurb: 'Two masts and a sharp turn of speed. Her gunners load chain shot faster and aim it better: strip a big ship of her sails and run.',
     len: 30, beam: 8, fb: 2.9, draft: 3.0, mastH: 30, masts: 2, decks: 1, rig: 'brig',
     hp: 6300, crew: 120, speed: 19.5, accel: 7, turnR: 150, rudderT: 1.4, conceal: 640,
-    guns: { side: 9, cal: '9-pounders', dmg: 85, reload: 8, range: 590, vel: 220, disp: 1.0, bow: 1, stern: 1 },
+    guns: { side: 9, cal: '9-pounders', dmg: 102, reload: 8, range: 590, vel: 220, disp: 1.0, bow: 1, stern: 1 },
     chainBonus: 1.35, repair: { charges: 3, cd: 45 }, special: 'studding', value: 45,
   },
   frigate: {
@@ -25,7 +25,7 @@ const CLASSES = {
     blurb: 'Three masts, one long gun deck and the reach of the fleet. Send a lookout aloft and pick your fights from the edge of the smoke.',
     len: 42, beam: 11, fb: 3.6, draft: 4.0, mastH: 40, masts: 3, decks: 1, rig: 'ship',
     hp: 10500, crew: 240, speed: 16.5, accel: 10, turnR: 210, rudderT: 1.8, conceal: 780,
-    guns: { side: 14, cal: '12-pounders', dmg: 115, reload: 10.5, range: 790, vel: 245, disp: 0.9, bow: 2, stern: 2 },
+    guns: { side: 14, cal: '12-pounders', dmg: 138, reload: 10.5, range: 790, vel: 245, disp: 0.9, bow: 2, stern: 2 },
     repair: { charges: 3, cd: 50 }, special: 'lookout', value: 60,
   },
   galleon: {
@@ -33,7 +33,7 @@ const CLASSES = {
     blurb: 'Three gun decks, five hundred hands and a hull like a cliff. Slow to turn and seen from afar, but her broadside ends arguments and her crew wins boardings.',
     len: 54, beam: 15, fb: 5.4, draft: 5.2, mastH: 46, masts: 3, decks: 3, rig: 'ship',
     hp: 18000, crew: 500, speed: 12.5, accel: 16, turnR: 280, rudderT: 2.6, conceal: 900,
-    guns: { side: 22, cal: '24-pounders', dmg: 165, reload: 15, range: 710, vel: 230, disp: 1.1, bow: 2, stern: 2 },
+    guns: { side: 22, cal: '24-pounders', dmg: 198, reload: 15, range: 710, vel: 230, disp: 1.1, bow: 2, stern: 2 },
     repair: { charges: 3, cd: 55 }, special: 'rally', value: 80,
   },
   fireship: {
@@ -41,7 +41,7 @@ const CLASSES = {
     blurb: 'A small brig packed with pitch and powder. Launch burning rafts from the smoke, and when all is lost, set her alight and ram.',
     len: 20, beam: 5.6, fb: 2.2, draft: 1.4, mastH: 22, masts: 2, decks: 1, rig: 'brig',
     hp: 2400, crew: 34, speed: 25, accel: 4.5, turnR: 95, rudderT: 0.9, conceal: 430,
-    guns: { side: 3, cal: 'swivels', dmg: 32, reload: 3.2, range: 270, vel: 190, disp: 1.3, bow: 1, stern: 0 },
+    guns: { side: 3, cal: 'swivels', dmg: 38, reload: 3.2, range: 270, vel: 190, disp: 1.3, bow: 1, stern: 0 },
     rafts: { n: 3, reload: 38, range: 760, speed: 15, dmg: 4000 },
     repair: { charges: 2, cd: 40 }, special: 'smoke', ignite: true, value: 30,
   },

@@ -15,7 +15,7 @@ fire rafts and smoke screens, fog banks and a squall. Three maps, about nine min
   relative to the player, `broadside(shooter, target)`, `peace()` (freezes every bot with sails furled), `killAll(team)`,
   `squall(on)`. Internals: `SS.match`, `SS.world`, `SS.combat`, `SS.pc`, `SS.hud`, `SS.ui`, `SS.input`, `SS.G`.
 - **Tests (in `source/`):** `node test/smoke.mjs --steps test/player.js` (broadside, chain shot, boarding and capture,
-  repair, squall), `--start '{"cls":"fireship"}' --steps test/fireship.js` (fire rafts, smoke screen, ramming),
+  repair, squall), `test/damage.js` (shot holes, listing, masts falling, crits), `--start '{"cls":"fireship"}' --steps test/fireship.js` (fire rafts, smoke screen, ramming),
   `--steps test/play.js` and `test/full.js` (a battle on fast forward), `--no-start --steps test/balance.js` (AI-only
   battles on every map: length, result, losses), `test/flow.js` (sink, spectate, skip to results), `test/inputs.js`
   (real DOM key and mouse events), `test/visual.js` and

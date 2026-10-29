@@ -207,7 +207,7 @@ function updateForts(dt) {
       if (!tgt) { f.rl[g] = 1; continue; }
       f.rl[g] = 12;
       const [px, pz] = leadPoint({ x: gp[0], z: gp[2], C: { guns: { vel: 230 } } }, tgt), sig = bd * 0.02 + 3;
-      Combat.spawnBall(gp[0], gp[1], gp[2], px + gauss() * sig, pz + gauss() * sig * 1.5, 230, 150, 0, f.owner, f, false);
+      Combat.spawnBall(gp[0], gp[1], gp[2], px + gauss() * sig, pz + gauss() * sig * 1.5, 230, 180, 0, f.owner, f, false);
       if (!G.simming) { Fx.muzzle(gp[0], gp[1], gp[2], (px - gp[0]) / bd, (pz - gp[2]) / bd, 1); if (rand() < 0.5) Sfx.boom(gp[0], gp[2], 0.8); }
     }
   }
