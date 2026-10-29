@@ -1,0 +1,247 @@
+<title>Highguard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #dbe8f5; --dim: #8ea3b8; --panel: rgba(8,14,24,.72); --line: rgba(127,212,255,.28); --ally: #7fd4ff; --foe: #ff7a50; --gold: #ffd34a; --ok: #7dff9a;
+    --hud: 'Rajdhani', 'Segoe UI', Arial, sans-serif; --title: 'Oxanium', 'Rajdhani', 'Segoe UI', sans-serif; }
+  html, body { margin: 0; height: 100%; background: #03060b; overflow: hidden; color: var(--ink); font-family: var(--hud); font-weight: 500;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c, #ov { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #ov { pointer-events: none; }
+  kbd { font-family: var(--hud); font-weight: 700; font-size: .85em; color: #06101a; background: #9fd8ff; border-radius: 3px; padding: 0 5px; box-shadow: 0 1px 0 #3b6a8e; }
+
+  /* ---- HUD ---- */
+  #hud { position: absolute; inset: 0; pointer-events: none; display: none; text-shadow: 0 1px 2px #000; }
+  body[data-state="play"] #hud { display: block; }
+  .pod { position: absolute; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 2px 12px rgba(0,0,0,.5); backdrop-filter: blur(2px); }
+  #objs { left: 12px; top: 12px; padding: 8px 12px; max-width: min(380px, 42vw); }
+  #objs h4 { margin: 0 0 4px; font-family: var(--title); font-size: 15px; color: var(--gold); letter-spacing: .08em; text-transform: uppercase; }
+  #olist { margin: 0; padding: 0 0 0 16px; font-size: 14px; line-height: 1.35; }
+  #olist li.done { color: var(--ok); } #olist li.done::marker { content: '✓ '; }
+  #olist li.failed { color: var(--foe); text-decoration: line-through; }
+  #feed { position: absolute; top: 12px; right: 12px; width: min(340px, 36vw); font-size: 13px; text-align: right; line-height: 1.45; }
+  #feed div { transition: opacity 1s; } #feed .a { color: #bfe6ff; } #feed .e { color: #ffc6b0; } #feed .old { opacity: .4; }
+  #feed b { font-weight: 700; }
+  #banner { position: absolute; top: 18%; left: 0; right: 0; text-align: center; opacity: 0; transition: opacity .6s; }
+  #banner.on { opacity: 1; }
+  #banner h2 { font-family: var(--title); font-weight: 700; font-size: clamp(26px, 4.4vw, 48px); margin: 0; color: var(--ink); letter-spacing: .12em; text-transform: uppercase; }
+  #banner p { margin: 4px 0 0; font-size: 17px; color: var(--dim); }
+  #tip { position: absolute; top: 12px; left: 50%; transform: translate(-50%, -8px); width: min(560px, 50vw); padding: 9px 14px; font-size: 15px; line-height: 1.4;
+    background: rgba(10,24,40,.85); border: 1px solid rgba(255,211,74,.45); border-left: 3px solid var(--gold); opacity: 0; transition: opacity .4s, transform .4s; }
+  #tip.on { opacity: 1; transform: translate(-50%, 0); }
+  #ribbons { position: absolute; left: 50%; top: 60%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .rib { font-size: 15px; font-weight: 600; padding: 2px 14px; background: var(--panel); border-left: 3px solid var(--ally); transition: opacity .6s, transform .6s; white-space: nowrap; }
+  .rib.good { border-color: var(--ok); } .rib.bad { border-color: var(--foe); color: #ffd2c0; } .rib.kill { border-color: var(--gold); color: #ffeaa0; font-size: 18px; } .rib.info { border-color: #9fd8ff; }
+  .rib.out { opacity: 0; transform: translateY(-8px); }
+  #warn { position: absolute; left: 0; right: 0; top: 56%; text-align: center; font-size: 16px; font-weight: 600; color: #ffcf8a; opacity: 0; transition: opacity .3s; }
+  #warn.on { opacity: 1; }
+  #bounds, #torpwarn, #bridgeoff { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 700; letter-spacing: .06em; padding: 2px 12px; }
+  #bounds { top: 30%; color: #ffcf8a; font-size: 18px; background: rgba(60,30,0,.5); }
+  #torpwarn { top: 24%; color: #ff5a40; font-size: 18px; text-transform: uppercase; animation: blink .4s infinite alternate; }
+  #bridgeoff { top: 38%; color: #ff9a7a; font-size: 14px; background: rgba(60,10,0,.45); }
+  @keyframes blink { to { opacity: .45; } }
+
+  #shippanel { left: 12px; bottom: 12px; width: 290px; padding: 8px 12px 10px; }
+  #shippanel h4, #tpanel h4 { margin: 0; font-family: var(--title); font-size: 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; letter-spacing: .04em; }
+  #shippanel h4 { color: var(--ally); }
+  #shippanel h4 small, #tpanel h4 small { font-family: var(--hud); font-size: 12px; color: var(--dim); font-weight: 500; letter-spacing: 0; }
+  .bar { height: 7px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.12); margin: 3px 0; } .bar i { display: block; height: 100%; background: #9fe0a8; transition: width .2s; }
+  .bar i.low { background: #ff6a50; }
+  .row2 { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); }
+  #shrow { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+  #shcv, #tshcv { width: 92px; height: 92px; flex: none; }
+  #subs { flex: 1; font-size: 12px; }
+  .subr { display: grid; grid-template-columns: 1fr 44px 54px; gap: 4px; align-items: center; color: var(--ink); line-height: 1.25; }
+  .subr div, .tsub div { height: 4px; background: rgba(0,0,0,.6); } .subr i, .tsub i { display: block; height: 100%; background: #8fd8ff; }
+  .subr em, .tsub em { font-style: normal; text-align: right; color: var(--dim); font-size: 11px; }
+  .subr.hurt i { background: #ffc04a; } .subr.down { color: #ff8a70; } .subr.down em { color: #ff8a70; }
+  #helm { display: flex; justify-content: space-between; align-items: end; margin-top: 6px; }
+  #speed { font-family: var(--title); font-size: 18px; } #thr { font-size: 12px; color: var(--dim); }
+  #thrbar { display: flex; gap: 2px; margin-top: 3px; } #thrbar i { width: 18px; height: 5px; background: rgba(255,255,255,.12); }
+  #thrbar i.past { background: rgba(127,212,255,.45); } #thrbar i.on { background: var(--ally); } #thrbar i:first-child.on { background: #ffb070; }
+  #pitchw { text-align: right; font-size: 12px; color: var(--dim); } #pitch { font-family: var(--title); font-size: 16px; color: var(--ink); }
+
+  #weap { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+  .wp { background: var(--panel); border: 1px solid var(--line); padding: 4px 10px 4px; width: 118px; font-size: 12px; opacity: .8; }
+  .wp span { display: block; font-weight: 700; font-size: 13px; } .wp small { color: var(--dim); }
+  .wp div { height: 4px; background: rgba(0,0,0,.6); margin: 3px 0 2px; } .wp i { display: block; height: 100%; background: #9fd8ff; }
+  .wp.bear { border-color: #ffc04a; opacity: 1; } .wp.bear i { background: #ffc04a; }
+  .wp.go { border-color: var(--ok); opacity: 1; box-shadow: inset 0 -2px 0 var(--ok); } .wp.go i { background: var(--ok); } .wp.go small { color: var(--ok); }
+  .wp.torp { border-color: #9fd8ff; opacity: 1; } .wp.down { border-color: #ff6a50; opacity: .7; } .wp.down small { color: #ff8a70; }
+
+  #hangar { right: 12px; bottom: 12px; width: 300px; padding: 8px 12px 8px; }
+  #hangar h4 { margin: 0 0 4px; font-family: var(--title); font-size: 14px; color: var(--ally); letter-spacing: .1em; text-transform: uppercase; }
+  .sq { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; border-top: 1px solid rgba(255,255,255,.06); font-size: 13px; opacity: .75; }
+  .sq.active { opacity: 1; } .sq kbd { margin-top: 2px; } .sq div { flex: 1; } .sq small { color: var(--dim); }
+  .sq em { display: block; font-style: normal; color: #bfe6ff; font-size: 12px; }
+  .pips { float: right; display: flex; gap: 2px; margin-top: 4px; } .pips i { width: 7px; height: 7px; border: 1px solid rgba(255,255,255,.3); }
+  .pips i.in { background: rgba(127,212,255,.55); } .pips i.out { background: var(--ok); border-color: var(--ok); }
+  #hangar .hint { font-size: 11px; color: var(--dim); margin-top: 4px; line-height: 1.4; }
+
+  #tpanel { right: 12px; top: 150px; width: 290px; padding: 8px 12px; }
+  #tpanel.foe h4 { color: var(--foe); } #tpanel.ally h4 { color: var(--ally); }
+  #tshrow { display: flex; gap: 10px; align-items: center; }
+  #tsubs { flex: 1; font-size: 12px; }
+  .tsub { display: grid; grid-template-columns: 1fr 40px 52px; gap: 4px; align-items: center; padding: 1px 3px; line-height: 1.25; }
+  .tsub.sel { background: rgba(255,211,74,.18); outline: 1px solid rgba(255,211,74,.6); } .tsub.down { color: #8a8f96; } .tsub.down i { background: #555; }
+  #tpanel .hint { font-size: 11px; color: var(--dim); margin-top: 3px; }
+
+  /* ---- Screens ---- */
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; }
+  .screen.shade { background: rgba(2,5,10,.7); }
+  #title { background: linear-gradient(180deg, rgba(2,4,8,.55), rgba(2,4,8,0) 40%, rgba(2,4,8,0) 60%, rgba(2,4,8,.8)); }
+  #title h1 { font-family: var(--title); font-weight: 700; font-size: clamp(48px, 10vw, 116px); margin: 0; letter-spacing: .2em; color: #e8f2ff;
+    text-shadow: 0 0 30px rgba(127,212,255,.45), 0 2px 0 #1b2a3a; padding-left: .2em; }
+  #title .sub { font-size: clamp(15px, 2vw, 21px); color: var(--dim); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 34px; }
+  .menu { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  button.b { font-family: var(--title); font-weight: 500; font-size: clamp(15px, 1.8vw, 18px); letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
+    background: rgba(8,16,28,.7); border: 1px solid var(--line); cursor: pointer; padding: 9px 26px; min-width: 260px; transition: background .15s, border-color .15s; }
+  button.b:hover, button.b:focus-visible { background: rgba(40,80,120,.6); border-color: var(--ally); outline: none; }
+  button.b.main { border-color: var(--ally); background: rgba(30,70,110,.55); }
+  .card { background: rgba(8,14,24,.92); border: 1px solid var(--line); padding: 18px 24px; width: min(860px, 92vw); max-height: 90vh; overflow: auto; box-sizing: border-box; }
+  .card h2 { font-family: var(--title); font-weight: 700; margin: 0 0 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ally); }
+  .row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .keys { display: grid; grid-template-columns: 170px 1fr; gap: 5px 14px; margin: 0; font-size: 15px; }
+  .keys dt { text-align: right; } .keys dd { margin: 0; color: #c6d6e6; }
+  .tips { font-size: 14px; color: #c6d6e6; line-height: 1.5; margin-top: 12px; }
+  .tips b { color: var(--gold); }
+  #campaign { flex-direction: row; gap: 18px; padding: 24px; box-sizing: border-box; background: rgba(2,5,10,.6); }
+  #mlist { width: min(330px, 34vw); display: flex; flex-direction: column; gap: 6px; }
+  #mlist h2 { font-family: var(--title); letter-spacing: .12em; text-transform: uppercase; color: var(--ally); margin: 0 0 6px; }
+  .mi { background: rgba(8,14,24,.85); border: 1px solid var(--line); padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .mi:hover { border-color: var(--ally); } .mi.sel { border-color: var(--gold); background: rgba(40,50,30,.6); }
+  .mi.locked { opacity: .4; cursor: default; } .mi b { font-family: var(--title); font-size: 16px; display: block; } .mi small { color: var(--dim); }
+  .grade { font-family: var(--title); font-size: 22px; font-weight: 700; color: var(--gold); min-width: 28px; text-align: center; }
+  #brief { width: min(560px, 55vw); }
+  #brief .card { width: 100%; }
+  #brief p { font-size: 16px; line-height: 1.5; color: #c6d6e6; }
+  #brief .goal { color: var(--gold); font-weight: 600; }
+  .fleet { display: flex; gap: 16px; font-size: 14px; margin-top: 8px; }
+  .fleet div { flex: 1; } .fleet h5 { margin: 0 0 4px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+  .fleet .a h5 { color: var(--ally); } .fleet .e h5 { color: var(--foe); }
+  .fleet ul { margin: 0; padding-left: 16px; color: #c6d6e6; line-height: 1.4; }
+  #setform { display: grid; grid-template-columns: 200px 1fr; gap: 10px 16px; align-items: center; font-size: 16px; }
+  #setform input[type=range] { width: 100%; }
+  #results .card { text-align: center; width: min(620px, 92vw); }
+  #restitle { font-size: 40px; }
+  #resgrade { font-family: var(--title); font-size: 72px; color: var(--gold); line-height: 1; margin: 6px 0; }
+  #resstats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; text-align: left; font-size: 15px; margin: 12px auto 0; max-width: 420px; }
+  #resstats span:nth-child(even) { text-align: right; color: var(--ink); font-weight: 700; } #resstats span:nth-child(odd) { color: var(--dim); }
+  #nogl { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; padding: 30px; text-align: center; background: #03060b; z-index: 9; }
+  .foot { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; font-size: 13px; color: rgba(200,220,240,.45); }
+  @media (max-width: 900px) { #campaign { flex-direction: column; overflow: auto; } #mlist, #brief { width: 100%; } #feed { display: none; } #tpanel { top: 120px; } #weap .wp { width: 92px; } }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <canvas id="ov"></canvas>
+  <div id="hud">
+    <div id="objs" class="pod"><h4 id="mname"></h4><ol id="olist"></ol></div>
+    <div id="feed"></div>
+    <div id="tip"></div>
+    <div id="banner"></div>
+    <div id="ribbons"></div>
+    <div id="warn"></div>
+    <div id="bounds" hidden></div>
+    <div id="torpwarn" hidden></div>
+    <div id="bridgeoff" hidden>Bridge knocked out · targeting computer offline</div>
+    <div id="shippanel" class="pod">
+      <h4><span id="cname">Ship</span><small id="cclass"></small></h4>
+      <div class="row2"><span>Hull</span><span id="hullnum"></span></div>
+      <div class="bar"><i id="hullbar"></i></div>
+      <div id="shrow"><canvas id="shcv" width="184" height="184"></canvas><div id="subs"></div></div>
+      <div id="helm">
+        <div><div id="speed">0 m/s</div><div id="thr">All stop</div><div id="thrbar"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div id="pitchw">Pitch<div id="pitch">0°</div></div>
+      </div>
+    </div>
+    <div id="tpanel" class="pod" hidden>
+      <h4><span id="tname"></span><small id="tdist"></small></h4>
+      <div class="row2"><span id="tclass"></span><span id="thullnum"></span></div>
+      <div class="bar"><i id="thull"></i></div>
+      <div id="tshrow"><canvas id="tshcv" width="184" height="184"></canvas><div id="tsubs"></div></div>
+      <div class="hint"><kbd>Q</kbd> <kbd>E</kbd> choose a subsystem · yellow arc: the side facing you</div>
+    </div>
+    <div id="weap"></div>
+    <div id="hangar" class="pod"></div>
+  </div>
+
+  <div class="screen" id="title">
+    <h1>HIGHGUARD</h1>
+    <div class="sub">Capital ship battles above Aster</div>
+    <div class="menu">
+      <button class="b main" id="btnCampaign">Campaign</button>
+      <button class="b" id="btnHelp">How to command</button>
+      <button class="b" id="btnSet">Settings</button>
+    </div>
+    <div class="foot">Mouse and keyboard · best with headphones</div>
+  </div>
+
+  <div class="screen" id="campaign" hidden>
+    <div id="mlist"></div>
+    <div id="brief"><div class="card">
+      <h2 id="bname"></h2>
+      <div id="bsub" style="color:var(--dim);margin-top:-6px"></div>
+      <p id="btext"></p>
+      <p class="goal" id="bgoal"></p>
+      <div class="fleet"><div class="a"><h5>Your ship</h5><ul id="bship"></ul></div><div class="a"><h5>Allies</h5><ul id="ballies"></ul></div><div class="e"><h5>Enemy</h5><ul id="benemy"></ul></div></div>
+      <div class="row" style="justify-content:flex-start"><button class="b main" id="btnLaunch">Take command</button><button class="b" data-back style="min-width:0">Back</button></div>
+    </div></div>
+  </div>
+
+  <div class="screen shade" id="help" hidden>
+    <div class="card">
+      <h2>How to command</h2>
+      <dl class="keys">
+        <dt><kbd>W</kbd> <kbd>S</kbd></dt><dd>Throttle: astern, all stop, one quarter, half, three quarters, full ahead</dd>
+        <dt><kbd>A</kbd> <kbd>D</kbd> · <kbd>R</kbd> <kbd>F</kbd></dt><dd>Turn to port or starboard · climb or dive. Capital ships are heavy: start turns early</dd>
+        <dt>Mouse · wheel</dt><dd>Look around the ship · camera distance. The sight in the centre of the screen is where your guns aim</dd>
+        <dt>Left click (hold)</dt><dd>Fire every battery that bears on the sight: port and starboard broadsides, and the bow guns straight ahead</dd>
+        <dt>Right click</dt><dd>Zoom in for long shots</dd>
+        <dt><kbd>Space</kbd></dt><dd>Torpedo salvo at your target (heavy cruisers and battlecruisers; the target must be ahead)</dd>
+        <dt><kbd>Tab</kbd> · <kbd>T</kbd></dt><dd>Next enemy warship · the ship under your sight (allies too)</dd>
+        <dt><kbd>Q</kbd> <kbd>E</kbd></dt><dd>Pick a subsystem on the target: bridge, engines, shield generator, batteries, hangar</dd>
+        <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></dt><dd>Reinforce fore, aft, port or starboard shields (press again to balance them)</dd>
+        <dt><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd></dt><dd>Your squadrons. Tap: launch, or attack your target (escort it, if it is a friend). <kbd>Shift</kbd>+tap: escort us. Hold: recall to rearm</dd>
+        <dt><kbd>V</kbd> · <kbd>Esc</kbd></dt><dd>Every squadron attacks your target · pause</dd>
+      </dl>
+      <div class="tips">
+        <b>Broadsides:</b> most of your guns point sideways. Turn so the target sits on your beam, aim at the yellow diamond (it leads the target), and fire.
+        <b>Shields</b> have four facings. Fire on one facing until it drops and your bolts reach the hull and the systems behind it. Put your strongest shield toward the enemy.
+        <b>Subsystems:</b> a ship without engines crawls, without a shield generator its shields bleed away, without a battery that side goes quiet, without a hangar it can't launch, and without a bridge it can barely aim. Your damage-control crews bring your own systems back after a while.
+        <b>Fighters</b> screen against bombers; <b>bombers</b> carry torpedoes that punch through half a shield. Flak guns fire on their own.
+      </div>
+      <div class="row"><button class="b" data-back>Back</button></div>
+    </div>
+  </div>
+
+  <div class="screen shade" id="settings" hidden>
+    <div class="card" style="width:min(560px,92vw)"><h2>Settings</h2><div id="setform"></div><div class="row"><button class="b" data-back>Back</button></div></div>
+  </div>
+
+  <div class="screen shade" id="pause" hidden>
+    <div class="card" style="width:min(420px,92vw);text-align:center">
+      <h2>Paused</h2>
+      <div class="menu" style="margin-top:14px">
+        <button class="b main" id="btnResume">Resume</button>
+        <button class="b" id="btnRestart">Restart mission</button>
+        <button class="b" id="btnPHelp">How to command</button>
+        <button class="b" id="btnPSet">Settings</button>
+        <button class="b" id="btnLeave">Leave the battle</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen shade" id="results" hidden>
+    <div class="card">
+      <h2 id="restitle">Victory</h2>
+      <p id="reswhy" style="font-size:17px;color:#c6d6e6"></p>
+      <div id="resgrade"></div>
+      <div id="resstats"></div>
+      <div class="row"><button class="b main" id="btnNext">Next mission</button><button class="b" id="btnRetry">Fight again</button><button class="b" id="btnCamp">Campaign</button></div>
+    </div>
+  </div>
+  <div id="nogl" hidden>Highguard needs WebGL. Try another browser or turn on hardware acceleration.</div>
+</div>
