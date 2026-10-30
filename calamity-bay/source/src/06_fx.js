@@ -236,7 +236,10 @@ function setBeam(from, to, w) {
 
 // ---------- camera shake ----------
 let shake = 0;
-function addShake(a, pos) {
+// Only big moments shake the camera: footsteps, small hits and debris fade out below the curve.
+// Pass raw = true for a deliberate rumble (an intro) that should build from small steps.
+function addShake(a, pos, raw) {
   if (pos) a *= clamp(1 - camera.position.distanceTo(pos) / 700, 0.15, 1);
-  shake = Math.min(1.6, shake + a);
+  if (!raw) a *= smooth(0.15, 0.7, a);
+  shake = Math.min(1.2, shake + a);
 }
