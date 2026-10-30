@@ -4,7 +4,7 @@ const _mv = new V3(), _mw = new V3();
 
 Mission.clear = function () {
   for (const s of G.ships) s.remove();
-  G.ships = []; G.craft = []; G.player = null; Combat.clear(); Fx.clear();
+  G.ships = []; G.craft = []; G.player = null; Combat.clear(); Fx.clear(); Damage.clear();
   Craft.byTeam = [[], []];
 };
 function spawnShip(e, team, o) {

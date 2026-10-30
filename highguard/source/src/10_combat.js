@@ -30,7 +30,7 @@ Combat.craftShotShip = function (c, s, aimL, wp, hit, g) {
   shot('craft', o, at, g.speed, hit, CRAFT_COL[c.team], 14, 0.55, () => {
     if (!s.alive) return;
     const res = s.damage(g.capDmg, lp, c, 'gun');
-    if (!G.simming && res) Fx.impact(s.toWorld(lp, _kw), null, res === 'shield', BOLT_COL[s.team], 0.35);
+    if (!G.simming && res) { const wp = s.toWorld(lp, _kw); Fx.impact(wp, null, res === 'shield', BOLT_COL[s.team], 0.35); if (res !== 'shield') Damage.hit(s, wp, c.fwd, g.capDmg, 'gun'); }
   });
   if (!G.simming) Sfx.blaster(c.pos, c.team);
 };
@@ -76,7 +76,7 @@ Combat.update = function (dt) {
         const res = bs.damage(b.dmg, lp, b.owner, 'bolt');
         if (b.owner && b.owner.stats) b.owner.stats.hits++;
         const wp = bs.toWorld(lp, _kw);
-        if (!G.simming) { Fx.impact(wp, _kd.copy(b.d).negate(), res === 'shield', BOLT_COL[bs.team], 1.4); Sfx.hit(wp, res === 'shield', true); }
+        if (!G.simming) { Fx.impact(wp, _kd.copy(b.d).negate(), res === 'shield', BOLT_COL[bs.team], 1.4); Sfx.hit(wp, res === 'shield', true); if (res && res !== 'shield') Damage.hit(bs, wp, b.d, b.dmg, 'bolt'); }
         Mission.event('hit', bs, res, b.owner);
         B[i] = B[B.length - 1]; B.pop(); continue;
       }
@@ -106,7 +106,10 @@ Combat.update = function (dt) {
     if (t.pos.distanceToSquared(aim) < 45 * 45 || t.target.inside(t.pos, 6)) {
       const lp = t.target.toLocal(t.pos, new V3());
       const res = t.target.damage(TORP.dmg, lp, t.owner, 'torp');
-      if (!G.simming) { Fx.explode(t.pos, 34, t.target.vel); if (res !== 'hull') Fx.impact(t.pos, null, true, BOLT_COL[t.target.team], 3); Sfx.explosion(t.pos, 1.3); }
+      if (!G.simming) {
+        Fx.explode(t.pos, 46, t.target.vel); if (res !== 'hull') Fx.impact(t.pos, null, true, BOLT_COL[t.target.team], 3); Sfx.explosion(t.pos, 1.6);
+        if (res && res !== 'shield') Damage.hit(t.target, t.pos, _kp.copy(t.vel).normalize(), TORP.dmg, 'torp');
+      }
       Mission.event('torp', t.target, res, t.owner);
       t.alive = false; T.splice(i, 1);
     }

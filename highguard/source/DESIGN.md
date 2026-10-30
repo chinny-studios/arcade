@@ -26,7 +26,8 @@ only, heavy but responsive handling, and a fixed ship per mission (nothing carri
 | `13_player` | `PC`: helm, sight and gunnery, targeting, shields, squadron keys, chase camera; `Cine` (title camera) |
 | `14_hud` | `Hud`: DOM panels, shield diagrams, overlay canvas (brackets, craft, lead marker, sight, radar) |
 | `15_ui` | `Ui`: title, campaign and briefing, help, settings, pause, results |
-| `16_main` | boot, frame loop, `window.HG` debug hook |
+| `16_damage` | `Damage`: what hits leave behind: scorch decals, charred vertices, hull debris, fires and gas vents |
+| `17_main` | boot, frame loop, `window.HG` debug hook |
 
 ## Conventions
 
@@ -68,6 +69,13 @@ only, heavy but responsive handling, and a fixed ship per mission (nothing carri
   come home when their two torpedoes are spent and relaunch after 7 s while the order stands.
 - **Torpedoes:** 290 m/s, home at 1.1 rad/s, 460 damage, 25 HP (flak shoots them down). Player tubes: a salvo from
   every tube at the target if it is within 3.6 km and roughly ahead, 26 s reload.
+- **Damage visuals** (`16_damage`, never while `sim()` runs, at most 12 hull traces a frame): a hit that reaches the
+  hull is traced onto the real hull mesh for the exact point and normal. There it leaves a scorch decal (glowing rim
+  for ~4 s, embers for ~45 s, then char; per section, a ring of 140 instances), sometimes a wide faint soot stain, and
+  darkens the hull's vertex colours and windows around it (each damaged section gets its own colour attribute). Bolts
+  sometimes and torpedoes always knock chunks loose (instanced debris, at most 420). Hits may start a fire or a gas
+  vent that keeps burning (up to 12 a ship, likelier as the hull drops). A knocked-out subsystem is charred black,
+  scorched from every side, blown open and left burning. Numbers are unaffected.
 - **Collisions:** touching hulls push apart and grind each other (shields first).
 - **Grades:** on a win, 40 + hull × 35 + time bonus (par / time) × 15 + allies alive × 10; S ≥ 92, A ≥ 80, B ≥ 65.
 
