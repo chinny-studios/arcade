@@ -388,7 +388,18 @@ function buildCraft(type, team) {
   const b = new ShipBuilder(type.length + team * 9, team, 10), P = b.P;
   b.split = -1e9;
   const s = CRAFT[type].len / 14;
-  if (type === 'shuttle') {
+  if (type === 'strike') {
+    // Heavier than an interceptor: a long nose, twin cannons, swept wings and the captain's gold stripes.
+    b.box(0, 0, 0, 2.6 * s, 1.9 * s, 16 * s, P.base, { tx: 0.2, ty: 0.35, sec: 0 });
+    b.box(0, 1.1 * s, 2 * s, 1.3 * s, 0.9 * s, 3.4 * s, P.glass, { tx: 0.5, sec: 0, raw: true });
+    b.box(0, 1.05 * s, -3 * s, 0.5 * s, 0.25 * s, 7 * s, 0xd8b040, { sec: 0, raw: true });
+    for (const k of [-1, 1]) {
+      b.box(k * 4.2 * s, -0.2 * s, -3.5 * s, 6 * s, 0.45 * s, 5.5 * s, P.dark, { tx: 0.35, bx: 1, sec: 0 });
+      b.box(k * 7 * s, -0.2 * s, -3.5 * s, 0.7 * s, 1.8 * s, 4 * s, 0xd8b040, { sec: 0, raw: true });
+      b.box(k * 2 * s, -0.5 * s, 2 * s, 0.35 * s, 0.35 * s, 9 * s, P.deep, { sec: 0 });
+      b.box(k * 1.6 * s, -0.4 * s, -6.5 * s, 1.2 * s, 1.2 * s, 3 * s, P.dark, { sec: 0 });
+    }
+  } else if (type === 'shuttle') {
     b.box(0, 0, 0, 6 * s, 4 * s, 18 * s, P.base, { tx: 0.6, ty: 0.6, sec: 0 });
     b.box(0, 2.6 * s, -2 * s, 1 * s, 3 * s, 6 * s, P.dark, { sec: 0 });
     for (const k of [-1, 1]) b.box(k * 4 * s, -1 * s, -3 * s, 3 * s, 0.6 * s, 8 * s, P.dark, { tx: 0.5, sec: 0 });

@@ -6,12 +6,13 @@ const THROTTLE_NAMES = ['Astern', 'All stop', 'One quarter', 'Half ahead', 'Thre
 const SQUAD_KEYS = ['KeyZ', 'KeyX', 'KeyC'];
 const PC = {
   yaw: 0, pitch: -0.12, dist: 1, zoom: 0, thrIdx: 1, target: null, sub: null,
-  camPos: new V3(), camDir: new V3(0, 0, 1), aim: new V3(), range: 0, aimShip: null, lead: null, leadV: new V3(), bears: {}, deadT: 0, recallFired: {},
+  camPos: new V3(), camDir: new V3(0, 0, 1), aim: new V3(), range: 0,
+  pilot: null, fThr: 0.8, boost: 1, link: 1, gunSide: 1, flead: null, fleadV: new V3(), noseV: new V3(), hitT: 0, hitKind: '', aimShip: null, lead: null, leadV: new V3(), bears: {}, deadT: 0, recallFired: {},
 };
 const _pv = new V3(), _pw = new V3(), _px = new V3();
 PC.reset = function () {
   const p = G.player;
-  PC.target = null; PC.sub = null; PC.zoom = 0; PC.dist = 1; PC.deadT = 0; PC.recallFired = {};
+  PC.target = null; PC.sub = null; PC.zoom = 0; PC.dist = 1; PC.deadT = 0; PC.recallFired = {}; PC.pilot = null; PC.boost = 1; PC.link = 1;
   if (p) { PC.yaw = p.yaw; PC.pitch = -0.12; PC.thrIdx = THROTTLE.indexOf(THROTTLE.reduce((a, b) => Math.abs(b - p.thr) < Math.abs(a - p.thr) ? b : a)); p.thr = THROTTLE[PC.thrIdx]; }
 };
 PC.update = function (dt) {
@@ -23,7 +24,9 @@ PC.update = function (dt) {
   PC.pitch = clamp(PC.pitch - Input.mdy * sens * (settings.invert ? -1 : 1), -1.4, 1.4);
   if (Input.wheel) PC.dist = clamp(PC.dist * Math.pow(1.12, Input.wheel), 0.65, 3.2);
   PC.zoom = approach(PC.zoom, Input.down('M2') && p.alive ? 1 : 0, dt * 5);
-  if (!p.alive) { PC.deadT += dt; return; }
+  if (!p.alive) { PC.deadT += dt; if (PC.pilot) PC.endPilot(); return; }
+  if (Input.hit('KeyG')) { if (PC.pilot) PC.endPilot(); else PC.launchFighter(); }
+  if (PC.pilot) { PC.fly(dt); PC.targeting(); PC.squads(); return; }
   // Helm.
   if (Input.hit('KeyW')) { PC.thrIdx = Math.min(THROTTLE.length - 1, PC.thrIdx + 1); Sfx.ui(); }
   if (Input.hit('KeyS')) { PC.thrIdx = Math.max(0, PC.thrIdx - 1); Sfx.ui(); }
@@ -116,16 +119,19 @@ PC.order = function (q, kind) {
   else { const e = t && t.team === p.team && !Input.shift() ? t : p; q.command('escort', e); Hud.ribbon(q.name + ' · escort ' + (e === p ? 'us' : e.name), 'info'); }
   Sfx.ui();
 };
+// The squadrons on the Z X C keys (the remote fighter is on G and isn't one of them).
+PC.sqList = () => G.player ? G.player.squads.filter((q) => q.type !== 'strike') : [];
+PC.strikeSquad = () => G.player && G.player.squads.find((q) => q.type === 'strike');
 PC.squads = function () {
-  const p = G.player;
+  const p = G.player, list = PC.sqList();
   SQUAD_KEYS.forEach((k, i) => {
-    const q = p.squads[i]; if (!q) return;
+    const q = list[i]; if (!q) return;
     if (Input.down(k) && Input.heldFor(k) > 0.45 && !PC.recallFired[k]) { PC.recallFired[k] = true; PC.order(q, 'recall'); }
     if (Input.up(k)) { if (!PC.recallFired[k]) PC.order(q, Input.shift() ? 'escort' : 'auto'); PC.recallFired[k] = false; }
   });
   if (Input.hit('KeyV')) {
     if (!PC.target || PC.target.team === p.team) { Hud.warn('Target an enemy ship first'); Sfx.deny(); }
-    else for (const q of p.squads) if (q.total) PC.order(q, 'attack');
+    else for (const q of list) if (q.total) PC.order(q, 'attack');
   }
 };
 // Camera: a chase view orbiting the ship. When the ship is lost it drifts back and watches the wreck.
@@ -135,6 +141,16 @@ PC.camera = function (dt) {
   if (G.camOverride) { c.position.copy(G.camOverride[0]); c.up.set(0, 1, 0); c.lookAt(G.camOverride[1]); PC.camPos.copy(c.position); c.getWorldDirection(PC.camDir); return; }
   if (!p) return;
   dirFrom(PC.yaw, PC.pitch, PC.camDir);
+  if (PC.pilot) {
+    // Behind and a little above the fighter, looking where the mouse aims.
+    const f = PC.pilot, k = PC.dist;
+    PC.camPos.copy(f.pos).addScaledVector(PC.camDir, -62 * k).addScaledVector(UP, 13 * k);
+    if (R.shake > 0 && settings.shake) { const s = R.shake * 3; PC.camPos.x += rnd(-s, s); PC.camPos.y += rnd(-s, s); PC.camPos.z += rnd(-s, s); }
+    R.shake = Math.max(0, R.shake - dt * 2);
+    c.position.copy(PC.camPos); c.up.set(0, 1, 0); c.lookAt(_pw.copy(PC.camPos).add(PC.camDir));
+    Sfx.listen(PC.camPos);
+    return;
+  }
   const L = p.len, d = (L * 1.15 + 80) * PC.dist * (p.alive ? 1 : 1.6 + Math.min(PC.deadT * 0.05, 1));
   if (!p.alive) PC.yaw += dt * 0.05;
   _pv.copy(p.alive ? p.pos : p.centre(_px)).addScaledVector(UP, L * 0.2);
@@ -144,6 +160,79 @@ PC.camera = function (dt) {
   c.position.copy(PC.camPos); c.up.set(0, 1, 0);
   c.lookAt(_pw.copy(PC.camPos).add(PC.camDir));
   Sfx.listen(PC.camPos);
+};
+// ---- The remote strike fighter ----
+// G launches it from the hangar and hands you the stick; the first officer takes the cruiser (a ShipAI that leaves
+// your squadrons alone). The fighter turns toward wherever the mouse aims; its guns fire along the nose.
+PC.launchFighter = function () {
+  const p = G.player, q = PC.strikeSquad(); if (!q) return;
+  if (!p.ok('hangar') || !p.model.hangar) { Hud.warn('Hangar knocked out: the fighter can\'t launch'); Sfx.deny(); return; }
+  if (q.ready <= 0) { Hud.warn(q.out.length ? 'Kite is still flying home' : 'Kite is being rebuilt · ' + Math.ceil((CRAFT.strike.rebuild || 30) - q.buildT) + ' s'); Sfx.deny(); return; }
+  q.ready--;
+  const c = new Craft('strike', p.team, q), h = p.model.hangar;
+  p.toWorld(h.p, c.pos); c.fwd.copy(h.dir).applyQuaternion(p.root.quaternion).normalize(); c.want.copy(c.fwd);
+  c.speed = p.speed + 80; c.piloted = true; c.isPlayerCraft = true; c.mode = 'piloted'; c.radius = 20;
+  q.out.push(c); G.craft.push(c); Craft.byTeam[p.team].push(c); q.order = { kind: 'escort', target: p };
+  PC.pilot = c; PC.fThr = 0.8; PC.boost = 1; PC.link = 1; PC.zoom = 0;
+  PC.yaw = yawOf(c.fwd); PC.pitch = clamp(pitchOf(c.fwd) + 0.3, -1.4, 1.4);
+  p.ai = new ShipAI(p, { noSquads: true }); p.yawCmd = 0; p.pitchCmd = 0;
+  Sfx.launch(c.pos); Hud.reset();
+  Hud.ribbon('Kite launched · you have the stick · the first officer has the ship', 'info');
+  Mission.tip('pilot', 'You\'re flying <b>Kite</b> by remote. Aim with the mouse and the fighter turns to follow. Left click: cannons · <kbd>Space</kbd>: torpedoes at your target · <kbd>W</kbd> <kbd>S</kbd> speed · <kbd>Shift</kbd> boost · <kbd>G</kbd> back to the bridge. Stay within 7 km of your ship or the link drops.');
+};
+PC.endPilot = function (why) {
+  const c = PC.pilot, p = G.player; PC.pilot = null; PC.flead = null;
+  if (c && c.alive) { c.piloted = false; c.mode = 'rtb'; c.squad.order = { kind: 'recall', target: p }; }
+  if (c && c.squad) c.squad.order = { kind: 'recall', target: p };
+  if (p && p.alive) {
+    p.ai = null; p.yawCmd = 0; p.pitchCmd = 0;
+    PC.thrIdx = THROTTLE.indexOf(THROTTLE.reduce((a, b) => Math.abs(b - p.thr) < Math.abs(a - p.thr) ? b : a)); p.thr = THROTTLE[PC.thrIdx];
+    PC.yaw = p.yaw; PC.pitch = -0.12;
+  }
+  Hud.reset();
+  Hud.ribbon(why || 'Back on the bridge · Kite is flying home to rearm', why ? 'bad' : 'info');
+};
+PC.fly = function (dt) {
+  const c = PC.pilot, p = G.player;
+  if (!c.alive) { PC.endPilot('Kite is down · back on the bridge'); return; }
+  const d = c.pos.distanceTo(p.pos);
+  PC.link = clamp(1 - (d - 5000) / 2000, 0, 1);
+  if (d > 7000) { PC.endPilot('Control link lost · Kite is flying home'); return; }
+  if (Input.down('KeyW')) PC.fThr = Math.min(1, PC.fThr + dt * 0.8);
+  if (Input.down('KeyS')) PC.fThr = Math.max(0.2, PC.fThr - dt * 0.8);
+  const boosting = Input.shift() && PC.boost > 0.02;
+  PC.boost = boosting ? Math.max(0, PC.boost - dt / 4) : Math.min(1, PC.boost + dt / 9);
+  c.wantSpeed = boosting ? c.T.boost : c.T.speed * PC.fThr;
+  // Fly toward the point the camera looks at, 1.2 km out.
+  _pv.copy(PC.camPos).addScaledVector(PC.camDir, 1200).sub(c.pos).normalize(); c.want.copy(_pv);
+  PC.noseV.copy(c.fwd).multiplyScalar(c.T.gun.range * 0.8).add(c.pos);
+  if (Input.down('M0') && c.gunCd <= 0) {
+    c.gunCd = c.T.gun.rate; PC.gunSide = -PC.gunSide;
+    _px.crossVectors(c.up, c.fwd).normalize();
+    _pw.copy(c.pos).addScaledVector(_px, PC.gunSide * 2.2).addScaledVector(c.fwd, 10);
+    Combat.pilotShot(c, _pw, c.fwd);
+  }
+  if (Input.hit('Space')) {
+    const t = PC.target;
+    if (!c.torps) { Hud.warn('No torpedoes left · G to go home and rearm'); Sfx.deny(); }
+    else if (!t || t.team === c.team) { Hud.warn('Torpedoes need an enemy target (Tab or T)'); Sfx.deny(); }
+    else {
+      _pv.copy(t.toWorld(PC.sub ? t.subs[PC.sub].p : t.model.centre)).sub(c.pos); const dist = _pv.length();
+      if (dist > 1800) { Hud.warn('Get within 1.8 km to fire torpedoes'); Sfx.deny(); }
+      else if (_pv.divideScalar(dist).dot(c.fwd) < 0.6) { Hud.warn('Point the nose at the target to fire torpedoes'); Sfx.deny(); }
+      else { Combat.torpedo(c, c.pos.clone().addScaledVector(c.fwd, 14), t, PC.sub ? t.subs[PC.sub].p : null); c.torps--; Hud.ribbon('Torpedo away · ' + c.torps + ' left', 'info'); }
+    }
+  }
+  // Lead marker on the enemy craft nearest the nose.
+  PC.flead = null; let best = 0.35;
+  for (const e of Craft.byTeam[1 - c.team]) {
+    if (!e.alive) continue; _pv.copy(e.pos).sub(c.pos); const dd = _pv.length(); if (dd > 1600) continue;
+    const a = c.fwd.angleTo(_pv); if (a < best) { best = a; PC.flead = leadPoint(c.pos, e.pos, e.vel, c.T.gun.speed, PC.fleadV); }
+  }
+  // Collision warning.
+  _pv.copy(c.fwd).multiplyScalar(c.speed * 1.2).add(c.pos);
+  for (const s of G.ships) if (s.alive && s.arrived && s.pos.distanceToSquared(c.pos) < (s.radius + 500) ** 2 && s.inside(_pv, 15)) { Hud.warn('Pull up!'); break; }
+  PC.hitT = Math.max(0, PC.hitT - dt);
 };
 // Title-screen camera: slow orbits around a random ship in the demo battle.
 const Cine = { t: 0, ship: null, a: 0 };

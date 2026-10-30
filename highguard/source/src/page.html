@@ -36,6 +36,7 @@
   .rib { font-size: 15px; font-weight: 600; padding: 2px 14px; background: var(--panel); border-left: 3px solid var(--ally); transition: opacity .6s, transform .6s; white-space: nowrap; }
   .rib.good { border-color: var(--ok); } .rib.bad { border-color: var(--foe); color: #ffd2c0; } .rib.kill { border-color: var(--gold); color: #ffeaa0; font-size: 18px; } .rib.info { border-color: #9fd8ff; }
   .rib.out { opacity: 0; transform: translateY(-8px); }
+  body.piloting #ribbons { top: auto; bottom: 84px; flex-direction: column-reverse; }
   #warn { position: absolute; left: 0; right: 0; top: 56%; text-align: center; font-size: 16px; font-weight: 600; color: #ffcf8a; opacity: 0; transition: opacity .3s; }
   #warn.on { opacity: 1; }
   #bounds, #torpwarn, #bridgeoff { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 700; letter-spacing: .06em; padding: 2px 12px; }
@@ -70,12 +71,13 @@
   .wp div { height: 4px; background: rgba(0,0,0,.6); margin: 3px 0 2px; } .wp i { display: block; height: 100%; background: #9fd8ff; }
   .wp.bear { border-color: #ffc04a; opacity: 1; } .wp.bear i { background: #ffc04a; }
   .wp.go { border-color: var(--ok); opacity: 1; box-shadow: inset 0 -2px 0 var(--ok); } .wp.go i { background: var(--ok); } .wp.go small { color: var(--ok); }
+  .wp div.sh i { background: #7fc8ff; }
   .wp.torp { border-color: #9fd8ff; opacity: 1; } .wp.down { border-color: #ff6a50; opacity: .7; } .wp.down small { color: #ff8a70; }
 
   #hangar { right: 12px; bottom: 12px; width: 300px; padding: 8px 12px 8px; }
   #hangar h4 { margin: 0 0 4px; font-family: var(--title); font-size: 14px; color: var(--ally); letter-spacing: .1em; text-transform: uppercase; }
   .sq { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; border-top: 1px solid rgba(255,255,255,.06); font-size: 13px; opacity: .75; }
-  .sq.active { opacity: 1; } .sq kbd { margin-top: 2px; } .sq div { flex: 1; } .sq small { color: var(--dim); }
+  .sq.active { opacity: 1; } .sq.strike kbd { background: var(--gold); box-shadow: 0 1px 0 #8a6a2a; } .sq kbd { margin-top: 2px; } .sq div { flex: 1; } .sq small { color: var(--dim); }
   .sq em { display: block; font-style: normal; color: #bfe6ff; font-size: 12px; }
   .pips { float: right; display: flex; gap: 2px; margin-top: 4px; } .pips i { width: 7px; height: 7px; border: 1px solid rgba(255,255,255,.3); }
   .pips i.in { background: rgba(127,212,255,.55); } .pips i.out { background: var(--ok); border-color: var(--ok); }
@@ -205,6 +207,7 @@
         <dt><kbd>Q</kbd> <kbd>E</kbd></dt><dd>Pick a subsystem on the target: bridge, engines, shield generator, batteries, hangar</dd>
         <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></dt><dd>Reinforce fore, aft, port or starboard shields (press again to balance them)</dd>
         <dt><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd></dt><dd>Your squadrons. Tap: launch, or attack your target (escort it, if it is a friend). <kbd>Shift</kbd>+tap: escort us. Hold: recall to rearm</dd>
+        <dt><kbd>G</kbd></dt><dd>Launch <b>Kite</b>, your strike fighter, and fly it by remote: the mouse aims, left click fires its cannons, <kbd>Space</kbd> its two torpedoes, <kbd>W</kbd> <kbd>S</kbd> speed, <kbd>Shift</kbd> boost. Your first officer fights the ship meanwhile. <kbd>G</kbd> again to return; Kite flies home to rearm. The link drops past 7 km</dd>
         <dt><kbd>V</kbd> · <kbd>Esc</kbd></dt><dd>Every squadron attacks your target · pause</dd>
       </dl>
       <div class="tips">

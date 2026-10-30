@@ -26,6 +26,8 @@ HG.place(HG.pc.target, 1100, 85, 0, 180); HG.reload(); HG.aimAt(HG.pc.target);
 for (const s in p.bat) p.bat[s].t = 0;
 window.dispatchEvent(new MouseEvent('mousedown', { button: 0 })); await frames(3); window.dispatchEvent(new MouseEvent('mouseup', { button: 0 })); await frames(4);
 r.shots = p.stats.shots; r.bears = Object.assign({}, HG.pc.bears);
+await tap('KeyG'); await frames(3); r.piloting = !!HG.pc.pilot && !!p.ai;
+await tap('KeyG'); await frames(2); r.backOnBridge = !HG.pc.pilot && !p.ai;
 key('Escape'); await frames(2); r.paused = HG.G.paused;
 key('Escape', 'keyup'); document.getElementById('btnResume').click(); await frames(2); r.resumed = !HG.G.paused;
 return r;

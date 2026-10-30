@@ -12,6 +12,7 @@ class Craft {
     this.speed = T.speed * 0.6; this.gunCd = rand() * 0.3; this.target = null; this.mode = 'launch'; this.timer = 1.4; this.retarget = 0;
     this.jink = new V3(); this.jinkT = rnd(1, 3); this.want = new V3(0, 0, 1); this.wantSpeed = T.speed;
     this.stats = { dmg: 0, kills: 0 };
+    this.shield = T.shield || 0; this.shT = 0; this.piloted = false;
   }
   get isTorp() { return false; }
   // Turn toward this.want at the craft's turn rate, bank into the turn, and move.
@@ -97,10 +98,13 @@ class Craft {
         break;
       }
       case 'board': case 'docked': Mission.shuttle(this, dt); break;
+      case 'piloted': break; // PC.fly sets want and wantSpeed
+
       default: this.think(order);
     }
     // Random jinking so dogfights don't fly on rails.
     if ((this.jinkT -= dt) <= 0) { this.jinkT = rnd(1.2, 3.5); this.jink.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)); }
+    if (T.shield && (this.shT += dt) > 3) this.shield = Math.min(T.shield, this.shield + T.shield * 0.25 * dt);
     this.avoid();
     this.fly(dt);
   }
@@ -152,11 +156,11 @@ class Craft {
       if (s.pos.distanceToSquared(this.pos) > (s.radius + 400) ** 2) continue;
       if ((this.mode === 'rtb' || this.mode === 'launch' || this.age < 3) && s === this.homeShip()) continue;
       if ((this.mode === 'board' || this.mode === 'docked') && s === this.target) continue;
-      if (s.inside(_cx, 40)) { s.centre(_cv); _cv.subVectors(this.pos, _cv).normalize(); this.want.addScaledVector(_cv, 2).normalize(); }
+      if (s.inside(_cx, 40) && !this.piloted) { s.centre(_cv); _cv.subVectors(this.pos, _cv).normalize(); this.want.addScaledVector(_cv, 2).normalize(); }
       if (s.inside(this.pos, 5) && this.mode !== 'rtb') this.crash(s);
     }
     const r = this.pos.length();
-    if (r > ARENA_R + 400) this.want.addScaledVector(this.pos, -1.5 / r).normalize();
+    if (r > ARENA_R + 400 && !this.piloted) this.want.addScaledVector(this.pos, -1.5 / r).normalize();
   }
   crash(s) { Combat.craftDamage(this, 1e4, null); }
   die(by) {
@@ -195,8 +199,8 @@ Craft.updateAll = function (dt) {
 };
 Craft.init = function () {
   Craft.meshes = {};
-  for (const team of [0, 1]) for (const type of ['int', 'bmb', 'shuttle']) {
-    if (type === 'shuttle' && team === 1) continue;
+  for (const team of [0, 1]) for (const type of ['int', 'bmb', 'shuttle', 'strike']) {
+    if ((type === 'shuttle' || type === 'strike') && team === 1) continue;
     const m = new THREE.InstancedMesh(Models.craft(type, team), Models.craftMat, 160);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false;
     R.scene.add(m); Craft.meshes[type + team] = m;
@@ -211,9 +215,10 @@ Craft.draw = function (dt) {
     _cm.makeBasis(_cx, _cy, c.fwd); _cm.setPosition(c.pos);
     m.setMatrixAt(m.count++, _cm);
     const P = PALETTE[c.team], back = _cv.copy(c.fwd).multiplyScalar(-c.T.len * 0.7).add(c.pos);
-    Fx.glow(back, c.T.len * (c.type === 'bmb' ? 1.6 : 1.3), P.engine[0], P.engine[1], P.engine[2], 0.9);
-    // Short engine trails, so the dogfights read as streaks.
-    if (dt > 0 && !G.simming) Fx.spark(back, null, 0.5, c.T.len * 0.55, c.T.len * 0.15, P.engine[0] * 0.5, P.engine[1] * 0.5, P.engine[2] * 0.5, 0.55);
+    // The fighter you fly sits right in front of the camera: a small glow, no trail.
+    const mine = c === PC.pilot;
+    Fx.glow(back, c.T.len * (mine ? 0.35 : c.type === 'bmb' ? 1.6 : 1.3), P.engine[0], P.engine[1], P.engine[2], mine ? 0.7 : 0.9);
+    if (dt > 0 && !G.simming && !mine) Fx.spark(back, null, 0.5, c.T.len * 0.55, c.T.len * 0.15, P.engine[0] * 0.5, P.engine[1] * 0.5, P.engine[2] * 0.5, 0.55);
   }
   for (const k in Craft.meshes) Craft.meshes[k].instanceMatrix.needsUpdate = true;
 };
@@ -279,7 +284,7 @@ class Squadron {
     }
     // Replace losses.
     if (hangar && this.total < this.size) {
-      if ((this.buildT += dt) >= REBUILD_TIME) { this.buildT = 0; this.ready++; }
+      if ((this.buildT += dt) >= (CRAFT[this.type].rebuild || REBUILD_TIME)) { this.buildT = 0; this.ready++; }
     } else this.buildT = 0;
   }
 }
