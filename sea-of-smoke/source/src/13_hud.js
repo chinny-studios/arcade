@@ -40,7 +40,7 @@ Hud.ribbon = function (text, kind) {
   if (G.simming || !$('ribbons')) return;
   const r = el('div', 'rib ' + (kind || ''), text); $('ribbons').prepend(r);
   setTimeout(() => r.classList.add('out'), 2600); setTimeout(() => r.remove(), 3300);
-  while ($('ribbons').children.length > 5) $('ribbons').lastChild.remove();
+  while ($('ribbons').children.length > 4) $('ribbons').lastChild.remove();
 };
 Hud.deny = function (text) { if (G.simming) return; const d = $('deny'); d.textContent = text; d.classList.add('on'); clearTimeout(Hud.denyT); Hud.denyT = setTimeout(() => d.classList.remove('on'), 1600); };
 Hud.feed = function (text, team) {
@@ -98,6 +98,10 @@ Hud.update = function (dt) {
     for (let i = 0; i < 3; i++) st[i].className = 'ic fire' + (p.fires[i] > 0 || p.ignited > 0 ? ' on' : '');
     for (let i = 0; i < 2; i++) st[3 + i].className = 'ic leak' + (p.leaks[i] > 0 ? ' on' : '');
     st[5].className = 'ic board' + (p.board ? ' on' : '');
+    st[6].className = 'ic gun' + (BATTERIES.some((b) => p.crit[b] > 0) ? ' on' : '');
+    st[7].className = 'ic rud' + (p.crit.rudder > 0 ? ' on' : '');
+    const down = p.model.masts.filter((m) => m.fallen).length;
+    st[8].className = 'ic mast' + (down ? ' on' : ''); st[8].dataset.n = down ? down + '×' : '';
     const slots = $('weap').children;
     for (let i = 0; i < slots.length; i++) slots[i].classList.toggle('sel', i === p.weapon);
     if (p.C.rafts && slots[3]) slots[3].querySelector('small').textContent = p.raftRl > 0 ? Math.ceil(p.raftRl) + ' s' : 'ready';
@@ -206,9 +210,9 @@ function drawOverlay() {
     const x = cx + ox, y = cy + 48; ox += 52;
     const bear = p.bears(b, PC.ax, PC.az), ready = p.rl[b] <= 0, f = 1 - p.rl[b] / (p.rlMax[b] || 1);
     g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 4; g.beginPath(); g.arc(x, y, 11, 0, TAU); g.stroke();
-    g.strokeStyle = ready ? (bear ? '#7ef08a' : '#9aa') : '#f0c24a'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 11, -Math.PI / 2, -Math.PI / 2 + TAU * f); g.stroke();
+    g.strokeStyle = p.crit[b] > 0 ? '#ff5d4d' : ready ? (bear ? '#7ef08a' : '#9aa') : '#f0c24a'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 11, -Math.PI / 2, -Math.PI / 2 + TAU * f); g.stroke();
     g.fillStyle = bear ? '#fff' : 'rgba(255,255,255,.45)'; g.font = '600 9px Georgia, serif'; g.fillText(lab, x, y + 24);
-    if (!ready) { g.font = '600 10px Georgia, serif'; g.fillText(Math.ceil(p.rl[b] / p.reloadRate()), x, y + 4); }
+    if (!ready) { g.font = '600 10px Georgia, serif'; g.fillText(Math.ceil(p.rl[b] / p.reloadRate() / (p.crit[b] > 0 ? 0.5 : 1)), x, y + 4); }
   }
   // target panel
   if (t) {

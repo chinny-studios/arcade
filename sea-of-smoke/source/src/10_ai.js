@@ -185,7 +185,7 @@ class Bot {
   consumables(dt) {
     const s = this.s; this.consT -= dt; if (this.consT > 0) return; this.consT = rnd(0.8, 2);
     const burning = s.fires.filter((f) => f > 0).length, leaking = s.leaks.some((l) => l > 0);
-    if ((burning >= 2 || (burning && s.hpf < 0.6) || (leaking && s.hpf < 0.85) || (burning && s.fires.some((f) => f > 0 && f < FIRE.dur - 12))) && rand() < this.skill + 0.3) s.useRepair();
+    if ((burning >= 2 || (burning && s.hpf < 0.6) || (leaking && s.hpf < 0.85) || (burning && s.fires.some((f) => f > 0 && f < FIRE.dur - 12)) || s.crit.rudder > 0 || (s.crit.port > 0 && s.crit.star > 0)) && rand() < this.skill + 0.3) s.useRepair();
     const sp = s.spec, t = this.target, d = t ? Math.hypot(t.x - s.x, t.z - s.z) : 1e9;
     if (sp.n <= 0 || sp.cd > 0) return;
     if (sp.id === 'smoke' && ((Match.time - (s.hitT || -99) < 4 && s.hpf < 0.7) || (s.C.rafts && d < 700))) s.useSpecial();

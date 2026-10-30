@@ -51,6 +51,17 @@ const Sfx = (() => {
   };
   S.splash = (x, z, size) => { if (!ok()) return; const p = spatial(x, z); if (p.g < 0.06) return; burst(ctx.currentTime + p.delay * 0.3, 0.45, 3000, 600, 0.18 * p.g * (size || 1), 'bandpass'); };
   S.crack = (x, z) => { if (!ok()) return; const p = spatial(x, z); if (p.g < 0.05) return; const t = ctx.currentTime + p.delay * 0.3; burst(t, 0.18, 2600, 400, 0.4 * p.g, 'bandpass'); tone(t, 0.12, 180, 60, 0.25 * p.g, 'square'); };
+  // Your own ball striking home: a heavy thud and splintering crack, heard at any range.
+  S.hit = (dmg) => {
+    if (!ok() || ctx.currentTime - (S.hitT || 0) < 0.06) return; S.hitT = ctx.currentTime;
+    const t = ctx.currentTime, k = clamp(dmg / 150, 0.5, 1.4);
+    tone(t, 0.28, 120, 40, 0.3 * k); burst(t, 0.22, 3200, 500, 0.16 * k, 'bandpass'); tone(t + 0.01, 0.08, 420, 150, 0.06, 'square');
+  };
+  S.timber = (x, z) => {
+    if (!ok()) return; const p = spatial(x, z), t = ctx.currentTime + p.delay * 0.3;
+    for (let i = 0; i < 3; i++) burst(t + i * 0.12, 0.25, 2200, 300, 0.35 * p.g, 'bandpass');
+    tone(t, 1.4, 160, 60, 0.12 * p.g, 'sawtooth'); burst(t + 1.7, 0.9, 1800, 400, 0.3 * p.g, 'bandpass');
+  };
   S.explosion = (x, z) => { if (!ok()) return; const p = spatial(x, z); const t = ctx.currentTime + p.delay; burst(t, 2.6, 1800, 60, 0.9 * p.g); tone(t, 1.4, 55, 22, 0.9 * p.g); };
   S.bell = (n) => { if (!ok()) return; for (let i = 0; i < (n || 2); i++) { const t = ctx.currentTime + i * 0.55; tone(t, 1.6, 880, 870, 0.12); tone(t, 1.2, 2210, 2200, 0.04); } };
   S.clash = () => { if (!ok()) return; const t = ctx.currentTime; for (let i = 0; i < 4; i++) { const k = t + Math.random() * 0.8; tone(k, 0.15, 2400 + Math.random() * 1500, 1800, 0.05, 'triangle'); burst(k, 0.1, 5000, 3000, 0.05, 'highpass'); } burst(t, 1.2, 900, 500, 0.08, 'bandpass'); };

@@ -19,10 +19,13 @@ function launchBall(s, gun, tx, tz, ammo) {
     Fx.muzzle(x, y, z, ux, uz, 0.7 + s.C.guns.dmg / 200);
   }
 }
-// A ball from (x,y,z) solved (low arc) to come down at (tx, 0, tz).
+// A ball from (x,y,z) on the low arc that passes through (tx, hT, tz): round shot is laid on the hull side,
+// chain shot through the rigging, grapeshot across the decks (AIM_H).
+const AIM_H = [2, 12, 3.5];
 Combat.spawnBall = function (x, y, z, tx, tz, v, dmg, ammo, team, owner, mine) {
-  const dx = tx - x, dz = tz - z, D = Math.max(1, Math.hypot(dx, dz));
-  const th = 0.5 * Math.asin(clamp(GRAV * D / (v * v), -1, 1)) - Math.atan2(y, D) * 0.5;
+  const dx = tx - x, dz = tz - z, D = Math.max(1, Math.hypot(dx, dz)), dy = AIM_H[ammo] - y;
+  const disc = v ** 4 - GRAV * (GRAV * D * D + 2 * dy * v * v);
+  const th = disc > 0 ? Math.atan((v * v - Math.sqrt(disc)) / (GRAV * D)) : Math.PI / 4;
   const vh = v * Math.cos(th);
   Combat.balls.push({ x, y, z, vx: dx / D * vh, vy: v * Math.sin(th), vz: dz / D * vh, owner, team, ammo, dmg, t: 0, hitSails: null, mine });
 };
@@ -70,11 +73,11 @@ Combat.update = function (dt) {
         const hy = lerp(ay, by, th), hz = lerp(alz, blz, th), hx = lerp(alx, blx, th);
         const u = (hz + C.len / 2) / C.len, w = s.model.halfW(clamp(u, 0, 1));
         if (Math.abs(hx) <= w + 0.6 || Math.abs(hx) < hw * 0.6) {
-          s.hitHull(b.dmg, b.ammo, b.owner, hy, hz);
+          s.hitHull(b.dmg, b.ammo, b.owner, hy, hz, hx);
           if (!G.simming) {
             const wx = lerp(ox, b.x, th), wz = lerp(oz, b.z, th);
-            if (s.model.root.visible) Fx.splinters(wx, hy + s.y, wz, 0.8 + C.len / 60);
-            if (b.mine || s.isPlayer) Sfx.crack(wx, wz);
+            if (s.model.root.visible) Fx.splinters(wx, hy + s.y, wz, 0.7 + b.dmg / 130);
+            if (b.mine) Sfx.hit(b.dmg); else if (s.isPlayer) Sfx.crack(wx, wz);
           }
           if (b.mine) Hud.hitMark();
           dead = true; break;

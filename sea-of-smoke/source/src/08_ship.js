@@ -25,6 +25,9 @@ class Ship {
     this.model = buildShip(cls, { team, strake: o.strake || pick(STRAKES) });
     R.scene.add(this.model.root);
     this.sailOrder = shuffle(this.model.sails.map((_, i) => i));
+    // Lasting damage: crits (seconds left), which side took the beating (list), shot holes, masts down.
+    this.crit = { port: 0, star: 0, bow: 0, stern: 0, rudder: 0 };
+    this.sideDmg = 0; this.holeN = 0; this.smokeT = 0; this.shade = 1;
     this.sailSet = 0.15; this.wakeT = 0;
   }
   get hpf() { return this.hp / this.maxHp; }
@@ -85,7 +88,7 @@ class Ship {
     if (this.board) target = 0;
     const acc = C.speed / C.accel;
     this.v = approach(this.v, target, acc * dt * (Math.abs(this.v) > Math.abs(target) ? 1.4 : 1));
-    this.rudder = approach(this.rudder, this.board ? 0 : this.rudderCmd, dt / C.rudderT);
+    if (this.crit.rudder <= 0) this.rudder = approach(this.rudder, this.board ? 0 : this.rudderCmd, dt / C.rudderT);
     const vs = Math.max(Math.abs(this.v), C.speed * 0.18) * Math.sign(this.v || 1);
     this.omega = this.rudder * vs / C.turnR;
     this.h = angNorm(this.h - this.omega * dt);
@@ -109,12 +112,13 @@ class Ship {
 
     // reloads and consumables
     const rr = this.reloadRate();
-    for (const b of BATTERIES) if (this.rl[b] > 0) this.rl[b] = Math.max(0, this.rl[b] - dt * rr);
+    for (const b of BATTERIES) if (this.rl[b] > 0) this.rl[b] = Math.max(0, this.rl[b] - dt * rr * (this.crit[b] > 0 ? 0.5 : 1));
+    for (const k in this.crit) if (this.crit[k] > 0) this.crit[k] -= dt;
     if (this.raftRl > 0) this.raftRl = Math.max(0, this.raftRl - dt);
     const rp = this.repair, sp = this.spec;
     if (rp.cd > 0) rp.cd -= dt;
     if (sp.cd > 0) sp.cd -= dt;
-    if (rp.t > 0) { rp.t -= dt; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * REPAIR.heal * dt); this.sails = Math.min(1, this.sails + 0.02 * dt); }
+    if (rp.t > 0) { rp.t -= dt; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * REPAIR.heal * dt); this.sails = Math.min(this.sailCap(), this.sails + 0.02 * dt); }
     if (sp.t > 0) {
       sp.t -= dt;
       if (sp.id === 'smoke' && (sp.puff -= dt) <= 0) { sp.puff = 1.1; Combat.smokeAt(this.wx(0, -L * 0.6), this.wz(0, -L * 0.6), this); }
@@ -126,7 +130,8 @@ class Ship {
     const leaking = this.leaks.filter((l) => l > 0).length;
     if (burning) { this.damage(this.maxHp * FIRE.dps * burning * dt, this.fireBy, 'fire'); this.crew = Math.max(this.maxCrew * 0.08, this.crew - burning * 0.15 * dt); this.sails = Math.max(0.05, this.sails - 0.004 * burning * dt); }
     if (leaking && this.alive) this.damage(this.maxHp * LEAK.dps * leaking * dt, this.fireBy, 'leak');
-    if (!burning) this.sails = Math.min(1, this.sails + 0.005 * dt);
+    if (!burning) this.sails = Math.min(this.sailCap(), this.sails + 0.005 * dt);
+    this.checkMasts(null);
     if (this.ignited > 0) {
       this.ignited -= dt;
       if (this.ignited <= 0 && this.alive) { this.hp = 0; this.die(this.lastBy, 'burned'); }
@@ -138,10 +143,13 @@ class Ship {
     const hb = waveH(this.wx(0, L * 0.4), this.wz(0, L * 0.4)), hs = waveH(this.wx(0, -L * 0.4), this.wz(0, -L * 0.4));
     const hp = waveH(this.wx(B * 0.5, 0), this.wz(B * 0.5, 0)), hst = waveH(this.wx(-B * 0.5, 0), this.wz(-B * 0.5, 0));
     const ky = 1 / (1 + L / 40);
-    this.y = lerp(this.y, (hb + hs + hp + hst) / 4 * (0.6 + ky), Math.min(1, dt * 4));
+    // a battered hull lists toward the side that took the most shot and settles as she floods
+    const hurt = 1 - this.hpf, list = Math.pow(hurt, 1.5) * 0.13 * Math.sign(this.sideDmg || 1) + leaking * 0.025 * Math.sign(this.sideDmg || 1);
+    const settle = hurt * C.fb * 0.28 + leaking * 0.3;
+    this.y = lerp(this.y, (hb + hs + hp + hst) / 4 * (0.6 + ky) - settle, Math.min(1, dt * 4));
     this.pitch = lerp(this.pitch, (hb - hs) / (L * 0.8) * 0.8, Math.min(1, dt * 3));
     const heel = -this.rudder * clamp(this.v / C.speed, -1, 1) * 0.07 + 0.025 * Math.sin(angNorm(Match.wind.a - this.h)) * (this.tele > 0 ? 1 : 0);
-    this.roll = lerp(this.roll, (hp - hst) / B * 0.5 + heel, Math.min(1, dt * 2));
+    this.roll = lerp(this.roll, (hp - hst) / B * 0.5 + heel - list, Math.min(1, dt * 2));
     this.updateModel(dt, burning, leaking);
   }
 
@@ -152,13 +160,18 @@ class Ship {
     // sails: set or furled, shot away as sail health drops, braced to the wind
     const want = !this.alive ? 0.1 : this.tele <= 0 ? 0.14 : 0.35 + 0.1625 * this.tele;
     this.sailSet = approach(this.sailSet, want, dt * 0.5);
-    const n = m.sails.length, keep = Math.ceil(n * (0.2 + 0.8 * this.sails));
+    const up = this.sailOrder.filter((si) => !m.masts[m.sails[si].userData.mast].fallen);
+    const keep = Math.ceil(up.length * (0.2 + 0.8 * this.sails / this.sailCap()));
     const brace = clamp(angNorm(Match.wind.a - this.h) * 0.25, -0.45, 0.45);
-    this.sailOrder.forEach((si, k) => {
-      const s = m.sails[si], vis = k < keep;
+    let k = 0;
+    this.sailOrder.forEach((si) => {
+      const s = m.sails[si], fallen = m.masts[s.userData.mast].fallen, vis = fallen || k++ < keep;
       s.visible = vis;
-      if (vis) { s.scale.y = this.sailSet; if (s.userData.kind === 'sq') s.rotation.y = brace; s.scale.x = s.userData.kind === 'sq' ? 1 : 1 + 0.05 * Math.sin(G.t * 3 + si); }
+      if (vis && !fallen) { s.scale.y = this.sailSet; if (s.userData.kind === 'sq') s.rotation.y = brace; s.scale.x = s.userData.kind === 'sq' ? 1 : 1 + 0.05 * Math.sin(G.t * 3 + si); }
     });
+    for (const ms of m.masts) if (ms.fallen) this.animateMast(ms, dt);
+    const shade = lerp(1, 0.4, Math.pow(1 - this.hpf, 0.8)); // scorched and blackened as the hull is battered
+    if (Math.abs(shade - this.shade) > 0.01) { this.shade = shade; m.hullMat.color.setScalar(shade); }
     const wrel = angNorm(Match.wind.a - this.h);
     m.flags.forEach((f, i) => { f.rotation.y = wrel + Math.PI / 2 + Math.sin(G.t * 7 + i * 2 + this.id) * 0.12; });
     if (G.simming) return;
@@ -171,6 +184,11 @@ class Ship {
       const s = this.C.beam * 0.35;
       Fx.wake(this.wx(0, L * 0.45), this.wz(0, L * 0.45), Math.sin(this.h) * this.v * 0.4 + rnd(-1, 1), Math.cos(this.h) * this.v * 0.4, s * 0.7);
       Fx.wake(this.wx(rnd(-1, 1), -L * 0.5), this.wz(0, -L * 0.5), 0, 0, s);
+    }
+    if (!burning && this.hpf < 0.55 && this.model.root.visible && (this.smokeT -= dt) <= 0) {
+      // a badly hurt ship trails a thin column of smoke from below decks
+      this.smokeT = 0.2 + this.hpf * 0.9;
+      Fx.emit('smoke', this.wx(rnd(-1, 1), rnd(-L * 0.25, L * 0.25)), this.C.fb + this.y, this.wz(0, rnd(-L * 0.25, L * 0.25)), 0, rnd(2, 3.5), 0, 2.2, 2.4, rnd(5, 8), 0.3, 0.29, 0.28, 0.32 + (0.55 - this.hpf) * 0.5, 0, 0.3, 0.8);
     }
     if ((burning || this.ignited > 0) && this.model.root.visible) {
       for (let i = 0; i < 3; i++) if (this.fires[i] > 0 || this.ignited > 0) {
@@ -220,20 +238,75 @@ class Ship {
     if (fired) this.lastFire = Match.time;
     return fired;
   }
-  hitHull(dmg, ammoId, by, ly, lz) {
+  hitHull(dmg, ammoId, by, ly, lz, lx) {
     const a = AMMO[ammoId];
     this.damage(dmg * a.hull, by, 'hull');
+    this.sideDmg += dmg * a.hull * (lx >= 0 ? 1 : -1);
+    this.addHole(lx, ly, lz, 0.5 + dmg / 140);
     this.crew = Math.max(this.maxCrew * 0.08, this.crew - dmg * a.crew * 0.045); // only boarding finishes a crew
     if (by && by.team !== this.team) by.stats.hits++;
     if (!this.alive) return;
     const sec = lz > this.C.len * 0.17 ? 0 : lz < -this.C.len * 0.17 ? 2 : 1;
     if (rand() < a.fire) this.startFire(sec, by);
     if (ly < this.C.fb * 0.4 && rand() < a.leak * 1.6) this.startLeak(lz > 0 ? 0 : 1, by);
+    if (rand() < 0.02) { // critical hit: a jammed rudder at the stern, otherwise a battery dismounted
+      const L = this.C.len;
+      if (lz < -L * 0.36) this.critHit('rudder', by);
+      else this.critHit(lz > L * 0.42 && this.model.guns.bow.length ? 'bow' : lz < -L * 0.4 && this.model.guns.stern.length ? 'stern' : lx >= 0 ? 'port' : 'star', by);
+    }
+  }
+  critHit(kind, by) {
+    if (!this.alive || this.crit[kind] > 0) return;
+    this.crit[kind] = kind === 'rudder' ? 9 : 30;
+    const side = { port: 'port', star: 'starboard', bow: 'bow', stern: 'stern' }[kind];
+    if (this.isPlayer) Hud.ribbon(kind === 'rudder' ? 'Rudder jammed!' : `${side[0].toUpperCase() + side.slice(1)} guns dismounted!`, 'bad');
+    if (by && by.isPlayer) Hud.ribbon(kind === 'rudder' ? 'Jammed her rudder' : `Dismounted her ${side} guns`, 'good');
+  }
+  // Stamp a shot hole on the hull side nearest the hit (ring buffer of instanced quads).
+  addHole(lx, ly, lz, size) {
+    const m = this.model, L = this.C.len, u = clamp((lz + L / 2) / L, 0.04, 0.96);
+    const y = clamp(ly, 0.3, this.C.fb * 0.92), side = lx >= 0 ? 1 : -1, x = side * (m.hullX(u, y) + 0.07);
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, side * Math.PI / 2, rnd(0, TAU), 'YXZ'));
+    const mat = new THREE.Matrix4().compose(new THREE.Vector3(x, y, clamp(lz, -L * 0.46, L * 0.44)), q, new THREE.Vector3(size, size, 1));
+    m.holes.setMatrixAt(this.holeN % 80, mat); this.holeN++;
+    m.holes.count = Math.min(80, this.holeN); m.holes.instanceMatrix.needsUpdate = true;
+  }
+  // Masts: sails can be mended only up to what the standing masts can carry.
+  sailCap() { const ms = this.model.masts; return ms.length < 2 ? 1 : 1 - 0.3 * ms.filter((m) => m.fallen).length; }
+  standingMasts() { return this.model.masts.filter((m) => !m.fallen); }
+  checkMasts(by) {
+    const ms = this.model.masts; if (ms.length < 2) return;
+    const down = ms.length - this.standingMasts().length, at = [0.38, 0.17];
+    if (down < Math.min(ms.length - 1, 2) && this.sails < at[down]) this.dropMast(by);
+  }
+  dropMast(by) {
+    const up = this.standingMasts(); if (up.length < 2 || !this.alive) return;
+    const ms = up[Math.floor(rand() * up.length)];
+    ms.fallen = true; ms.fallT = 0; ms.fallDir = rand() < 0.5 ? -1 : 1; ms.splashed = false;
+    this.sails = Math.min(this.sails, this.sailCap());
+    if (!G.simming) Sfx.timber(this.x, this.z);
+    if (this.isPlayer) Hud.ribbon('Mast down!', 'bad');
+    if (by && by.isPlayer) Hud.ribbon('Brought down a mast', 'good');
+  }
+  animateMast(ms, dt) {
+    ms.fallT += dt;
+    const k = smoothstep(0, 1.8, ms.fallT);
+    ms.group.rotation.z = ms.fallDir * k * k * 1.32;
+    if (ms.fallT > 1.8 && !ms.splashed) {
+      ms.splashed = true;
+      if (!G.simming && this.model.root.visible) {
+        const lx = ms.fallDir * ms.H * 0.6, lz = ms.group.position.z;
+        Fx.splash(this.wx(lx, lz), this.wz(lx, lz), 2.2); Sfx.splash(this.wx(lx, lz), this.wz(lx, lz), 1.5);
+      }
+    }
+    if (ms.fallT > 30) ms.group.visible = false; // the crew cuts the wreckage away
   }
   hitSails(dmg, ammoId, by) {
     const a = AMMO[ammoId];
     const mult = ammoId === 1 && by && by.C.chainBonus ? by.C.chainBonus : 1;
     this.sails = Math.max(0.05, this.sails - dmg * a.sail * mult / (this.maxHp * 0.22));
+    if (rand() < (ammoId === 1 ? 0.012 : 0.005)) this.dropMast(by); // critical: a mast shot through
+    else this.checkMasts(by);
     this.crew = Math.max(this.maxCrew * 0.08, this.crew - dmg * a.crew * 0.012);
     if (by && by.team !== this.team) { by.stats.dmg += dmg * a.sail * 0.15; this.lastBy = by; }
   }
@@ -268,6 +341,7 @@ class Ship {
     const r = this.repair; if (!this.alive || r.n <= 0 || r.cd > 0) return false;
     r.n--; r.t = REPAIR.dur; r.cd = this.C.repair.cd + REPAIR.dur;
     this.fires.fill(0); this.leaks.fill(0);
+    for (const k in this.crit) this.crit[k] = 0;
     return true;
   }
   useSpecial() {

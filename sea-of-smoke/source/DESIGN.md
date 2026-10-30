@@ -41,13 +41,23 @@ gamepad, all five classes, three maps, 8–10 minute battles.
   the rudder takes `rudderT` to go hard over. Land deeper than −0.75 × draft grounds the ship (damage above 30% speed).
   Reefs on The Bones sit at −2 m: sloops (1.8 m) and fireships (1.4 m) cross them, everything else runs aground.
 - **Gunnery:** a battery fires when loaded and the aim point lies in its arc (broadsides 40–140° off the bow, bow
-  chasers ±38°, stern chasers beyond 148°). Each gun's ball is solved (low arc, g = 20) to land on the aim point plus
+  chasers ±38°, stern chasers beyond 148°). Each gun's ball is solved (low arc, g = 20) to pass over the aim point at
+  `AIM_H` (round shot 2 m up the hull side, chain shot 12 m through the rigging, grapeshot 3.5 m across the decks) plus
   Gaussian dispersion (`0.016 × range + 2` m, ×1.7 along the line of fire, × class, ammo, lookout, squall). Guns ripple
   fire bow to stern over ~0.05 s each. Reload slows with crew below 65% and switching ammo costs half a reload.
 - **Hits:** each ball segment is tested against the target's hull box (tapered by `halfW` at that point) and, once,
   against its sail box above deck (the ball flies on). Hull hits: hull damage, crew, fire chance, leak chance if near
   the waterline. Sail hits: sail health (chain ×2.4, brig chain ×1.35 more). Gunfire never takes a crew below 8%:
-  only boarding finishes one. No friendly fire: balls pass through allies.
+  only boarding finishes one. No friendly fire: balls pass through allies. Gun damage per ball: 6-pdr 66, swivel 38,
+  9-pdr 102, 12-pdr 138, 24-pdr 198, fort 180.
+- **Visible damage:** every hull hit stamps a shot hole on that side (80 per ship, oldest reused); the hull darkens
+  to 40% as it is battered, lists up to 0.13 rad toward the side that took more shot (more with leaks) and settles by
+  up to 28% of its freeboard; below 55% hull a ship trails smoke. On ships with two or more masts a mast falls over
+  the side when sails drop below 38% and again below 17% (never the last), and the sails can then only be mended to
+  70% (40% with two down). Bigger splinter bursts and a flash on every hit; your own hits thud at any range.
+- **Critical hits:** 2% of hull hits dismount the battery on that side (or bow/stern chasers at the ends) for 30 s,
+  halving its reload rate, or jam the rudder for 9 s if they strike the stern quarter. 1.2% of chain-shot sail hits
+  (0.5% for other shot) bring a mast down outright. The repair party clears dismounted guns and a jammed rudder.
 - **Fire / leaks:** up to 3 fires (bow, waist, stern) at 0.28% hull/s for 35 s; up to 2 leaks at 0.28%/s for 30 s.
   The repair party (R) puts both out and heals 0.6%/s for 14 s.
 - **Specials (T):** smoke pots (sloop, fireship), studding sails (brig, +16% speed), lookout aloft (frigate, +35%
