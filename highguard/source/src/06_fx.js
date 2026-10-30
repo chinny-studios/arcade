@@ -19,7 +19,7 @@ function makePool(max, additive) {
     vertexShader: PT_VS,
     fragmentShader: additive
       ? 'varying vec4 vc; void main(){ float d = length(gl_PointCoord - .5)*2.; float a = pow(max(1. - d, 0.), 1.6); gl_FragColor = vec4(vc.rgb*vc.a*a, 1.); }'
-      : 'varying vec4 vc; void main(){ float d = length(gl_PointCoord - .5)*2.; float a = smoothstep(1., .3, d); gl_FragColor = vec4(vc.rgb, vc.a*a); }',
+      : 'varying vec4 vc; void main(){ float d = length(gl_PointCoord - .5)*2.; float a = 1. - smoothstep(.3, 1., d); gl_FragColor = vec4(vc.rgb, vc.a*a); }',
   });
   P.mesh = new THREE.Points(g, m); P.mesh.frustumCulled = false; P.mesh.renderOrder = additive ? 3 : 2;
   return P;
@@ -134,10 +134,20 @@ Fx.flash = function (p, s, r, g, b) { if (!G.simming) poolAdd(Fx.add, p.x, p.y, 
 Fx.impact = function (p, n, shield, col, s) {
   if (G.simming) return;
   s = s || 1;
-  if (shield) { poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.25, 10 * s, 26 * s, col.r * 0.7, col.g * 0.85, 1, 1); return; }
-  poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.3, 14 * s, 30 * s, 1, 0.7, 0.35, 1.2);
-  for (let i = 0; i < 6; i++) { const d = rndDir(_fd); if (n && d.dot(n) < 0) d.negate(); const sp = rnd(30, 120) * s; poolAdd(Fx.add, p.x, p.y, p.z, d.x * sp, d.y * sp, d.z * sp, rnd(0.4, 1.1), 3 * s, 1, 1, 0.6, 0.25, 1, 1); }
-  poolAdd(Fx.smoke, p.x, p.y, p.z, n ? n.x * 8 : 0, n ? n.y * 8 : 0, n ? n.z * 8 : 0, rnd(2, 4), 8 * s, 30 * s, 0.1, 0.1, 0.1, 0.55, 0.3);
+  if (shield) {
+    // A bright flare on the bubble, a ring of sparks skating off it.
+    poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.35, 16 * s, 42 * s, col.r * 0.75, col.g * 0.9, 1, 1.5);
+    poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.12, 8 * s, 12 * s, 1, 1, 1, 1.3);
+    for (let i = 0; i < 5; i++) { const d = rndDir(_fd), sp = rnd(40, 110) * s; poolAdd(Fx.add, p.x, p.y, p.z, d.x * sp, d.y * sp, d.z * sp, rnd(0.25, 0.5), 2.5 * s, 0.8, col.r * 0.6, col.g * 0.85, 1, 1, 2); }
+    return;
+  }
+  const nx = n ? n.x : 0, ny = n ? n.y : 0, nz = n ? n.z : 0;
+  // White-hot flash, then a rolling fireball pushed out of the hull, sparks, glowing fragments and smoke.
+  poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.22, 18 * s, 40 * s, 1, 0.95, 0.85, 1.6);
+  poolAdd(Fx.add, p.x + nx * 6 * s, p.y + ny * 6 * s, p.z + nz * 6 * s, nx * 14 * s, ny * 14 * s, nz * 14 * s, rnd(0.7, 1), 14 * s, 36 * s, 1, 0.5, 0.14, 1.2, 1.2);
+  poolAdd(Fx.add, p.x, p.y, p.z, rnd(-8, 8) * s, rnd(-8, 8) * s, rnd(-8, 8) * s, rnd(0.9, 1.3), 10 * s, 26 * s, 1, 0.36, 0.08, 0.9, 1.2);
+  for (let i = 0; i < 12; i++) { const d = rndDir(_fd); if (n && d.dot(n) < 0) d.negate(); const sp = rnd(40, 170) * s; poolAdd(Fx.add, p.x, p.y, p.z, d.x * sp, d.y * sp, d.z * sp, rnd(0.4, 1.3), 3.2 * s, 0.8, 1, rnd(0.5, 0.8), 0.25, 1, 0.8); }
+  for (let i = 0; i < 2; i++) poolAdd(Fx.smoke, p.x, p.y, p.z, nx * 10 + rnd(-4, 4), ny * 10 + rnd(-4, 4), nz * 10 + rnd(-4, 4), rnd(2.5, 5), 10 * s, 40 * s, 0.09, 0.085, 0.08, 0.6, 0.3);
 };
 // Jump arrival: a white streak along the ship's path.
 Fx.jump = function (from, to, s) {
@@ -153,7 +163,7 @@ const SHIELD_FS = `uniform vec4 hits[6]; uniform vec3 col; uniform float glow;
   varying vec3 vp; varying vec3 vn; varying vec3 vw;
   void main(){ vec3 p = normalize(vp); float a = 0.;
     for (int i = 0; i < 6; i++) { vec4 h = hits[i]; if (h.w < 1.2) { float d = distance(p, h.xyz);
-      float f = 1. - h.w/1.2; a += exp(-d*d*60.) * f * f * .9 + exp(-pow((d - h.w*.5)*18., 2.)) * f * .35; } }
+      float f = 1. - h.w/1.2; a += exp(-d*d*50.) * f * f * 1.3 + exp(-pow((d - h.w*.55)*16., 2.)) * f * .5; } }
     a = min(a, .9);
     float fr = pow(1. - abs(dot(normalize(vn), normalize(-vw))), 2.5);
     a += fr * glow;

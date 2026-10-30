@@ -38,7 +38,7 @@ class Ship {
     this.alive = true; this.arrived = true; this.dying = -1; this.escaped = false;
     this.stats = { dmg: 0, kills: 0, shots: 0, hits: 0, subs: 0 };
     this.lastHitBy = null; this.hitT = 0; this.underFire = 0;
-    this.burn = 0; this.isPlayer = false;
+    this.burns = []; this.isPlayer = false;
     this.buildMeshes();
   }
   buildMeshes() {
@@ -227,6 +227,7 @@ class Ship {
     Fx.explode(this.toWorld(s.p, _sw), Math.max(18, s.r * 0.8), this.vel);
     Sfx.explosion(_sw, 1.2);
     if (k === 'shields') for (const f of FACINGS) this.shDelay[f] = 0;
+    Damage.wreck(this, k);
     Mission.event('sub', this, k, by);
   }
   die(by) {
@@ -244,6 +245,7 @@ class Ship {
     for (const q of this.squads) q.orphan();
     Fx.explode(this.centre(_sw), this.len * 0.16, this.vel);
     Sfx.explosion(_sw, 2.2);
+    if (!G.simming) for (let i = 0; i < 4; i++) { this.randomPoint(_sd); _sl.copy(_sd).sub(_sw).normalize(); Damage.spray(this, _sd, _sl, rndi(4, 7), this.len * 0.012); }
     Mission.event('kill', this, null, by);
   }
   updateDying(dt) {
@@ -333,6 +335,7 @@ class Ship {
     if (!this.arrived) { this.root.visible = false; return; }
     this.root.visible = !this.escaped;
     if (this.escaped) return;
+    Damage.burn(this, dt);
     const P = PALETTE[this.team];
     if (this.alive) {
       const thr = Math.abs(this.speed) / (this.C.speed || 1), on = this.ok('engines') ? 1 : 0.25;
@@ -351,12 +354,7 @@ class Ship {
       for (const h of this.shHits) { if (h.w < 1.2) { h.w += dt; any = true; } }
       this.shieldMesh.material.uniforms.glow.value = Math.max(0, this.shieldMesh.material.uniforms.glow.value - dt * 1.5);
       this.shieldMesh.visible = any || this.shieldMesh.material.uniforms.glow.value > 0.01;
-      // Fires once the hull is badly hurt, and from knocked-out systems.
-      const hurt = 1 - this.hull / this.maxHull;
-      if (!G.simming && hurt > 0.45 && rand() < dt * (hurt - 0.4) * 10) {
-        this.randomPoint(_sw); Fx.spark(_sw, this.vel, rnd(0.5, 1.2), this.len * 0.015, this.len * 0.04, 1, 0.5, 0.15, 0.9);
-        Fx.puff(_sw, this.vel, rnd(2, 4), this.len * 0.02, this.len * 0.07, 0.1, 0.09, 0.09, 0.45, 0.2);
-      }
+      // Knocked-out systems smoulder (fires and vents from hull hits burn in Damage.burn).
       if (!G.simming) for (const k in this.subs) {
         const s = this.subs[k]; if (!s.down || rand() > dt * 6) continue;
         this.toWorld(s.p, _sw); _sw.x += rnd(-1, 1) * s.r * 0.4; _sw.y += rnd(-1, 1) * s.r * 0.4; _sw.z += rnd(-1, 1) * s.r * 0.4;

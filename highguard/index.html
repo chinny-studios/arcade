@@ -644,7 +644,7 @@ function makeStars() {
   const m = new THREE.ShaderMaterial({
     uniforms: { px: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: 'attribute float size; attribute vec3 color; varying vec3 vc; uniform float px; void main(){ vc = color; gl_PointSize = size * px; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-    fragmentShader: 'varying vec3 vc; void main(){ vec2 d = gl_PointCoord - .5; float a = smoothstep(.5, 0., length(d)); gl_FragColor = vec4(vc*a, 1.); }',
+    fragmentShader: 'varying vec3 vc; void main(){ vec2 d = gl_PointCoord - .5; float a = 1. - smoothstep(0., .5, length(d)); gl_FragColor = vec4(vc*a, 1.); }',
   });
   m.uniforms.px.value = Math.max(1, R.pixel);
   R.stars = new THREE.Points(g, m); R.stars.frustumCulled = false; R.bg.add(R.stars);
@@ -749,7 +749,7 @@ function makePool(max, additive) {
     vertexShader: PT_VS,
     fragmentShader: additive
       ? 'varying vec4 vc; void main(){ float d = length(gl_PointCoord - .5)*2.; float a = pow(max(1. - d, 0.), 1.6); gl_FragColor = vec4(vc.rgb*vc.a*a, 1.); }'
-      : 'varying vec4 vc; void main(){ float d = length(gl_PointCoord - .5)*2.; float a = smoothstep(1., .3, d); gl_FragColor = vec4(vc.rgb, vc.a*a); }',
+      : 'varying vec4 vc; void main(){ float d = length(gl_PointCoord - .5)*2.; float a = 1. - smoothstep(.3, 1., d); gl_FragColor = vec4(vc.rgb, vc.a*a); }',
   });
   P.mesh = new THREE.Points(g, m); P.mesh.frustumCulled = false; P.mesh.renderOrder = additive ? 3 : 2;
   return P;
@@ -864,10 +864,20 @@ Fx.flash = function (p, s, r, g, b) { if (!G.simming) poolAdd(Fx.add, p.x, p.y, 
 Fx.impact = function (p, n, shield, col, s) {
   if (G.simming) return;
   s = s || 1;
-  if (shield) { poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.25, 10 * s, 26 * s, col.r * 0.7, col.g * 0.85, 1, 1); return; }
-  poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.3, 14 * s, 30 * s, 1, 0.7, 0.35, 1.2);
-  for (let i = 0; i < 6; i++) { const d = rndDir(_fd); if (n && d.dot(n) < 0) d.negate(); const sp = rnd(30, 120) * s; poolAdd(Fx.add, p.x, p.y, p.z, d.x * sp, d.y * sp, d.z * sp, rnd(0.4, 1.1), 3 * s, 1, 1, 0.6, 0.25, 1, 1); }
-  poolAdd(Fx.smoke, p.x, p.y, p.z, n ? n.x * 8 : 0, n ? n.y * 8 : 0, n ? n.z * 8 : 0, rnd(2, 4), 8 * s, 30 * s, 0.1, 0.1, 0.1, 0.55, 0.3);
+  if (shield) {
+    // A bright flare on the bubble, a ring of sparks skating off it.
+    poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.35, 16 * s, 42 * s, col.r * 0.75, col.g * 0.9, 1, 1.5);
+    poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.12, 8 * s, 12 * s, 1, 1, 1, 1.3);
+    for (let i = 0; i < 5; i++) { const d = rndDir(_fd), sp = rnd(40, 110) * s; poolAdd(Fx.add, p.x, p.y, p.z, d.x * sp, d.y * sp, d.z * sp, rnd(0.25, 0.5), 2.5 * s, 0.8, col.r * 0.6, col.g * 0.85, 1, 1, 2); }
+    return;
+  }
+  const nx = n ? n.x : 0, ny = n ? n.y : 0, nz = n ? n.z : 0;
+  // White-hot flash, then a rolling fireball pushed out of the hull, sparks, glowing fragments and smoke.
+  poolAdd(Fx.add, p.x, p.y, p.z, 0, 0, 0, 0.22, 18 * s, 40 * s, 1, 0.95, 0.85, 1.6);
+  poolAdd(Fx.add, p.x + nx * 6 * s, p.y + ny * 6 * s, p.z + nz * 6 * s, nx * 14 * s, ny * 14 * s, nz * 14 * s, rnd(0.7, 1), 14 * s, 36 * s, 1, 0.5, 0.14, 1.2, 1.2);
+  poolAdd(Fx.add, p.x, p.y, p.z, rnd(-8, 8) * s, rnd(-8, 8) * s, rnd(-8, 8) * s, rnd(0.9, 1.3), 10 * s, 26 * s, 1, 0.36, 0.08, 0.9, 1.2);
+  for (let i = 0; i < 12; i++) { const d = rndDir(_fd); if (n && d.dot(n) < 0) d.negate(); const sp = rnd(40, 170) * s; poolAdd(Fx.add, p.x, p.y, p.z, d.x * sp, d.y * sp, d.z * sp, rnd(0.4, 1.3), 3.2 * s, 0.8, 1, rnd(0.5, 0.8), 0.25, 1, 0.8); }
+  for (let i = 0; i < 2; i++) poolAdd(Fx.smoke, p.x, p.y, p.z, nx * 10 + rnd(-4, 4), ny * 10 + rnd(-4, 4), nz * 10 + rnd(-4, 4), rnd(2.5, 5), 10 * s, 40 * s, 0.09, 0.085, 0.08, 0.6, 0.3);
 };
 // Jump arrival: a white streak along the ship's path.
 Fx.jump = function (from, to, s) {
@@ -883,7 +893,7 @@ const SHIELD_FS = `uniform vec4 hits[6]; uniform vec3 col; uniform float glow;
   varying vec3 vp; varying vec3 vn; varying vec3 vw;
   void main(){ vec3 p = normalize(vp); float a = 0.;
     for (int i = 0; i < 6; i++) { vec4 h = hits[i]; if (h.w < 1.2) { float d = distance(p, h.xyz);
-      float f = 1. - h.w/1.2; a += exp(-d*d*60.) * f * f * .9 + exp(-pow((d - h.w*.5)*18., 2.)) * f * .35; } }
+      float f = 1. - h.w/1.2; a += exp(-d*d*50.) * f * f * 1.3 + exp(-pow((d - h.w*.55)*16., 2.)) * f * .5; } }
     a = min(a, .9);
     float fr = pow(1. - abs(dot(normalize(vn), normalize(-vw))), 2.5);
     a += fr * glow;
@@ -1360,7 +1370,7 @@ class Ship {
     this.alive = true; this.arrived = true; this.dying = -1; this.escaped = false;
     this.stats = { dmg: 0, kills: 0, shots: 0, hits: 0, subs: 0 };
     this.lastHitBy = null; this.hitT = 0; this.underFire = 0;
-    this.burn = 0; this.isPlayer = false;
+    this.burns = []; this.isPlayer = false;
     this.buildMeshes();
   }
   buildMeshes() {
@@ -1549,6 +1559,7 @@ class Ship {
     Fx.explode(this.toWorld(s.p, _sw), Math.max(18, s.r * 0.8), this.vel);
     Sfx.explosion(_sw, 1.2);
     if (k === 'shields') for (const f of FACINGS) this.shDelay[f] = 0;
+    Damage.wreck(this, k);
     Mission.event('sub', this, k, by);
   }
   die(by) {
@@ -1566,6 +1577,7 @@ class Ship {
     for (const q of this.squads) q.orphan();
     Fx.explode(this.centre(_sw), this.len * 0.16, this.vel);
     Sfx.explosion(_sw, 2.2);
+    if (!G.simming) for (let i = 0; i < 4; i++) { this.randomPoint(_sd); _sl.copy(_sd).sub(_sw).normalize(); Damage.spray(this, _sd, _sl, rndi(4, 7), this.len * 0.012); }
     Mission.event('kill', this, null, by);
   }
   updateDying(dt) {
@@ -1655,6 +1667,7 @@ class Ship {
     if (!this.arrived) { this.root.visible = false; return; }
     this.root.visible = !this.escaped;
     if (this.escaped) return;
+    Damage.burn(this, dt);
     const P = PALETTE[this.team];
     if (this.alive) {
       const thr = Math.abs(this.speed) / (this.C.speed || 1), on = this.ok('engines') ? 1 : 0.25;
@@ -1673,12 +1686,7 @@ class Ship {
       for (const h of this.shHits) { if (h.w < 1.2) { h.w += dt; any = true; } }
       this.shieldMesh.material.uniforms.glow.value = Math.max(0, this.shieldMesh.material.uniforms.glow.value - dt * 1.5);
       this.shieldMesh.visible = any || this.shieldMesh.material.uniforms.glow.value > 0.01;
-      // Fires once the hull is badly hurt, and from knocked-out systems.
-      const hurt = 1 - this.hull / this.maxHull;
-      if (!G.simming && hurt > 0.45 && rand() < dt * (hurt - 0.4) * 10) {
-        this.randomPoint(_sw); Fx.spark(_sw, this.vel, rnd(0.5, 1.2), this.len * 0.015, this.len * 0.04, 1, 0.5, 0.15, 0.9);
-        Fx.puff(_sw, this.vel, rnd(2, 4), this.len * 0.02, this.len * 0.07, 0.1, 0.09, 0.09, 0.45, 0.2);
-      }
+      // Knocked-out systems smoulder (fires and vents from hull hits burn in Damage.burn).
       if (!G.simming) for (const k in this.subs) {
         const s = this.subs[k]; if (!s.down || rand() > dt * 6) continue;
         this.toWorld(s.p, _sw); _sw.x += rnd(-1, 1) * s.r * 0.4; _sw.y += rnd(-1, 1) * s.r * 0.4; _sw.z += rnd(-1, 1) * s.r * 0.4;
@@ -2008,7 +2016,7 @@ Combat.craftShotShip = function (c, s, aimL, wp, hit, g) {
   shot('craft', o, at, g.speed, hit, CRAFT_COL[c.team], 14, 0.55, () => {
     if (!s.alive) return;
     const res = s.damage(g.capDmg, lp, c, 'gun');
-    if (!G.simming && res) Fx.impact(s.toWorld(lp, _kw), null, res === 'shield', BOLT_COL[s.team], 0.35);
+    if (!G.simming && res) { const wp = s.toWorld(lp, _kw); Fx.impact(wp, null, res === 'shield', BOLT_COL[s.team], 0.35); if (res !== 'shield') Damage.hit(s, wp, c.fwd, g.capDmg, 'gun'); }
   });
   if (!G.simming) Sfx.blaster(c.pos, c.team);
 };
@@ -2054,7 +2062,7 @@ Combat.update = function (dt) {
         const res = bs.damage(b.dmg, lp, b.owner, 'bolt');
         if (b.owner && b.owner.stats) b.owner.stats.hits++;
         const wp = bs.toWorld(lp, _kw);
-        if (!G.simming) { Fx.impact(wp, _kd.copy(b.d).negate(), res === 'shield', BOLT_COL[bs.team], 1.4); Sfx.hit(wp, res === 'shield', true); }
+        if (!G.simming) { Fx.impact(wp, _kd.copy(b.d).negate(), res === 'shield', BOLT_COL[bs.team], 1.4); Sfx.hit(wp, res === 'shield', true); if (res && res !== 'shield') Damage.hit(bs, wp, b.d, b.dmg, 'bolt'); }
         Mission.event('hit', bs, res, b.owner);
         B[i] = B[B.length - 1]; B.pop(); continue;
       }
@@ -2084,7 +2092,10 @@ Combat.update = function (dt) {
     if (t.pos.distanceToSquared(aim) < 45 * 45 || t.target.inside(t.pos, 6)) {
       const lp = t.target.toLocal(t.pos, new V3());
       const res = t.target.damage(TORP.dmg, lp, t.owner, 'torp');
-      if (!G.simming) { Fx.explode(t.pos, 34, t.target.vel); if (res !== 'hull') Fx.impact(t.pos, null, true, BOLT_COL[t.target.team], 3); Sfx.explosion(t.pos, 1.3); }
+      if (!G.simming) {
+        Fx.explode(t.pos, 46, t.target.vel); if (res !== 'hull') Fx.impact(t.pos, null, true, BOLT_COL[t.target.team], 3); Sfx.explosion(t.pos, 1.6);
+        if (res && res !== 'shield') Damage.hit(t.target, t.pos, _kp.copy(t.vel).normalize(), TORP.dmg, 'torp');
+      }
       Mission.event('torp', t.target, res, t.owner);
       t.alive = false; T.splice(i, 1);
     }
@@ -2250,7 +2261,7 @@ const _mv = new V3(), _mw = new V3();
 
 Mission.clear = function () {
   for (const s of G.ships) s.remove();
-  G.ships = []; G.craft = []; G.player = null; Combat.clear(); Fx.clear();
+  G.ships = []; G.craft = []; G.player = null; Combat.clear(); Fx.clear(); Damage.clear();
   Craft.byTeam = [[], []];
 };
 function spawnShip(e, team, o) {
@@ -3067,10 +3078,183 @@ Ui.update = function () {
   }
 };
 
-// ---- 16_main: boot, frame loop, #debug hook (window.HG) ----
+// ---- 16_damage: what hits leave behind: scorch marks, charred hull, debris, fires and venting gas ----
+// Visual only (nothing here runs while sim() fast-forwards). A hull hit is traced onto the real hull mesh to find
+// the exact surface point and normal; there it leaves a glowing burn that cools to char, darkens the hull and
+// windows around it, may knock chunks loose and may start a fire or a gas vent that keeps going.
+const Damage = { budget: 0, debris: [] };
+const _dr = new THREE.Raycaster(), _dp = new V3(), _dn = new V3(), _dw = new V3(), _dq = new Q4(), _dq2 = new Q4(), _dm = new M4(), _ds = new V3(), _dz = new V3(0, 0, 1);
+const DECALS_PER_SECTION = 140, BURNS_PER_SHIP = 12, DEBRIS_MAX = 420;
+Damage.init = function () {
+  Damage.mat = new THREE.ShaderMaterial({
+    uniforms: { t: { value: 0 } }, transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    vertexShader: 'attribute vec2 info; varying vec2 vu; varying vec2 vi; void main(){ vu = uv; vi = info; gl_Position = projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.); }',
+    fragmentShader: `uniform float t; varying vec2 vu; varying vec2 vi;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      float n(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+      void main(){ vec2 p = vu - .5; float d = length(p)*2., a = atan(p.y, p.x);
+        float rough = n(vec2(a*2.2 + vi.y*17., vi.y*5.))*.38 + n(p*9. + vi.y*31.)*.22;
+        float burnt = 1. - smoothstep(.45, 1., d + rough - .15);
+        if (burnt < .01) discard;
+        // Soot stains (seed above 1.5) are wide, faint and never glow.
+        if (vi.y > 1.5) { gl_FragColor = vec4(vec3(.03, .027, .025), burnt * (.62 - .3*n(p*5. + vi.y))); return; }
+        float age = t - vi.x, heat = exp(-age/3.5);
+        float hole = 1. - smoothstep(.12, .36, d + rough*.4);
+        float rim = (1. - smoothstep(.3, .6, d + rough*.5)) * (1. - hole*.5);
+        float ember = smoothstep(.55, .78, n(p*14. + vec2(t*.5, vi.y*9.))) * exp(-age/45.);
+        vec3 glow = vec3(1., .4, .1) * (rim*1.7*heat + hole*(.8*heat + .35*ember));
+        gl_FragColor = vec4(vec3(.022, .019, .017) + glow*1.4, burnt*.93); }`,
+  });
+  Damage.plane = new THREE.PlaneGeometry(1, 1);
+  const m = Damage.chunks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 12, specular: 0x222222 }), DEBRIS_MAX);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(DEBRIS_MAX * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  m.count = 0; m.frustumCulled = false; R.scene.add(m);
+};
+Damage.clear = function () { Damage.debris.length = 0; Damage.chunks.count = 0; };
+// Give a mesh its own colour attribute (positions, normals and uvs stay shared with the class model).
+function ownColors(mesh) {
+  if (!mesh.userData.own) {
+    const g0 = mesh.geometry, g = new THREE.BufferGeometry();
+    for (const k in g0.attributes) g.setAttribute(k, k === 'color' ? g0.attributes.color.clone() : g0.attributes[k]);
+    g.boundingSphere = g0.boundingSphere; g.boundingBox = g0.boundingBox;
+    mesh.geometry = g; mesh.userData.own = true;
+  }
+  return mesh.geometry.attributes.color;
+}
+// Darken a mesh's vertices within r of a section-local point: k = how much at the centre (0..1).
+function charMesh(mesh, lp, r, k) {
+  const col = ownColors(mesh), pos = mesh.geometry.attributes.position, r2 = r * r;
+  for (let i = 0; i < pos.count; i++) {
+    const dx = pos.getX(i) - lp.x, dy = pos.getY(i) - lp.y, dz = pos.getZ(i) - lp.z, d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 >= r2) continue;
+    const f = 1 - k * (1 - Math.sqrt(d2) / r) ** 1.5;
+    col.setXYZ(i, Math.max(0.035, col.getX(i) * f), Math.max(0.03, col.getY(i) * f), Math.max(0.028, col.getZ(i) * f));
+  }
+  col.needsUpdate = true;
+}
+Damage.char = function (sec, lp, r, k) { charMesh(sec.hull, lp, r, k); if (sec.lit) charMesh(sec.lit, lp, r * 1.25, Math.min(1, k * 2.5)); };
+Damage.decal = function (sec, lp, n, size, soot) {
+  if (!sec.dec) {
+    const g = Damage.plane.clone();
+    g.setAttribute('info', new THREE.InstancedBufferAttribute(new Float32Array(DECALS_PER_SECTION * 2), 2));
+    const m = sec.dec = new THREE.InstancedMesh(g, Damage.mat, DECALS_PER_SECTION);
+    m.count = 0; m.frustumCulled = false; m.renderOrder = 1; sec.decI = 0; sec.g.add(m);
+  }
+  const m = sec.dec, i = sec.decI; sec.decI = (i + 1) % DECALS_PER_SECTION; m.count = Math.max(m.count, i + 1);
+  _dq.setFromUnitVectors(_dz, n); _dq2.setFromAxisAngle(n, rnd(0, TAU)); _dq.premultiply(_dq2);
+  _dp.copy(lp).addScaledVector(n, 0.35); _ds.set(size, size, 1);
+  _dm.compose(_dp, _dq, _ds); m.setMatrixAt(i, _dm); m.instanceMatrix.needsUpdate = true;
+  const info = m.geometry.attributes.info; info.setXY(i, R.t, rand() + (soot ? 2 : 0)); info.needsUpdate = true;
+};
+// Trace a ray along dir onto the ship's hull meshes. Returns { sec, lp (section-local), n (section-local), wp, wn }.
+function traceHull(ship, from, dir, far) {
+  _dr.set(from, dir); _dr.far = far;
+  let best = null;
+  for (const s of ship.secs) {
+    const hits = _dr.intersectObject(s.hull, false);
+    if (hits.length && (!best || hits[0].distance < best.distance)) { best = hits[0]; best.sec = s; }
+  }
+  if (!best || !best.face) return null;
+  const s = best.sec;
+  return { sec: s, lp: s.g.worldToLocal(best.point.clone()), n: best.face.normal.clone(), wp: best.point.clone(), wn: best.face.normal.clone().transformDirection(s.g.matrixWorld) };
+}
+// A hit that reached the hull. kind: 'bolt' | 'torp' | 'gun'. dir may be null (then aimed at the ship's centre).
+Damage.hit = function (ship, wp, dir, amount, kind) {
+  if (G.simming || !ship.secs.length || Damage.budget <= 0) return;
+  if (kind === 'gun' && rand() > 0.12) return;
+  Damage.budget--;
+  const d = dir ? _dw.copy(dir).normalize() : ship.centre(_dw).sub(wp).normalize();
+  const from = wp.clone().addScaledVector(d, -60), h = traceHull(ship, from, d, 160);
+  if (!h) return;
+  const size = kind === 'torp' ? 58 : kind === 'gun' ? 8 : clamp(amount / 1.9, 18, 44);
+  Damage.decal(h.sec, h.lp, h.n, size * rnd(0.8, 1.2));
+  if (kind !== 'gun' && rand() < (kind === 'torp' ? 1 : 0.4)) Damage.decal(h.sec, _ds.copy(h.lp).addScaledVector(h.n, 0.05), h.n, size * rnd(2.2, 3.2), true);
+  Damage.char(h.sec, h.lp, size * 1.5, kind === 'torp' ? 0.55 : kind === 'gun' ? 0.08 : 0.22);
+  if (kind === 'torp') Damage.spray(ship, h.wp, h.wn, rndi(5, 8), 4.5);
+  else if (kind === 'bolt' && rand() < 0.35) Damage.spray(ship, h.wp, h.wn, rndi(1, 3), 2.4);
+  const hurt = 1.6 - ship.hull / ship.maxHull;
+  if (ship.burns.length < BURNS_PER_SHIP && rand() < (kind === 'torp' ? 0.55 : kind === 'bolt' ? 0.07 : 0) * hurt)
+    ship.burns.push({ sec: h.sec, lp: h.lp, n: h.n, kind: rand() < 0.62 ? 'fire' : 'vent', size: size * rnd(0.45, 0.7), seed: rand() * 10 });
+};
+// A knocked-out subsystem: charred black where it stands, scorched from every side, blown open and burning.
+Damage.wreck = function (ship, key) {
+  if (G.simming || !ship.secs.length) return;
+  const sub = ship.subs[key]; if (!sub) return;
+  const r = Math.max(sub.r, 12);
+  for (const s of ship.secs) { s.g.updateMatrixWorld(true); Damage.char(s, _dp.copy(sub.p).sub(s.c), r * 1.35, 0.9); }
+  const cw = ship.toWorld(sub.p, new V3());
+  let first = null;
+  for (const v of [[0, 1, 0], [1, 0.3, 0], [-1, 0.3, 0], [0, 0.3, 1], [0, 0.3, -1], [0, -1, 0], [0.7, 0.7, 0.4], [-0.7, 0.7, -0.4]]) {
+    const dirL = new V3(...v).normalize(), from = ship.toWorld(sub.p.clone().addScaledVector(dirL, r * 3)), d = cw.clone().sub(from).normalize();
+    const h = traceHull(ship, from, d, r * 5);
+    if (!h || h.wp.distanceTo(cw) > r * 1.6) continue;
+    Damage.decal(h.sec, h.lp, h.n, r * rnd(0.9, 1.2)); Damage.decal(h.sec, h.lp, h.n, r * rnd(2, 2.6), true);
+    if (!first) first = h;
+  }
+  Damage.spray(ship, cw, first ? first.wn : UP, rndi(9, 14), clamp(r * 0.09, 3, 7));
+  if (first) ship.burns.push({ sec: first.sec, lp: first.lp, n: first.n, kind: 'fire', size: r * 0.55, seed: rand() * 10, big: true });
+};
+// Chunks of hull blown off at a world point, flung out along the surface normal.
+Damage.spray = function (ship, wp, wn, n, size) {
+  const P = PALETTE[ship.team], base = new THREE.Color(P.base), dark = new THREE.Color(P.dark);
+  for (let i = 0; i < n; i++) {
+    if (Damage.debris.length >= DEBRIS_MAX) Damage.debris.shift();
+    const v = new V3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).multiplyScalar(30).addScaledVector(wn, rnd(25, 80)).add(ship.vel);
+    const col = (rand() < 0.5 ? base : dark).clone().multiplyScalar(rnd(0.2, 0.5));
+    Damage.debris.push({ p: wp.clone().addScaledVector(wn, 2), v, q: new Q4().setFromEuler(new THREE.Euler(rnd(0, 6), rnd(0, 6), rnd(0, 6))),
+      axis: new V3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize(), spin: rnd(0.8, 4), s: new V3(size * rnd(0.5, 1.6), size * rnd(0.15, 0.5), size * rnd(0.5, 1.8)),
+      life: rnd(7, 13), age: 0, col, hot: rand() < 0.55 });
+  }
+};
+Damage.update = function (dt) {
+  Damage.budget = 12;
+  Damage.mat.uniforms.t.value = R.t;
+  const m = Damage.chunks, D = Damage.debris;
+  let w = 0;
+  for (let i = 0; i < D.length; i++) {
+    const c = D[i]; c.age += dt;
+    if (c.age >= c.life) continue;
+    c.p.addScaledVector(c.v, dt); c.v.multiplyScalar(Math.exp(-dt * 0.05));
+    _dq.setFromAxisAngle(c.axis, c.spin * dt); c.q.premultiply(_dq);
+    const k = Math.min(1, (c.life - c.age) / 1.5);
+    _ds.copy(c.s).multiplyScalar(k); _dm.compose(c.p, c.q, _ds); m.setMatrixAt(w, _dm);
+    const heat = c.hot ? Math.max(0, 1 - c.age / 2.5) : 0;
+    m.instanceColor.setXYZ(w, lerp(c.col.r, 1, heat * 0.7), lerp(c.col.g, 0.35, heat * 0.7), lerp(c.col.b, 0.1, heat * 0.7));
+    if (heat > 0 && dt > 0) {
+      Fx.glow(c.p, c.s.x * 2.2, 1, 0.45, 0.12, heat);
+      if (rand() < dt * 12) Fx.puff(c.p, null, rnd(1.5, 3), c.s.x * 0.8, c.s.x * 3, 0.1, 0.09, 0.08, 0.4 * heat, 0.3);
+    }
+    D[w++] = c;
+  }
+  D.length = w; m.count = w;
+  m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true;
+};
+// Per-frame emission of a ship's fires and vents (called from Ship.draw).
+Damage.burn = function (ship, dt) {
+  if (!ship.burns.length || dt <= 0 || G.simming) return;
+  const cam = R.camera.position;
+  if (ship.pos.distanceToSquared(cam) > 7000 * 7000) return;
+  const fade = ship.alive ? 1 : Math.max(0, 1 - ship.dying / 30);
+  for (const b of ship.burns) {
+    const p = b.sec.g.localToWorld(_dp.copy(b.lp)), n = _dn.copy(b.n).transformDirection(b.sec.g.matrixWorld), s = b.size;
+    if (b.kind === 'fire') {
+      if (rand() < dt * 16 * fade) { _dw.copy(n).multiplyScalar(rnd(6, 16) * s / 10).add(ship.vel); Fx.spark(_ds.copy(p).addScaledVector(n, s * 0.3), _dw, rnd(0.5, 1.1), s * 0.7, s * 1.5, 1, rnd(0.35, 0.55), 0.12, 0.9, 1.2); }
+      if (rand() < dt * 5 * fade) { _dw.copy(n).multiplyScalar(s * 0.7).add(ship.vel); Fx.puff(p, _dw, rnd(3, 5), s * 0.8, s * 4, 0.09, 0.085, 0.08, 0.5, 0.15); }
+      Fx.glow(p, s * (1.4 + 0.4 * Math.sin(R.t * 9 + b.seed)), 1, 0.45, 0.12, 0.7 * fade);
+    } else if (Math.sin(R.t * 0.8 + b.seed * 9) > -0.25) {
+      // Venting atmosphere: a fast pale jet that comes and goes, with a spark now and then.
+      if (rand() < dt * 20 * fade) { _dw.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).multiplyScalar(12).addScaledVector(n, rnd(60, 110)).add(ship.vel); Fx.puff(p, _dw, rnd(1.2, 2), s * 0.35, s * 2.6, 0.62, 0.66, 0.72, 0.35, 0.9); }
+      if (rand() < dt * 3 * fade) { _dw.copy(n).multiplyScalar(rnd(40, 90)).add(ship.vel); Fx.spark(p, _dw, rnd(0.3, 0.6), s * 0.25, s * 0.1, 1, 0.8, 0.5, 1); }
+    }
+  }
+};
+
+// ---- 17_main: boot, frame loop, #debug hook (window.HG) ----
 function boot() {
   try { R.init(); } catch (e) { $('nogl').hidden = false; console.error(e); return; }
-  Models.init(); Fx.init(); Craft.init();
+  Models.init(); Fx.init(); Damage.init(); Craft.init();
   Hud.init(); Ui.init();
   $('c').addEventListener('mousedown', () => { Sfx.init(); if (G.state === 'play' && !G.paused && !Input.locked && !DEBUG) Input.lock(); });
   addEventListener('keydown', () => Sfx.init(), { once: true });
@@ -3089,7 +3273,7 @@ function step(dt) {
   if (playing) { PC.update(dt); Mission.update(dt); }
   else if (G.state === 'title' || G.state === 'menu') Ui.backdrop(dt);
   else if (G.state === 'over') Mission.update(dt);
-  if (!G.paused) { Fx.update(dt); R.update(dt); }
+  if (!G.paused) { Fx.update(dt); R.update(dt); Damage.update(dt); }
   draw(G.paused ? 0 : dt);
   Ui.update(dt);
   const p = G.player;
@@ -3126,7 +3310,7 @@ function debugHook() {
       return H.state();
     },
     // Advance with effects (unlike sim), for screenshots.
-    run(sec, dt) { dt = dt || 1 / 30; for (let t = 0; t < sec; t += dt) { Mission.update(dt); Fx.update(dt); R.update(dt); draw(dt); } return H.state(); },
+    run(sec, dt) { dt = dt || 1 / 30; for (let t = 0; t < sec; t += dt) { Mission.update(dt); Fx.update(dt); R.update(dt); Damage.update(dt); draw(dt); } return H.state(); },
     render() { draw(0.016); R.render(); return true; },
     manual(on) { G.manual = on !== false; },
     state: () => ({ mission: Mission.def && Mission.def.id, phase: Mission.phase, result: Mission.result, reason: Mission.reason, time: +Mission.time.toFixed(1), grade: Mission.grade,
@@ -3165,7 +3349,7 @@ function debugHook() {
     god(on) { G.god = on !== false; },
     killAll(team) { for (const s of G.ships) if (s.alive && s.team === team && s.arrived) { s.hull = 0; s.die(null); } },
     peace() { for (const s of G.ships) if (s.ai) { s.ai.update = () => {}; s.thr = 0; s.yawCmd = 0; s.pitchCmd = 0; } },
-    input: Input, hud: Hud, mission: Mission, combat: Combat, pc: PC, ui: Ui, G, R, Fx, Craft, CLASSES, MISSIONS, progress,
+    input: Input, hud: Hud, mission: Mission, combat: Combat, pc: PC, ui: Ui, G, R, Fx, Craft, Damage, CLASSES, MISSIONS, progress,
   };
   return H;
 }
