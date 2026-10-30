@@ -2044,20 +2044,79 @@ function buildBoard(scoop) {
 function buildBag(color = 0xc8262e) { const g = new THREE.Group(); g.add(mesh(GM.box(), lam(color), 0, 0.15, 0, 0.5, 0.3, 0.32), mesh(GM.box(), lam(0x1a1a1a), 0, 0.31, 0, 0.3, 0.03, 0.05)); shadowy(g, true, false); return g; }
 function buildMonitorBox() { const g = new THREE.Group(); g.add(mesh(GM.box(), lam(0xe8c020), 0, 0.14, 0, 0.38, 0.28, 0.26), mesh(GM.box(), lam(0x102018, { emissive: 0x20a050, emissiveIntensity: 0.4 }), 0, 0.17, 0.131, 0.26, 0.15, 0.01)); shadowy(g, true, false); return g; }
 function buildCone() { const g = new THREE.Group(); g.add(mesh(GM.cone(), lam(0xff6a10), 0, 0.36, 0, 0.36, 0.7, 0.36), mesh(GM.box(), lam(0x2a2a2a), 0, 0.02, 0, 0.42, 0.04, 0.42), mesh(GM.cyl(), lam(0xffffff, { emissive: 0x606060 }), 0, 0.42, 0, 0.24, 0.08, 0.24)); return g; }
-function buildFireEngine() {
-  const g = new THREE.Group(), r = lam(0xc8161e), w = lam(0xe8e8e8), d = lam(0x202226), gl = lam(0x1a2430);
-  g.add(mesh(GM.box(), r, 0, 1.6, 0, 2.5, 2.4, 9.5), mesh(GM.box(), gl, 0, 2.3, 4.2, 2.4, 0.9, 0.9), mesh(GM.box(), w, 0, 1.15, 0, 2.52, 0.18, 9.52), mesh(GM.box(), d, 0, 0.45, 0, 2.3, 0.4, 9));
-  g.add(mesh(GM.box(), lam(0xc0c4c8), 0, 3.0, -1, 1.2, 0.3, 7));
-  for (const z of [3.3, -2.2, -3.6]) for (const sx of [-1, 1]) g.add(mesh(GM.wheel(), d, sx * 1.1, 0.5, z, 0.35, 1.0, 1.0));
+// A custom-cab pumper, 9.5 m long, built facing +z like the rigs. The body is baked into one mesh; the warning lights
+// stay separate so they can flash.
+function buildFireEngine(num) {
+  const g = new THREE.Group(), st = new THREE.Group();
+  const r = lam(0xc8161e), w = lam(0xe8e8e8), d = lam(0x202226), ch = lam(0xc0c4c8), roll = lam(0xa8acb2);
+  const gl = lam(0x1a2430, { emissive: 0x101820, emissiveIntensity: 0.3 }), head = lam(0xfff4d8, { emissive: 0xfff4d8, emissiveIntensity: 0.6 });
+  const add = (mat, x, y, z, sx, sy, sz, geo = GM.box()) => { const o = mesh(geo, mat, x, y, z, sx, sy, sz); st.add(o); return o; };
+  const zF = 4.75, zR = -4.75, zB = 1.85, base = 0.55, W = 2.5, wr = 0.5, axF = 3.3, axR = [-2.2, -3.6];
+  const arch = (z) => ({ z, y: wr, r: wr + 0.08 });
+  // cab: near-vertical windshield over a flat nose, a raised crew-cab roof; the body behind it sits lower
+  const cabTop = 2.95, wsFoot = 1.65, rake = 0.15, wsTopZ = zF - rake;
+  st.add(new THREE.Mesh(profileGeo([[zF, base], [zF, wsFoot], [wsTopZ, cabTop], [zB, cabTop], [zB, base]], base, [arch(axF)], W), r));
+  st.add(new THREE.Mesh(profileGeo([[zB, base], [zB, 2.6], [zR, 2.6], [zR, base]], base, axR.map(arch), W), r));
+  add(w, 0, cabTop + 0.03, (zB + wsTopZ) / 2, W + 0.02, 0.06, wsTopZ - zB); // white cab roof
+  // two-pane windshield laid on the slope, with the body showing as pillars and a centre post
+  const wsH = cabTop - wsFoot, wsL = Math.hypot(rake, wsH), wsY = (wsFoot + cabTop) / 2 + 0.02, tilt = Math.atan2(rake, wsH);
+  for (const sx of [-1, 1]) {
+    const pane = add(gl, sx * 0.57, wsY, zF - rake / 2 + 0.02, 1.06, wsL - 0.2, 0.03);
+    pane.rotation.x = -tilt;
+  }
+  // side glass: driver / officer doors and the crew doors behind them; handles; mirrors on arms ahead of the doors
+  for (const sx of [-1, 1]) {
+    const x = sx * (W / 2 + 0.005);
+    add(gl, x, 2.32, 4.02, 0.02, 0.85, 0.85);
+    add(gl, x, 2.32, 2.72, 0.02, 0.85, 1.25);
+    add(d, sx * (W / 2 + 0.01), 1.72, 3.7, 0.03, 0.05, 0.22);
+    add(d, sx * (W / 2 + 0.01), 1.72, 2.25, 0.03, 0.05, 0.22);
+    add(d, sx * (W / 2 + 0.18), 2.25, 4.6, 0.36, 0.04, 0.04);
+    add(d, sx * (W / 2 + 0.34), 2.15, 4.6, 0.08, 0.5, 0.18);
+  }
+  // nose: grille, headlights, bumper
+  add(ch, 0, 1.12, zF + 0.02, 0.95, 0.7, 0.04);
+  for (const sx of [-1, 1]) add(head, sx * 0.82, 0.95, zF + 0.02, 0.36, 0.2, 0.04);
+  add(ch, 0, 0.55, zF + 0.12, W + 0.06, 0.3, 0.3);
+  // white stripe the full length, just clear of the wheel arches
+  const stripeY = 1.22;
+  for (const sx of [-1, 1]) add(w, sx * (W / 2 + 0.006), stripeY, 0, 0.01, 0.16, zF - zR);
+  // pump panel behind the cab, roll-up compartment doors along the body (each with a dark lift bar)
+  for (const sx of [-1, 1]) {
+    const x = sx * (W / 2 + 0.008);
+    add(ch, x, 1.9, 1.55, 0.02, 1.1, 0.5);
+    for (const y of [1.65, 2.05]) add(d, sx * (W / 2 + 0.04), y, 1.55, 0.06, 0.1, 0.1);
+    for (const [z0, z1] of [[-4.55, -2.95], [-2.85, -1.25], [-1.15, 1.2]]) {
+      add(roll, x, 1.92, (z0 + z1) / 2, 0.02, 1.0, z1 - z0);
+      add(d, sx * (W / 2 + 0.02), 1.48, (z0 + z1) / 2, 0.02, 0.04, (z1 - z0) * 0.6);
+    }
+    if (num) st.add(decal(textDecal('ENGINE ' + num, '#ffffff', 512, 96), 1.5, 0.28, sx * (W / 2 + 0.02), 0.82, -0.2, sx * Math.PI / 2));
+  }
+  // ladder on a rack over the hose bed, a tailboard at the back
+  for (const sx of [-1, 1]) add(ch, sx * 0.55, 2.82, -1.4, 0.08, 0.1, 6.4);
+  for (let z = -4.4; z < 1.7; z += 0.75) add(ch, 0, 2.82, z, 1.1, 0.05, 0.06);
+  for (const z of [-4.2, 1.4]) add(d, 0, 2.7, z, 1.3, 0.16, 0.1);
+  add(d, 0, 0.62, zR - 0.15, W - 0.1, 0.12, 0.35);
+  // chassis and wheels (dual rears), each axle with a dark well so the arches don't show daylight
+  add(d, 0, 0.45, 0, W - 0.5, 0.3, 9);
+  for (const z of [axF, ...axR]) {
+    add(d, 0, wr + 0.1, z, W - 0.1, 0.5, 1.1);
+    for (const sx of [-1, 1]) {
+      add(d, sx * (W / 2 - 0.2), wr, z, z === axF ? 0.32 : 0.5, 1.0, 1.0, GM.wheel());
+      add(ch, sx * (W / 2 - 0.2 + (z === axF ? 0.17 : 0.26)), wr, z, 0.02, 0.5, 0.5, GM.wheel());
+    }
+  }
+  shadowy(st, true, false);
+  g.add(mergeStatic(st));
+  // a light bar on the cab roof, warning lights on the nose and corners, and a pair at the back
   const a = basic(0xff2a2a), b = basic(0xffffff);
-  // a light bar over the cab, corner lights on the body and a pair at the back
-  g.add(mesh(GM.box(), a, 0.6, 2.9, 4.0, 0.9, 0.15, 0.3), mesh(GM.box(), b, -0.6, 2.9, 4.0, 0.9, 0.15, 0.3));
-  g.add(mesh(GM.box(), a, 1.2, 2.6, 4.75, 0.12, 0.2, 0.06), mesh(GM.box(), b, -1.2, 2.6, 4.75, 0.12, 0.2, 0.06));
-  g.add(mesh(GM.box(), b, 1.26, 2.6, -4.6, 0.06, 0.25, 0.3), mesh(GM.box(), a, -1.26, 2.6, -4.6, 0.06, 0.25, 0.3));
-  g.add(mesh(GM.box(), a, 1.0, 2.75, -4.76, 0.3, 0.25, 0.06), mesh(GM.box(), b, -1.0, 2.75, -4.76, 0.3, 0.25, 0.06));
+  g.add(mesh(GM.box(), a, 0.55, cabTop + 0.14, 4.25, 0.95, 0.16, 0.3), mesh(GM.box(), b, -0.55, cabTop + 0.14, 4.25, 0.95, 0.16, 0.3));
+  g.add(mesh(GM.box(), a, 0.82, 1.32, zF + 0.03, 0.32, 0.14, 0.04), mesh(GM.box(), b, -0.82, 1.32, zF + 0.03, 0.32, 0.14, 0.04));
+  g.add(mesh(GM.box(), a, 1.26, 2.45, 1.95, 0.04, 0.22, 0.2), mesh(GM.box(), b, -1.26, 2.45, 1.95, 0.04, 0.22, 0.2));
+  g.add(mesh(GM.box(), b, 1.26, 2.4, -4.6, 0.06, 0.25, 0.3), mesh(GM.box(), a, -1.26, 2.4, -4.6, 0.06, 0.25, 0.3));
+  g.add(mesh(GM.box(), a, 1.0, 2.35, zR - 0.01, 0.3, 0.25, 0.04), mesh(GM.box(), b, -1.0, 2.35, zR - 0.01, 0.3, 0.25, 0.04));
   g.userData.bar = [a, b];
-  g.userData.halos = [lightHalo(g, 0xff2a2a, 0.6, 3.0, 4.0, 0), lightHalo(g, 0xffffff, -0.6, 3.0, 4.0, 1), lightHalo(g, 0xff2a2a, -1.0, 2.75, -4.85, 0), lightHalo(g, 0xffffff, 1.0, 2.75, -4.85, 1)];
-  shadowy(g, true, false);
+  g.userData.halos = [lightHalo(g, 0xff2a2a, 0.55, cabTop + 0.2, 4.25, 0), lightHalo(g, 0xffffff, -0.55, cabTop + 0.2, 4.25, 1), lightHalo(g, 0xff2a2a, -1.0, 2.35, zR - 0.1, 0), lightHalo(g, 0xffffff, 1.0, 2.35, zR - 0.1, 1)];
   return g;
 }
 
@@ -6450,7 +6509,7 @@ const POLICE_UNITS = [14, 23, 31, 42, 56, 68, 71, 85];
 
 function initResponders() {
   for (const F of CITY.firehouses) {
-    const m = buildFireEngine(); m.position.set(F.home.x, CURB, F.home.z); m.rotation.y = F.home.yaw; R.scene.add(m);
+    const m = buildFireEngine(F.num); m.position.set(F.home.x, CURB, F.home.z); m.rotation.y = F.home.yaw; R.scene.add(m);
     RESP.units.push({ kind: 'fire', name: F.name, short: 'E' + F.num, F, model: m, x: F.home.x, z: F.home.z, yaw: F.home.yaw, v: 0, state: 'home', siren: false, lightT: Math.random(), barCols: m.userData.bar.map((b) => b.color.clone()) });
   }
 }
@@ -7426,7 +7485,7 @@ function installDebug() {
     G, R, CAM, CITY, TRAFFIC, ROUTE, SCENE, EQ, PLAYER, PARTNER, WORK, CARE, UI, HUD, Input, CALL, ACT, OPTS, RESP, MEDIC, SSM, DT, RIG_CHECK,
     get C() { return G.call; }, get P() { return G.call && G.call.P; }, get RIG() { return RIG; },
     f: { buildRoute, autopilot, driveRig, startCall, dispatchCall, respond, setSiren, arriveOnScene, exitCab, enterCab, goInside, goOutside, takeFromRig, partnerFetch, startMove, transferToStretcher, loadPatient, unloadPatient, confirmTransport, openTransportPanel, openHandoff, finishCall, backInService, scoreCall, tickPatient, makePatient, startArrest, deliverShock, openCare, closeCare, doAction, stopWorker, careContext, interactions, usePrompt, setTimeOfDay, setQuality, showStation, showTitle, startMCI, tagPatient, startTag, sendMCIReport, openTriage, saveGame, loadGame, newCareer, skipToCall, pickCall, CALLS, startShift, collideCircle, roadPlaces, MOVES, setEnv,
-      toggleWait, startRestock, openRigCheck, rigCheckItem, rigFixItem, grabCoffee, coffeeSpot, replan, assignPost, unitBusy, coverPlan, systemCoverage, callZoneWeight, equipDelay, resetDowntime, missingStock, fullStock, buildRig, RIGS },
+      toggleWait, startRestock, openRigCheck, rigCheckItem, rigFixItem, grabCoffee, coffeeSpot, replan, assignPost, unitBusy, coverPlan, systemCoverage, callZoneWeight, equipDelay, resetDowntime, missingStock, fullStock, buildRig, buildFireEngine, RIGS },
     // start({ rank, rig, hour, hours, xp, money, faults }) — a throwaway career (never saved) and a shift, no calls until
     // asked. The rig comes clean unless faults: true (then the rig check has whatever the last crew left)
     start(o = {}) {
