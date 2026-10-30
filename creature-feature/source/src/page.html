@@ -1,0 +1,209 @@
+<title>Creature Feature</title>
+<meta name="description" content="Pick a classic monster (the vampire, the werewolf, Frankenstein's monster or the mummy) and stalk the people of a 1950s small town in third person. An endless, gory score attack.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&family=Bangers&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #f4ead8; --dim: #b8a890; --faint: #7a6a58; --blood: #c8141e; --blood2: #7a0a10; --yel: #f8d040; --green: #9aff6a; --panel: rgba(16,8,10,.86);
+    --title: 'Creepster', Impact, 'Arial Black', fantasy; --type: 'Special Elite', 'Courier New', monospace; --pop: 'Bangers', Impact, 'Arial Black', sans-serif; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: var(--ink); font-family: var(--type); font-size: 17px; -webkit-user-select: none; user-select: none; touch-action: none; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; transition: filter .25s; }
+  body.sense #c { filter: saturate(.15) brightness(.75) contrast(1.15); }
+  #nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; }
+  button, select, input { font-family: var(--type); color: var(--ink); }
+  /* film grain and vignette over everything */
+  #vig { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%); }
+  #grain { position: absolute; inset: -50%; pointer-events: none; opacity: 0; background-image: repeating-radial-gradient(circle at 17% 32%, rgba(255,255,255,.05) 0 1px, transparent 1px 3px), repeating-radial-gradient(circle at 71% 64%, rgba(0,0,0,.08) 0 1px, transparent 1px 4px); animation: grain .5s steps(4) infinite; }
+  body.grain #grain { opacity: 1; }
+  @keyframes grain { 0% { transform: translate(0,0) } 25% { transform: translate(-3%,2%) } 50% { transform: translate(2%,-3%) } 75% { transform: translate(-1%,3%) } }
+  #starve { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(150,0,0,.5) 100%); transition: opacity .5s; }
+  body.starving #starve { opacity: 1; animation: throb 1s ease-in-out infinite; }
+  @keyframes throb { 50% { opacity: .45 } }
+  body.sense #starve { opacity: 1; background: radial-gradient(ellipse at center, transparent 35%, rgba(120,0,0,.45) 100%); animation: none; }
+  #splat { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; }
+  .btn { background: linear-gradient(#2a1214, #180a0c); border: 2px solid #6a1a1e; color: var(--ink); padding: 8px 18px; cursor: pointer; font-family: var(--pop); font-size: 22px; letter-spacing: 1px; min-height: 42px; }
+  .btn:hover, .btn:focus-visible { border-color: var(--blood); color: #fff; background: linear-gradient(#4a1418, #2a0a0e); outline: none; }
+  .btn.big { min-width: 280px; font-size: 26px; }
+  h2 { font-family: var(--title); font-weight: normal; color: var(--blood); font-size: 40px; margin: 0 0 10px; text-shadow: 2px 2px 0 #000; letter-spacing: 1px; }
+  .menu { position: absolute; inset: 0; display: grid; place-items: center; z-index: 30; background: rgba(0,0,0,.6); }
+  .menu > .win { background: var(--panel); border: 2px solid #4a1418; box-shadow: 0 0 0 1px #000, 0 20px 60px rgba(0,0,0,.8); padding: 18px 24px; max-width: min(720px, 94vw); max-height: 90vh; overflow: auto; text-align: center; }
+  .menu .col { display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 10px; }
+  /* title */
+  #title { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.55)); padding: 0 12px; }
+  #logo { font-family: var(--title); font-size: clamp(54px, 12vw, 132px); line-height: .9; color: #d8ff4a; text-align: center; text-shadow: 0 0 20px rgba(160,255,80,.35), 4px 5px 0 var(--blood), 8px 10px 0 #000; transform: rotate(-3deg); }
+  #logo span { display: block; color: var(--blood); text-shadow: 0 0 18px rgba(255,0,0,.4), 4px 5px 0 #000; font-size: .78em; }
+  #tag { font-size: 19px; color: var(--ink); text-shadow: 2px 2px 0 #000; text-align: center; max-width: 620px; margin: 4px 0 14px; }
+  .credit { position: absolute; bottom: 10px; color: var(--dim); font-size: 14px; text-shadow: 1px 1px 0 #000; text-align: center; padding: 0 10px; }
+  /* select */
+  #select { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; box-sizing: border-box; background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.75)); }
+  #select h2 { position: absolute; top: 14px; left: 0; right: 0; text-align: center; font-size: clamp(32px, 6vw, 54px); }
+  #cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 1180px; margin: 0 auto; width: 100%; }
+  .card { background: rgba(14,6,8,.88); border: 2px solid #3a1416; padding: 10px 12px; cursor: pointer; outline: none; transition: transform .15s, border-color .15s; font-size: 14px; line-height: 1.3; }
+  .card.sel, .card:focus-visible { border-color: var(--blood); transform: translateY(-6px); box-shadow: 0 0 24px rgba(200,20,30,.4); }
+  .card .ck { color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; }
+  .card h3 { font-family: var(--title); font-weight: normal; color: #d8ff4a; font-size: 30px; margin: 2px 0; text-shadow: 2px 2px 0 var(--blood2); }
+  .card .tagl { color: var(--yel); font-style: italic; margin-bottom: 4px; }
+  .card p { margin: 4px 0 6px; color: var(--dim); }
+  .card ul { margin: 6px 0; padding-left: 16px; color: var(--dim); } .card ul b { color: var(--ink); font-weight: normal; }
+  .stats div { display: flex; justify-content: space-between; align-items: center; text-transform: capitalize; }
+  .stats b { display: flex; gap: 2px; } .stats i { width: 14px; height: 7px; background: #2a1416; display: inline-block; } .stats i.on { background: var(--blood); }
+  .card .best { color: var(--yel); margin-top: 4px; }
+  #selFoot { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
+  @media (max-width: 900px) { #cards { grid-template-columns: repeat(2, 1fr); } .card p, .card ul { display: none; } .card.sel p { display: block; } }
+  @media (max-height: 560px) { .card p, .card ul, .stats { display: none !important; } #select h2 { font-size: 30px; top: 6px; } }
+  /* HUD */
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud { display: block; }
+  body.nohud .hud { display: none !important; }
+  #tl { position: absolute; left: 14px; top: 10px; text-shadow: 2px 2px 0 #000; }
+  #score { font-family: var(--pop); font-size: 40px; color: #fff; letter-spacing: 1px; line-height: 1; }
+  #sub { color: var(--dim); font-size: 14px; } #sub b { color: var(--ink); font-weight: normal; }
+  #combo { margin-top: 4px; width: 150px; } #comboN { font-family: var(--pop); font-size: 30px; color: var(--yel); line-height: 1; }
+  #comboTrack { height: 4px; background: rgba(0,0,0,.6); } #comboBar { height: 100%; background: var(--yel); }
+  #comboPop { position: absolute; left: 50%; top: 30%; transform: translate(-50%,-50%); font-family: var(--title); font-size: 90px; color: var(--yel); text-shadow: 4px 4px 0 var(--blood2), 0 0 30px rgba(255,0,0,.5); opacity: 0; }
+  #comboPop.pop { animation: pop .9s ease-out; }
+  @keyframes pop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(2.4) } 15% { opacity: 1; transform: translate(-50%,-50%) scale(1) } 70% { opacity: 1 } 100% { opacity: 0; transform: translate(-50%,-60%) scale(.9) } }
+  #feed { position: absolute; left: 14px; top: 132px; display: flex; flex-direction: column; gap: 3px; width: min(440px, 60vw); }
+  .kf { background: linear-gradient(90deg, rgba(90,0,6,.75), rgba(90,0,6,0)); padding: 2px 8px; font-size: 15px; text-shadow: 1px 1px 0 #000; transition: opacity 1s; }
+  .kf b { color: var(--yel); font-family: var(--pop); font-weight: normal; font-size: 18px; } .kf i { color: #fff; font-style: normal; } .kf em { color: #ffb0a0; font-style: normal; }
+  .kf.old { opacity: .45; }
+  #tr { position: absolute; right: 14px; top: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  #panic { width: 170px; text-align: right; text-shadow: 1px 1px 0 #000; font-size: 14px; color: var(--dim); }
+  #panicName { color: var(--ink); font-family: var(--pop); font-size: 20px; letter-spacing: 1px; }
+  #panicTrack { height: 5px; background: rgba(0,0,0,.6); margin-top: 2px; } #panicFill { height: 100%; background: linear-gradient(90deg, #e8c040, #ff2a2a); }
+  #radar { width: 150px; height: 150px; }
+  #bl { position: absolute; left: 14px; bottom: 14px; width: min(360px, 44vw); }
+  #portrait { font-family: var(--title); color: #d8ff4a; font-size: 26px; text-shadow: 2px 2px 0 var(--blood2), 0 0 8px #000; }
+  #hungerLbl { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); text-shadow: 1px 1px 0 #000; }
+  #hunger { height: 16px; background: rgba(0,0,0,.65); border: 1px solid #4a1418; position: relative; overflow: hidden; }
+  #hungerFill { height: 100%; background: linear-gradient(180deg, #e8202a, #7a0a10); box-shadow: 0 0 12px rgba(255,0,0,.5); transition: width .2s; }
+  body.starving #hunger { border-color: #ff3030; }
+  #abil { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 8px; }
+  .ab { width: 92px; height: 58px; background: rgba(14,6,8,.82); border: 2px solid #4a1418; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; text-shadow: 1px 1px 0 #000; }
+  .ab .cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.7); }
+  .ab b { position: relative; color: var(--yel); font-family: var(--pop); font-weight: normal; font-size: 14px; } .ab span { position: relative; font-size: 13px; text-align: center; line-height: 1.05; }
+  .ab.active { border-color: var(--green); }
+  #prompt { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); background: rgba(10,4,6,.82); border: 1px solid var(--blood); padding: 5px 14px; font-size: 18px; text-shadow: 1px 1px 0 #000; white-space: nowrap; }
+  #prompt b { background: var(--yel); color: #000; padding: 0 6px; font-family: var(--pop); font-weight: normal; margin-right: 4px; }
+  #prompt.dim { opacity: .55; border-color: #4a3a30; }
+  #cross { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%,-50%); border: 2px solid rgba(255,240,220,.55); border-radius: 50%; box-sizing: border-box; }
+  #cross::after { content: ''; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; background: #fff; transform: translate(-50%,-50%); border-radius: 50%; }
+  #cross.lock { border-color: #ff2a2a; width: 30px; height: 30px; box-shadow: 0 0 10px rgba(255,0,0,.6); }
+  #toasts { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .toast { background: rgba(10,4,6,.85); padding: 4px 14px; font-size: 18px; border-left: 3px solid var(--faint); transition: opacity .6s, transform .6s; text-shadow: 1px 1px 0 #000; }
+  .toast.good { border-color: var(--blood); } .toast.bad { border-color: #6ab0ff; color: #d8e8ff; } .toast.feed { border-color: var(--blood); color: #ffc8c0; } .toast.info { border-color: var(--yel); }
+  .toast.out { opacity: 0; transform: translateY(-8px); }
+  #tip { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); width: min(640px, 80vw); background: rgba(10,4,6,.85); border: 1px solid #4a1418; padding: 8px 14px; font-size: 15px; line-height: 1.4; text-align: center; }
+  #tip b { color: var(--yel); font-weight: normal; }
+  #bubbles, #marks { position: absolute; inset: 0; overflow: hidden; }
+  .bubble { position: absolute; left: 0; top: 0; background: #fff8e8; color: #1a1010; padding: 3px 10px; font-family: var(--pop); font-size: 17px; letter-spacing: .5px; border: 2px solid #000; border-radius: 12px; white-space: nowrap; transform-origin: 50% 100%; }
+  .mark { position: absolute; left: 0; top: 0; width: 14px; height: 14px; background: rgba(255,40,40,.85); transform-origin: 50% 50%; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); font-size: 9px; color: #000; text-align: center; line-height: 14px; font-family: sans-serif; font-weight: bold; }
+  .mark.flee { background: #ff8040; } .mark.car { background: #6ab0ff; } .mark.house { width: 20px; height: 20px; line-height: 22px; background: var(--yel); clip-path: polygon(50% 0, 100% 45%, 100% 100%, 0 100%, 0 45%); font-size: 11px; }
+  #hudPause { position: absolute; right: 14px; top: 192px; pointer-events: auto; width: 40px; height: 36px; font-size: 16px; padding: 0; display: none; }
+  body[data-input="touch"] #hudPause { display: block; }
+  /* intro card */
+  #intro { position: absolute; inset: 0; z-index: 25; display: grid; place-items: center; pointer-events: none; background: rgba(0,0,0,.85); text-align: center; }
+  #intro.fade { animation: introFade 4.2s ease-in forwards; }
+  @keyframes introFade { 0%, 55% { opacity: 1 } 100% { opacity: 0 } }
+  #intro small { display: block; color: var(--dim); letter-spacing: 6px; font-size: 16px; }
+  #introA { font-family: var(--title); font-size: clamp(40px, 8vw, 90px); color: #d8ff4a; text-shadow: 4px 4px 0 var(--blood); }
+  #introB { font-family: var(--title); font-size: clamp(30px, 6vw, 64px); color: var(--blood); text-shadow: 3px 3px 0 #000; }
+  /* THE END */
+  #over .win { min-width: min(420px, 90vw); }
+  #over h1 { font-family: var(--title); font-weight: normal; font-size: clamp(70px, 14vw, 130px); color: var(--blood); margin: 0; line-height: 1; text-shadow: 4px 4px 0 #000, 0 0 30px rgba(255,0,0,.4); }
+  #overLine { color: var(--yel); font-size: 20px; margin-bottom: 12px; font-style: italic; }
+  #overStats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; text-align: left; margin: 0 auto 8px; max-width: 360px; }
+  #overStats div { display: flex; justify-content: space-between; border-bottom: 1px solid #3a1416; } #overStats span { color: var(--dim); } #overStats b { font-weight: normal; font-family: var(--pop); font-size: 20px; }
+  #overBest { color: #d8ff4a; margin: 8px 0; }
+  .opt { display: grid; grid-template-columns: 1fr auto; gap: 10px 18px; align-items: center; text-align: left; }
+  .opt select { background: #2a1214; border: 1px solid #6a1a1e; padding: 4px; font-size: 16px; } .opt input[type=range] { width: 180px; } .opt input[type=checkbox] { width: 22px; height: 22px; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; text-align: left; } .keys b { color: var(--yel); font-weight: normal; }
+  .note { color: var(--dim); font-size: 14px; margin-top: 10px; text-align: left; line-height: 1.4; }
+  /* touch */
+  #touch { display: none; position: absolute; inset: 0; pointer-events: none; }
+  body[data-input="touch"][data-state="play"] #touch { display: block; }
+  #tStick { position: absolute; left: 0; bottom: 0; width: 42vw; height: 60vh; pointer-events: auto; }
+  #tBase { position: absolute; left: 90px; bottom: 110px; width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); background: rgba(0,0,0,.25); transform: translate(-50%, -50%); opacity: .35; }
+  #tKnob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.55); transform: translate(-50%,-50%); }
+  .tb { position: absolute; pointer-events: auto; width: 64px; height: 64px; border-radius: 50%; background: rgba(20,8,10,.7); border: 2px solid rgba(255,200,190,.35); color: #fff; font-family: var(--pop); font-size: 13px; display: grid; place-items: center; text-align: center; line-height: 1; }
+  .tb.on { background: rgba(200,20,30,.7); }
+  #tAtk { right: 24px; bottom: 30px; width: 88px; height: 88px; font-size: 17px; background: rgba(140,10,16,.75); }
+  #tA1 { right: 124px; bottom: 28px; } #tA2 { right: 36px; bottom: 130px; } #tJump { right: 118px; bottom: 112px; width: 54px; height: 54px; }
+  #tUse { right: 196px; bottom: 30px; width: 58px; height: 58px; opacity: .5; } #tUse.ready { opacity: 1; border-color: var(--yel); }
+  #tRun { right: 24px; bottom: 214px; width: 54px; height: 54px; } #tStalk { right: 88px; bottom: 186px; width: 54px; height: 54px; }
+  #tSense { left: 16px; top: 46%; width: 54px; height: 54px; }
+  body[data-input="touch"] #abil { display: none; }
+  body[data-input="touch"] #bl { bottom: auto; top: 10px; left: 50%; transform: translateX(-50%); width: min(300px, 40vw); text-align: center; }
+  body[data-input="touch"] #portrait { display: none; }
+  body[data-input="touch"] #tip { bottom: auto; top: 30%; }
+  @media (max-width: 700px), (max-height: 500px) {
+    #score { font-size: 28px; } #radar { width: 110px; height: 110px; } #feed { top: 96px; } .kf { font-size: 13px; } #panic { width: 120px; } #comboPop { font-size: 60px; }
+    .ab { width: 72px; height: 48px; } #hudPause { top: 150px; }
+  }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="nogl" hidden>Creature Feature needs WebGL. Try another browser or turn on hardware acceleration.</div>
+  <canvas id="splat"></canvas>
+  <div id="starve"></div>
+
+  <div class="hud">
+    <div id="marks"></div>
+    <div id="bubbles"></div>
+    <div id="cross" hidden></div>
+    <div id="tl">
+      <div id="score">0</div>
+      <div id="sub"><b id="kills">0</b> victims · <b id="time">0:00</b></div>
+      <div id="combo" hidden><div id="comboN"></div><div id="comboTrack"><div id="comboBar"></div></div></div>
+    </div>
+    <div id="feed"></div>
+    <div id="comboPop"></div>
+    <div id="tr">
+      <div id="panic">Town: <span id="panicName">Quiet</span><div id="panicTrack"><div id="panicFill"></div></div></div>
+      <canvas id="radar" width="150" height="150"></canvas>
+    </div>
+    <div id="toasts"></div>
+    <div id="tip" hidden></div>
+    <div id="prompt" hidden></div>
+    <div id="bl"><div id="portrait"></div><div id="hungerLbl"><span>HUNGER</span><span>feed or fade</span></div><div id="hunger"><div id="hungerFill"></div></div></div>
+    <div id="abil"></div>
+    <button id="hudPause" class="btn" aria-label="Pause">II</button>
+    <div id="touch">
+      <div id="tStick"><div id="tBase"><div id="tKnob"></div></div></div>
+      <div class="tb" id="tAtk" data-t="atk">ATTACK</div><div class="tb" id="tA1" data-t="a1">POWER<br>1</div><div class="tb" id="tA2" data-t="a2">POWER<br>2</div>
+      <div class="tb" id="tJump" data-t="jump">JUMP</div><div class="tb" id="tUse" data-t="use">USE</div>
+      <div class="tb" id="tRun" data-t="run">RUN</div><div class="tb" id="tStalk" data-t="stalk">SNEAK</div><div class="tb" id="tSense" data-t="sense">SENSE</div>
+    </div>
+  </div>
+  <div id="vig"></div>
+  <div id="grain"></div>
+
+  <div id="title" hidden>
+    <div id="logo">Creature<span>Feature</span></div>
+    <div id="tag">Pine Hollow, 1957. The picture show lets out, the diner's open late, and something has crawled out of the graveyard. Tonight, it's you.</div>
+    <button class="btn big" id="btnHunt">Choose your monster</button>
+    <button class="btn big" id="btnOptions">Options</button>
+    <button class="btn big" id="btnHelp">Controls</button>
+    <div class="credit">Not for the squeamish: contains cartoonish but plentiful blood. Mouse and keyboard, gamepad or touch.</div>
+  </div>
+
+  <div id="select" hidden>
+    <h2>Who will you be tonight?</h2>
+    <div id="cards"></div>
+    <div id="selFoot"><button class="btn" id="selBack">Back</button><button class="btn big" id="goBtn">Unleash</button></div>
+  </div>
+
+  <div id="intro" hidden><div><small>PINE HOLLOW PICTURES PRESENTS</small><div id="introA"></div><small>IN</small><div id="introB"></div></div></div>
+
+  <div id="pause" class="menu" hidden><div class="win"><h2>Intermission</h2><div class="col">
+    <button class="btn big" id="resume">Back to the hunt</button><button class="btn big" id="pOptions">Options</button><button class="btn big" id="pHelp">Controls</button><button class="btn big" id="pQuit">Quit to title</button>
+  </div></div></div>
+  <div id="options" class="menu" hidden><div class="win"><h2>Options</h2><div class="opt" id="optList"></div><div class="col"><button class="btn" id="optBack">Done</button></div></div></div>
+  <div id="help" class="menu" hidden><div class="win"><h2>Controls</h2><div class="keys" id="keys"></div>
+    <div class="note">Hunger drains all night and faster as it goes on. Every kill and every feed tops it up; when it runs out, the credits roll. Kill again within a few seconds to raise the combo multiplier. People who see you scream and run: for a house to bolt the door behind them, for their car, or out of town. Stay out of the lamplight and stalk to get close unseen.</div>
+    <div class="col"><button class="btn" id="helpBack">Back</button></div></div></div>
+  <div id="over" class="menu" hidden><div class="win"><h1>The End</h1><div id="overLine"></div><div id="overStats"></div><div id="overBest"></div>
+    <div class="col"><button class="btn big" id="again">Hunt again</button><button class="btn big" id="other">Another monster</button><button class="btn" id="overTitle">Title</button></div></div></div>
+</div>
