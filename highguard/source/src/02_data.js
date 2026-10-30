@@ -52,6 +52,9 @@ const CRAFT = {
     gun: { dmg: 9, rate: 0.16, range: 760, speed: 1500, capDmg: 2.2 }, torps: 0 },
   bmb: { name: 'Bombers', one: 'Bomber', hp: 150, speed: 205, turn: 1.35, size: 4, len: 20,
     gun: { dmg: 5, rate: 0.4, range: 500, speed: 1300, capDmg: 1.5 }, torps: 2 },
+  // The player's own fighter, flown by remote from the bridge (G). Shielded, fast, two torpedoes.
+  strike: { name: 'Strike fighter', one: 'Strike fighter', hp: 110, shield: 70, speed: 300, boost: 470, turn: 2.6, size: 1, len: 16, rebuild: 30,
+    gun: { dmg: 15, rate: 0.09, range: 1050, speed: 1700, capDmg: 7 }, torps: 2 },
   shuttle: { name: 'Boarding shuttle', one: 'Shuttle', hp: 700, speed: 170, turn: 1.1, size: 1, len: 28, gun: null, torps: 0 },
 };
 const TORP = { speed: 290, turn: 1.1, hp: 25, dmg: 460, life: 9, range: 950 };

@@ -67,6 +67,15 @@ only, heavy but responsive handling, and a fixed ship per mission (nothing carri
   a side in flight. Orders: escort (guard a ship, chase anything near it, bombers first), attack (bombers make
   torpedo runs on the chosen subsystem, interceptors clear fighters near the target, then strafe it), recall. Bombers
   come home when their two torpedoes are spent and relaunch after 7 s while the order stands.
+- **Remote strike fighter (Kite):** every player ship carries one (a `strike` squadron of 1 appended to its squads,
+  never on Z X C and never launched by the AI; order `recall` while idle). G launches it and hands you the stick;
+  `ShipAI({ noSquads: true })` flies and fights the cruiser meanwhile. The fighter turns (2.6 rad/s) toward the point
+  1.2 km along the camera's view; W/S set 20–100% of 300 m/s, Shift boosts to 470 m/s for up to 4 s (refills in 9 s).
+  Its cannons are real projectiles (1700 m/s, 1050 m range, 15 a hit on craft, 7 on hulls with the subsystem bonus,
+  they also shoot down torpedoes). Two torpedoes need an enemy target within 1.8 km and roughly ahead. 110 hull and a
+  70-point shield that recharges after 3 s. The link weakens past 5 km from your ship and drops at 7 km. G again,
+  link loss or the fighter's death returns you to the bridge; a live fighter flies home (`rtb`) to rearm, a lost one
+  is rebuilt in 30 s.
 - **Torpedoes:** 290 m/s, home at 1.1 rad/s, 460 damage, 25 HP (flak shoots them down). Player tubes: a salvo from
   every tube at the target if it is within 3.6 km and roughly ahead, 26 s reload.
 - **Damage visuals** (`16_damage`, never while `sim()` runs, at most 12 hull traces a frame): a hit that reaches the

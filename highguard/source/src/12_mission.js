@@ -30,7 +30,11 @@ Mission.start = function (idx, o) {
   Mission.tipsShown = {}; Mission.dock = 0; Mission.shuttleCraft = null; Mission.shuttleT = 0; Mission.shuttles = 0; Mission.demo = !!o.demo;
   Mission.doneT = 0; Mission.saved = 0; Mission.outT = 0; Mission.waveT = -99; Mission.timers = []; Mission.escaped = false;
   const p = spawnShip(def.player, 0, { player: !o.noPlayer });
-  if (!o.noPlayer) { p.isPlayer = true; G.player = p; } else p.ai = p.ai || new ShipAI(p);
+  if (!o.noPlayer) {
+    p.isPlayer = true; G.player = p;
+    // The captain's own strike fighter, flown by remote. It never launches on its own.
+    const q = new Squadron(p, 'strike', p.squads.length, 'Kite'); q.order = { kind: 'recall', target: p }; p.squads.push(q);
+  } else p.ai = p.ai || new ShipAI(p);
   for (const e of def.allies) spawnShip(e, 0, {});
   for (const e of def.enemies) spawnShip(e, 1, {});
   for (const s of G.ships) if (s.tag === 'convoy') { s.ai.goto = s.pos.clone().add(new V3(rnd(-300, 300), -400, -3500)); s.ai.cruise = 0.85; }
@@ -223,6 +227,7 @@ Mission.tips = function () {
     if (Mission.tipsShown.subs && FACINGS.some((f) => p.shield[f] < p.shieldCap(f) * 0.6)) Mission.tip('shields', '<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> reinforce your fore, aft, port or starboard shields (press again to even them out). Keep your strongest side toward the enemy.');
     if (Craft.byTeam[1].some((c) => c.pos.distanceTo(p.pos) < 2500)) Mission.tip('fighters', 'Enemy fighters! <kbd>Z</kbd> launches your interceptors. Tap again to send them at your target, <kbd>Shift</kbd>+<kbd>Z</kbd> keeps them close, hold <kbd>Z</kbd> to recall them.');
   }
+  if (T > (d.tutorial ? 75 : 20)) Mission.tip('kite', '<kbd>G</kbd> launches <b>Kite</b>, your own strike fighter, and lets you fly it by remote. Your first officer fights the ship while you\'re out. <kbd>G</kbd> again brings you back to the bridge.');
   if (d.id === 'carrier' && T > 3) Mission.tip('bombers', '<kbd>X</kbd> is your bomber squadron. Target the carrier (<kbd>Tab</kbd>) and tap <kbd>X</kbd> to send them in. <kbd>V</kbd> sends every squadron at your target.');
   if (p.torpMax && T > 3) Mission.tip('torps', '<kbd>Space</kbd> fires your bow torpedo tubes at the target, if it is roughly ahead. Torpedoes cut through half the shield.');
   if (d.id === 'admiral' && T > 3) Mission.tip('board', 'Pick the Iron Mandate\'s <b>engines</b> and <b>shield generator</b> with <kbd>Q</kbd> <kbd>E</kbd> and shoot only those. Your bombers aim for the system you have picked.');

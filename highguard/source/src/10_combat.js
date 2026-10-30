@@ -45,10 +45,26 @@ Combat.flak = function (s, t, hit, d) {
 Combat.flakHit = function (t, s) { if (!t.alive) return; if (t.isTorp) { t.hp -= 14; if (t.hp <= 0) Combat.killTorp(t, true); } else Combat.craftDamage(t, 14, s); };
 Combat.craftDamage = function (c, dmg, by) {
   if (!c.alive || c.mode === 'docked') return;
-  if (G.god && c.squad && c.squad.ship && c.squad.ship.isPlayer && c.type === 'shuttle') dmg *= 0.1;
+  if (G.god && c.squad && c.squad.ship && c.squad.ship.isPlayer && (c.type === 'shuttle' || c.piloted)) dmg *= 0.1;
+  if (c.shield > 0) {
+    const a = Math.min(c.shield, dmg); c.shield -= a; dmg -= a; c.shT = 0;
+    if (!G.simming) Fx.spark(c.pos, c.vel, 0.2, 10, 18, 0.5, 0.8, 1, 1);
+  }
+  if (c.piloted && !G.simming) R.shake = Math.max(R.shake, 0.25);
   c.hp -= dmg; if (by && by.stats) by.stats.dmg += dmg;
   if (c.hp <= 0) c.die(by);
 };
+// The piloted fighter's cannons: real projectiles along the nose, tested against craft, torpedoes and hulls.
+Combat.pilotShot = function (c, o, d) {
+  const g = c.T.gun;
+  Combat.bolts.push({ kind: 'pilot', p: o.clone(), d: d.clone(), speed: g.speed, life: g.range / g.speed, dmg: g.dmg, capDmg: g.capDmg, owner: c, team: c.team, len: 20, w: 0.8, col: CRAFT_COL[c.team] });
+  if (!G.simming) Sfx.cannon(o);
+};
+function segHit(b, q, step, r) {
+  const vx = q.x - b.p.x, vy = q.y - b.p.y, vz = q.z - b.p.z, t = clamp(vx * b.d.x + vy * b.d.y + vz * b.d.z, 0, step);
+  const ex = vx - b.d.x * t, ey = vy - b.d.y * t, ez = vz - b.d.z * t;
+  return ex * ex + ey * ey + ez * ez < r * r;
+}
 Combat.torpedo = function (owner, p, target, aimL) {
   const fwd = owner.fwd.clone();
   Combat.torps.push({ isTorp: true, alive: true, pos: p.clone(), vel: fwd.multiplyScalar(TORP.speed * 0.6 + (owner.speed || 0)), target, aimL: (aimL || target.model.centre).clone(),
@@ -63,6 +79,32 @@ Combat.update = function (dt) {
   const B = Combat.bolts;
   for (let i = B.length - 1; i >= 0; i--) {
     const b = B[i], step = Math.min(b.life, dt) * b.speed;
+    if (b.kind === 'pilot') {
+      let done = false;
+      for (const c of Craft.byTeam[1 - b.team]) {
+        if (!c.alive || c.mode === 'docked' || !segHit(b, c.pos, step, c.type === 'bmb' ? 13 : 10)) continue;
+        Combat.craftDamage(c, b.dmg, b.owner); if (!G.simming) Fx.spark(c.pos, c.vel, 0.25, 8, 14, 1, 0.8, 0.5, 1);
+        if (b.owner.isPlayerCraft) Hud.hitMark(c.alive ? 'hit' : 'kill');
+        done = true; break;
+      }
+      if (!done) for (const t of Combat.torps) {
+        if (!t.alive || t.team === b.team || !segHit(b, t.pos, step, 7)) continue;
+        t.hp -= b.dmg; if (t.hp <= 0) Combat.killTorp(t, true); done = true; break;
+      }
+      if (!done) {
+        let best = -1, bs = null;
+        for (const s of G.ships) {
+          if (s.team === b.team || !s.alive || !s.arrived) continue;
+          const t = s.raycast(b.p, b.d, step, _kl); if (t >= 0 && (best < 0 || t < best)) { best = t; bs = s; _kp.copy(_kl); }
+        }
+        if (bs) {
+          const lp = _kp.clone(), res = bs.damage(b.capDmg, lp, b.owner, 'gun'), wp = bs.toWorld(lp, _kw);
+          if (!G.simming && res) { Fx.impact(wp, null, res === 'shield', BOLT_COL[bs.team], 0.45); if (res !== 'shield') Damage.hit(bs, wp, b.d, b.capDmg, 'gun'); }
+          done = true;
+        }
+      }
+      if (done) { B[i] = B[B.length - 1]; B.pop(); continue; }
+    }
     if (b.kind === 'cap') {
       // Segment test against every hostile ship.
       let best = -1, bs = null;

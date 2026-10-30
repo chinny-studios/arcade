@@ -84,6 +84,8 @@ function debugHook() {
       PC.yaw = yawOf(d); PC.pitch = pitchOf(d); PC.camera(0); PC.gunnery(); return Object.assign({}, PC.bears);
     },
     fire() { const p = P(); PC.camera(0); PC.gunnery(); const out = []; for (const side in p.bat) if (PC.bears[side] && p.bat[side].t <= 0 && p.fireBattery(side, PC.aim, 0.0011)) out.push(side); return out; },
+    pilot() { PC.launchFighter(); return !!PC.pilot; },
+    unpilot() { if (PC.pilot) PC.endPilot(); },
     reload() { for (const k in P().bat) P().bat[k].t = 0; P().torpCd = 0; },
     torp() { return P().fireTorps(PC.target); },
     target(s, sub) { PC.setTarget(s); PC.sub = sub || null; },

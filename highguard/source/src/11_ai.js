@@ -7,7 +7,7 @@ class ShipAI {
     o = o || {};
     this.s = ship; this.target = null; this.retarget = 0; this.side = rand() < 0.5 ? 'port' : 'stbd'; this.sideT = 0;
     this.launchT = o.launchDelay != null ? o.launchDelay : rnd(3, 9); this.squadT = 0; this.shieldT = rnd(0, 3);
-    this.goto = o.goto || null; this.passive = !!o.passive; this.cruise = o.throttle != null ? o.throttle : null; this.cruiseT = o.throttle != null ? 25 : 0;
+    this.goto = o.goto || null; this.passive = !!o.passive; this.noSquads = !!o.noSquads; this.cruise = o.throttle != null ? o.throttle : null; this.cruiseT = o.throttle != null ? 25 : 0;
     const C = ship.C;
     this.pref = !C.side ? 2600 : ship.cls === 'carrier' ? 2400 : 900 + C.len * 1.3;
     this.err = 0.009 + (ship.team ? 0.003 : 0.0015);
@@ -36,7 +36,7 @@ class ShipAI {
     if (s.disabled) { s.thr = 0; s.yawCmd *= 0.3; }
     this.shields(dt, t);
     this.fire(t);
-    this.squads(dt, t);
+    if (!this.noSquads) this.squads(dt, t);
   }
   steer(dt, t) {
     const s = this.s, C = s.C;
@@ -135,7 +135,7 @@ class ShipAI {
     }
     if (!bt && !t) return;
     s.squads.forEach((q, i) => {
-      if (q.type === 'shuttle') return;
+      if (q.type === 'shuttle' || q.type === 'strike') return;
       if (q.type === 'bmb') { if (bt && (q.order.kind !== 'attack' || !q.order.target || !q.order.target.alive)) q.command('attack', bt); else if (!q.out.length && q.ready) q.launch(); }
       else if (i % 2 === 0) { if (q.order.kind !== 'escort' || !q.out.length) q.command('escort', s); }
       else if (t && (q.order.kind !== 'attack' || !q.order.target || !q.order.target.alive)) q.command('attack', t);

@@ -12,7 +12,7 @@ shield facings, targetable subsystems, and fighter and bomber squadrons launched
   screenshots), `HG.render()`, `HG.manual(true)` stops the real-time loop so a test owns the clock. Player:
   `tp(x, y, z, yaw)`, `helm(thrIdx, yawCmd, pitchCmd)`, `aimAt(ship, sub)` (camera on the lead point), `fire()`,
   `reload()`, `torp()`, `target(ship, sub)`, `shields(facing)`, `squad(i, kind, target)`, `look(yawDeg, pitchDeg, dist)`,
-  `cam([x,y,z], [x,y,z])` (fixed camera; `cam()` to release), `god()`. Ships: `ships()`, `me()`, `find(name)`,
+  `cam([x,y,z], [x,y,z])` (fixed camera; `cam()` to release), `god()`, `pilot()` / `unpilot()` (launch the remote fighter and take its controls, or hand back). Ships: `ships()`, `me()`, `find(name)`,
   `enemy(i)`, `ally(i)`, `place(ship, dist, bearingDeg, elevDeg, yawDeg)` relative to the player, `spawn(cls, team, x,
   y, z, yaw)`, `peace()` (every AI stops), `killAll(team)`. Internals: `HG.mission`, `HG.combat`, `HG.pc`, `HG.hud`,
   `HG.ui`, `HG.G`, `HG.Fx`, `HG.Craft`, `HG.Damage`.
@@ -21,7 +21,8 @@ shield facings, targetable subsystems, and fighter and bomber squadrons launched
   the shuttle docks, the timer runs out), `test/flow.js` (campaign screen, a lost ship, results, unlocking),
   `test/inputs.js` (real DOM key and mouse events through the menus and controls), `test/broadside.js` and
   `test/look.js` (screenshots of a player volley), `test/damage.js` and `test/battered.js` (scorch marks, debris, a
-  wrecked subsystem, fires on a ship beaten in a real fight), `test/models.js` (every hull class side by side), `test/perf.js`
+  wrecked subsystem, fires on a ship beaten in a real fight), `test/pilot.js` (fly the remote fighter: shoot a bomber, torpedoes,
+  link loss, flying home, relaunch, loss and rebuild), `test/models.js` (every hull class side by side), `test/perf.js`
   (update and draw cost in the biggest battle). Screenshots land in `test/out/`.
 - **Gotchas:** SwiftShader draws a frame every few hundred ms, so input tests must wait for real frames between key
   presses (see `frames()` in `inputs.js`), and steps files can't share `const`s across `//--- shot` segments (use
@@ -29,4 +30,7 @@ shield facings, targetable subsystems, and fighter and bomber squadrons launched
   launched inside its own hull is spared collision for its first 3 s (`age`). Pointer-lock loss pauses the game
   except under `#debug`. GLSL ES reserves words like `char`, and SwiftShader drops a shader that uses one without
   any console error, so a decal or effect that silently doesn't draw is worth checking for that first.
+- **Remote fighter:** while `PC.pilot` is set, `PC.update` flies it (`PC.fly`) instead of the helm, and the player's
+  ship has a `ShipAI` that must be removed again (`PC.endPilot`). Tests that fly it call `PC.update`, `Mission.update`
+  and `PC.camera` each step with `Input.press('M0')` held (see `pilot.js`).
 - **Input:** mouse and keyboard only (pointer lock; without it the camera still follows the cursor).

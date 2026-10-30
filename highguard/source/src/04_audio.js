@@ -53,6 +53,11 @@ const Sfx = (() => {
     const t = ctx.currentTime, f = team ? 1300 : 1700;
     tone(t, 0.11, f + Math.random() * 300, f * 0.35, 0.07 * g, 'square');
   };
+  // The remote fighter's cannons: a short, punchy double crack.
+  S.cannon = (p) => {
+    if (!ok() || !limit('cannon', 0.05)) return; const g = gainAt(p, 300), t = ctx.currentTime;
+    tone(t, 0.09, 900 + Math.random() * 100, 240, 0.09 * g, 'square'); burst(t, 0.07, 3200, 900, 0.07 * g, 'bandpass', 2);
+  };
   S.flak = (p) => { if (!ok()) return; const g = gainAt(p, 300); if (g < 0.06 || !limit('flak', 0.05)) return; burst(ctx.currentTime, 0.12, 1800, 500, 0.12 * g, 'bandpass', 2); };
   S.hit = (p, shield, big) => {
     if (!ok()) return; const g = gainAt(p, 500) * (big ? 1.4 : 1); if (g < 0.04 || !limit(shield ? 'hs' : 'hh', 0.05)) return;

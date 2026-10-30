@@ -53,12 +53,15 @@ Hud.buildSquads = function () {
   h.innerHTML = '<h4>Hangar</h4>';
   if (!p || !p.squads.length) { h.hidden = true; return; }
   h.hidden = false;
-  p.squads.forEach((q, i) => {
+  PC.sqList().forEach((q, i) => {
     const row = el('div', 'sq', '<kbd>' + SQUAD_KEYS[i].slice(3) + '</kbd><div><b>' + q.name + '</b> <small>' + CRAFT[q.type].name + '</small><span class="pips"></span><em></em></div>');
     h.appendChild(row); q.row = row;
   });
+  const k = PC.strikeSquad();
+  if (k) { const row = el('div', 'sq strike', '<kbd>G</kbd><div><b>Kite</b> <small>Strike fighter, flown by you</small><em></em></div>'); h.appendChild(row); k.row = row; }
   h.appendChild(el('div', 'hint', 'Tap: launch / attack target · <kbd>Shift</kbd> escort us · hold: recall · <kbd>V</kbd> all attack'));
 };
+Hud.hitMark = function (kind) { PC.hitT = kind === 'kill' ? 0.5 : 0.18; PC.hitKind = kind; if (kind === 'kill') Hud.ribbon('Fighter down', 'kill'); };
 Hud.buildSubs = function () {
   const p = G.player, s = $('subs'); s.innerHTML = '';
   if (!p) return;
@@ -89,15 +92,25 @@ Hud.panels = function (p) {
     s.row.querySelector('i').style.width = pct(s.hp / s.max);
     s.row.querySelector('em').textContent = s.down ? 'Down · ' + Math.ceil(s.repair) + ' s' : pct(s.hp / s.max);
   }
-  // Weapons.
+  // Weapons (or the remote fighter's instruments while you fly it).
   const w = [];
-  for (const side of ['port', 'bow', 'stbd']) {
+  const f = PC.pilot;
+  document.body.classList.toggle('piloting', !!f);
+  if (f) {
+    const bar = (label, v, txt, cls) => '<div class="wp ' + (cls || '') + '"><span>' + label + '</span><div><i style="width:' + pct(v) + '"></i></div><small>' + txt + '</small></div>';
+    w.push('<div class="wp ' + (f.hp < f.T.hp * 0.35 ? 'down' : 'go') + '"><span>Kite</span><div><i style="width:' + pct(f.hp / f.T.hp) + '"></i></div><div class="sh"><i style="width:' + pct(f.shield / f.T.shield) + '"></i></div><small>Hull ' + pct(f.hp / f.T.hp) + ' · shield ' + (f.shield > 1 ? pct(f.shield / f.T.shield) : 'down') + '</small></div>');
+    w.push(bar('Speed <kbd>W</kbd><kbd>S</kbd>', f.speed / f.T.boost, Math.round(f.speed) + ' m/s · boost ' + Math.round(PC.boost * 100) + '%', PC.boost > 0.05 ? '' : 'bear'));
+    w.push(bar('Torpedoes <kbd>Space</kbd>', f.torps / f.T.torps, f.torps + ' of ' + f.T.torps, f.torps ? 'torp' : 'down'));
+    const km = (p.pos.distanceTo(f.pos) / 1000).toFixed(1) + ' km';
+    w.push(bar('Link to ' + p.name, PC.link, (PC.link >= 1 ? 'Strong' : PC.link > 0.4 ? 'Weak · turn back' : 'Breaking up!') + ' · ' + km, PC.link >= 1 ? 'go' : PC.link > 0.4 ? 'bear' : 'down'));
+  }
+  if (!f) for (const side of ['port', 'bow', 'stbd']) {
     const b = p.bat[side]; if (!b) continue;
     const down = (side === 'port' || side === 'stbd') && !p.ok(side), ready = b.t <= 0, bears = PC.bears[side];
     const f = ready ? 1 : 1 - b.t / b.reload;
     w.push('<div class="wp' + (down ? ' down' : bears && ready ? ' go' : bears ? ' bear' : '') + '"><span>' + (side === 'port' ? 'Port battery' : side === 'stbd' ? 'Starboard battery' : 'Bow guns') + '</span><div><i style="width:' + pct(f) + '"></i></div><small>' + (down ? 'Knocked out' : !ready ? 'Reloading' : bears ? 'Bears · fire' : 'Ready') + '</small></div>');
   }
-  if (p.torpMax) {
+  if (p.torpMax && !PC.pilot) {
     const f = p.torpCd <= 0 ? 1 : 1 - p.torpCd / 26;
     w.push('<div class="wp' + (p.torpCd <= 0 ? ' torp' : '') + '"><span>Torpedoes <kbd>Space</kbd></span><div><i style="width:' + pct(f) + '"></i></div><small>' + (p.torpCd <= 0 ? p.torpMax + ' tubes ready' : 'Loading · ' + Math.ceil(p.torpCd) + ' s') + '</small></div>');
   }
@@ -105,6 +118,10 @@ Hud.panels = function (p) {
   // Squadrons.
   for (const q of p.squads) {
     if (!q.row) continue;
+    if (q.type === 'strike') {
+      q.row.querySelector('em').textContent = PC.pilot ? 'In flight · you have the stick' : q.out.length ? 'Flying home to rearm' : !p.ok('hangar') ? 'Hangar down' : q.ready ? 'Ready · G to launch' : 'Rebuilding · ' + Math.ceil(CRAFT.strike.rebuild - q.buildT) + ' s';
+      q.row.className = 'sq strike' + (PC.pilot ? ' active' : ''); continue;
+    }
     let pips = '';
     for (let i = 0; i < q.size; i++) pips += '<i class="' + (i < q.out.length ? 'out' : i < q.total ? 'in' : '') + '"></i>';
     q.row.querySelector('.pips').innerHTML = pips;
@@ -171,7 +188,7 @@ Hud.overlay = function (p) {
   x.font = '11px "Rajdhani", "Segoe UI", sans-serif'; x.textAlign = 'center';
   // Small craft.
   for (const c of G.craft) {
-    if (!c.alive || c.mode === 'docked') continue;
+    if (!c.alive || c.mode === 'docked' || c === PC.pilot) continue;
     if (c.pos.distanceToSquared(R.camera.position) > 4500 * 4500) continue;
     const q = proj(c.pos, _pp); if (q.behind || !q.on) continue;
     const s = c.type === 'bmb' ? 4 : c.type === 'shuttle' ? 6 : 3;
@@ -191,7 +208,7 @@ Hud.overlay = function (p) {
   }
   // Capital ships.
   for (const s of G.ships) {
-    if (s === p || !s.alive || !s.arrived || s.jumpAnim != null) continue;
+    if ((s === p && !PC.pilot) || !s.alive || !s.arrived || s.jumpAnim != null) continue;
     const q = proj(s.centre(_hw), _pp); if (q.behind || !q.on) continue;
     const r = Math.max(10, s.radius * 0.55 * pxs / q.d), foe = s.team !== p.team, sel = s === PC.target;
     const col = foe ? (sel ? '#ff8a5a' : 'rgba(255,110,80,.75)') : (sel ? '#a8e4ff' : 'rgba(127,212,255,.6)');
@@ -236,6 +253,7 @@ Hud.overlay = function (p) {
       x.fillStyle = PC.target.team === p.team ? '#8fd8ff' : '#ff8a5a'; x.beginPath(); x.moveTo(12, 0); x.lineTo(-6, -8); x.lineTo(-6, 8); x.closePath(); x.fill(); x.restore();
     }
   }
+  if (PC.pilot) { Hud.fighterSight(x, W, H); Hud.radar(x, p, PC.pilot.pos, yawOf(PC.pilot.fwd)); return; }
   // Sight.
   if (p.alive) {
     const cx = W / 2, cy = H / 2, onFoe = PC.aimShip && PC.aimShip.team !== p.team;
@@ -258,9 +276,37 @@ Hud.overlay = function (p) {
     x.font = '11px "Rajdhani", "Segoe UI", sans-serif'; x.fillStyle = PC.range > BOLT_RANGE ? '#ff8a6a' : 'rgba(220,240,255,.7)';
     x.fillText((PC.range / 1000).toFixed(2) + ' km', cx + 52, cy - 18);
   }
-  Hud.radar(x, p);
+  Hud.radar(x, p, p.pos, p.yaw);
 };
-Hud.radar = function (x, p) {
+// While flying the fighter: the mouse aim point in the centre, the nose marker where the guns point, lead diamonds
+// on the nearest enemy craft, hit markers, and static on the screen as the link weakens.
+Hud.fighterSight = function (x, W, H) {
+  const cx = W / 2, cy = H / 2, f = PC.pilot;
+  x.strokeStyle = 'rgba(220,240,255,.55)'; x.lineWidth = 1.2;
+  x.beginPath(); x.arc(cx, cy, 5, 0, TAU); x.stroke();
+  const q = proj(PC.noseV, _pp);
+  if (!q.behind) {
+    const hit = PC.hitT > 0, col = hit ? (PC.hitKind === 'kill' ? '#ffd34a' : '#ff8a5a') : '#9ff0b0';
+    x.strokeStyle = col; x.lineWidth = 2;
+    x.beginPath(); x.arc(q.x, q.y, 11, 0, TAU); x.stroke();
+    x.beginPath(); for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { x.moveTo(q.x + a * 15, q.y + b * 15); x.lineTo(q.x + a * 23, q.y + b * 23); } x.stroke();
+    if (hit) { x.beginPath(); for (const [a, b] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { x.moveTo(q.x + a * 6, q.y + b * 6); x.lineTo(q.x + a * 13, q.y + b * 13); } x.stroke(); }
+    x.strokeStyle = 'rgba(159,240,176,.25)'; x.lineWidth = 1; x.beginPath(); x.moveTo(cx, cy); x.lineTo(q.x, q.y); x.stroke();
+  }
+  if (PC.flead) {
+    const l = proj(PC.flead, _pq);
+    if (!l.behind && l.on) { x.strokeStyle = '#ffd34a'; x.lineWidth = 2; x.beginPath(); x.moveTo(l.x, l.y - 7); x.lineTo(l.x + 7, l.y); x.lineTo(l.x, l.y + 7); x.lineTo(l.x - 7, l.y); x.closePath(); x.stroke(); }
+  }
+  x.font = 'bold 12px "Rajdhani", "Segoe UI", sans-serif'; x.textAlign = 'center';
+  x.fillStyle = 'rgba(220,240,255,.75)'; x.fillText(Math.round(f.speed) + ' m/s', cx - 92, cy + 4);
+  if (PC.link < 1) {
+    const k = 1 - PC.link;
+    x.fillStyle = 'rgba(200,220,255,' + (0.05 + k * 0.25) + ')';
+    for (let i = 0; i < 40 + k * 260; i++) x.fillRect(rand() * W, rand() * H, 1 + rand() * 40 * k, 1);
+    x.fillStyle = '#ffcf8a'; x.font = 'bold 16px "Rajdhani", sans-serif'; x.fillText('CONTROL LINK WEAK · TURN BACK TOWARD ' + G.player.name.toUpperCase(), cx, H * 0.3);
+  }
+};
+Hud.radar = function (x, p, cpos, cyaw) {
   const H = innerHeight, R0 = Math.min(70, H * 0.1), cx = 12 + R0 + 4, cy = H - 252 - R0, range = 5000;
   x.save();
   x.fillStyle = 'rgba(6,12,20,.6)'; x.strokeStyle = 'rgba(127,212,255,.35)'; x.lineWidth = 1;
@@ -268,23 +314,23 @@ Hud.radar = function (x, p) {
   x.beginPath(); x.arc(cx, cy, R0 * 0.5, 0, TAU); x.stroke();
   x.beginPath(); x.moveTo(cx, cy - R0); x.lineTo(cx, cy + R0); x.moveTo(cx - R0, cy); x.lineTo(cx + R0, cy); x.stroke();
   // Camera direction wedge.
-  const ca = angNorm(PC.yaw - p.yaw);
+  const ca = angNorm(PC.yaw - cyaw);
   x.fillStyle = 'rgba(255,255,255,.06)'; x.beginPath(); x.moveTo(cx, cy); x.arc(cx, cy, R0, -Math.PI / 2 - ca - 0.5, -Math.PI / 2 - ca + 0.5); x.closePath(); x.fill();
   const k = R0 / range;
   const blip = (pos, fn) => {
-    _hv.copy(pos).sub(p.pos); if (_hv.lengthSq() > range * range * 1.2) return;
-    _hv.applyAxisAngle(UP, -p.yaw);
+    _hv.copy(pos).sub(cpos); if (_hv.lengthSq() > range * range * 1.2) return;
+    _hv.applyAxisAngle(UP, -cyaw);
     const bx = cx - _hv.x * k, by = cy - _hv.z * k, h = _hv.y * k;
     if ((bx - cx) ** 2 + (by - cy) ** 2 > R0 * R0) return;
     fn(bx, by, h);
   };
   for (const c of G.craft) {
-    if (!c.alive || c.mode === 'docked') continue;
+    if (!c.alive || c.mode === 'docked' || c === PC.pilot) continue;
     blip(c.pos, (bx, by) => { x.fillStyle = c.team === p.team ? 'rgba(127,212,255,.8)' : 'rgba(255,110,80,.9)'; x.fillRect(bx - 1, by - 1, 2, 2); });
   }
   for (const t of Combat.torps) blip(t.pos, (bx, by) => { x.fillStyle = '#ffe070'; x.fillRect(bx - 1, by - 1, 2, 2); });
   for (const s of G.ships) {
-    if (!s.alive || !s.arrived || s === p) continue;
+    if (!s.alive || !s.arrived || (s === p && !PC.pilot)) continue;
     blip(s.pos, (bx, by, h) => {
       const col = s.team === p.team ? '#7fd4ff' : '#ff6e50', sz = 2.5 + Math.min(4, s.len / 160);
       x.strokeStyle = col; x.lineWidth = 1; x.beginPath(); x.moveTo(bx, by); x.lineTo(bx, by - h); x.stroke();
