@@ -1,0 +1,199 @@
+<title>Valor Bay</title>
+<meta name="description" content="An open-world superhero sandbox: pick one of five heroes (a web-slinger, a flier, a speedster, a powerhouse or an elementalist) and patrol a comic-book city, stopping muggings, robberies, getaways, gang wars and supervillains.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #fff; --dim: #c8d0e0; --black: #14121c; --yel: #ffd820; --red: #ff3a3a; --blue: #3a8aff; --panel: rgba(18,20,36,.9);
+    --pop: 'Bangers', Impact, 'Arial Black', sans-serif; --ui: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: var(--ink); font-family: var(--ui); font-weight: 500; font-size: 18px; -webkit-user-select: none; user-select: none; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #nogl, #loading { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; background: #1a2a5a; font-family: var(--pop); font-size: 40px; letter-spacing: 2px; z-index: 50; }
+  button, select, input { font-family: var(--ui); color: var(--ink); }
+  .btn { background: var(--yel); border: 3px solid var(--black); color: var(--black); padding: 6px 20px; cursor: pointer; font-family: var(--pop); font-size: 24px; letter-spacing: 1.5px; min-height: 44px; box-shadow: 4px 4px 0 var(--black); transform: rotate(-1deg); transition: transform .1s; }
+  .btn:hover, .btn:focus-visible { background: #fff; outline: none; transform: rotate(0deg) scale(1.05); }
+  .btn.big { min-width: 280px; font-size: 28px; }
+  .btn.red { background: var(--red); color: #fff; }
+  h2 { font-family: var(--pop); font-weight: normal; color: var(--yel); font-size: 44px; margin: 0 0 10px; letter-spacing: 2px; text-shadow: 3px 3px 0 var(--black), -1px -1px 0 var(--black), 1px -1px 0 var(--black), -1px 1px 0 var(--black); }
+  .menu { position: absolute; inset: 0; display: grid; place-items: center; z-index: 30; background: rgba(10,10,30,.55); }
+  .menu > .win { background: var(--panel); border: 4px solid var(--black); box-shadow: 8px 8px 0 var(--black), 0 0 0 2px #fff inset; padding: 18px 26px; max-width: min(760px, 94vw); max-height: 90vh; overflow: auto; text-align: center; }
+  .menu .col { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 12px; }
+  /* title */
+  #title { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(0,0,30,.45)); padding: 0 12px; }
+  #logo { font-family: var(--pop); font-size: clamp(70px, 15vw, 170px); line-height: .85; color: var(--yel); text-align: center; letter-spacing: 4px; transform: rotate(-4deg) skewX(-6deg);
+    text-shadow: 5px 5px 0 var(--red), 10px 10px 0 var(--black), -2px -2px 0 var(--black), 2px -2px 0 var(--black), -2px 2px 0 var(--black); }
+  #logo span { display: block; font-size: .45em; color: #fff; letter-spacing: 12px; text-shadow: 4px 4px 0 var(--blue), 7px 7px 0 var(--black); }
+  #tag { font-size: 22px; color: #fff; text-shadow: 2px 2px 0 #000; text-align: center; max-width: 640px; margin: 8px 0 16px; background: rgba(20,18,28,.7); padding: 6px 14px; border: 2px solid #000; }
+  .credit { position: absolute; bottom: 10px; color: var(--dim); font-size: 15px; text-shadow: 1px 1px 0 #000; text-align: center; padding: 0 10px; }
+  /* select */
+  #select { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; box-sizing: border-box; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,20,.7)); }
+  #select h2 { position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-size: clamp(32px, 5vw, 54px); }
+  #selBlurb { max-width: 760px; margin: 0 auto 10px; text-align: center; font-size: 20px; text-shadow: 2px 2px 0 #000, 0 0 8px #000; }
+  .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 1300px; margin: 0 auto; width: 100%; }
+  .card { background: rgba(18,20,36,.92); border: 3px solid var(--black); box-shadow: 4px 4px 0 var(--black); padding: 8px 12px; cursor: pointer; outline: none; transition: transform .15s; font-size: 15px; line-height: 1.25; text-align: left; }
+  .card.sel, .card:focus-visible { transform: translateY(-8px) rotate(-1deg); border-color: var(--yel); box-shadow: 6px 6px 0 var(--black), 0 0 20px rgba(255,216,32,.4); }
+  .card .ck { color: var(--dim); font-size: 13px; text-transform: uppercase; letter-spacing: 2px; }
+  .card h3 { font-family: var(--pop); font-weight: normal; font-size: 34px; margin: 0; letter-spacing: 1.5px; text-shadow: 2px 2px 0 var(--black); }
+  .card .tagl { color: var(--yel); font-style: italic; margin-bottom: 4px; }
+  .card ul { margin: 6px 0; padding-left: 16px; color: var(--dim); } .card ul b { color: #fff; font-weight: 700; }
+  .stats div { display: flex; justify-content: space-between; align-items: center; text-transform: capitalize; color: var(--dim); }
+  .stats b { display: flex; gap: 2px; } .stats i { width: 13px; height: 7px; background: #2a2c40; display: inline-block; transform: skewX(-15deg); } .stats i.on { background: var(--yel); }
+  .card .best { color: var(--yel); margin-top: 4px; }
+  #selFoot { display: flex; justify-content: center; gap: 14px; margin-top: 14px; }
+  @media (max-width: 1000px) { .cards { grid-template-columns: repeat(3, 1fr); } .card ul, .card .tagl { display: none; } }
+  @media (max-height: 640px) { .card ul, .stats, #selBlurb { display: none !important; } }
+  /* HUD */
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud { display: block; }
+  body.nohud .hud { display: none !important; }
+  .stroke { text-shadow: 2px 2px 0 var(--black), -1px -1px 0 var(--black), 1px -1px 0 var(--black), -1px 1px 0 var(--black); }
+  #speed { position: absolute; inset: -10%; opacity: 0; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,.55) 0deg .6deg, transparent .6deg 7deg);
+    -webkit-mask-image: radial-gradient(ellipse at center, transparent 38%, #000 75%); mask-image: radial-gradient(ellipse at center, transparent 38%, #000 75%); animation: spin 0.25s steps(3) infinite; }
+  @keyframes spin { to { transform: rotate(3deg) } }
+  #vig { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(220,0,0,.7) 100%); }
+  body.lowhp #vig { animation: throb 1s ease-in-out infinite; }
+  @keyframes throb { 50% { opacity: .55 } }
+  #tl { position: absolute; left: 16px; top: 12px; }
+  #score { font-family: var(--pop); font-size: 46px; color: #fff; letter-spacing: 2px; line-height: 1; }
+  #sub { color: var(--dim); font-size: 17px; } #sub b { color: var(--yel); font-weight: 700; }
+  #rank { font-family: var(--pop); color: var(--yel); font-size: 22px; letter-spacing: 1px; }
+  #combo { margin-top: 6px; width: 170px; } #comboN { font-family: var(--pop); font-size: 30px; color: var(--yel); line-height: 1; display: inline-block; transform: rotate(-3deg); }
+  #comboM { font-family: var(--pop); font-size: 26px; color: #fff; margin-left: 6px; }
+  #comboTrack { height: 5px; background: rgba(0,0,0,.6); border: 1px solid #000; } #comboBar { height: 100%; background: var(--yel); }
+  #tr { position: absolute; right: 16px; top: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  #radar { width: 170px; height: 170px; filter: drop-shadow(3px 3px 0 #000); }
+  #threat { width: 170px; text-align: right; font-size: 15px; color: var(--dim); }
+  #threatName { color: #fff; font-family: var(--pop); font-size: 20px; letter-spacing: 1px; }
+  #threatTrack { height: 6px; background: rgba(0,0,0,.6); border: 1px solid #000; margin-top: 2px; } #threatFill { height: 100%; background: linear-gradient(90deg, #4ad860, #ffd820, #ff3a3a); }
+  #district { font-family: var(--pop); font-size: 20px; color: #fff; letter-spacing: 1px; }
+  #bl { position: absolute; left: 16px; bottom: 16px; width: min(380px, 42vw); }
+  #heroName { font-family: var(--pop); font-size: 34px; letter-spacing: 2px; line-height: 1; }
+  .bar { height: 18px; background: rgba(0,0,0,.65); border: 3px solid var(--black); position: relative; overflow: hidden; transform: skewX(-12deg); margin-top: 4px; }
+  #hpFill { height: 100%; background: linear-gradient(180deg, #6aff7a, #2ab84a); transition: width .15s; }
+  body.lowhp #hpFill { background: linear-gradient(180deg, #ff6a5a, #c81818); }
+  #hpTxt { position: absolute; right: 8px; top: -2px; font-family: var(--pop); font-size: 16px; transform: skewX(12deg); }
+  #meter { height: 10px; } #meterFill { height: 100%; background: linear-gradient(90deg, #3a8aff, #a040ff); }
+  body.ultReady #meterFill { background: linear-gradient(90deg, #ffd820, #fff, #ffd820); background-size: 200% 100%; animation: shine .8s linear infinite; }
+  @keyframes shine { to { background-position: -200% 0 } }
+  #travelHint { margin-top: 6px; font-size: 16px; color: var(--dim); }
+  #travelHint b, .ab b { font-family: var(--pop); font-weight: normal; color: var(--black); background: var(--yel); padding: 0 5px; letter-spacing: 1px; }
+  .pk { display: none; } body[data-input="pad"] .pk { display: inline; } body[data-input="pad"] .kk { display: none; }
+  #abil { position: absolute; right: 16px; bottom: 16px; display: flex; gap: 8px; }
+  .ab { width: 96px; height: 62px; background: rgba(18,20,36,.88); border: 3px solid var(--black); box-shadow: 3px 3px 0 #000; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .ab .cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.72); }
+  .ab b { position: relative; font-size: 14px; } .ab > span { position: relative; font-size: 15px; text-align: center; line-height: 1; font-weight: 700; text-shadow: 1px 1px 0 #000; }
+  .ab.active { border-color: var(--yel); } .ab.ready { border-color: var(--yel); animation: glowpulse .8s ease-in-out infinite; }
+  @keyframes glowpulse { 50% { box-shadow: 3px 3px 0 #000, 0 0 18px var(--yel); } }
+  .ab.blink { animation: blink .3s 2; } @keyframes blink { 50% { border-color: var(--red); } }
+  #cross { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,.75); border-radius: 50%; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  #cross::after { content: ''; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; background: #fff; transform: translate(-50%,-50%); border-radius: 50%; }
+  #cross.lock { border-color: var(--red); width: 26px; height: 26px; }
+  #toasts { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .toast { background: #fff; color: var(--black); padding: 3px 14px; font-size: 19px; font-weight: 700; border: 3px solid var(--black); box-shadow: 3px 3px 0 #000; transition: opacity .6s, transform .6s; }
+  .toast.crime { background: var(--red); color: #fff; } .toast.good { background: #4ad860; } .toast.bad { background: #8a8ea0; color: #fff; }
+  .toast.out { opacity: 0; transform: translateY(-8px); }
+  #banner { position: absolute; left: 50%; top: 27%; transform: translate(-50%,-50%); text-align: center; opacity: 0; white-space: nowrap; }
+  #banner .bt { font-family: var(--pop); font-size: clamp(50px, 9vw, 96px); color: var(--c, var(--yel)); letter-spacing: 3px; text-shadow: 4px 4px 0 var(--black), -2px -2px 0 var(--black), 2px -2px 0 var(--black), -2px 2px 0 var(--black); transform: rotate(-4deg); }
+  #banner .bs { font-size: 24px; font-weight: 700; background: var(--black); display: inline-block; padding: 2px 12px; }
+  #banner.pop { animation: bpop 2.6s ease-out forwards; }
+  @keyframes bpop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(2.5) } 10% { opacity: 1; transform: translate(-50%,-50%) scale(1) } 80% { opacity: 1 } 100% { opacity: 0; transform: translate(-50%,-56%) scale(1) } }
+  #tip { position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%); width: min(680px, 70vw); background: #fffbe0; color: var(--black); border: 3px solid var(--black); box-shadow: 4px 4px 0 #000; padding: 8px 14px; font-size: 18px; line-height: 1.35; text-align: center; }
+  #tip b { color: #c81818; }
+  #boss { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); width: min(520px, 60vw); text-align: center; }
+  #bossName { font-family: var(--pop); font-size: 26px; color: #d080ff; letter-spacing: 1px; }
+  #bossBar { height: 16px; } #bossFill { height: 100%; background: linear-gradient(180deg, #d060ff, #7a20b0); transition: width .2s; }
+  #bubbles, #floats, #warns, #marks, #pops { position: absolute; inset: 0; overflow: hidden; }
+  .bubble { position: absolute; left: 0; top: 0; background: #fff; color: var(--black); padding: 3px 12px; font-family: var(--ui); font-weight: 700; font-size: 19px; border: 3px solid var(--black); border-radius: 16px; white-space: nowrap; transform-origin: 50% 100%; }
+  .bubble::after { content: ''; position: absolute; left: 50%; bottom: -12px; border: 7px solid transparent; border-top: 9px solid var(--black); transform: translateX(-50%); }
+  .float { position: absolute; left: 0; top: 0; font-family: var(--pop); font-size: 26px; color: #fff; letter-spacing: 1px; }
+  .float.mul { color: var(--yel); }
+  .warn { position: absolute; left: 0; top: 0; width: 26px; height: 26px; background: var(--yel); color: var(--black); font-family: var(--pop); font-size: 22px; text-align: center; line-height: 28px; border: 2px solid #000; clip-path: polygon(50% 0, 100% 100%, 0 100%); animation: wpulse .25s ease-in-out infinite alternate; }
+  .warn.gun { background: var(--red); color: #fff; }
+  @keyframes wpulse { to { filter: brightness(1.4); } }
+  .mk { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; font-weight: 700; font-size: 15px; }
+  .mk i { font-style: normal; width: 26px; height: 26px; background: var(--red); border: 2px solid #000; border-radius: 50%; text-align: center; line-height: 25px; font-family: var(--pop); font-size: 18px; box-shadow: 2px 2px 0 #000; }
+  .mk.boss i { background: #a040ff; width: 32px; height: 32px; line-height: 31px; font-size: 20px; } .mk.getaway i { background: #ff8a20; font-size: 14px; } .mk.off { opacity: .85; }
+  .mk span { background: rgba(0,0,0,.6); padding: 0 4px; margin-top: 2px; }
+  .pow { position: absolute; left: 0; top: 0; font-family: var(--pop); color: var(--c); letter-spacing: 2px; white-space: nowrap; pointer-events: none;
+    -webkit-text-stroke: 2px var(--black); text-shadow: 4px 4px 0 var(--black); }
+  /* the map */
+  #map { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(10,10,30,.6); pointer-events: auto; }
+  #map .win { background: var(--panel); border: 4px solid var(--black); box-shadow: 8px 8px 0 #000; padding: 10px; text-align: center; }
+  #mapC { width: min(80vh, 90vw); height: min(80vh, 90vw); display: block; }
+  /* menus */
+  .opt { display: grid; grid-template-columns: 1fr auto; gap: 10px 20px; align-items: center; text-align: left; }
+  .opt select { background: #2a2c40; border: 2px solid #000; padding: 4px; font-size: 17px; } .opt input[type=range] { width: 190px; } .opt input[type=checkbox] { width: 22px; height: 22px; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; text-align: left; } .keys b { color: var(--yel); }
+  #heroHelp { text-align: left; margin-top: 12px; border-top: 2px solid #2a2c40; padding-top: 8px; } #heroHelp h3 { font-family: var(--pop); font-weight: normal; font-size: 30px; margin: 0; letter-spacing: 1px; } #heroHelp p { margin: 4px 0; color: var(--dim); } #heroHelp b { color: #fff; }
+  .note { color: var(--dim); font-size: 16px; margin-top: 10px; text-align: left; line-height: 1.4; }
+  #heroes .win { max-width: min(1300px, 96vw); } #heroes .card { font-size: 14px; }
+  @media (max-width: 760px), (max-height: 520px) {
+    #score { font-size: 32px; } #radar { width: 120px; height: 120px; } #threat { width: 120px; } .ab { width: 74px; height: 50px; } .ab > span { font-size: 12px; } #heroName { font-size: 26px; }
+  }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="nogl" hidden>Valor Bay needs WebGL. Try another browser or turn on hardware acceleration.</div>
+  <div id="loading">Building the city…</div>
+  <div class="hud">
+    <div id="speed"></div>
+    <div id="marks"></div>
+    <div id="bubbles"></div>
+    <div id="floats"></div>
+    <div id="warns"></div>
+    <div id="cross"></div>
+    <div id="tl" class="stroke">
+      <div id="score">0</div>
+      <div id="rank">Rookie</div>
+      <div id="sub"><b id="arrests">0</b> crooks behind bars</div>
+      <div id="combo" hidden><span id="comboN"></span><span id="comboM"></span><div id="comboTrack"><div id="comboBar"></div></div></div>
+    </div>
+    <div id="boss" hidden><div id="bossName" class="stroke"></div><div class="bar" id="bossBar"><div id="bossFill"></div></div></div>
+    <div id="tr" class="stroke">
+      <canvas id="radar" width="170" height="170"></canvas>
+      <div id="district"></div>
+      <div id="threat">City: <span id="threatName">Calm</span><div id="threatTrack"><div id="threatFill"></div></div></div>
+    </div>
+    <div id="toasts"></div>
+    <div id="banner"></div>
+    <div id="tip" hidden></div>
+    <div id="bl" class="stroke">
+      <div id="heroName"></div>
+      <div class="bar"><div id="hpFill"></div><span id="hpTxt"></span></div>
+      <div class="bar" id="meter"><div id="meterFill"></div></div>
+      <div id="travelHint"></div>
+    </div>
+    <div id="abil"></div>
+  </div>
+  <div id="pops"></div>
+  <div id="vig"></div>
+
+  <div id="map" hidden><div class="win"><canvas id="mapC" width="900" height="900"></canvas><button class="btn" id="mapClose">Close</button></div></div>
+
+  <div id="title" hidden>
+    <div id="logo">Valor<span>BAY</span></div>
+    <div id="tag">The city never sleeps, and neither does crime. Pick a hero, take to the rooftops and keep Valor Bay safe.</div>
+    <button class="btn big" id="btnPatrol">Suit up</button>
+    <button class="btn big" id="btnOptions">Options</button>
+    <button class="btn big" id="btnHelp">Controls</button>
+    <div class="credit">Mouse and keyboard or gamepad.</div>
+  </div>
+
+  <div id="select" hidden>
+    <h2>Choose your hero</h2>
+    <div id="selBlurb"></div>
+    <div id="cards" class="cards"></div>
+    <div id="selFoot"><button class="btn" id="selBack">Back</button><button class="btn big red" id="goBtn">Patrol the city!</button></div>
+  </div>
+
+  <div id="pause" class="menu" hidden><div class="win"><h2>Paused</h2><div class="col">
+    <button class="btn big" id="resume">Back on patrol</button><button class="btn big" id="pHero">Switch hero</button><button class="btn big" id="pOptions">Options</button><button class="btn big" id="pHelp">Controls</button><button class="btn big" id="pQuit">Quit to title</button>
+  </div></div></div>
+  <div id="heroes" class="menu" hidden><div class="win"><h2>Switch hero</h2><div id="hcards" class="cards"></div><div class="note">Click a hero to swap in on the spot. The city stays as it is; the score starts again.</div><div class="col"><button class="btn" id="heroesBack">Back</button></div></div></div>
+  <div id="options" class="menu" hidden><div class="win"><h2>Options</h2><div class="opt" id="optList"></div><div class="col"><button class="btn" id="optBack">Done</button></div></div></div>
+  <div id="help" class="menu" hidden><div class="win"><h2>Controls</h2><div class="keys" id="keys"></div><div id="heroHelp"></div>
+    <div class="note">Crimes break out all over the city: red markers on the radar and the screen edges. Stop them for points; leave them and the city slides toward chaos, and supervillains come out to play. Punching lunges to the nearest crook, so keep attacking and push toward the next one to chain combos. A "!" means a crook is about to swing or shoot: dodge it.</div>
+    <div class="col"><button class="btn" id="helpBack">Back</button></div></div></div>
+</div>
