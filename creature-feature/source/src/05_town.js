@@ -25,7 +25,7 @@ function chunk(x, z) {
 const VB = (x, y, z, sx, sy, sz, col, ry = 0) => chunk(x, z).vc.box(x, y, z, sx, sy, sz, col, ry);
 const GB = (x, y, z, sx, sy, sz, col, ry = 0) => chunk(x, z).glow.box(x, y, z, sx, sy, sz, col, ry);
 // a local frame: (lx, lz) in a building's space to world, front is +z locally
-function frame(cx, cz, ry) { const c = Math.cos(ry), s = Math.sin(ry); return (lx, lz) => [cx + lx * c + lz * s, cz - lx * s + lz * c]; }
+function lframe(cx, cz, ry) { const c = Math.cos(ry), s = Math.sin(ry); return (lx, lz) => [cx + lx * c + lz * s, cz - lx * s + lz * c]; }
 // a flat quad on the ground (or at height y), axis-aligned
 function groundQuad(x0, z0, x1, z1, y, col, glow = false) {
   const m = glow ? chunk((x0 + x1) / 2, (z0 + z1) / 2).glow : chunk((x0 + x1) / 2, (z0 + z1) / 2).vc;
@@ -118,7 +118,7 @@ function fenceLine(ax, az, bx, bz, col, gapC = null, gapW = 0) {
 // ---------- a house ----------
 function house(cx, cz, ry, rnd, lot) {
   const w = rnd.range(7.6, 9.6), d = rnd.range(7.4, 9), two = rnd.chance(0.35), h = two ? 5.8 : 3.3, rh = rnd.range(1.8, 2.6);
-  const body = rnd.pick(PASTELS), roof = rnd.pick(ROOFS), P = frame(cx, cz, ry), m = chunk(cx, cz).vc, g = chunk(cx, cz).glow;
+  const body = rnd.pick(PASTELS), roof = rnd.pick(ROOFS), P = lframe(cx, cz, ry), m = chunk(cx, cz).vc, g = chunk(cx, cz).glow;
   m.box(cx, h / 2, cz, w, h, d, body, ry);
   m.box(cx, 0.25, cz, w + 0.25, 0.5, d + 0.25, 0x6a645a, ry);
   m.gable(cx, h, cz, w, d, rh, roof, ry, 0.55, false, body);
@@ -137,7 +137,7 @@ function house(cx, cz, ry, rnd, lot) {
   // windows: lit ones glow
   const win = (lx, ly, lz, face) => {
     const lit = occupied && rnd.chance(0.55), col = lit ? (rnd.chance(0.15) ? C.tv : C.lit) : C.dark;
-    const fr = frame(cx, cz, ry + face);
+    const fr = lframe(cx, cz, ry + face);
     const [wx, wz] = fr(lx, lz);
     (lit ? g : m).box(wx, ly, wz, 1.15, 1.25, 0.06, col, ry + face);
     const [ax, az] = fr(lx - 0.8, lz), [bx, bz] = fr(lx + 0.8, lz);
@@ -180,7 +180,7 @@ function shop(x0, x1, frontZ, face, name, rnd, o = {}) {
   // face +1: the front looks toward +z (north side of Main St)
   const w = x1 - x0, d = o.d || 16, h = o.h || rnd.range(5, 8), cx = (x0 + x1) / 2, cz = frontZ - face * d / 2, ry = face > 0 ? 0 : Math.PI;
   const body = o.col || rnd.pick([C.brick, C.brick2, 0xc8b898, 0xd8d0b8, 0x6a8a8a, 0xb8a080]);
-  const m = chunk(cx, cz).vc, g = chunk(cx, cz).glow, P = frame(cx, cz, ry);
+  const m = chunk(cx, cz).vc, g = chunk(cx, cz).glow, P = lframe(cx, cz, ry);
   m.box(cx, h / 2, cz, w - 0.1, h, d, body, ry);
   const [ppx, ppz] = P(0, d / 2 - 0.25); m.box(ppx, h + 0.35, ppz, w, 0.7, 0.5, 0xe8e0d0, ry);
   addBox(cx - w / 2, cz - d / 2, cx + w / 2, cz + d / 2, h, { kind: 'shop' });
@@ -213,8 +213,11 @@ function shop(x0, x1, frontZ, face, name, rnd, o = {}) {
 }
 function neon(text, color, x, y, z, ry, hgt, o = {}) {
   const { tex, aspect } = neonTex(text, color, o);
-  const mm = new THREE.Mesh(new THREE.PlaneGeometry(hgt * aspect, hgt), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, side: o.ds ? THREE.DoubleSide : THREE.FrontSide }));
+  const mat2 = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false });
+  const mm = new THREE.Mesh(new THREE.PlaneGeometry(hgt * aspect, hgt), mat2);
   mm.position.set(x, y, z); mm.rotation.y = ry;
+  // two-sided signs are two planes back to back, so neither side reads mirrored
+  if (o.ds) { const b = new THREE.Mesh(mm.geometry, mat2); b.rotation.y = Math.PI; b.position.z = -0.02; mm.add(b); }
   R.scene.add(mm); TOWN.signs.push(mm);
   return mm;
 }

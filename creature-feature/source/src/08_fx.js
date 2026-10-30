@@ -9,8 +9,8 @@ function initFX() {
   FX.debris = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ color: 0xffffff }), MAX_BITS);
   for (const im of [FX.blood, FX.debris]) {
     im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    im.count = 0; im.frustumCulled = false;
     im.setColorAt(0, _col.setHex(0xffffff));
+    im.count = 0; im.frustumCulled = false;
     R.scene.add(im);
   }
   FX.free = { blood: [], debris: [] };

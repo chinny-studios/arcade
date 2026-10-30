@@ -3,7 +3,7 @@
 
 const HUNGER_MAX = 100;
 // hunger drained per second: it creeps up as the night wears on
-const drainRate = () => 1.05 + Math.min(1.6, G.t / 60 * 0.065);
+const drainRate = () => 1.0 + Math.min(1.6, G.t / 60 * 0.065);
 
 function killPerson(v, how, dx, dz, o = {}) {
   if (!v || v.state === 'dead' || v.state === 'gone') return;
@@ -49,7 +49,7 @@ bus.on('escaped', (v) => {
   if (dist(v.x, v.z, P.x, P.z) < 160) HUD.toast(FOLK[v.type].name + ' got away', 'bad');
 });
 bus.on('broke', (r, n) => { if (n) HUD.toast(n === 1 ? 'Home invasion!' : `Home invasion! ${n} inside`, 'good'); G.panic = Math.min(100, G.panic + 5); });
-bus.on('hid', (v, r) => { if (P && dist(v.x, v.z, P.x, P.z) < 40) HUD.toast(`Someone ran into ${r.name}`, 'info'); });
+bus.on('hid', (v, r) => { if (P && dist(v.x, v.z, P.x, P.z) < 30 && G.t - (G.hidToast || -9) > 5) { G.hidToast = G.t; HUD.toast(`Someone bolted into ${r.name}`, 'info'); } });
 bus.on('scream', () => { G.panic = Math.min(100, G.panic + 1.5); });
 bus.on('howl', (n) => { G.panic = Math.min(100, G.panic + 10); if (n) HUD.toast(n + ' frozen with terror', 'info'); });
 
@@ -69,14 +69,14 @@ function director(dt) {
   if (G.dirT > 0) return;
   G.dirT = 3;
   let active = 0;
-  for (const v of PEOPLE.list) if (v.state !== 'dead' && v.state !== 'gone') active++;
+  for (const v of PEOPLE.list) if (v.state !== 'dead' && v.state !== 'gone') active += v.state === 'inside' ? 0.5 : 1;
   for (const c of CARS.list) if (c.arriving) active += c.want;
   const target = 34 + Math.min(10, Math.floor(G.t / 90));
   if (active >= target) return;
   const far = (x, z) => dist(x, z, P.x, P.z) > 55;
   if (chance(0.55)) {
     const homes = TOWN.refuges.filter((r) => r.kind === 'house' && !r.broken && far(r.x, r.z));
-    if (homes.length && G.panic < 75) {
+    if (homes.length) {
       const r = pick(homes), v = spawnPerson(null, r.x + r.nx, r.z + r.nz, { face: yawOf(r.nx, r.nz) });
       if (G.panic > 40 && chance(0.5)) { v.state = 'walk'; goTo(v, { kind: 'look', x: r.ax + r.nx * 3, z: r.az + r.nz * 3 }); say(v, pick(['What was that racket?', 'Hello? Anybody out here?'])); }
       else goTo(v, randomPoi(v, 200));
@@ -100,7 +100,6 @@ function resetTown() {
     o.position.set(L.hx, L.y, L.hz); o.rotation.set(0, 0, 0); o.scale.set(1, 1, 1); o.updateMatrix(); TOWN.headIM.setMatrixAt(L.i, o.matrix);
     const p = L.light.pool; if (p) { o.position.set(p.x, p.y, p.z); o.scale.set(p.r, 1, p.r); o.updateMatrix(); TOWN.poolIM.setMatrixAt(p.i, o.matrix); }
   }
-  for (const s of LIGHTS.src) if (s.pool && !TOWN.lamps.some((L) => L.light === s)) s.on = true;
   TOWN.headIM.instanceMatrix.needsUpdate = true; TOWN.poolIM.instanceMatrix.needsUpdate = true;
   for (const p of TOWN.props) {
     if (!p.alive) { p.alive = true; p.col = addCircle(p.x, p.z, { can: 0.4, bench: 0.7, mailbox: 0.3, dumpster: 1.1 }[p.kind], p.kind === 'dumpster' ? 1.4 : 1.0, 'prop'); }
@@ -119,6 +118,7 @@ function startRun(id, o = {}) {
   if (o.noRise) P.rise = 0;
   if (!o.empty) populate();
   hidePreview();
+  $('#title').hidden = true; $('#select').hidden = true;
   document.body.dataset.state = 'play';
   HUD.reset();
   AUDIO.music(true);

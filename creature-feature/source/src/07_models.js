@@ -114,7 +114,7 @@ function glowBits(list) { const m = new Mesher(); for (const b of list) m.box(..
 
 function buildVampire() {
   const M = rig(1.0, 0.27, 0.6, 0.66, 0.11);
-  const suit = 0x141418, skin = 0xd8dcc8;
+  const suit = 0x24222e, skin = 0xd8dcc8;
   const t = new Mesher();
   t.box(0, 0.33, 0, 0.44, 0.66, 0.24, suit); t.box(0, 0.38, -0.115, 0.14, 0.5, 0.02, 0xf0f0ea);
   t.box(0, 0.6, -0.12, 0.12, 0.05, 0.02, 0x101010); t.box(0, 0.5, -0.125, 0.07, 0.07, 0.02, 0xc02020);
@@ -138,7 +138,7 @@ function buildVampire() {
   M.capes = [];
   for (const s of [-1, 1]) {
     const p = group(s * 0.14, 0.64, 0.13);
-    const c = new Mesher(); c.box(s * 0.15, -0.72, 0.02, 0.4, 1.45, 0.025, 0x0c0c10); c.box(s * 0.15, -0.72, -0.004, 0.38, 1.42, 0.02, 0x8a0a14);
+    const c = new Mesher(); c.box(s * 0.15, -0.72, 0.02, 0.4, 1.45, 0.025, 0x2e2238); c.box(s * 0.15, -0.72, -0.004, 0.38, 1.42, 0.02, 0x8a0a14);
     p.add(meshOf(c.build())); M.torso.add(p); M.capes.push(p);
   }
   // the bat

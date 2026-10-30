@@ -66,11 +66,12 @@ function updateMonster(dt) {
     if (P.act === 'pounce') endPounce();
     P.y = gy; P.vy = Math.max(0, P.vy); P.onGround = P.form !== 'bat'; P.airT = 0;
   } else if (P.y > gy + 0.25 && P.form !== 'bat') { P.onGround = false; P.airT += dt; }
-  else if (P.form !== 'bat') { P.y = gy; P.onGround = true; P.airT = 0; }
+  else if (P.form !== 'bat' && P.vy <= 0) { P.y = gy; P.onGround = true; P.airT = 0; }
   // footsteps
   const hs = Math.hypot(P.vx, P.vz);
   P.phase += dt * hs * (P.running && P.id === 'werewolf' ? 1.5 : 2.3) / (P.id === 'frank' ? 1.4 : 1);
   if (P.onGround && hs > 1) { P.stepT -= dt * hs; if (P.stepT <= 0) { P.stepT = P.id === 'frank' ? 2.4 : 1.6; AUDIO.step(P.id, P.running); if (P.id === 'frank') FX.shake = Math.max(FX.shake, 0.12); } }
+  if (P.act === 'pounce') for (const { v } of targetsInArc(1.7, TAU, P.yaw)) if (!P.pounceHit.has(v)) { P.pounceHit.add(v); killPerson(v, 'pounce', P.vx, P.vz, { bonus: ['pounce', 'air'] }); }
   // actions
   updateAct(dt);
   if (!P.act || P.act === 'attack' || P.act === 'pounce') {
@@ -178,7 +179,7 @@ function carsInArc(reach, arc, yaw) {
   return out;
 }
 // turn toward the best victim near where you're looking (soft lock)
-function assistYaw(range) {
+function assistYaw(range, reach = 0) {
   let best = null, bs = 1e9;
   const cy = Input.move().y !== 0 || Input.move().x !== 0 ? P.yaw : CAM.yaw;
   for (const v of PEOPLE.list) {
@@ -186,7 +187,7 @@ function assistYaw(range) {
     const d = dist(v.x, v.z, P.x, P.z); if (d > range || Math.abs(v.y - P.y) > 2.2) continue;
     const a = Math.abs(angWrap(yawOf(v.x - P.x, v.z - P.z) - cy));
     if (a > 1.4) continue;
-    const s = d + a * 2;
+    const s = d + a * 2 + (reach && d > reach ? 6 : 0);
     if (s < bs) { bs = s; best = v; }
   }
   if (best) P.yaw = yawOf(best.x - P.x, best.z - P.z);
@@ -199,7 +200,7 @@ function doAttack() {
   if (P.held) return startThrow();
   if (P.act === 'pounce') return;
   P.cd.atk = D.attack.cd + D.attack.lock * 0.5;
-  assistYaw(D.attack.reach + 1.6);
+  assistYaw(D.attack.reach + 1.6, D.attack.reach);
   // a door right in front with people behind it
   if (D.door >= 0 && P.near && P.near.kind === 'door' && !targetsInArc(D.attack.reach, D.attack.arc, P.yaw).length) { startDoor(P.near.r); return; }
   if (D.attack.multi) { setAct('attack', D.attack.lock); AUDIO.sfx(P.id === 'frank' ? 'swingBig' : 'swipe', P.x, P.z); return; }
@@ -214,7 +215,7 @@ function grabVictim(v, bonus) {
   const b = bonus.slice();
   if (v.state === 'trance') b.push('trance');
   if (v.state === 'down') b.push(v.tripped ? 'tripped' : 'flat');
-  if (v.state === 'cower') b.push('frozen');
+  if (v.state === 'cower' && v.howled) b.push('frozen');
   if (v.state === 'blind' || v.blind > 0) b.push('blind');
   if (v.alert < 0.5 && CALM[v.state]) b.push('silent');
   if (G.t - v.flushedT < 8) b.push('flushed');
@@ -245,7 +246,7 @@ function strike() {
   let n = 0;
   for (const { v } of t) {
     const b = air ? ['air'] : [];
-    if (v.state === 'down') b.push(v.tripped ? 'tripped' : 'flat'); if (v.state === 'cower') b.push('frozen');
+    if (v.state === 'down') b.push(v.tripped ? 'tripped' : 'flat'); if (v.state === 'cower' && v.howled) b.push('frozen');
     if (v.state === 'trance') b.push('trance'); if (v.alert < 0.5 && CALM[v.state]) b.push('silent'); if (G.t - v.flushedT < 8) b.push('flushed');
     killPerson(v, D.attack.kind, v.x - P.x || fx, v.z - P.z || fz, { bonus: b });
     n++;
@@ -352,7 +353,7 @@ function aimTarget(range, cone = 0.22) {
 function hypnotise(v) {
   if (v.state === 'incar') { const c = v.car; pullFromCar(v); if (c) { if (c.state === 'drive') { c.state = 'stopped'; c.speed = 0; } } }
   if (v.state === 'inside') return;
-  v.state = 'trance'; v.tranceT = 5.5; v.sit = false;
+  v.state = 'trance'; v.tranceT = 7; v.sit = false;
   say(v, pick(LINES.trance), 2);
   P.yaw = yawOf(v.x - P.x, v.z - P.z);
   // a thread of red sparks between you
@@ -366,7 +367,13 @@ function startPounce() {
   const v = aimTarget(18, 0.3);
   let vx, vz, vy = 7.5;
   R.camera.getWorldDirection(_v2);
-  if (v) { const dx = v.x - P.x, dz = v.z - P.z, d = Math.hypot(dx, dz), t = clamp(d / 15, 0.35, 1.1); vx = dx / t; vz = dz / t; vy = 11 * t * 0.5 + (v.y - P.y) / t; P.yaw = yawOf(dx, dz); }
+  if (v) {
+    // lead a running target
+    let t = clamp(dist(v.x, v.z, P.x, P.z) / 15, 0.35, 1.1);
+    const lx = v.x + fwdX(v.yaw) * v.speed * t, lz = v.z + fwdZ(v.yaw) * v.speed * t;
+    const dx = lx - P.x, dz = lz - P.z; t = clamp(Math.hypot(dx, dz) / 15, 0.35, 1.1);
+    vx = dx / t; vz = dz / t; vy = 22 * t / 2 + (v.y - P.y) / t; P.yaw = yawOf(dx, dz);
+  }
   else { const l = Math.hypot(_v2.x, _v2.z) || 1; vx = _v2.x / l * 15; vz = _v2.z / l * 15; vy = 7 + clamp(_v2.y * 10, -2, 6); P.yaw = yawOf(vx, vz); }
   P.vx = vx; P.vy = vy; P.vz = vz; P.onGround = false; P.airT = 0.01;
   setAct('pounce', 3); P.pounceHit = new Set();
@@ -387,7 +394,7 @@ function howl() {
   for (const v of PEOPLE.list) {
     if (v.hidden || v.state === 'dead' || v.state === 'gone' || v.state === 'held' || v.state === 'thrown') continue;
     const d = dist(v.x, v.z, P.x, P.z); if (d > 40) continue;
-    v.state = 'cower'; v.cowerT = 4.2 - d / 18; v.sit = false; v.alert = 1; v.lastMx = P.x; v.lastMz = P.z; n++;
+    v.state = 'cower'; v.howled = true; v.cowerT = 4.2 - d / 18; v.sit = false; v.alert = 1; v.lastMx = P.x; v.lastMz = P.z; n++;
     if (chance(0.4)) say(v, pick(['W-wolf...', 'Oh God, oh God', 'Mama...', '(whimpering)']));
   }
   bus.emit('howl', n);
@@ -430,7 +437,7 @@ function release() {
   R.camera.getWorldDirection(_v2);
   const l = Math.hypot(_v2.x, _v2.z) || 1, dx = _v2.x / l, dz = _v2.z / l;
   P.yaw = yawOf(dx, dz);
-  const sp = h.kind === 'car' ? 17 : 24, vy = (h.kind === 'car' ? 5 : 5) + clamp(_v2.y * 12, -3, 8);
+  const sp = h.kind === 'car' ? 17 : 24, vy = 6 + clamp((_v2.y + 0.25) * 14, -3, 8);
   const target = aimTarget(40, 0.3);
   let vx = dx * sp, vz = dz * sp, vyy = vy;
   if (target) { const tx = target.x - P.x, tz = target.z - P.z, d = Math.hypot(tx, tz), t = d / sp; vx = tx / t; vz = tz / t; vyy = (target.y + 0.8 - (P.y + 2.8)) / t + 7.5 * t; }
@@ -439,7 +446,7 @@ function release() {
     if (v.state === 'held') { v.state = 'thrown'; }
     else { v.state = 'dead'; PEOPLE.corpses.push(v); v.flyLethal = true; THROWN.push({ kind: 'corpse', v }); }
   } else if (h.c) {
-    const c = h.c; c.state = 'flying'; c.vx = vx * 0.85; c.vy = vyy * 0.9; c.vz = vz * 0.85; c.spin = rr(-3, 3);
+    const c = h.c; c.state = 'flying'; c.vx = vx; c.vy = vyy; c.vz = vz; c.spin = rr(-3, 3);
     for (const v of h.riders || []) { v.state = 'held'; THROWN.push({ kind: 'rider', v, c }); }
   } else if (h.mesh) THROWN.push({ kind: 'mesh', m: h.mesh, x: h.mesh.position.x, y: h.mesh.position.y, z: h.mesh.position.z, vx, vy: vyy, vz, spin: rr(4, 8), rest: false });
   FX.shake = Math.max(FX.shake, 0.2);
@@ -449,7 +456,7 @@ function updateThrown(dt) {
     const t = THROWN[i];
     if (t.kind === 'mesh') {
       if (t.rest) continue;
-      t.vy -= 16 * dt; t.x += t.vx * dt; t.y += t.vy * dt; t.z += t.vz * dt;
+      t.vy -= 15 * dt; t.x += t.vx * dt; t.y += t.vy * dt; t.z += t.vz * dt;
       t.m.position.set(t.x, t.y, t.z); t.m.rotation.x += t.spin * dt; t.m.rotation.z += t.spin * 0.5 * dt;
       hitByThrown(t.x, t.y, t.z, 1.8, { kind: 'mesh', vx: t.vx, vz: t.vz });
       const r = collide(t.x, t.z, 0.4, t.y, true);
@@ -538,7 +545,8 @@ function lashStep() {
 }
 function stormStep(dt) {
   P.storm -= dt;
-  if (G.frame % 2 === 0) for (let i = 0; i < 2; i++) { const a = rr(0, TAU), r = rr(2, 15); puff(P.x + Math.cos(a) * r, P.y + rr(0.3, 3), P.z + Math.sin(a) * r, { col: 0xc8a870, size: rr(2, 4), grow: 1.2, life: 1.6, vx: -Math.sin(a) * 6, vz: Math.cos(a) * 6, vy: 0.3, op: 0.42 }); }
+  for (let i = 0; i < 2; i++) { const a = rr(0, TAU), r = rr(1.5, 15); puff(P.x + Math.cos(a) * r, P.y + rr(0.3, 4), P.z + Math.sin(a) * r, { col: 0xd8b878, size: rr(2.5, 5), grow: 1.2, life: 1.5, vx: -Math.sin(a) * 7, vz: Math.cos(a) * 7, vy: 0.3, op: 0.55 }); }
+  if (G.frame % 2 === 0) spray(P.x + rr(-12, 12), P.y + rr(0.5, 3), P.z + rr(-12, 12), 3, { kind: 'debris', col: [0xc8a060, 0xa88850], speed: 6, up: 0.1, spread: 1, size: 0.05, life: 0.8, g: 1 });
   for (const v of PEOPLE.list) {
     if (v.hidden || !(CALM[v.state] || v.state === 'flee' || v.state === 'blind')) continue;
     if (dist2(v.x, v.z, P.x, P.z) > 16 * 16) continue;

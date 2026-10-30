@@ -96,8 +96,8 @@ function selectCam(dt) {
   M.root.rotation.y = Math.sin(G.tt * 0.4) * 0.4;
   const h = MONSTERS[PREVIEW.id].height;
   const narrow = innerWidth < innerHeight;
-  R.camera.position.set(p.x + (narrow ? 0 : -1.4), p.y + h * 0.75, p.z - h * 1.9 - (narrow ? 1.5 : 0));
-  R.camera.lookAt(p.x + (narrow ? 0 : -1.2), p.y + h * (narrow ? 0.85 : 0.6), p.z);
+  R.camera.position.set(p.x, p.y + h * 0.55, p.z - h * 2.4 - (narrow ? 1.5 : 0));
+  R.camera.lookAt(p.x, p.y + h * (narrow ? 0.3 : 0.18), p.z);
 }
 
 // ---------- the debug hook ----------

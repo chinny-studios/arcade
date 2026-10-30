@@ -41,7 +41,7 @@ function makeTextures() {
     const [c, x] = cnv(256, 256);
     for (let k = 0; k < 4; k++) {
       const ox = (k % 2) * 128 + 64, oy = Math.floor(k / 2) * 128 + 64;
-      x.fillStyle = 'rgba(120,0,4,0.95)';
+      x.fillStyle = 'rgba(100,0,4,0.95)';
       x.beginPath();
       for (let i = 0; i <= 24; i++) { const a = i / 24 * TAU, r = 30 + Math.sin(a * 3 + k) * 6 + Math.random() * 10; x.lineTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r); }
       x.fill();

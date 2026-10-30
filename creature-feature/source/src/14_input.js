@@ -4,7 +4,7 @@
 const BIND = {
   fwd: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   jump: ['Space'], run: ['ShiftLeft', 'ShiftRight'], stalk: ['KeyC', 'ControlLeft'], use: ['KeyF', 'KeyE'],
-  a2: ['KeyQ'], a1x: ['KeyR'], sense: ['KeyV', 'Tab'], menu: ['Escape', 'KeyP'], help: ['F1'],
+  a2: ['KeyQ'], sense: ['KeyV', 'Tab'], menu: ['Escape', 'KeyP'], help: ['F1'],
 };
 const Input = (() => {
   const keys = new Set(), acts = new Set(), touchHeld = new Set(), toggles = { run: false, stalk: false };

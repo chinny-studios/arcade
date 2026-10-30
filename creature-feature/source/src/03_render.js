@@ -105,7 +105,6 @@ const MATS = {};
 function initMats() {
   MATS.vc = new THREE.MeshLambertMaterial({ vertexColors: true });
   MATS.glow = new THREE.MeshBasicMaterial({ vertexColors: true });
-  MATS.flat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
 }
 const _mc = new Map();
 function mat(color, o = {}) {

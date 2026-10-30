@@ -16,6 +16,7 @@ const HUD = (() => {
     const keys = keyNames();
     $('#abil').innerHTML = [['atk', D.attack.name], ['a1', D.a1.name], ['a2', D.a2.name]].map(([k, n]) => `<div class="ab" data-k="${k}"><div class="cd"></div><b>${keys[k]}</b><span>${n}</span></div>`).join('');
     $('#portrait').textContent = D.name;
+    $('#tAtk').textContent = D.attack.name.toUpperCase(); $('#tA1').textContent = D.a1.name.toUpperCase(); $('#tA2').textContent = D.a2.name.toUpperCase();
     document.body.dataset.monster = P.id;
   }
   function keyNames() {

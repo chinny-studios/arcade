@@ -38,7 +38,8 @@
   .credit { position: absolute; bottom: 10px; color: var(--dim); font-size: 14px; text-shadow: 1px 1px 0 #000; text-align: center; padding: 0 10px; }
   /* select */
   #select { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; box-sizing: border-box; background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.75)); }
-  #select h2 { position: absolute; top: 14px; left: 0; right: 0; text-align: center; font-size: clamp(32px, 6vw, 54px); }
+  #select h2 { position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-size: clamp(28px, 5vw, 44px); }
+  #selBlurb { max-width: 760px; margin: 0 auto 10px; text-align: center; font-size: 17px; text-shadow: 2px 2px 0 #000, 0 0 8px #000; color: var(--ink); }
   #cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 1180px; margin: 0 auto; width: 100%; }
   .card { background: rgba(14,6,8,.88); border: 2px solid #3a1416; padding: 10px 12px; cursor: pointer; outline: none; transition: transform .15s, border-color .15s; font-size: 14px; line-height: 1.3; }
   .card.sel, .card:focus-visible { border-color: var(--blood); transform: translateY(-6px); box-shadow: 0 0 24px rgba(200,20,30,.4); }
@@ -51,8 +52,8 @@
   .stats b { display: flex; gap: 2px; } .stats i { width: 14px; height: 7px; background: #2a1416; display: inline-block; } .stats i.on { background: var(--blood); }
   .card .best { color: var(--yel); margin-top: 4px; }
   #selFoot { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
-  @media (max-width: 900px) { #cards { grid-template-columns: repeat(2, 1fr); } .card p, .card ul { display: none; } .card.sel p { display: block; } }
-  @media (max-height: 560px) { .card p, .card ul, .stats { display: none !important; } #select h2 { font-size: 30px; top: 6px; } }
+  @media (max-width: 900px) { #cards { grid-template-columns: repeat(2, 1fr); } .card ul, .card .tagl { display: none; } }
+  @media (max-height: 560px) { .card ul, .stats, #selBlurb { display: none !important; } #select h2 { font-size: 30px; top: 6px; } }
   /* HUD */
   .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
   body[data-state="play"] .hud { display: block; }
@@ -125,15 +126,17 @@
   #touch { display: none; position: absolute; inset: 0; pointer-events: none; }
   body[data-input="touch"][data-state="play"] #touch { display: block; }
   #tStick { position: absolute; left: 0; bottom: 0; width: 42vw; height: 60vh; pointer-events: auto; }
-  #tBase { position: absolute; left: 90px; bottom: 110px; width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); background: rgba(0,0,0,.25); transform: translate(-50%, -50%); opacity: .35; }
+  #tBase { position: absolute; left: 120px; bottom: 60px; width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); background: rgba(0,0,0,.25); transform: translate(-50%, -50%); opacity: .35; }
   #tKnob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.55); transform: translate(-50%,-50%); }
   .tb { position: absolute; pointer-events: auto; width: 64px; height: 64px; border-radius: 50%; background: rgba(20,8,10,.7); border: 2px solid rgba(255,200,190,.35); color: #fff; font-family: var(--pop); font-size: 13px; display: grid; place-items: center; text-align: center; line-height: 1; }
   .tb.on { background: rgba(200,20,30,.7); }
   #tAtk { right: 24px; bottom: 30px; width: 88px; height: 88px; font-size: 17px; background: rgba(140,10,16,.75); }
   #tA1 { right: 124px; bottom: 28px; } #tA2 { right: 36px; bottom: 130px; } #tJump { right: 118px; bottom: 112px; width: 54px; height: 54px; }
   #tUse { right: 196px; bottom: 30px; width: 58px; height: 58px; opacity: .5; } #tUse.ready { opacity: 1; border-color: var(--yel); }
-  #tRun { right: 24px; bottom: 214px; width: 54px; height: 54px; } #tStalk { right: 88px; bottom: 186px; width: 54px; height: 54px; }
-  #tSense { left: 16px; top: 46%; width: 54px; height: 54px; }
+  #tRun { left: 14px; top: 96px; width: 54px; height: 54px; } #tStalk { left: 76px; top: 96px; width: 54px; height: 54px; }
+  #tSense { left: 14px; top: 158px; width: 54px; height: 54px; }
+  body[data-input="touch"] #feed { left: 140px; top: 70px; width: 40vw; }
+  @media (max-height: 500px) { body[data-input="touch"] #radar { width: 96px; height: 96px; } body[data-input="touch"] #panic { display: none; } #tRun, #tStalk { top: 64px; } #tSense { top: 124px; } }
   body[data-input="touch"] #abil { display: none; }
   body[data-input="touch"] #bl { bottom: auto; top: 10px; left: 50%; transform: translateX(-50%); width: min(300px, 40vw); text-align: center; }
   body[data-input="touch"] #portrait { display: none; }
@@ -141,6 +144,7 @@
   @media (max-width: 700px), (max-height: 500px) {
     #score { font-size: 28px; } #radar { width: 110px; height: 110px; } #feed { top: 96px; } .kf { font-size: 13px; } #panic { width: 120px; } #comboPop { font-size: 60px; }
     .ab { width: 72px; height: 48px; } #hudPause { top: 150px; }
+    body:not([data-input="touch"]) #abil { bottom: 74px; }
   }
 </style>
 <div id="app">
@@ -191,6 +195,7 @@
 
   <div id="select" hidden>
     <h2>Who will you be tonight?</h2>
+    <div id="selBlurb"></div>
     <div id="cards"></div>
     <div id="selFoot"><button class="btn" id="selBack">Back</button><button class="btn big" id="goBtn">Unleash</button></div>
   </div>

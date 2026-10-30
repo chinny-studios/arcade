@@ -130,7 +130,7 @@ function wreckCar(c) {
   puff(c.x, c.y + 1.5, c.z, { col: 0x3a3a3a, size: 2, grow: 2, life: 3, vy: 1.2, op: 0.5 });
 }
 function flyCar(c, dt) {
-  c.vy -= 16 * dt;
+  c.vy -= 15 * dt;
   c.x += c.vx * dt; c.y += c.vy * dt; c.z += c.vz * dt;
   c.yaw += c.spin * dt; c.mesh.rotation.x += c.spin * 0.5 * dt;
   const gy = supportY(c.x, c.z, c.y + 0.5, 1);

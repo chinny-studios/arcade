@@ -12,7 +12,7 @@ const MONSTERS = {
     a1: { name: 'Hypnotise', cd: 6, desc: 'Fix a victim with your stare. They walk to you in a trance.' },
     a2: { name: 'Bat Form', cd: 10, dur: 10, desc: 'Become a bat. Fly over the roofs; attack to swoop down on a victim.' },
     door: -1, doorVerb: 'Beckon', feedGain: 18, killGain: 26,
-    voice: 'hiss',
+    voice: 'hiss', films: ['THE NIGHT HAS TEETH', 'THE COUNT COMES TO TOWN', 'BLOOD AT THE DRIVE-IN'],
   },
   werewolf: {
     id: 'werewolf', name: 'The Wolf Man', kind: 'Werewolf', tag: 'Even a man who is pure in heart...',
@@ -22,8 +22,8 @@ const MONSTERS = {
     attack: { name: 'Claw', reach: 2.6, arc: 2.1, cd: 0.42, lock: 0.38, kind: 'claw', multi: true },
     a1: { name: 'Pounce', cd: 3.5, desc: 'Leap where you aim. Anyone you land on is finished.' },
     a2: { name: 'Howl', cd: 16, desc: 'Everyone within 40 m freezes in terror for a few seconds.' },
-    door: 2, doorVerb: 'Break in', feedGain: 26, killGain: 12,
-    voice: 'growl',
+    door: 2, doorVerb: 'Break in', feedGain: 26, killGain: 14,
+    voice: 'growl', films: ['CURSE OF THE FULL MOON', 'NIGHT OF THE WOLF', 'HOWL OF PINE HOLLOW'],
   },
   frank: {
     id: 'frank', name: 'The Monster', kind: "Frankenstein's Monster", tag: "It's alive! And it's hungry.",
@@ -33,8 +33,8 @@ const MONSTERS = {
     attack: { name: 'Smash', reach: 3.0, arc: 2.4, cd: 0.6, lock: 0.75, kind: 'smash', multi: true },
     a1: { name: 'Hurl', cd: 1.2, desc: 'Grab the nearest car, bin, bench, body or chunk of road, then throw it.' },
     a2: { name: 'Stomp', cd: 9, desc: 'Shake the ground. Everyone within 15 m is knocked off their feet.' },
-    door: 0, doorVerb: 'Smash in', feedGain: 26, killGain: 14,
-    voice: 'roar',
+    door: 0, doorVerb: 'Smash in', feedGain: 26, killGain: 19,
+    voice: 'roar', films: ['IT CAME FROM THE GRAVEYARD', 'THE MONSTER WALKS AGAIN', 'GHOUL OF MAIN STREET'],
   },
   mummy: {
     id: 'mummy', name: 'The Mummy', kind: 'Mummy', tag: 'Three thousand years is a long time between meals.',
@@ -44,8 +44,8 @@ const MONSTERS = {
     attack: { name: 'Strangle', reach: 2.0, arc: 1.3, cd: 0.4, lock: 1.0, kind: 'strangle', multi: false },
     a1: { name: 'Bandage Lash', cd: 4.5, desc: 'Lash a victim up to 24 m away and reel them in.' },
     a2: { name: 'Sandstorm', cd: 15, dur: 7, desc: 'A storm of sand follows you. Victims inside are blind and slow.' },
-    door: 3, doorVerb: 'Break in', feedGain: 26, killGain: 12,
-    voice: 'moan',
+    door: 3, doorVerb: 'Break in', feedGain: 26, killGain: 19,
+    voice: 'moan', films: ["THE MUMMY'S HUNGER", 'CURSE OF THE SAND KING', 'TOMB OF PINE HOLLOW'],
   },
 };
 const MONSTER_ORDER = ['vampire', 'werewolf', 'frank', 'mummy'];

@@ -91,6 +91,8 @@ function startle(v, mx, mz, quiet) {
   if (v.state === 'inside') return;
   const was = v.state;
   v.state = 'flee'; v.t = 0; v.plan = 0; v.sit = false;
+  // caught face to face: a moment frozen in horror before the legs work
+  if (P && (was === 'idle' || was === 'walk') && dist(v.x, v.z, P.x, P.z) < 4.5) { v.state = 'cower'; v.cowerT = 0.7; v.howled = false; }
   if (was === 'idle' || was === 'walk') { v.y = supportY(v.x, v.z, v.y + 0.5); }
   if (!quiet && v.screamT <= 0) {
     v.screamT = 6;
@@ -216,7 +218,17 @@ function arriveFlee(v) {
 }
 // move with collisions, face the way you're going
 function moveAgent(v, vx, vz, dt) {
-  const r = collide(v.x + vx * dt, v.z + vz * dt, 0.3, v.y);
+  let r = collide(v.x + vx * dt, v.z + vz * dt, 0.3, v.y);
+  // blocked head-on: try veering left or right
+  const want = Math.hypot(vx, vz) * dt;
+  if (r.hit && want > 0 && dist(r.x, r.z, v.x, v.z) < want * 0.3) {
+    const s = v.id % 2 ? 1 : -1;
+    for (const a of [s * 1.0, -s * 1.0, s * 1.8]) {
+      const c = Math.cos(a), sn = Math.sin(a), ax = vx * c - vz * sn, az = vx * sn + vz * c;
+      const q = collide(v.x + ax * dt, v.z + az * dt, 0.3, v.y);
+      if (dist(q.x, q.z, v.x, v.z) > want * 0.5) { r = q; vx = ax; vz = az; break; }
+    }
+  }
   v.x = r.x; v.z = r.z;
   v.y = damp(v.y, supportY(v.x, v.z, v.y + 0.4), 20, dt);
   v.speed = Math.hypot(vx, vz);
@@ -266,11 +278,11 @@ function updatePeople(dt) {
       case 'trance': {
         v.mode = 'trance';
         v.tranceT -= dt;
-        if (P) { const dx = P.x - v.x, dz = P.z - v.z, d = Math.hypot(dx, dz); if (d > 1.4) moveAgent(v, dx / d * 1.5, dz / d * 1.5, dt); else { v.speed = 0; v.yaw = yawOf(dx, dz); } }
-        if (v.tranceT <= 0) { v.alert = 1; startle(v, P.x, P.z); }
+        if (P) { const dx = P.x - v.x, dz = P.z - v.z, d = Math.hypot(dx, dz); if (d > 1.4) moveAgent(v, dx / d * 2.6, dz / d * 2.6, dt); else { v.speed = 0; v.yaw = yawOf(dx, dz); } }
+        if (v.tranceT <= 0) { v.alert = 1; startle(v, v.lastMx, v.lastMz); }
         break;
       }
-      case 'cower': { v.speed = 0; v.mode = 'cower'; v.cowerT -= dt; if (v.cowerT <= 0) startle(v, P.x, P.z, true); break; }
+      case 'cower': { v.speed = 0; v.mode = 'cower'; v.cowerT -= dt; if (v.cowerT <= 0) startle(v, P ? P.x : v.lastMx, P ? P.z : v.lastMz, true); break; }
       case 'down': {
         v.speed = 0; v.downT -= dt; v.mode = 'down';
         if (v.downT <= 0) { v.state = 'flee'; v.plan = 0; v.M.root.rotation.x = 0; v.M.root.rotation.z = 0; }
@@ -280,11 +292,12 @@ function updatePeople(dt) {
         v.blindT -= dt; v.mode = 'trance';
         const a = G.t * 0.8 + v.id * 1.7;
         moveAgent(v, Math.sin(a) * 1.4, Math.cos(a * 1.3) * 1.4, dt);
-        if (v.blindT <= 0) { v.blind = 0; startle(v, P.x, P.z, true); }
+        if (v.blindT <= 0) { v.blind = 0; startle(v, P ? P.x : v.lastMx, P ? P.z : v.lastMz, true); }
         break;
       }
       case 'snared': {
         // reeled in by the bandage
+        if (!P) { v.state = 'flee'; break; }
         const dx = P.x - v.x, dz = P.z - v.z, d = Math.hypot(dx, dz);
         v.mode = 'drag';
         if (d > 1.3) { const sp = Math.min(d / dt, 16); v.x += dx / d * sp * dt; v.z += dz / d * sp * dt; v.y = supportY(v.x, v.z, v.y + 0.5); v.yaw = yawOf(dx, dz) + Math.PI; }
@@ -313,9 +326,9 @@ function leaveRefuge(v, flushed) {
   r.occ.splice(r.occ.indexOf(v), 1);
   v.inside = null;
   v.x = r.x + r.nx * rr(0.8, 1.6) + rr(-0.6, 0.6); v.z = r.z + r.nz * rr(0.8, 1.6) + rr(-0.6, 0.6); v.y = supportY(v.x, v.z, 2);
-  v.yaw = yawOf(r.nx, r.nz);
+  v.yaw = yawOf(r.nx, r.nz); v.state = 'idle';
   setHidden(v, false);
-  if (flushed) { v.flushedT = G.t; startle(v, P.x, P.z, false); v.stam = v.stamMax; }
+  if (flushed) { v.flushedT = G.t; startle(v, P ? P.x : v.x, P ? P.z : v.z, false); v.stam = v.stamMax; }
   else { v.alert = 0; goTo(v, randomPoi(v)); }
 }
 // the monster tears the door off: everyone inside bolts

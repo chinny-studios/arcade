@@ -43,7 +43,8 @@
   .credit { position: absolute; bottom: 10px; color: var(--dim); font-size: 14px; text-shadow: 1px 1px 0 #000; text-align: center; padding: 0 10px; }
   /* select */
   #select { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; box-sizing: border-box; background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.75)); }
-  #select h2 { position: absolute; top: 14px; left: 0; right: 0; text-align: center; font-size: clamp(32px, 6vw, 54px); }
+  #select h2 { position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-size: clamp(28px, 5vw, 44px); }
+  #selBlurb { max-width: 760px; margin: 0 auto 10px; text-align: center; font-size: 17px; text-shadow: 2px 2px 0 #000, 0 0 8px #000; color: var(--ink); }
   #cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 1180px; margin: 0 auto; width: 100%; }
   .card { background: rgba(14,6,8,.88); border: 2px solid #3a1416; padding: 10px 12px; cursor: pointer; outline: none; transition: transform .15s, border-color .15s; font-size: 14px; line-height: 1.3; }
   .card.sel, .card:focus-visible { border-color: var(--blood); transform: translateY(-6px); box-shadow: 0 0 24px rgba(200,20,30,.4); }
@@ -56,8 +57,8 @@
   .stats b { display: flex; gap: 2px; } .stats i { width: 14px; height: 7px; background: #2a1416; display: inline-block; } .stats i.on { background: var(--blood); }
   .card .best { color: var(--yel); margin-top: 4px; }
   #selFoot { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
-  @media (max-width: 900px) { #cards { grid-template-columns: repeat(2, 1fr); } .card p, .card ul { display: none; } .card.sel p { display: block; } }
-  @media (max-height: 560px) { .card p, .card ul, .stats { display: none !important; } #select h2 { font-size: 30px; top: 6px; } }
+  @media (max-width: 900px) { #cards { grid-template-columns: repeat(2, 1fr); } .card ul, .card .tagl { display: none; } }
+  @media (max-height: 560px) { .card ul, .stats, #selBlurb { display: none !important; } #select h2 { font-size: 30px; top: 6px; } }
   /* HUD */
   .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
   body[data-state="play"] .hud { display: block; }
@@ -130,15 +131,17 @@
   #touch { display: none; position: absolute; inset: 0; pointer-events: none; }
   body[data-input="touch"][data-state="play"] #touch { display: block; }
   #tStick { position: absolute; left: 0; bottom: 0; width: 42vw; height: 60vh; pointer-events: auto; }
-  #tBase { position: absolute; left: 90px; bottom: 110px; width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); background: rgba(0,0,0,.25); transform: translate(-50%, -50%); opacity: .35; }
+  #tBase { position: absolute; left: 120px; bottom: 60px; width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(255,255,255,.4); background: rgba(0,0,0,.25); transform: translate(-50%, -50%); opacity: .35; }
   #tKnob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.55); transform: translate(-50%,-50%); }
   .tb { position: absolute; pointer-events: auto; width: 64px; height: 64px; border-radius: 50%; background: rgba(20,8,10,.7); border: 2px solid rgba(255,200,190,.35); color: #fff; font-family: var(--pop); font-size: 13px; display: grid; place-items: center; text-align: center; line-height: 1; }
   .tb.on { background: rgba(200,20,30,.7); }
   #tAtk { right: 24px; bottom: 30px; width: 88px; height: 88px; font-size: 17px; background: rgba(140,10,16,.75); }
   #tA1 { right: 124px; bottom: 28px; } #tA2 { right: 36px; bottom: 130px; } #tJump { right: 118px; bottom: 112px; width: 54px; height: 54px; }
   #tUse { right: 196px; bottom: 30px; width: 58px; height: 58px; opacity: .5; } #tUse.ready { opacity: 1; border-color: var(--yel); }
-  #tRun { right: 24px; bottom: 214px; width: 54px; height: 54px; } #tStalk { right: 88px; bottom: 186px; width: 54px; height: 54px; }
-  #tSense { left: 16px; top: 46%; width: 54px; height: 54px; }
+  #tRun { left: 14px; top: 96px; width: 54px; height: 54px; } #tStalk { left: 76px; top: 96px; width: 54px; height: 54px; }
+  #tSense { left: 14px; top: 158px; width: 54px; height: 54px; }
+  body[data-input="touch"] #feed { left: 140px; top: 70px; width: 40vw; }
+  @media (max-height: 500px) { body[data-input="touch"] #radar { width: 96px; height: 96px; } body[data-input="touch"] #panic { display: none; } #tRun, #tStalk { top: 64px; } #tSense { top: 124px; } }
   body[data-input="touch"] #abil { display: none; }
   body[data-input="touch"] #bl { bottom: auto; top: 10px; left: 50%; transform: translateX(-50%); width: min(300px, 40vw); text-align: center; }
   body[data-input="touch"] #portrait { display: none; }
@@ -146,6 +149,7 @@
   @media (max-width: 700px), (max-height: 500px) {
     #score { font-size: 28px; } #radar { width: 110px; height: 110px; } #feed { top: 96px; } .kf { font-size: 13px; } #panic { width: 120px; } #comboPop { font-size: 60px; }
     .ab { width: 72px; height: 48px; } #hudPause { top: 150px; }
+    body:not([data-input="touch"]) #abil { bottom: 74px; }
   }
 </style>
 </head>
@@ -198,6 +202,7 @@
 
   <div id="select" hidden>
     <h2>Who will you be tonight?</h2>
+    <div id="selBlurb"></div>
     <div id="cards"></div>
     <div id="selFoot"><button class="btn" id="selBack">Back</button><button class="btn big" id="goBtn">Unleash</button></div>
   </div>
@@ -330,7 +335,7 @@ const MONSTERS = {
     a1: { name: 'Hypnotise', cd: 6, desc: 'Fix a victim with your stare. They walk to you in a trance.' },
     a2: { name: 'Bat Form', cd: 10, dur: 10, desc: 'Become a bat. Fly over the roofs; attack to swoop down on a victim.' },
     door: -1, doorVerb: 'Beckon', feedGain: 18, killGain: 26,
-    voice: 'hiss',
+    voice: 'hiss', films: ['THE NIGHT HAS TEETH', 'THE COUNT COMES TO TOWN', 'BLOOD AT THE DRIVE-IN'],
   },
   werewolf: {
     id: 'werewolf', name: 'The Wolf Man', kind: 'Werewolf', tag: 'Even a man who is pure in heart...',
@@ -340,8 +345,8 @@ const MONSTERS = {
     attack: { name: 'Claw', reach: 2.6, arc: 2.1, cd: 0.42, lock: 0.38, kind: 'claw', multi: true },
     a1: { name: 'Pounce', cd: 3.5, desc: 'Leap where you aim. Anyone you land on is finished.' },
     a2: { name: 'Howl', cd: 16, desc: 'Everyone within 40 m freezes in terror for a few seconds.' },
-    door: 2, doorVerb: 'Break in', feedGain: 26, killGain: 12,
-    voice: 'growl',
+    door: 2, doorVerb: 'Break in', feedGain: 26, killGain: 14,
+    voice: 'growl', films: ['CURSE OF THE FULL MOON', 'NIGHT OF THE WOLF', 'HOWL OF PINE HOLLOW'],
   },
   frank: {
     id: 'frank', name: 'The Monster', kind: "Frankenstein's Monster", tag: "It's alive! And it's hungry.",
@@ -351,8 +356,8 @@ const MONSTERS = {
     attack: { name: 'Smash', reach: 3.0, arc: 2.4, cd: 0.6, lock: 0.75, kind: 'smash', multi: true },
     a1: { name: 'Hurl', cd: 1.2, desc: 'Grab the nearest car, bin, bench, body or chunk of road, then throw it.' },
     a2: { name: 'Stomp', cd: 9, desc: 'Shake the ground. Everyone within 15 m is knocked off their feet.' },
-    door: 0, doorVerb: 'Smash in', feedGain: 26, killGain: 14,
-    voice: 'roar',
+    door: 0, doorVerb: 'Smash in', feedGain: 26, killGain: 19,
+    voice: 'roar', films: ['IT CAME FROM THE GRAVEYARD', 'THE MONSTER WALKS AGAIN', 'GHOUL OF MAIN STREET'],
   },
   mummy: {
     id: 'mummy', name: 'The Mummy', kind: 'Mummy', tag: 'Three thousand years is a long time between meals.',
@@ -362,8 +367,8 @@ const MONSTERS = {
     attack: { name: 'Strangle', reach: 2.0, arc: 1.3, cd: 0.4, lock: 1.0, kind: 'strangle', multi: false },
     a1: { name: 'Bandage Lash', cd: 4.5, desc: 'Lash a victim up to 24 m away and reel them in.' },
     a2: { name: 'Sandstorm', cd: 15, dur: 7, desc: 'A storm of sand follows you. Victims inside are blind and slow.' },
-    door: 3, doorVerb: 'Break in', feedGain: 26, killGain: 12,
-    voice: 'moan',
+    door: 3, doorVerb: 'Break in', feedGain: 26, killGain: 19,
+    voice: 'moan', films: ["THE MUMMY'S HUNGER", 'CURSE OF THE SAND KING', 'TOMB OF PINE HOLLOW'],
   },
 };
 const MONSTER_ORDER = ['vampire', 'werewolf', 'frank', 'mummy'];
@@ -522,7 +527,6 @@ const MATS = {};
 function initMats() {
   MATS.vc = new THREE.MeshLambertMaterial({ vertexColors: true });
   MATS.glow = new THREE.MeshBasicMaterial({ vertexColors: true });
-  MATS.flat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
 }
 const _mc = new Map();
 function mat(color, o = {}) {
@@ -651,7 +655,7 @@ function makeTextures() {
     const [c, x] = cnv(256, 256);
     for (let k = 0; k < 4; k++) {
       const ox = (k % 2) * 128 + 64, oy = Math.floor(k / 2) * 128 + 64;
-      x.fillStyle = 'rgba(120,0,4,0.95)';
+      x.fillStyle = 'rgba(100,0,4,0.95)';
       x.beginPath();
       for (let i = 0; i <= 24; i++) { const a = i / 24 * TAU, r = 30 + Math.sin(a * 3 + k) * 6 + Math.random() * 10; x.lineTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r); }
       x.fill();
@@ -789,7 +793,7 @@ function chunk(x, z) {
 const VB = (x, y, z, sx, sy, sz, col, ry = 0) => chunk(x, z).vc.box(x, y, z, sx, sy, sz, col, ry);
 const GB = (x, y, z, sx, sy, sz, col, ry = 0) => chunk(x, z).glow.box(x, y, z, sx, sy, sz, col, ry);
 // a local frame: (lx, lz) in a building's space to world, front is +z locally
-function frame(cx, cz, ry) { const c = Math.cos(ry), s = Math.sin(ry); return (lx, lz) => [cx + lx * c + lz * s, cz - lx * s + lz * c]; }
+function lframe(cx, cz, ry) { const c = Math.cos(ry), s = Math.sin(ry); return (lx, lz) => [cx + lx * c + lz * s, cz - lx * s + lz * c]; }
 // a flat quad on the ground (or at height y), axis-aligned
 function groundQuad(x0, z0, x1, z1, y, col, glow = false) {
   const m = glow ? chunk((x0 + x1) / 2, (z0 + z1) / 2).glow : chunk((x0 + x1) / 2, (z0 + z1) / 2).vc;
@@ -882,7 +886,7 @@ function fenceLine(ax, az, bx, bz, col, gapC = null, gapW = 0) {
 // ---------- a house ----------
 function house(cx, cz, ry, rnd, lot) {
   const w = rnd.range(7.6, 9.6), d = rnd.range(7.4, 9), two = rnd.chance(0.35), h = two ? 5.8 : 3.3, rh = rnd.range(1.8, 2.6);
-  const body = rnd.pick(PASTELS), roof = rnd.pick(ROOFS), P = frame(cx, cz, ry), m = chunk(cx, cz).vc, g = chunk(cx, cz).glow;
+  const body = rnd.pick(PASTELS), roof = rnd.pick(ROOFS), P = lframe(cx, cz, ry), m = chunk(cx, cz).vc, g = chunk(cx, cz).glow;
   m.box(cx, h / 2, cz, w, h, d, body, ry);
   m.box(cx, 0.25, cz, w + 0.25, 0.5, d + 0.25, 0x6a645a, ry);
   m.gable(cx, h, cz, w, d, rh, roof, ry, 0.55, false, body);
@@ -901,7 +905,7 @@ function house(cx, cz, ry, rnd, lot) {
   // windows: lit ones glow
   const win = (lx, ly, lz, face) => {
     const lit = occupied && rnd.chance(0.55), col = lit ? (rnd.chance(0.15) ? C.tv : C.lit) : C.dark;
-    const fr = frame(cx, cz, ry + face);
+    const fr = lframe(cx, cz, ry + face);
     const [wx, wz] = fr(lx, lz);
     (lit ? g : m).box(wx, ly, wz, 1.15, 1.25, 0.06, col, ry + face);
     const [ax, az] = fr(lx - 0.8, lz), [bx, bz] = fr(lx + 0.8, lz);
@@ -944,7 +948,7 @@ function shop(x0, x1, frontZ, face, name, rnd, o = {}) {
   // face +1: the front looks toward +z (north side of Main St)
   const w = x1 - x0, d = o.d || 16, h = o.h || rnd.range(5, 8), cx = (x0 + x1) / 2, cz = frontZ - face * d / 2, ry = face > 0 ? 0 : Math.PI;
   const body = o.col || rnd.pick([C.brick, C.brick2, 0xc8b898, 0xd8d0b8, 0x6a8a8a, 0xb8a080]);
-  const m = chunk(cx, cz).vc, g = chunk(cx, cz).glow, P = frame(cx, cz, ry);
+  const m = chunk(cx, cz).vc, g = chunk(cx, cz).glow, P = lframe(cx, cz, ry);
   m.box(cx, h / 2, cz, w - 0.1, h, d, body, ry);
   const [ppx, ppz] = P(0, d / 2 - 0.25); m.box(ppx, h + 0.35, ppz, w, 0.7, 0.5, 0xe8e0d0, ry);
   addBox(cx - w / 2, cz - d / 2, cx + w / 2, cz + d / 2, h, { kind: 'shop' });
@@ -977,8 +981,11 @@ function shop(x0, x1, frontZ, face, name, rnd, o = {}) {
 }
 function neon(text, color, x, y, z, ry, hgt, o = {}) {
   const { tex, aspect } = neonTex(text, color, o);
-  const mm = new THREE.Mesh(new THREE.PlaneGeometry(hgt * aspect, hgt), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, side: o.ds ? THREE.DoubleSide : THREE.FrontSide }));
+  const mat2 = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false });
+  const mm = new THREE.Mesh(new THREE.PlaneGeometry(hgt * aspect, hgt), mat2);
   mm.position.set(x, y, z); mm.rotation.y = ry;
+  // two-sided signs are two planes back to back, so neither side reads mirrored
+  if (o.ds) { const b = new THREE.Mesh(mm.geometry, mat2); b.rotation.y = Math.PI; b.position.z = -0.02; mm.add(b); }
   R.scene.add(mm); TOWN.signs.push(mm);
   return mm;
 }
@@ -1888,7 +1895,7 @@ function glowBits(list) { const m = new Mesher(); for (const b of list) m.box(..
 
 function buildVampire() {
   const M = rig(1.0, 0.27, 0.6, 0.66, 0.11);
-  const suit = 0x141418, skin = 0xd8dcc8;
+  const suit = 0x24222e, skin = 0xd8dcc8;
   const t = new Mesher();
   t.box(0, 0.33, 0, 0.44, 0.66, 0.24, suit); t.box(0, 0.38, -0.115, 0.14, 0.5, 0.02, 0xf0f0ea);
   t.box(0, 0.6, -0.12, 0.12, 0.05, 0.02, 0x101010); t.box(0, 0.5, -0.125, 0.07, 0.07, 0.02, 0xc02020);
@@ -1912,7 +1919,7 @@ function buildVampire() {
   M.capes = [];
   for (const s of [-1, 1]) {
     const p = group(s * 0.14, 0.64, 0.13);
-    const c = new Mesher(); c.box(s * 0.15, -0.72, 0.02, 0.4, 1.45, 0.025, 0x0c0c10); c.box(s * 0.15, -0.72, -0.004, 0.38, 1.42, 0.02, 0x8a0a14);
+    const c = new Mesher(); c.box(s * 0.15, -0.72, 0.02, 0.4, 1.45, 0.025, 0x2e2238); c.box(s * 0.15, -0.72, -0.004, 0.38, 1.42, 0.02, 0x8a0a14);
     p.add(meshOf(c.build())); M.torso.add(p); M.capes.push(p);
   }
   // the bat
@@ -2090,8 +2097,8 @@ function initFX() {
   FX.debris = new THREE.InstancedMesh(box, new THREE.MeshLambertMaterial({ color: 0xffffff }), MAX_BITS);
   for (const im of [FX.blood, FX.debris]) {
     im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    im.count = 0; im.frustumCulled = false;
     im.setColorAt(0, _col.setHex(0xffffff));
+    im.count = 0; im.frustumCulled = false;
     R.scene.add(im);
   }
   FX.free = { blood: [], debris: [] };
@@ -2349,6 +2356,8 @@ function startle(v, mx, mz, quiet) {
   if (v.state === 'inside') return;
   const was = v.state;
   v.state = 'flee'; v.t = 0; v.plan = 0; v.sit = false;
+  // caught face to face: a moment frozen in horror before the legs work
+  if (P && (was === 'idle' || was === 'walk') && dist(v.x, v.z, P.x, P.z) < 4.5) { v.state = 'cower'; v.cowerT = 0.7; v.howled = false; }
   if (was === 'idle' || was === 'walk') { v.y = supportY(v.x, v.z, v.y + 0.5); }
   if (!quiet && v.screamT <= 0) {
     v.screamT = 6;
@@ -2474,7 +2483,17 @@ function arriveFlee(v) {
 }
 // move with collisions, face the way you're going
 function moveAgent(v, vx, vz, dt) {
-  const r = collide(v.x + vx * dt, v.z + vz * dt, 0.3, v.y);
+  let r = collide(v.x + vx * dt, v.z + vz * dt, 0.3, v.y);
+  // blocked head-on: try veering left or right
+  const want = Math.hypot(vx, vz) * dt;
+  if (r.hit && want > 0 && dist(r.x, r.z, v.x, v.z) < want * 0.3) {
+    const s = v.id % 2 ? 1 : -1;
+    for (const a of [s * 1.0, -s * 1.0, s * 1.8]) {
+      const c = Math.cos(a), sn = Math.sin(a), ax = vx * c - vz * sn, az = vx * sn + vz * c;
+      const q = collide(v.x + ax * dt, v.z + az * dt, 0.3, v.y);
+      if (dist(q.x, q.z, v.x, v.z) > want * 0.5) { r = q; vx = ax; vz = az; break; }
+    }
+  }
   v.x = r.x; v.z = r.z;
   v.y = damp(v.y, supportY(v.x, v.z, v.y + 0.4), 20, dt);
   v.speed = Math.hypot(vx, vz);
@@ -2524,11 +2543,11 @@ function updatePeople(dt) {
       case 'trance': {
         v.mode = 'trance';
         v.tranceT -= dt;
-        if (P) { const dx = P.x - v.x, dz = P.z - v.z, d = Math.hypot(dx, dz); if (d > 1.4) moveAgent(v, dx / d * 1.5, dz / d * 1.5, dt); else { v.speed = 0; v.yaw = yawOf(dx, dz); } }
-        if (v.tranceT <= 0) { v.alert = 1; startle(v, P.x, P.z); }
+        if (P) { const dx = P.x - v.x, dz = P.z - v.z, d = Math.hypot(dx, dz); if (d > 1.4) moveAgent(v, dx / d * 2.6, dz / d * 2.6, dt); else { v.speed = 0; v.yaw = yawOf(dx, dz); } }
+        if (v.tranceT <= 0) { v.alert = 1; startle(v, v.lastMx, v.lastMz); }
         break;
       }
-      case 'cower': { v.speed = 0; v.mode = 'cower'; v.cowerT -= dt; if (v.cowerT <= 0) startle(v, P.x, P.z, true); break; }
+      case 'cower': { v.speed = 0; v.mode = 'cower'; v.cowerT -= dt; if (v.cowerT <= 0) startle(v, P ? P.x : v.lastMx, P ? P.z : v.lastMz, true); break; }
       case 'down': {
         v.speed = 0; v.downT -= dt; v.mode = 'down';
         if (v.downT <= 0) { v.state = 'flee'; v.plan = 0; v.M.root.rotation.x = 0; v.M.root.rotation.z = 0; }
@@ -2538,11 +2557,12 @@ function updatePeople(dt) {
         v.blindT -= dt; v.mode = 'trance';
         const a = G.t * 0.8 + v.id * 1.7;
         moveAgent(v, Math.sin(a) * 1.4, Math.cos(a * 1.3) * 1.4, dt);
-        if (v.blindT <= 0) { v.blind = 0; startle(v, P.x, P.z, true); }
+        if (v.blindT <= 0) { v.blind = 0; startle(v, P ? P.x : v.lastMx, P ? P.z : v.lastMz, true); }
         break;
       }
       case 'snared': {
         // reeled in by the bandage
+        if (!P) { v.state = 'flee'; break; }
         const dx = P.x - v.x, dz = P.z - v.z, d = Math.hypot(dx, dz);
         v.mode = 'drag';
         if (d > 1.3) { const sp = Math.min(d / dt, 16); v.x += dx / d * sp * dt; v.z += dz / d * sp * dt; v.y = supportY(v.x, v.z, v.y + 0.5); v.yaw = yawOf(dx, dz) + Math.PI; }
@@ -2571,9 +2591,9 @@ function leaveRefuge(v, flushed) {
   r.occ.splice(r.occ.indexOf(v), 1);
   v.inside = null;
   v.x = r.x + r.nx * rr(0.8, 1.6) + rr(-0.6, 0.6); v.z = r.z + r.nz * rr(0.8, 1.6) + rr(-0.6, 0.6); v.y = supportY(v.x, v.z, 2);
-  v.yaw = yawOf(r.nx, r.nz);
+  v.yaw = yawOf(r.nx, r.nz); v.state = 'idle';
   setHidden(v, false);
-  if (flushed) { v.flushedT = G.t; startle(v, P.x, P.z, false); v.stam = v.stamMax; }
+  if (flushed) { v.flushedT = G.t; startle(v, P ? P.x : v.x, P ? P.z : v.z, false); v.stam = v.stamMax; }
   else { v.alert = 0; goTo(v, randomPoi(v)); }
 }
 // the monster tears the door off: everyone inside bolts
@@ -2827,7 +2847,7 @@ function wreckCar(c) {
   puff(c.x, c.y + 1.5, c.z, { col: 0x3a3a3a, size: 2, grow: 2, life: 3, vy: 1.2, op: 0.5 });
 }
 function flyCar(c, dt) {
-  c.vy -= 16 * dt;
+  c.vy -= 15 * dt;
   c.x += c.vx * dt; c.y += c.vy * dt; c.z += c.vz * dt;
   c.yaw += c.spin * dt; c.mesh.rotation.x += c.spin * 0.5 * dt;
   const gy = supportY(c.x, c.z, c.y + 0.5, 1);
@@ -2910,11 +2930,12 @@ function updateMonster(dt) {
     if (P.act === 'pounce') endPounce();
     P.y = gy; P.vy = Math.max(0, P.vy); P.onGround = P.form !== 'bat'; P.airT = 0;
   } else if (P.y > gy + 0.25 && P.form !== 'bat') { P.onGround = false; P.airT += dt; }
-  else if (P.form !== 'bat') { P.y = gy; P.onGround = true; P.airT = 0; }
+  else if (P.form !== 'bat' && P.vy <= 0) { P.y = gy; P.onGround = true; P.airT = 0; }
   // footsteps
   const hs = Math.hypot(P.vx, P.vz);
   P.phase += dt * hs * (P.running && P.id === 'werewolf' ? 1.5 : 2.3) / (P.id === 'frank' ? 1.4 : 1);
   if (P.onGround && hs > 1) { P.stepT -= dt * hs; if (P.stepT <= 0) { P.stepT = P.id === 'frank' ? 2.4 : 1.6; AUDIO.step(P.id, P.running); if (P.id === 'frank') FX.shake = Math.max(FX.shake, 0.12); } }
+  if (P.act === 'pounce') for (const { v } of targetsInArc(1.7, TAU, P.yaw)) if (!P.pounceHit.has(v)) { P.pounceHit.add(v); killPerson(v, 'pounce', P.vx, P.vz, { bonus: ['pounce', 'air'] }); }
   // actions
   updateAct(dt);
   if (!P.act || P.act === 'attack' || P.act === 'pounce') {
@@ -3022,7 +3043,7 @@ function carsInArc(reach, arc, yaw) {
   return out;
 }
 // turn toward the best victim near where you're looking (soft lock)
-function assistYaw(range) {
+function assistYaw(range, reach = 0) {
   let best = null, bs = 1e9;
   const cy = Input.move().y !== 0 || Input.move().x !== 0 ? P.yaw : CAM.yaw;
   for (const v of PEOPLE.list) {
@@ -3030,7 +3051,7 @@ function assistYaw(range) {
     const d = dist(v.x, v.z, P.x, P.z); if (d > range || Math.abs(v.y - P.y) > 2.2) continue;
     const a = Math.abs(angWrap(yawOf(v.x - P.x, v.z - P.z) - cy));
     if (a > 1.4) continue;
-    const s = d + a * 2;
+    const s = d + a * 2 + (reach && d > reach ? 6 : 0);
     if (s < bs) { bs = s; best = v; }
   }
   if (best) P.yaw = yawOf(best.x - P.x, best.z - P.z);
@@ -3043,7 +3064,7 @@ function doAttack() {
   if (P.held) return startThrow();
   if (P.act === 'pounce') return;
   P.cd.atk = D.attack.cd + D.attack.lock * 0.5;
-  assistYaw(D.attack.reach + 1.6);
+  assistYaw(D.attack.reach + 1.6, D.attack.reach);
   // a door right in front with people behind it
   if (D.door >= 0 && P.near && P.near.kind === 'door' && !targetsInArc(D.attack.reach, D.attack.arc, P.yaw).length) { startDoor(P.near.r); return; }
   if (D.attack.multi) { setAct('attack', D.attack.lock); AUDIO.sfx(P.id === 'frank' ? 'swingBig' : 'swipe', P.x, P.z); return; }
@@ -3058,7 +3079,7 @@ function grabVictim(v, bonus) {
   const b = bonus.slice();
   if (v.state === 'trance') b.push('trance');
   if (v.state === 'down') b.push(v.tripped ? 'tripped' : 'flat');
-  if (v.state === 'cower') b.push('frozen');
+  if (v.state === 'cower' && v.howled) b.push('frozen');
   if (v.state === 'blind' || v.blind > 0) b.push('blind');
   if (v.alert < 0.5 && CALM[v.state]) b.push('silent');
   if (G.t - v.flushedT < 8) b.push('flushed');
@@ -3089,7 +3110,7 @@ function strike() {
   let n = 0;
   for (const { v } of t) {
     const b = air ? ['air'] : [];
-    if (v.state === 'down') b.push(v.tripped ? 'tripped' : 'flat'); if (v.state === 'cower') b.push('frozen');
+    if (v.state === 'down') b.push(v.tripped ? 'tripped' : 'flat'); if (v.state === 'cower' && v.howled) b.push('frozen');
     if (v.state === 'trance') b.push('trance'); if (v.alert < 0.5 && CALM[v.state]) b.push('silent'); if (G.t - v.flushedT < 8) b.push('flushed');
     killPerson(v, D.attack.kind, v.x - P.x || fx, v.z - P.z || fz, { bonus: b });
     n++;
@@ -3196,7 +3217,7 @@ function aimTarget(range, cone = 0.22) {
 function hypnotise(v) {
   if (v.state === 'incar') { const c = v.car; pullFromCar(v); if (c) { if (c.state === 'drive') { c.state = 'stopped'; c.speed = 0; } } }
   if (v.state === 'inside') return;
-  v.state = 'trance'; v.tranceT = 5.5; v.sit = false;
+  v.state = 'trance'; v.tranceT = 7; v.sit = false;
   say(v, pick(LINES.trance), 2);
   P.yaw = yawOf(v.x - P.x, v.z - P.z);
   // a thread of red sparks between you
@@ -3210,7 +3231,13 @@ function startPounce() {
   const v = aimTarget(18, 0.3);
   let vx, vz, vy = 7.5;
   R.camera.getWorldDirection(_v2);
-  if (v) { const dx = v.x - P.x, dz = v.z - P.z, d = Math.hypot(dx, dz), t = clamp(d / 15, 0.35, 1.1); vx = dx / t; vz = dz / t; vy = 11 * t * 0.5 + (v.y - P.y) / t; P.yaw = yawOf(dx, dz); }
+  if (v) {
+    // lead a running target
+    let t = clamp(dist(v.x, v.z, P.x, P.z) / 15, 0.35, 1.1);
+    const lx = v.x + fwdX(v.yaw) * v.speed * t, lz = v.z + fwdZ(v.yaw) * v.speed * t;
+    const dx = lx - P.x, dz = lz - P.z; t = clamp(Math.hypot(dx, dz) / 15, 0.35, 1.1);
+    vx = dx / t; vz = dz / t; vy = 22 * t / 2 + (v.y - P.y) / t; P.yaw = yawOf(dx, dz);
+  }
   else { const l = Math.hypot(_v2.x, _v2.z) || 1; vx = _v2.x / l * 15; vz = _v2.z / l * 15; vy = 7 + clamp(_v2.y * 10, -2, 6); P.yaw = yawOf(vx, vz); }
   P.vx = vx; P.vy = vy; P.vz = vz; P.onGround = false; P.airT = 0.01;
   setAct('pounce', 3); P.pounceHit = new Set();
@@ -3231,7 +3258,7 @@ function howl() {
   for (const v of PEOPLE.list) {
     if (v.hidden || v.state === 'dead' || v.state === 'gone' || v.state === 'held' || v.state === 'thrown') continue;
     const d = dist(v.x, v.z, P.x, P.z); if (d > 40) continue;
-    v.state = 'cower'; v.cowerT = 4.2 - d / 18; v.sit = false; v.alert = 1; v.lastMx = P.x; v.lastMz = P.z; n++;
+    v.state = 'cower'; v.howled = true; v.cowerT = 4.2 - d / 18; v.sit = false; v.alert = 1; v.lastMx = P.x; v.lastMz = P.z; n++;
     if (chance(0.4)) say(v, pick(['W-wolf...', 'Oh God, oh God', 'Mama...', '(whimpering)']));
   }
   bus.emit('howl', n);
@@ -3274,7 +3301,7 @@ function release() {
   R.camera.getWorldDirection(_v2);
   const l = Math.hypot(_v2.x, _v2.z) || 1, dx = _v2.x / l, dz = _v2.z / l;
   P.yaw = yawOf(dx, dz);
-  const sp = h.kind === 'car' ? 17 : 24, vy = (h.kind === 'car' ? 5 : 5) + clamp(_v2.y * 12, -3, 8);
+  const sp = h.kind === 'car' ? 17 : 24, vy = 6 + clamp((_v2.y + 0.25) * 14, -3, 8);
   const target = aimTarget(40, 0.3);
   let vx = dx * sp, vz = dz * sp, vyy = vy;
   if (target) { const tx = target.x - P.x, tz = target.z - P.z, d = Math.hypot(tx, tz), t = d / sp; vx = tx / t; vz = tz / t; vyy = (target.y + 0.8 - (P.y + 2.8)) / t + 7.5 * t; }
@@ -3283,7 +3310,7 @@ function release() {
     if (v.state === 'held') { v.state = 'thrown'; }
     else { v.state = 'dead'; PEOPLE.corpses.push(v); v.flyLethal = true; THROWN.push({ kind: 'corpse', v }); }
   } else if (h.c) {
-    const c = h.c; c.state = 'flying'; c.vx = vx * 0.85; c.vy = vyy * 0.9; c.vz = vz * 0.85; c.spin = rr(-3, 3);
+    const c = h.c; c.state = 'flying'; c.vx = vx; c.vy = vyy; c.vz = vz; c.spin = rr(-3, 3);
     for (const v of h.riders || []) { v.state = 'held'; THROWN.push({ kind: 'rider', v, c }); }
   } else if (h.mesh) THROWN.push({ kind: 'mesh', m: h.mesh, x: h.mesh.position.x, y: h.mesh.position.y, z: h.mesh.position.z, vx, vy: vyy, vz, spin: rr(4, 8), rest: false });
   FX.shake = Math.max(FX.shake, 0.2);
@@ -3293,7 +3320,7 @@ function updateThrown(dt) {
     const t = THROWN[i];
     if (t.kind === 'mesh') {
       if (t.rest) continue;
-      t.vy -= 16 * dt; t.x += t.vx * dt; t.y += t.vy * dt; t.z += t.vz * dt;
+      t.vy -= 15 * dt; t.x += t.vx * dt; t.y += t.vy * dt; t.z += t.vz * dt;
       t.m.position.set(t.x, t.y, t.z); t.m.rotation.x += t.spin * dt; t.m.rotation.z += t.spin * 0.5 * dt;
       hitByThrown(t.x, t.y, t.z, 1.8, { kind: 'mesh', vx: t.vx, vz: t.vz });
       const r = collide(t.x, t.z, 0.4, t.y, true);
@@ -3382,7 +3409,8 @@ function lashStep() {
 }
 function stormStep(dt) {
   P.storm -= dt;
-  if (G.frame % 2 === 0) for (let i = 0; i < 2; i++) { const a = rr(0, TAU), r = rr(2, 15); puff(P.x + Math.cos(a) * r, P.y + rr(0.3, 3), P.z + Math.sin(a) * r, { col: 0xc8a870, size: rr(2, 4), grow: 1.2, life: 1.6, vx: -Math.sin(a) * 6, vz: Math.cos(a) * 6, vy: 0.3, op: 0.42 }); }
+  for (let i = 0; i < 2; i++) { const a = rr(0, TAU), r = rr(1.5, 15); puff(P.x + Math.cos(a) * r, P.y + rr(0.3, 4), P.z + Math.sin(a) * r, { col: 0xd8b878, size: rr(2.5, 5), grow: 1.2, life: 1.5, vx: -Math.sin(a) * 7, vz: Math.cos(a) * 7, vy: 0.3, op: 0.55 }); }
+  if (G.frame % 2 === 0) spray(P.x + rr(-12, 12), P.y + rr(0.5, 3), P.z + rr(-12, 12), 3, { kind: 'debris', col: [0xc8a060, 0xa88850], speed: 6, up: 0.1, spread: 1, size: 0.05, life: 0.8, g: 1 });
   for (const v of PEOPLE.list) {
     if (v.hidden || !(CALM[v.state] || v.state === 'flee' || v.state === 'blind')) continue;
     if (dist2(v.x, v.z, P.x, P.z) > 16 * 16) continue;
@@ -3425,7 +3453,7 @@ function swoopStep(dt) {
 
 const HUNGER_MAX = 100;
 // hunger drained per second: it creeps up as the night wears on
-const drainRate = () => 1.05 + Math.min(1.6, G.t / 60 * 0.065);
+const drainRate = () => 1.0 + Math.min(1.6, G.t / 60 * 0.065);
 
 function killPerson(v, how, dx, dz, o = {}) {
   if (!v || v.state === 'dead' || v.state === 'gone') return;
@@ -3471,7 +3499,7 @@ bus.on('escaped', (v) => {
   if (dist(v.x, v.z, P.x, P.z) < 160) HUD.toast(FOLK[v.type].name + ' got away', 'bad');
 });
 bus.on('broke', (r, n) => { if (n) HUD.toast(n === 1 ? 'Home invasion!' : `Home invasion! ${n} inside`, 'good'); G.panic = Math.min(100, G.panic + 5); });
-bus.on('hid', (v, r) => { if (P && dist(v.x, v.z, P.x, P.z) < 40) HUD.toast(`Someone ran into ${r.name}`, 'info'); });
+bus.on('hid', (v, r) => { if (P && dist(v.x, v.z, P.x, P.z) < 30 && G.t - (G.hidToast || -9) > 5) { G.hidToast = G.t; HUD.toast(`Someone bolted into ${r.name}`, 'info'); } });
 bus.on('scream', () => { G.panic = Math.min(100, G.panic + 1.5); });
 bus.on('howl', (n) => { G.panic = Math.min(100, G.panic + 10); if (n) HUD.toast(n + ' frozen with terror', 'info'); });
 
@@ -3491,14 +3519,14 @@ function director(dt) {
   if (G.dirT > 0) return;
   G.dirT = 3;
   let active = 0;
-  for (const v of PEOPLE.list) if (v.state !== 'dead' && v.state !== 'gone') active++;
+  for (const v of PEOPLE.list) if (v.state !== 'dead' && v.state !== 'gone') active += v.state === 'inside' ? 0.5 : 1;
   for (const c of CARS.list) if (c.arriving) active += c.want;
   const target = 34 + Math.min(10, Math.floor(G.t / 90));
   if (active >= target) return;
   const far = (x, z) => dist(x, z, P.x, P.z) > 55;
   if (chance(0.55)) {
     const homes = TOWN.refuges.filter((r) => r.kind === 'house' && !r.broken && far(r.x, r.z));
-    if (homes.length && G.panic < 75) {
+    if (homes.length) {
       const r = pick(homes), v = spawnPerson(null, r.x + r.nx, r.z + r.nz, { face: yawOf(r.nx, r.nz) });
       if (G.panic > 40 && chance(0.5)) { v.state = 'walk'; goTo(v, { kind: 'look', x: r.ax + r.nx * 3, z: r.az + r.nz * 3 }); say(v, pick(['What was that racket?', 'Hello? Anybody out here?'])); }
       else goTo(v, randomPoi(v, 200));
@@ -3522,7 +3550,6 @@ function resetTown() {
     o.position.set(L.hx, L.y, L.hz); o.rotation.set(0, 0, 0); o.scale.set(1, 1, 1); o.updateMatrix(); TOWN.headIM.setMatrixAt(L.i, o.matrix);
     const p = L.light.pool; if (p) { o.position.set(p.x, p.y, p.z); o.scale.set(p.r, 1, p.r); o.updateMatrix(); TOWN.poolIM.setMatrixAt(p.i, o.matrix); }
   }
-  for (const s of LIGHTS.src) if (s.pool && !TOWN.lamps.some((L) => L.light === s)) s.on = true;
   TOWN.headIM.instanceMatrix.needsUpdate = true; TOWN.poolIM.instanceMatrix.needsUpdate = true;
   for (const p of TOWN.props) {
     if (!p.alive) { p.alive = true; p.col = addCircle(p.x, p.z, { can: 0.4, bench: 0.7, mailbox: 0.3, dumpster: 1.1 }[p.kind], p.kind === 'dumpster' ? 1.4 : 1.0, 'prop'); }
@@ -3541,6 +3568,7 @@ function startRun(id, o = {}) {
   if (o.noRise) P.rise = 0;
   if (!o.empty) populate();
   hidePreview();
+  $('#title').hidden = true; $('#select').hidden = true;
   document.body.dataset.state = 'play';
   HUD.reset();
   AUDIO.music(true);
@@ -3768,7 +3796,7 @@ const MUSIC = (() => {
 const BIND = {
   fwd: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   jump: ['Space'], run: ['ShiftLeft', 'ShiftRight'], stalk: ['KeyC', 'ControlLeft'], use: ['KeyF', 'KeyE'],
-  a2: ['KeyQ'], a1x: ['KeyR'], sense: ['KeyV', 'Tab'], menu: ['Escape', 'KeyP'], help: ['F1'],
+  a2: ['KeyQ'], sense: ['KeyV', 'Tab'], menu: ['Escape', 'KeyP'], help: ['F1'],
 };
 const Input = (() => {
   const keys = new Set(), acts = new Set(), touchHeld = new Set(), toggles = { run: false, stalk: false };
@@ -3930,6 +3958,7 @@ const HUD = (() => {
     const keys = keyNames();
     $('#abil').innerHTML = [['atk', D.attack.name], ['a1', D.a1.name], ['a2', D.a2.name]].map(([k, n]) => `<div class="ab" data-k="${k}"><div class="cd"></div><b>${keys[k]}</b><span>${n}</span></div>`).join('');
     $('#portrait').textContent = D.name;
+    $('#tAtk').textContent = D.attack.name.toUpperCase(); $('#tA1').textContent = D.a1.name.toUpperCase(); $('#tA2').textContent = D.a2.name.toUpperCase();
     document.body.dataset.monster = P.id;
   }
   function keyNames() {
@@ -4128,7 +4157,6 @@ const UI = (() => {
       const D = MONSTERS[id], best = SAVE.best[id] || 0;
       const bar = (n) => '<i class="on"></i>'.repeat(n) + '<i></i>'.repeat(5 - n);
       const c = el('div', 'card', `<div class="ck">${esc(D.kind)}</div><h3>${esc(D.name)}</h3><div class="tagl">${esc(D.tag)}</div>
-        <p>${esc(D.blurb)}</p>
         <div class="stats">${Object.entries(D.stats).map(([k, v]) => `<div><span>${k}</span><b>${bar(v)}</b></div>`).join('')}</div>
         <ul><li><b>${esc(D.attack.name)}</b></li><li><b>${esc(D.a1.name)}</b>: ${esc(D.a1.desc)}</li><li><b>${esc(D.a2.name)}</b>: ${esc(D.a2.desc)}</li></ul>
         <div class="best">${best ? 'Best: ' + fmtNum(best) : 'Not yet unleashed'}</div>`);
@@ -4147,6 +4175,7 @@ const UI = (() => {
     for (const c of $$('#cards .card')) c.classList.toggle('sel', c.dataset.id === id);
     showPreview(id);
     $('#goBtn').textContent = 'Unleash ' + MONSTERS[id].name;
+    $('#selBlurb').textContent = MONSTERS[id].blurb;
   }
   function begin(id) {
     $('#select').hidden = true;
@@ -4157,7 +4186,8 @@ const UI = (() => {
   function intro(id) {
     const D = MONSTERS[id], e = $('#intro');
     $('#introA').textContent = D.name.toUpperCase();
-    $('#introB').textContent = pick(['NIGHT OF THE ' + D.kind.toUpperCase(), 'TERROR IN PINE HOLLOW', 'IT CAME FROM THE GRAVEYARD', 'THE ' + D.kind.toUpperCase() + ' WALKS AGAIN']);
+    $('#introB').textContent = pick(D.films);
+    $('#tip').hidden = true;
     e.hidden = false; e.classList.remove('fade'); void e.offsetWidth; e.classList.add('fade');
     setTimeout(() => { e.hidden = true; }, 4200);
     if (OPTS.tips) {
@@ -4178,6 +4208,7 @@ const UI = (() => {
     $('#overStats').innerHTML = `<div><span>Score</span><b>${fmtNum(G.score)}</b></div><div><span>Victims</span><b>${G.kills}</b></div><div><span>Best combo</span><b>×${G.bestCombo}</b></div><div><span>Fed</span><b>${G.fed}</b></div><div><span>Got away</span><b>${G.escaped}</b></div><div><span>Survived</span><b>${fmtTime(G.t)}</b></div>`;
     $('#overBest').textContent = G.newBest ? 'A new record for ' + D.name + '!' : 'Best for ' + D.name + ': ' + fmtNum(SAVE.best[G.monster] || 0);
     $('#overLine').textContent = pick(['...or is it?', 'The town will never forget.', 'Pine Hollow sleeps. For now.', 'Coming soon to a drive-in near you.']);
+    $('#tip').hidden = true;
     show('over');
   }
   // ---------- options and help ----------
@@ -4329,8 +4360,8 @@ function selectCam(dt) {
   M.root.rotation.y = Math.sin(G.tt * 0.4) * 0.4;
   const h = MONSTERS[PREVIEW.id].height;
   const narrow = innerWidth < innerHeight;
-  R.camera.position.set(p.x + (narrow ? 0 : -1.4), p.y + h * 0.75, p.z - h * 1.9 - (narrow ? 1.5 : 0));
-  R.camera.lookAt(p.x + (narrow ? 0 : -1.2), p.y + h * (narrow ? 0.85 : 0.6), p.z);
+  R.camera.position.set(p.x, p.y + h * 0.55, p.z - h * 2.4 - (narrow ? 1.5 : 0));
+  R.camera.lookAt(p.x, p.y + h * (narrow ? 0.3 : 0.18), p.z);
 }
 
 // ---------- the debug hook ----------

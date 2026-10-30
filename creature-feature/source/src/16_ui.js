@@ -53,7 +53,6 @@ const UI = (() => {
       const D = MONSTERS[id], best = SAVE.best[id] || 0;
       const bar = (n) => '<i class="on"></i>'.repeat(n) + '<i></i>'.repeat(5 - n);
       const c = el('div', 'card', `<div class="ck">${esc(D.kind)}</div><h3>${esc(D.name)}</h3><div class="tagl">${esc(D.tag)}</div>
-        <p>${esc(D.blurb)}</p>
         <div class="stats">${Object.entries(D.stats).map(([k, v]) => `<div><span>${k}</span><b>${bar(v)}</b></div>`).join('')}</div>
         <ul><li><b>${esc(D.attack.name)}</b></li><li><b>${esc(D.a1.name)}</b>: ${esc(D.a1.desc)}</li><li><b>${esc(D.a2.name)}</b>: ${esc(D.a2.desc)}</li></ul>
         <div class="best">${best ? 'Best: ' + fmtNum(best) : 'Not yet unleashed'}</div>`);
@@ -72,6 +71,7 @@ const UI = (() => {
     for (const c of $$('#cards .card')) c.classList.toggle('sel', c.dataset.id === id);
     showPreview(id);
     $('#goBtn').textContent = 'Unleash ' + MONSTERS[id].name;
+    $('#selBlurb').textContent = MONSTERS[id].blurb;
   }
   function begin(id) {
     $('#select').hidden = true;
@@ -82,7 +82,8 @@ const UI = (() => {
   function intro(id) {
     const D = MONSTERS[id], e = $('#intro');
     $('#introA').textContent = D.name.toUpperCase();
-    $('#introB').textContent = pick(['NIGHT OF THE ' + D.kind.toUpperCase(), 'TERROR IN PINE HOLLOW', 'IT CAME FROM THE GRAVEYARD', 'THE ' + D.kind.toUpperCase() + ' WALKS AGAIN']);
+    $('#introB').textContent = pick(D.films);
+    $('#tip').hidden = true;
     e.hidden = false; e.classList.remove('fade'); void e.offsetWidth; e.classList.add('fade');
     setTimeout(() => { e.hidden = true; }, 4200);
     if (OPTS.tips) {
@@ -103,6 +104,7 @@ const UI = (() => {
     $('#overStats').innerHTML = `<div><span>Score</span><b>${fmtNum(G.score)}</b></div><div><span>Victims</span><b>${G.kills}</b></div><div><span>Best combo</span><b>×${G.bestCombo}</b></div><div><span>Fed</span><b>${G.fed}</b></div><div><span>Got away</span><b>${G.escaped}</b></div><div><span>Survived</span><b>${fmtTime(G.t)}</b></div>`;
     $('#overBest').textContent = G.newBest ? 'A new record for ' + D.name + '!' : 'Best for ' + D.name + ': ' + fmtNum(SAVE.best[G.monster] || 0);
     $('#overLine').textContent = pick(['...or is it?', 'The town will never forget.', 'Pine Hollow sleeps. For now.', 'Coming soon to a drive-in near you.']);
+    $('#tip').hidden = true;
     show('over');
   }
   // ---------- options and help ----------
