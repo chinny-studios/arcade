@@ -41,6 +41,7 @@
   .rib { font-size: 15px; font-weight: 600; padding: 2px 14px; background: var(--panel); border-left: 3px solid var(--ally); transition: opacity .6s, transform .6s; white-space: nowrap; }
   .rib.good { border-color: var(--ok); } .rib.bad { border-color: var(--foe); color: #ffd2c0; } .rib.kill { border-color: var(--gold); color: #ffeaa0; font-size: 18px; } .rib.info { border-color: #9fd8ff; }
   .rib.out { opacity: 0; transform: translateY(-8px); }
+  body.piloting #ribbons { top: auto; bottom: 84px; flex-direction: column-reverse; }
   #warn { position: absolute; left: 0; right: 0; top: 56%; text-align: center; font-size: 16px; font-weight: 600; color: #ffcf8a; opacity: 0; transition: opacity .3s; }
   #warn.on { opacity: 1; }
   #bounds, #torpwarn, #bridgeoff { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 700; letter-spacing: .06em; padding: 2px 12px; }
@@ -75,12 +76,13 @@
   .wp div { height: 4px; background: rgba(0,0,0,.6); margin: 3px 0 2px; } .wp i { display: block; height: 100%; background: #9fd8ff; }
   .wp.bear { border-color: #ffc04a; opacity: 1; } .wp.bear i { background: #ffc04a; }
   .wp.go { border-color: var(--ok); opacity: 1; box-shadow: inset 0 -2px 0 var(--ok); } .wp.go i { background: var(--ok); } .wp.go small { color: var(--ok); }
+  .wp div.sh i { background: #7fc8ff; }
   .wp.torp { border-color: #9fd8ff; opacity: 1; } .wp.down { border-color: #ff6a50; opacity: .7; } .wp.down small { color: #ff8a70; }
 
   #hangar { right: 12px; bottom: 12px; width: 300px; padding: 8px 12px 8px; }
   #hangar h4 { margin: 0 0 4px; font-family: var(--title); font-size: 14px; color: var(--ally); letter-spacing: .1em; text-transform: uppercase; }
   .sq { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; border-top: 1px solid rgba(255,255,255,.06); font-size: 13px; opacity: .75; }
-  .sq.active { opacity: 1; } .sq kbd { margin-top: 2px; } .sq div { flex: 1; } .sq small { color: var(--dim); }
+  .sq.active { opacity: 1; } .sq.strike kbd { background: var(--gold); box-shadow: 0 1px 0 #8a6a2a; } .sq kbd { margin-top: 2px; } .sq div { flex: 1; } .sq small { color: var(--dim); }
   .sq em { display: block; font-style: normal; color: #bfe6ff; font-size: 12px; }
   .pips { float: right; display: flex; gap: 2px; margin-top: 4px; } .pips i { width: 7px; height: 7px; border: 1px solid rgba(255,255,255,.3); }
   .pips i.in { background: rgba(127,212,255,.55); } .pips i.out { background: var(--ok); border-color: var(--ok); }
@@ -212,6 +214,7 @@
         <dt><kbd>Q</kbd> <kbd>E</kbd></dt><dd>Pick a subsystem on the target: bridge, engines, shield generator, batteries, hangar</dd>
         <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></dt><dd>Reinforce fore, aft, port or starboard shields (press again to balance them)</dd>
         <dt><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd></dt><dd>Your squadrons. Tap: launch, or attack your target (escort it, if it is a friend). <kbd>Shift</kbd>+tap: escort us. Hold: recall to rearm</dd>
+        <dt><kbd>G</kbd></dt><dd>Launch <b>Kite</b>, your strike fighter, and fly it by remote: the mouse aims, left click fires its cannons, <kbd>Space</kbd> its two torpedoes, <kbd>W</kbd> <kbd>S</kbd> speed, <kbd>Shift</kbd> boost. Your first officer fights the ship meanwhile. <kbd>G</kbd> again to return; Kite flies home to rearm. The link drops past 7 km</dd>
         <dt><kbd>V</kbd> · <kbd>Esc</kbd></dt><dd>Every squadron attacks your target · pause</dd>
       </dl>
       <div class="tips">
@@ -391,6 +394,9 @@ const CRAFT = {
     gun: { dmg: 9, rate: 0.16, range: 760, speed: 1500, capDmg: 2.2 }, torps: 0 },
   bmb: { name: 'Bombers', one: 'Bomber', hp: 150, speed: 205, turn: 1.35, size: 4, len: 20,
     gun: { dmg: 5, rate: 0.4, range: 500, speed: 1300, capDmg: 1.5 }, torps: 2 },
+  // The player's own fighter, flown by remote from the bridge (G). Shielded, fast, two torpedoes.
+  strike: { name: 'Strike fighter', one: 'Strike fighter', hp: 110, shield: 70, speed: 300, boost: 470, turn: 2.6, size: 1, len: 16, rebuild: 30,
+    gun: { dmg: 15, rate: 0.09, range: 1050, speed: 1700, capDmg: 7 }, torps: 2 },
   shuttle: { name: 'Boarding shuttle', one: 'Shuttle', hp: 700, speed: 170, turn: 1.1, size: 1, len: 28, gun: null, torps: 0 },
 };
 const TORP = { speed: 290, turn: 1.1, hp: 25, dmg: 460, life: 9, range: 950 };
@@ -546,6 +552,11 @@ const Sfx = (() => {
     if (!ok()) return; const g = gainAt(p, 220); if (g < 0.05 || !limit('bl' + team, 0.06)) return;
     const t = ctx.currentTime, f = team ? 1300 : 1700;
     tone(t, 0.11, f + Math.random() * 300, f * 0.35, 0.07 * g, 'square');
+  };
+  // The remote fighter's cannons: a short, punchy double crack.
+  S.cannon = (p) => {
+    if (!ok() || !limit('cannon', 0.05)) return; const g = gainAt(p, 300), t = ctx.currentTime;
+    tone(t, 0.09, 900 + Math.random() * 100, 240, 0.09 * g, 'square'); burst(t, 0.07, 3200, 900, 0.07 * g, 'bandpass', 2);
   };
   S.flak = (p) => { if (!ok()) return; const g = gainAt(p, 300); if (g < 0.06 || !limit('flak', 0.05)) return; burst(ctx.currentTime, 0.12, 1800, 500, 0.12 * g, 'bandpass', 2); };
   S.hit = (p, shield, big) => {
@@ -1298,7 +1309,18 @@ function buildCraft(type, team) {
   const b = new ShipBuilder(type.length + team * 9, team, 10), P = b.P;
   b.split = -1e9;
   const s = CRAFT[type].len / 14;
-  if (type === 'shuttle') {
+  if (type === 'strike') {
+    // Heavier than an interceptor: a long nose, twin cannons, swept wings and the captain's gold stripes.
+    b.box(0, 0, 0, 2.6 * s, 1.9 * s, 16 * s, P.base, { tx: 0.2, ty: 0.35, sec: 0 });
+    b.box(0, 1.1 * s, 2 * s, 1.3 * s, 0.9 * s, 3.4 * s, P.glass, { tx: 0.5, sec: 0, raw: true });
+    b.box(0, 1.05 * s, -3 * s, 0.5 * s, 0.25 * s, 7 * s, 0xd8b040, { sec: 0, raw: true });
+    for (const k of [-1, 1]) {
+      b.box(k * 4.2 * s, -0.2 * s, -3.5 * s, 6 * s, 0.45 * s, 5.5 * s, P.dark, { tx: 0.35, bx: 1, sec: 0 });
+      b.box(k * 7 * s, -0.2 * s, -3.5 * s, 0.7 * s, 1.8 * s, 4 * s, 0xd8b040, { sec: 0, raw: true });
+      b.box(k * 2 * s, -0.5 * s, 2 * s, 0.35 * s, 0.35 * s, 9 * s, P.deep, { sec: 0 });
+      b.box(k * 1.6 * s, -0.4 * s, -6.5 * s, 1.2 * s, 1.2 * s, 3 * s, P.dark, { sec: 0 });
+    }
+  } else if (type === 'shuttle') {
     b.box(0, 0, 0, 6 * s, 4 * s, 18 * s, P.base, { tx: 0.6, ty: 0.6, sec: 0 });
     b.box(0, 2.6 * s, -2 * s, 1 * s, 3 * s, 6 * s, P.dark, { sec: 0 });
     for (const k of [-1, 1]) b.box(k * 4 * s, -1 * s, -3 * s, 3 * s, 0.6 * s, 8 * s, P.dark, { tx: 0.5, sec: 0 });
@@ -1712,6 +1734,7 @@ class Craft {
     this.speed = T.speed * 0.6; this.gunCd = rand() * 0.3; this.target = null; this.mode = 'launch'; this.timer = 1.4; this.retarget = 0;
     this.jink = new V3(); this.jinkT = rnd(1, 3); this.want = new V3(0, 0, 1); this.wantSpeed = T.speed;
     this.stats = { dmg: 0, kills: 0 };
+    this.shield = T.shield || 0; this.shT = 0; this.piloted = false;
   }
   get isTorp() { return false; }
   // Turn toward this.want at the craft's turn rate, bank into the turn, and move.
@@ -1797,10 +1820,13 @@ class Craft {
         break;
       }
       case 'board': case 'docked': Mission.shuttle(this, dt); break;
+      case 'piloted': break; // PC.fly sets want and wantSpeed
+
       default: this.think(order);
     }
     // Random jinking so dogfights don't fly on rails.
     if ((this.jinkT -= dt) <= 0) { this.jinkT = rnd(1.2, 3.5); this.jink.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)); }
+    if (T.shield && (this.shT += dt) > 3) this.shield = Math.min(T.shield, this.shield + T.shield * 0.25 * dt);
     this.avoid();
     this.fly(dt);
   }
@@ -1852,11 +1878,11 @@ class Craft {
       if (s.pos.distanceToSquared(this.pos) > (s.radius + 400) ** 2) continue;
       if ((this.mode === 'rtb' || this.mode === 'launch' || this.age < 3) && s === this.homeShip()) continue;
       if ((this.mode === 'board' || this.mode === 'docked') && s === this.target) continue;
-      if (s.inside(_cx, 40)) { s.centre(_cv); _cv.subVectors(this.pos, _cv).normalize(); this.want.addScaledVector(_cv, 2).normalize(); }
+      if (s.inside(_cx, 40) && !this.piloted) { s.centre(_cv); _cv.subVectors(this.pos, _cv).normalize(); this.want.addScaledVector(_cv, 2).normalize(); }
       if (s.inside(this.pos, 5) && this.mode !== 'rtb') this.crash(s);
     }
     const r = this.pos.length();
-    if (r > ARENA_R + 400) this.want.addScaledVector(this.pos, -1.5 / r).normalize();
+    if (r > ARENA_R + 400 && !this.piloted) this.want.addScaledVector(this.pos, -1.5 / r).normalize();
   }
   crash(s) { Combat.craftDamage(this, 1e4, null); }
   die(by) {
@@ -1895,8 +1921,8 @@ Craft.updateAll = function (dt) {
 };
 Craft.init = function () {
   Craft.meshes = {};
-  for (const team of [0, 1]) for (const type of ['int', 'bmb', 'shuttle']) {
-    if (type === 'shuttle' && team === 1) continue;
+  for (const team of [0, 1]) for (const type of ['int', 'bmb', 'shuttle', 'strike']) {
+    if ((type === 'shuttle' || type === 'strike') && team === 1) continue;
     const m = new THREE.InstancedMesh(Models.craft(type, team), Models.craftMat, 160);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false;
     R.scene.add(m); Craft.meshes[type + team] = m;
@@ -1911,9 +1937,10 @@ Craft.draw = function (dt) {
     _cm.makeBasis(_cx, _cy, c.fwd); _cm.setPosition(c.pos);
     m.setMatrixAt(m.count++, _cm);
     const P = PALETTE[c.team], back = _cv.copy(c.fwd).multiplyScalar(-c.T.len * 0.7).add(c.pos);
-    Fx.glow(back, c.T.len * (c.type === 'bmb' ? 1.6 : 1.3), P.engine[0], P.engine[1], P.engine[2], 0.9);
-    // Short engine trails, so the dogfights read as streaks.
-    if (dt > 0 && !G.simming) Fx.spark(back, null, 0.5, c.T.len * 0.55, c.T.len * 0.15, P.engine[0] * 0.5, P.engine[1] * 0.5, P.engine[2] * 0.5, 0.55);
+    // The fighter you fly sits right in front of the camera: a small glow, no trail.
+    const mine = c === PC.pilot;
+    Fx.glow(back, c.T.len * (mine ? 0.35 : c.type === 'bmb' ? 1.6 : 1.3), P.engine[0], P.engine[1], P.engine[2], mine ? 0.7 : 0.9);
+    if (dt > 0 && !G.simming && !mine) Fx.spark(back, null, 0.5, c.T.len * 0.55, c.T.len * 0.15, P.engine[0] * 0.5, P.engine[1] * 0.5, P.engine[2] * 0.5, 0.55);
   }
   for (const k in Craft.meshes) Craft.meshes[k].instanceMatrix.needsUpdate = true;
 };
@@ -1979,7 +2006,7 @@ class Squadron {
     }
     // Replace losses.
     if (hangar && this.total < this.size) {
-      if ((this.buildT += dt) >= REBUILD_TIME) { this.buildT = 0; this.ready++; }
+      if ((this.buildT += dt) >= (CRAFT[this.type].rebuild || REBUILD_TIME)) { this.buildT = 0; this.ready++; }
     } else this.buildT = 0;
   }
 }
@@ -2031,10 +2058,26 @@ Combat.flak = function (s, t, hit, d) {
 Combat.flakHit = function (t, s) { if (!t.alive) return; if (t.isTorp) { t.hp -= 14; if (t.hp <= 0) Combat.killTorp(t, true); } else Combat.craftDamage(t, 14, s); };
 Combat.craftDamage = function (c, dmg, by) {
   if (!c.alive || c.mode === 'docked') return;
-  if (G.god && c.squad && c.squad.ship && c.squad.ship.isPlayer && c.type === 'shuttle') dmg *= 0.1;
+  if (G.god && c.squad && c.squad.ship && c.squad.ship.isPlayer && (c.type === 'shuttle' || c.piloted)) dmg *= 0.1;
+  if (c.shield > 0) {
+    const a = Math.min(c.shield, dmg); c.shield -= a; dmg -= a; c.shT = 0;
+    if (!G.simming) Fx.spark(c.pos, c.vel, 0.2, 10, 18, 0.5, 0.8, 1, 1);
+  }
+  if (c.piloted && !G.simming) R.shake = Math.max(R.shake, 0.25);
   c.hp -= dmg; if (by && by.stats) by.stats.dmg += dmg;
   if (c.hp <= 0) c.die(by);
 };
+// The piloted fighter's cannons: real projectiles along the nose, tested against craft, torpedoes and hulls.
+Combat.pilotShot = function (c, o, d) {
+  const g = c.T.gun;
+  Combat.bolts.push({ kind: 'pilot', p: o.clone(), d: d.clone(), speed: g.speed, life: g.range / g.speed, dmg: g.dmg, capDmg: g.capDmg, owner: c, team: c.team, len: 20, w: 0.8, col: CRAFT_COL[c.team] });
+  if (!G.simming) Sfx.cannon(o);
+};
+function segHit(b, q, step, r) {
+  const vx = q.x - b.p.x, vy = q.y - b.p.y, vz = q.z - b.p.z, t = clamp(vx * b.d.x + vy * b.d.y + vz * b.d.z, 0, step);
+  const ex = vx - b.d.x * t, ey = vy - b.d.y * t, ez = vz - b.d.z * t;
+  return ex * ex + ey * ey + ez * ez < r * r;
+}
 Combat.torpedo = function (owner, p, target, aimL) {
   const fwd = owner.fwd.clone();
   Combat.torps.push({ isTorp: true, alive: true, pos: p.clone(), vel: fwd.multiplyScalar(TORP.speed * 0.6 + (owner.speed || 0)), target, aimL: (aimL || target.model.centre).clone(),
@@ -2049,6 +2092,32 @@ Combat.update = function (dt) {
   const B = Combat.bolts;
   for (let i = B.length - 1; i >= 0; i--) {
     const b = B[i], step = Math.min(b.life, dt) * b.speed;
+    if (b.kind === 'pilot') {
+      let done = false;
+      for (const c of Craft.byTeam[1 - b.team]) {
+        if (!c.alive || c.mode === 'docked' || !segHit(b, c.pos, step, c.type === 'bmb' ? 13 : 10)) continue;
+        Combat.craftDamage(c, b.dmg, b.owner); if (!G.simming) Fx.spark(c.pos, c.vel, 0.25, 8, 14, 1, 0.8, 0.5, 1);
+        if (b.owner.isPlayerCraft) Hud.hitMark(c.alive ? 'hit' : 'kill');
+        done = true; break;
+      }
+      if (!done) for (const t of Combat.torps) {
+        if (!t.alive || t.team === b.team || !segHit(b, t.pos, step, 7)) continue;
+        t.hp -= b.dmg; if (t.hp <= 0) Combat.killTorp(t, true); done = true; break;
+      }
+      if (!done) {
+        let best = -1, bs = null;
+        for (const s of G.ships) {
+          if (s.team === b.team || !s.alive || !s.arrived) continue;
+          const t = s.raycast(b.p, b.d, step, _kl); if (t >= 0 && (best < 0 || t < best)) { best = t; bs = s; _kp.copy(_kl); }
+        }
+        if (bs) {
+          const lp = _kp.clone(), res = bs.damage(b.capDmg, lp, b.owner, 'gun'), wp = bs.toWorld(lp, _kw);
+          if (!G.simming && res) { Fx.impact(wp, null, res === 'shield', BOLT_COL[bs.team], 0.45); if (res !== 'shield') Damage.hit(bs, wp, b.d, b.capDmg, 'gun'); }
+          done = true;
+        }
+      }
+      if (done) { B[i] = B[B.length - 1]; B.pop(); continue; }
+    }
     if (b.kind === 'cap') {
       // Segment test against every hostile ship.
       let best = -1, bs = null;
@@ -2118,7 +2187,7 @@ class ShipAI {
     o = o || {};
     this.s = ship; this.target = null; this.retarget = 0; this.side = rand() < 0.5 ? 'port' : 'stbd'; this.sideT = 0;
     this.launchT = o.launchDelay != null ? o.launchDelay : rnd(3, 9); this.squadT = 0; this.shieldT = rnd(0, 3);
-    this.goto = o.goto || null; this.passive = !!o.passive; this.cruise = o.throttle != null ? o.throttle : null; this.cruiseT = o.throttle != null ? 25 : 0;
+    this.goto = o.goto || null; this.passive = !!o.passive; this.noSquads = !!o.noSquads; this.cruise = o.throttle != null ? o.throttle : null; this.cruiseT = o.throttle != null ? 25 : 0;
     const C = ship.C;
     this.pref = !C.side ? 2600 : ship.cls === 'carrier' ? 2400 : 900 + C.len * 1.3;
     this.err = 0.009 + (ship.team ? 0.003 : 0.0015);
@@ -2147,7 +2216,7 @@ class ShipAI {
     if (s.disabled) { s.thr = 0; s.yawCmd *= 0.3; }
     this.shields(dt, t);
     this.fire(t);
-    this.squads(dt, t);
+    if (!this.noSquads) this.squads(dt, t);
   }
   steer(dt, t) {
     const s = this.s, C = s.C;
@@ -2246,7 +2315,7 @@ class ShipAI {
     }
     if (!bt && !t) return;
     s.squads.forEach((q, i) => {
-      if (q.type === 'shuttle') return;
+      if (q.type === 'shuttle' || q.type === 'strike') return;
       if (q.type === 'bmb') { if (bt && (q.order.kind !== 'attack' || !q.order.target || !q.order.target.alive)) q.command('attack', bt); else if (!q.out.length && q.ready) q.launch(); }
       else if (i % 2 === 0) { if (q.order.kind !== 'escort' || !q.out.length) q.command('escort', s); }
       else if (t && (q.order.kind !== 'attack' || !q.order.target || !q.order.target.alive)) q.command('attack', t);
@@ -2287,7 +2356,11 @@ Mission.start = function (idx, o) {
   Mission.tipsShown = {}; Mission.dock = 0; Mission.shuttleCraft = null; Mission.shuttleT = 0; Mission.shuttles = 0; Mission.demo = !!o.demo;
   Mission.doneT = 0; Mission.saved = 0; Mission.outT = 0; Mission.waveT = -99; Mission.timers = []; Mission.escaped = false;
   const p = spawnShip(def.player, 0, { player: !o.noPlayer });
-  if (!o.noPlayer) { p.isPlayer = true; G.player = p; } else p.ai = p.ai || new ShipAI(p);
+  if (!o.noPlayer) {
+    p.isPlayer = true; G.player = p;
+    // The captain's own strike fighter, flown by remote. It never launches on its own.
+    const q = new Squadron(p, 'strike', p.squads.length, 'Kite'); q.order = { kind: 'recall', target: p }; p.squads.push(q);
+  } else p.ai = p.ai || new ShipAI(p);
   for (const e of def.allies) spawnShip(e, 0, {});
   for (const e of def.enemies) spawnShip(e, 1, {});
   for (const s of G.ships) if (s.tag === 'convoy') { s.ai.goto = s.pos.clone().add(new V3(rnd(-300, 300), -400, -3500)); s.ai.cruise = 0.85; }
@@ -2480,6 +2553,7 @@ Mission.tips = function () {
     if (Mission.tipsShown.subs && FACINGS.some((f) => p.shield[f] < p.shieldCap(f) * 0.6)) Mission.tip('shields', '<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> reinforce your fore, aft, port or starboard shields (press again to even them out). Keep your strongest side toward the enemy.');
     if (Craft.byTeam[1].some((c) => c.pos.distanceTo(p.pos) < 2500)) Mission.tip('fighters', 'Enemy fighters! <kbd>Z</kbd> launches your interceptors. Tap again to send them at your target, <kbd>Shift</kbd>+<kbd>Z</kbd> keeps them close, hold <kbd>Z</kbd> to recall them.');
   }
+  if (T > (d.tutorial ? 75 : 20)) Mission.tip('kite', '<kbd>G</kbd> launches <b>Kite</b>, your own strike fighter, and lets you fly it by remote. Your first officer fights the ship while you\'re out. <kbd>G</kbd> again brings you back to the bridge.');
   if (d.id === 'carrier' && T > 3) Mission.tip('bombers', '<kbd>X</kbd> is your bomber squadron. Target the carrier (<kbd>Tab</kbd>) and tap <kbd>X</kbd> to send them in. <kbd>V</kbd> sends every squadron at your target.');
   if (p.torpMax && T > 3) Mission.tip('torps', '<kbd>Space</kbd> fires your bow torpedo tubes at the target, if it is roughly ahead. Torpedoes cut through half the shield.');
   if (d.id === 'admiral' && T > 3) Mission.tip('board', 'Pick the Iron Mandate\'s <b>engines</b> and <b>shield generator</b> with <kbd>Q</kbd> <kbd>E</kbd> and shoot only those. Your bombers aim for the system you have picked.');
@@ -2505,12 +2579,13 @@ const THROTTLE_NAMES = ['Astern', 'All stop', 'One quarter', 'Half ahead', 'Thre
 const SQUAD_KEYS = ['KeyZ', 'KeyX', 'KeyC'];
 const PC = {
   yaw: 0, pitch: -0.12, dist: 1, zoom: 0, thrIdx: 1, target: null, sub: null,
-  camPos: new V3(), camDir: new V3(0, 0, 1), aim: new V3(), range: 0, aimShip: null, lead: null, leadV: new V3(), bears: {}, deadT: 0, recallFired: {},
+  camPos: new V3(), camDir: new V3(0, 0, 1), aim: new V3(), range: 0,
+  pilot: null, fThr: 0.8, boost: 1, link: 1, gunSide: 1, flead: null, fleadV: new V3(), noseV: new V3(), hitT: 0, hitKind: '', aimShip: null, lead: null, leadV: new V3(), bears: {}, deadT: 0, recallFired: {},
 };
 const _pv = new V3(), _pw = new V3(), _px = new V3();
 PC.reset = function () {
   const p = G.player;
-  PC.target = null; PC.sub = null; PC.zoom = 0; PC.dist = 1; PC.deadT = 0; PC.recallFired = {};
+  PC.target = null; PC.sub = null; PC.zoom = 0; PC.dist = 1; PC.deadT = 0; PC.recallFired = {}; PC.pilot = null; PC.boost = 1; PC.link = 1;
   if (p) { PC.yaw = p.yaw; PC.pitch = -0.12; PC.thrIdx = THROTTLE.indexOf(THROTTLE.reduce((a, b) => Math.abs(b - p.thr) < Math.abs(a - p.thr) ? b : a)); p.thr = THROTTLE[PC.thrIdx]; }
 };
 PC.update = function (dt) {
@@ -2522,7 +2597,9 @@ PC.update = function (dt) {
   PC.pitch = clamp(PC.pitch - Input.mdy * sens * (settings.invert ? -1 : 1), -1.4, 1.4);
   if (Input.wheel) PC.dist = clamp(PC.dist * Math.pow(1.12, Input.wheel), 0.65, 3.2);
   PC.zoom = approach(PC.zoom, Input.down('M2') && p.alive ? 1 : 0, dt * 5);
-  if (!p.alive) { PC.deadT += dt; return; }
+  if (!p.alive) { PC.deadT += dt; if (PC.pilot) PC.endPilot(); return; }
+  if (Input.hit('KeyG')) { if (PC.pilot) PC.endPilot(); else PC.launchFighter(); }
+  if (PC.pilot) { PC.fly(dt); PC.targeting(); PC.squads(); return; }
   // Helm.
   if (Input.hit('KeyW')) { PC.thrIdx = Math.min(THROTTLE.length - 1, PC.thrIdx + 1); Sfx.ui(); }
   if (Input.hit('KeyS')) { PC.thrIdx = Math.max(0, PC.thrIdx - 1); Sfx.ui(); }
@@ -2615,16 +2692,19 @@ PC.order = function (q, kind) {
   else { const e = t && t.team === p.team && !Input.shift() ? t : p; q.command('escort', e); Hud.ribbon(q.name + ' · escort ' + (e === p ? 'us' : e.name), 'info'); }
   Sfx.ui();
 };
+// The squadrons on the Z X C keys (the remote fighter is on G and isn't one of them).
+PC.sqList = () => G.player ? G.player.squads.filter((q) => q.type !== 'strike') : [];
+PC.strikeSquad = () => G.player && G.player.squads.find((q) => q.type === 'strike');
 PC.squads = function () {
-  const p = G.player;
+  const p = G.player, list = PC.sqList();
   SQUAD_KEYS.forEach((k, i) => {
-    const q = p.squads[i]; if (!q) return;
+    const q = list[i]; if (!q) return;
     if (Input.down(k) && Input.heldFor(k) > 0.45 && !PC.recallFired[k]) { PC.recallFired[k] = true; PC.order(q, 'recall'); }
     if (Input.up(k)) { if (!PC.recallFired[k]) PC.order(q, Input.shift() ? 'escort' : 'auto'); PC.recallFired[k] = false; }
   });
   if (Input.hit('KeyV')) {
     if (!PC.target || PC.target.team === p.team) { Hud.warn('Target an enemy ship first'); Sfx.deny(); }
-    else for (const q of p.squads) if (q.total) PC.order(q, 'attack');
+    else for (const q of list) if (q.total) PC.order(q, 'attack');
   }
 };
 // Camera: a chase view orbiting the ship. When the ship is lost it drifts back and watches the wreck.
@@ -2634,6 +2714,16 @@ PC.camera = function (dt) {
   if (G.camOverride) { c.position.copy(G.camOverride[0]); c.up.set(0, 1, 0); c.lookAt(G.camOverride[1]); PC.camPos.copy(c.position); c.getWorldDirection(PC.camDir); return; }
   if (!p) return;
   dirFrom(PC.yaw, PC.pitch, PC.camDir);
+  if (PC.pilot) {
+    // Behind and a little above the fighter, looking where the mouse aims.
+    const f = PC.pilot, k = PC.dist;
+    PC.camPos.copy(f.pos).addScaledVector(PC.camDir, -62 * k).addScaledVector(UP, 13 * k);
+    if (R.shake > 0 && settings.shake) { const s = R.shake * 3; PC.camPos.x += rnd(-s, s); PC.camPos.y += rnd(-s, s); PC.camPos.z += rnd(-s, s); }
+    R.shake = Math.max(0, R.shake - dt * 2);
+    c.position.copy(PC.camPos); c.up.set(0, 1, 0); c.lookAt(_pw.copy(PC.camPos).add(PC.camDir));
+    Sfx.listen(PC.camPos);
+    return;
+  }
   const L = p.len, d = (L * 1.15 + 80) * PC.dist * (p.alive ? 1 : 1.6 + Math.min(PC.deadT * 0.05, 1));
   if (!p.alive) PC.yaw += dt * 0.05;
   _pv.copy(p.alive ? p.pos : p.centre(_px)).addScaledVector(UP, L * 0.2);
@@ -2643,6 +2733,79 @@ PC.camera = function (dt) {
   c.position.copy(PC.camPos); c.up.set(0, 1, 0);
   c.lookAt(_pw.copy(PC.camPos).add(PC.camDir));
   Sfx.listen(PC.camPos);
+};
+// ---- The remote strike fighter ----
+// G launches it from the hangar and hands you the stick; the first officer takes the cruiser (a ShipAI that leaves
+// your squadrons alone). The fighter turns toward wherever the mouse aims; its guns fire along the nose.
+PC.launchFighter = function () {
+  const p = G.player, q = PC.strikeSquad(); if (!q) return;
+  if (!p.ok('hangar') || !p.model.hangar) { Hud.warn('Hangar knocked out: the fighter can\'t launch'); Sfx.deny(); return; }
+  if (q.ready <= 0) { Hud.warn(q.out.length ? 'Kite is still flying home' : 'Kite is being rebuilt · ' + Math.ceil((CRAFT.strike.rebuild || 30) - q.buildT) + ' s'); Sfx.deny(); return; }
+  q.ready--;
+  const c = new Craft('strike', p.team, q), h = p.model.hangar;
+  p.toWorld(h.p, c.pos); c.fwd.copy(h.dir).applyQuaternion(p.root.quaternion).normalize(); c.want.copy(c.fwd);
+  c.speed = p.speed + 80; c.piloted = true; c.isPlayerCraft = true; c.mode = 'piloted'; c.radius = 20;
+  q.out.push(c); G.craft.push(c); Craft.byTeam[p.team].push(c); q.order = { kind: 'escort', target: p };
+  PC.pilot = c; PC.fThr = 0.8; PC.boost = 1; PC.link = 1; PC.zoom = 0;
+  PC.yaw = yawOf(c.fwd); PC.pitch = clamp(pitchOf(c.fwd) + 0.3, -1.4, 1.4);
+  p.ai = new ShipAI(p, { noSquads: true }); p.yawCmd = 0; p.pitchCmd = 0;
+  Sfx.launch(c.pos); Hud.reset();
+  Hud.ribbon('Kite launched · you have the stick · the first officer has the ship', 'info');
+  Mission.tip('pilot', 'You\'re flying <b>Kite</b> by remote. Aim with the mouse and the fighter turns to follow. Left click: cannons · <kbd>Space</kbd>: torpedoes at your target · <kbd>W</kbd> <kbd>S</kbd> speed · <kbd>Shift</kbd> boost · <kbd>G</kbd> back to the bridge. Stay within 7 km of your ship or the link drops.');
+};
+PC.endPilot = function (why) {
+  const c = PC.pilot, p = G.player; PC.pilot = null; PC.flead = null;
+  if (c && c.alive) { c.piloted = false; c.mode = 'rtb'; c.squad.order = { kind: 'recall', target: p }; }
+  if (c && c.squad) c.squad.order = { kind: 'recall', target: p };
+  if (p && p.alive) {
+    p.ai = null; p.yawCmd = 0; p.pitchCmd = 0;
+    PC.thrIdx = THROTTLE.indexOf(THROTTLE.reduce((a, b) => Math.abs(b - p.thr) < Math.abs(a - p.thr) ? b : a)); p.thr = THROTTLE[PC.thrIdx];
+    PC.yaw = p.yaw; PC.pitch = -0.12;
+  }
+  Hud.reset();
+  Hud.ribbon(why || 'Back on the bridge · Kite is flying home to rearm', why ? 'bad' : 'info');
+};
+PC.fly = function (dt) {
+  const c = PC.pilot, p = G.player;
+  if (!c.alive) { PC.endPilot('Kite is down · back on the bridge'); return; }
+  const d = c.pos.distanceTo(p.pos);
+  PC.link = clamp(1 - (d - 5000) / 2000, 0, 1);
+  if (d > 7000) { PC.endPilot('Control link lost · Kite is flying home'); return; }
+  if (Input.down('KeyW')) PC.fThr = Math.min(1, PC.fThr + dt * 0.8);
+  if (Input.down('KeyS')) PC.fThr = Math.max(0.2, PC.fThr - dt * 0.8);
+  const boosting = Input.shift() && PC.boost > 0.02;
+  PC.boost = boosting ? Math.max(0, PC.boost - dt / 4) : Math.min(1, PC.boost + dt / 9);
+  c.wantSpeed = boosting ? c.T.boost : c.T.speed * PC.fThr;
+  // Fly toward the point the camera looks at, 1.2 km out.
+  _pv.copy(PC.camPos).addScaledVector(PC.camDir, 1200).sub(c.pos).normalize(); c.want.copy(_pv);
+  PC.noseV.copy(c.fwd).multiplyScalar(c.T.gun.range * 0.8).add(c.pos);
+  if (Input.down('M0') && c.gunCd <= 0) {
+    c.gunCd = c.T.gun.rate; PC.gunSide = -PC.gunSide;
+    _px.crossVectors(c.up, c.fwd).normalize();
+    _pw.copy(c.pos).addScaledVector(_px, PC.gunSide * 2.2).addScaledVector(c.fwd, 10);
+    Combat.pilotShot(c, _pw, c.fwd);
+  }
+  if (Input.hit('Space')) {
+    const t = PC.target;
+    if (!c.torps) { Hud.warn('No torpedoes left · G to go home and rearm'); Sfx.deny(); }
+    else if (!t || t.team === c.team) { Hud.warn('Torpedoes need an enemy target (Tab or T)'); Sfx.deny(); }
+    else {
+      _pv.copy(t.toWorld(PC.sub ? t.subs[PC.sub].p : t.model.centre)).sub(c.pos); const dist = _pv.length();
+      if (dist > 1800) { Hud.warn('Get within 1.8 km to fire torpedoes'); Sfx.deny(); }
+      else if (_pv.divideScalar(dist).dot(c.fwd) < 0.6) { Hud.warn('Point the nose at the target to fire torpedoes'); Sfx.deny(); }
+      else { Combat.torpedo(c, c.pos.clone().addScaledVector(c.fwd, 14), t, PC.sub ? t.subs[PC.sub].p : null); c.torps--; Hud.ribbon('Torpedo away · ' + c.torps + ' left', 'info'); }
+    }
+  }
+  // Lead marker on the enemy craft nearest the nose.
+  PC.flead = null; let best = 0.35;
+  for (const e of Craft.byTeam[1 - c.team]) {
+    if (!e.alive) continue; _pv.copy(e.pos).sub(c.pos); const dd = _pv.length(); if (dd > 1600) continue;
+    const a = c.fwd.angleTo(_pv); if (a < best) { best = a; PC.flead = leadPoint(c.pos, e.pos, e.vel, c.T.gun.speed, PC.fleadV); }
+  }
+  // Collision warning.
+  _pv.copy(c.fwd).multiplyScalar(c.speed * 1.2).add(c.pos);
+  for (const s of G.ships) if (s.alive && s.arrived && s.pos.distanceToSquared(c.pos) < (s.radius + 500) ** 2 && s.inside(_pv, 15)) { Hud.warn('Pull up!'); break; }
+  PC.hitT = Math.max(0, PC.hitT - dt);
 };
 // Title-screen camera: slow orbits around a random ship in the demo battle.
 const Cine = { t: 0, ship: null, a: 0 };
@@ -2715,12 +2878,15 @@ Hud.buildSquads = function () {
   h.innerHTML = '<h4>Hangar</h4>';
   if (!p || !p.squads.length) { h.hidden = true; return; }
   h.hidden = false;
-  p.squads.forEach((q, i) => {
+  PC.sqList().forEach((q, i) => {
     const row = el('div', 'sq', '<kbd>' + SQUAD_KEYS[i].slice(3) + '</kbd><div><b>' + q.name + '</b> <small>' + CRAFT[q.type].name + '</small><span class="pips"></span><em></em></div>');
     h.appendChild(row); q.row = row;
   });
+  const k = PC.strikeSquad();
+  if (k) { const row = el('div', 'sq strike', '<kbd>G</kbd><div><b>Kite</b> <small>Strike fighter, flown by you</small><em></em></div>'); h.appendChild(row); k.row = row; }
   h.appendChild(el('div', 'hint', 'Tap: launch / attack target · <kbd>Shift</kbd> escort us · hold: recall · <kbd>V</kbd> all attack'));
 };
+Hud.hitMark = function (kind) { PC.hitT = kind === 'kill' ? 0.5 : 0.18; PC.hitKind = kind; if (kind === 'kill') Hud.ribbon('Fighter down', 'kill'); };
 Hud.buildSubs = function () {
   const p = G.player, s = $('subs'); s.innerHTML = '';
   if (!p) return;
@@ -2751,15 +2917,25 @@ Hud.panels = function (p) {
     s.row.querySelector('i').style.width = pct(s.hp / s.max);
     s.row.querySelector('em').textContent = s.down ? 'Down · ' + Math.ceil(s.repair) + ' s' : pct(s.hp / s.max);
   }
-  // Weapons.
+  // Weapons (or the remote fighter's instruments while you fly it).
   const w = [];
-  for (const side of ['port', 'bow', 'stbd']) {
+  const f = PC.pilot;
+  document.body.classList.toggle('piloting', !!f);
+  if (f) {
+    const bar = (label, v, txt, cls) => '<div class="wp ' + (cls || '') + '"><span>' + label + '</span><div><i style="width:' + pct(v) + '"></i></div><small>' + txt + '</small></div>';
+    w.push('<div class="wp ' + (f.hp < f.T.hp * 0.35 ? 'down' : 'go') + '"><span>Kite</span><div><i style="width:' + pct(f.hp / f.T.hp) + '"></i></div><div class="sh"><i style="width:' + pct(f.shield / f.T.shield) + '"></i></div><small>Hull ' + pct(f.hp / f.T.hp) + ' · shield ' + (f.shield > 1 ? pct(f.shield / f.T.shield) : 'down') + '</small></div>');
+    w.push(bar('Speed <kbd>W</kbd><kbd>S</kbd>', f.speed / f.T.boost, Math.round(f.speed) + ' m/s · boost ' + Math.round(PC.boost * 100) + '%', PC.boost > 0.05 ? '' : 'bear'));
+    w.push(bar('Torpedoes <kbd>Space</kbd>', f.torps / f.T.torps, f.torps + ' of ' + f.T.torps, f.torps ? 'torp' : 'down'));
+    const km = (p.pos.distanceTo(f.pos) / 1000).toFixed(1) + ' km';
+    w.push(bar('Link to ' + p.name, PC.link, (PC.link >= 1 ? 'Strong' : PC.link > 0.4 ? 'Weak · turn back' : 'Breaking up!') + ' · ' + km, PC.link >= 1 ? 'go' : PC.link > 0.4 ? 'bear' : 'down'));
+  }
+  if (!f) for (const side of ['port', 'bow', 'stbd']) {
     const b = p.bat[side]; if (!b) continue;
     const down = (side === 'port' || side === 'stbd') && !p.ok(side), ready = b.t <= 0, bears = PC.bears[side];
     const f = ready ? 1 : 1 - b.t / b.reload;
     w.push('<div class="wp' + (down ? ' down' : bears && ready ? ' go' : bears ? ' bear' : '') + '"><span>' + (side === 'port' ? 'Port battery' : side === 'stbd' ? 'Starboard battery' : 'Bow guns') + '</span><div><i style="width:' + pct(f) + '"></i></div><small>' + (down ? 'Knocked out' : !ready ? 'Reloading' : bears ? 'Bears · fire' : 'Ready') + '</small></div>');
   }
-  if (p.torpMax) {
+  if (p.torpMax && !PC.pilot) {
     const f = p.torpCd <= 0 ? 1 : 1 - p.torpCd / 26;
     w.push('<div class="wp' + (p.torpCd <= 0 ? ' torp' : '') + '"><span>Torpedoes <kbd>Space</kbd></span><div><i style="width:' + pct(f) + '"></i></div><small>' + (p.torpCd <= 0 ? p.torpMax + ' tubes ready' : 'Loading · ' + Math.ceil(p.torpCd) + ' s') + '</small></div>');
   }
@@ -2767,6 +2943,10 @@ Hud.panels = function (p) {
   // Squadrons.
   for (const q of p.squads) {
     if (!q.row) continue;
+    if (q.type === 'strike') {
+      q.row.querySelector('em').textContent = PC.pilot ? 'In flight · you have the stick' : q.out.length ? 'Flying home to rearm' : !p.ok('hangar') ? 'Hangar down' : q.ready ? 'Ready · G to launch' : 'Rebuilding · ' + Math.ceil(CRAFT.strike.rebuild - q.buildT) + ' s';
+      q.row.className = 'sq strike' + (PC.pilot ? ' active' : ''); continue;
+    }
     let pips = '';
     for (let i = 0; i < q.size; i++) pips += '<i class="' + (i < q.out.length ? 'out' : i < q.total ? 'in' : '') + '"></i>';
     q.row.querySelector('.pips').innerHTML = pips;
@@ -2833,7 +3013,7 @@ Hud.overlay = function (p) {
   x.font = '11px "Rajdhani", "Segoe UI", sans-serif'; x.textAlign = 'center';
   // Small craft.
   for (const c of G.craft) {
-    if (!c.alive || c.mode === 'docked') continue;
+    if (!c.alive || c.mode === 'docked' || c === PC.pilot) continue;
     if (c.pos.distanceToSquared(R.camera.position) > 4500 * 4500) continue;
     const q = proj(c.pos, _pp); if (q.behind || !q.on) continue;
     const s = c.type === 'bmb' ? 4 : c.type === 'shuttle' ? 6 : 3;
@@ -2853,7 +3033,7 @@ Hud.overlay = function (p) {
   }
   // Capital ships.
   for (const s of G.ships) {
-    if (s === p || !s.alive || !s.arrived || s.jumpAnim != null) continue;
+    if ((s === p && !PC.pilot) || !s.alive || !s.arrived || s.jumpAnim != null) continue;
     const q = proj(s.centre(_hw), _pp); if (q.behind || !q.on) continue;
     const r = Math.max(10, s.radius * 0.55 * pxs / q.d), foe = s.team !== p.team, sel = s === PC.target;
     const col = foe ? (sel ? '#ff8a5a' : 'rgba(255,110,80,.75)') : (sel ? '#a8e4ff' : 'rgba(127,212,255,.6)');
@@ -2898,6 +3078,7 @@ Hud.overlay = function (p) {
       x.fillStyle = PC.target.team === p.team ? '#8fd8ff' : '#ff8a5a'; x.beginPath(); x.moveTo(12, 0); x.lineTo(-6, -8); x.lineTo(-6, 8); x.closePath(); x.fill(); x.restore();
     }
   }
+  if (PC.pilot) { Hud.fighterSight(x, W, H); Hud.radar(x, p, PC.pilot.pos, yawOf(PC.pilot.fwd)); return; }
   // Sight.
   if (p.alive) {
     const cx = W / 2, cy = H / 2, onFoe = PC.aimShip && PC.aimShip.team !== p.team;
@@ -2920,9 +3101,37 @@ Hud.overlay = function (p) {
     x.font = '11px "Rajdhani", "Segoe UI", sans-serif'; x.fillStyle = PC.range > BOLT_RANGE ? '#ff8a6a' : 'rgba(220,240,255,.7)';
     x.fillText((PC.range / 1000).toFixed(2) + ' km', cx + 52, cy - 18);
   }
-  Hud.radar(x, p);
+  Hud.radar(x, p, p.pos, p.yaw);
 };
-Hud.radar = function (x, p) {
+// While flying the fighter: the mouse aim point in the centre, the nose marker where the guns point, lead diamonds
+// on the nearest enemy craft, hit markers, and static on the screen as the link weakens.
+Hud.fighterSight = function (x, W, H) {
+  const cx = W / 2, cy = H / 2, f = PC.pilot;
+  x.strokeStyle = 'rgba(220,240,255,.55)'; x.lineWidth = 1.2;
+  x.beginPath(); x.arc(cx, cy, 5, 0, TAU); x.stroke();
+  const q = proj(PC.noseV, _pp);
+  if (!q.behind) {
+    const hit = PC.hitT > 0, col = hit ? (PC.hitKind === 'kill' ? '#ffd34a' : '#ff8a5a') : '#9ff0b0';
+    x.strokeStyle = col; x.lineWidth = 2;
+    x.beginPath(); x.arc(q.x, q.y, 11, 0, TAU); x.stroke();
+    x.beginPath(); for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { x.moveTo(q.x + a * 15, q.y + b * 15); x.lineTo(q.x + a * 23, q.y + b * 23); } x.stroke();
+    if (hit) { x.beginPath(); for (const [a, b] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { x.moveTo(q.x + a * 6, q.y + b * 6); x.lineTo(q.x + a * 13, q.y + b * 13); } x.stroke(); }
+    x.strokeStyle = 'rgba(159,240,176,.25)'; x.lineWidth = 1; x.beginPath(); x.moveTo(cx, cy); x.lineTo(q.x, q.y); x.stroke();
+  }
+  if (PC.flead) {
+    const l = proj(PC.flead, _pq);
+    if (!l.behind && l.on) { x.strokeStyle = '#ffd34a'; x.lineWidth = 2; x.beginPath(); x.moveTo(l.x, l.y - 7); x.lineTo(l.x + 7, l.y); x.lineTo(l.x, l.y + 7); x.lineTo(l.x - 7, l.y); x.closePath(); x.stroke(); }
+  }
+  x.font = 'bold 12px "Rajdhani", "Segoe UI", sans-serif'; x.textAlign = 'center';
+  x.fillStyle = 'rgba(220,240,255,.75)'; x.fillText(Math.round(f.speed) + ' m/s', cx - 92, cy + 4);
+  if (PC.link < 1) {
+    const k = 1 - PC.link;
+    x.fillStyle = 'rgba(200,220,255,' + (0.05 + k * 0.25) + ')';
+    for (let i = 0; i < 40 + k * 260; i++) x.fillRect(rand() * W, rand() * H, 1 + rand() * 40 * k, 1);
+    x.fillStyle = '#ffcf8a'; x.font = 'bold 16px "Rajdhani", sans-serif'; x.fillText('CONTROL LINK WEAK · TURN BACK TOWARD ' + G.player.name.toUpperCase(), cx, H * 0.3);
+  }
+};
+Hud.radar = function (x, p, cpos, cyaw) {
   const H = innerHeight, R0 = Math.min(70, H * 0.1), cx = 12 + R0 + 4, cy = H - 252 - R0, range = 5000;
   x.save();
   x.fillStyle = 'rgba(6,12,20,.6)'; x.strokeStyle = 'rgba(127,212,255,.35)'; x.lineWidth = 1;
@@ -2930,23 +3139,23 @@ Hud.radar = function (x, p) {
   x.beginPath(); x.arc(cx, cy, R0 * 0.5, 0, TAU); x.stroke();
   x.beginPath(); x.moveTo(cx, cy - R0); x.lineTo(cx, cy + R0); x.moveTo(cx - R0, cy); x.lineTo(cx + R0, cy); x.stroke();
   // Camera direction wedge.
-  const ca = angNorm(PC.yaw - p.yaw);
+  const ca = angNorm(PC.yaw - cyaw);
   x.fillStyle = 'rgba(255,255,255,.06)'; x.beginPath(); x.moveTo(cx, cy); x.arc(cx, cy, R0, -Math.PI / 2 - ca - 0.5, -Math.PI / 2 - ca + 0.5); x.closePath(); x.fill();
   const k = R0 / range;
   const blip = (pos, fn) => {
-    _hv.copy(pos).sub(p.pos); if (_hv.lengthSq() > range * range * 1.2) return;
-    _hv.applyAxisAngle(UP, -p.yaw);
+    _hv.copy(pos).sub(cpos); if (_hv.lengthSq() > range * range * 1.2) return;
+    _hv.applyAxisAngle(UP, -cyaw);
     const bx = cx - _hv.x * k, by = cy - _hv.z * k, h = _hv.y * k;
     if ((bx - cx) ** 2 + (by - cy) ** 2 > R0 * R0) return;
     fn(bx, by, h);
   };
   for (const c of G.craft) {
-    if (!c.alive || c.mode === 'docked') continue;
+    if (!c.alive || c.mode === 'docked' || c === PC.pilot) continue;
     blip(c.pos, (bx, by) => { x.fillStyle = c.team === p.team ? 'rgba(127,212,255,.8)' : 'rgba(255,110,80,.9)'; x.fillRect(bx - 1, by - 1, 2, 2); });
   }
   for (const t of Combat.torps) blip(t.pos, (bx, by) => { x.fillStyle = '#ffe070'; x.fillRect(bx - 1, by - 1, 2, 2); });
   for (const s of G.ships) {
-    if (!s.alive || !s.arrived || s === p) continue;
+    if (!s.alive || !s.arrived || (s === p && !PC.pilot)) continue;
     blip(s.pos, (bx, by, h) => {
       const col = s.team === p.team ? '#7fd4ff' : '#ff6e50', sz = 2.5 + Math.min(4, s.len / 160);
       x.strokeStyle = col; x.lineWidth = 1; x.beginPath(); x.moveTo(bx, by); x.lineTo(bx, by - h); x.stroke();
@@ -3337,6 +3546,8 @@ function debugHook() {
       PC.yaw = yawOf(d); PC.pitch = pitchOf(d); PC.camera(0); PC.gunnery(); return Object.assign({}, PC.bears);
     },
     fire() { const p = P(); PC.camera(0); PC.gunnery(); const out = []; for (const side in p.bat) if (PC.bears[side] && p.bat[side].t <= 0 && p.fireBattery(side, PC.aim, 0.0011)) out.push(side); return out; },
+    pilot() { PC.launchFighter(); return !!PC.pilot; },
+    unpilot() { if (PC.pilot) PC.endPilot(); },
     reload() { for (const k in P().bat) P().bat[k].t = 0; P().torpCd = 0; },
     torp() { return P().fireTorps(PC.target); },
     target(s, sub) { PC.setTarget(s); PC.sub = sub || null; },
