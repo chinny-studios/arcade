@@ -10,7 +10,7 @@ const POLICE_UNITS = [14, 23, 31, 42, 56, 68, 71, 85];
 
 function initResponders() {
   for (const F of CITY.firehouses) {
-    const m = buildFireEngine(); m.position.set(F.home.x, CURB, F.home.z); m.rotation.y = F.home.yaw; R.scene.add(m);
+    const m = buildFireEngine(F.num); m.position.set(F.home.x, CURB, F.home.z); m.rotation.y = F.home.yaw; R.scene.add(m);
     RESP.units.push({ kind: 'fire', name: F.name, short: 'E' + F.num, F, model: m, x: F.home.x, z: F.home.z, yaw: F.home.yaw, v: 0, state: 'home', siren: false, lightT: Math.random(), barCols: m.userData.bar.map((b) => b.color.clone()) });
   }
 }

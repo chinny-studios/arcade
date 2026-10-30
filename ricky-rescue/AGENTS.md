@@ -27,7 +27,7 @@ and hand off. Shift-based career with ranks, districts, rigs and cosmetics.
   should be, drive in, and that the engine medic works the patient and rides in. `test/posting.js` (with `--start
   '{"rank":3,"faults":true}'`) runs a post order, waiting on post, the pager, turnout scoring, a move-up, the rig check,
   coffee and restocking. `test/career.js` (with `--no-start`) checks promotions, the garage, the
-  save and the end of a shift. `test/visual.js` (with `--no-start`) is a screenshot tour, `test/rigs.js` shoots every rig model from six angles (models come from `RR.f.buildRig(type)`; cab shapes are in `RIG_CABS`), `test/mobile.js` (with
+  save and the end of a shift. `test/visual.js` (with `--no-start`) is a screenshot tour, `test/rigs.js` shoots every rig model and the fire engine from six angles (models come from `RR.f.buildRig(type)` and `RR.f.buildFireEngine(num)`; cab shapes are in `RIG_CABS`), `test/mobile.js` (with
   `--w 390 --h 844` or `--w 844 --h 390`) checks phone layouts, `test/perf.js` prints draw calls. `node test/live.mjs`
   plays with real key presses and clicks; `node test/inputs.mjs` checks a mocked gamepad and touch.
 - **Gotchas:** SwiftShader draws a frame or two a second, so live tests wait on conditions, not timers. One real second
