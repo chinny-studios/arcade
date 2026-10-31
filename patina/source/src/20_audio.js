@@ -51,3 +51,49 @@ function auTick() {
   g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
   s.connect(f); f.connect(g); g.connect(AU.master); s.start(t, Math.random()); s.stop(t + 0.04);
 }
+
+// The radio's broadcast for its reveal: static while the needle travels, then a little parlour waltz,
+// band-limited like medium wave. Scheduled a beat ahead from a timer.
+function auRadio(on) {
+  if (!AU.ctx) return;
+  const ctx = AU.ctx, now = ctx.currentTime;
+  if (!on) {
+    const r = AU.radio; if (!r) return;
+    AU.radio = null; clearInterval(r.timer);
+    r.out.gain.setTargetAtTime(0, now, 0.15);
+    setTimeout(() => { try { r.st.stop(); r.out.disconnect(); } catch (e) { /* already stopped */ } }, 1200);
+    return;
+  }
+  if (AU.radio) return;
+  const out = ctx.createGain(); out.gain.value = 0; out.connect(AU.master);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.8;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 220;
+  const mus = ctx.createGain(); mus.gain.value = 0;
+  mus.connect(lp); lp.connect(hp); hp.connect(out);
+  const st = ctx.createBufferSource(); st.buffer = AU.noise; st.loop = true;
+  const sf = ctx.createBiquadFilter(); sf.type = 'bandpass'; sf.frequency.value = 1700; sf.Q.value = 0.6;
+  const sg = ctx.createGain(); sg.gain.value = 0.22;
+  st.connect(sf); sf.connect(sg); sg.connect(out); st.start();
+  out.gain.setTargetAtTime(0.75, now, 0.2);
+  sg.gain.setTargetAtTime(0.025, now + 2.4, 0.5);
+  mus.gain.setTargetAtTime(1, now + 2.2, 0.7);
+  const beat = 60 / 138, bars = [[48, 60, 64, 67], [45, 60, 64, 69], [41, 60, 65, 69], [43, 59, 62, 65], [48, 60, 64, 67], [52, 59, 64, 67], [50, 62, 65, 69], [43, 59, 62, 67]];
+  // melody: chord tones, one per beat, with a pick-up turn every other bar
+  const shape = [[3, 2, 1], [3, 3, 2], [1, 2, 3], [3, 2, 0], [2, 3, 3], [1, 2, 1], [3, 2, 1], [2, 1, 0]];
+  const note = (m, t, dur, g, type = 'triangle') => {
+    const o = ctx.createOscillator(), e = ctx.createGain();
+    o.type = type; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12);
+    e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(g, t + 0.015); e.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(e); e.connect(mus); o.start(t); o.stop(t + dur + 0.05);
+  };
+  const r = AU.radio = { out, st, step: 0, next: now + 2.2 };
+  r.timer = setInterval(() => {
+    while (r.next < ctx.currentTime + 0.6) {
+      const bar = Math.floor(r.step / 3) % 8, b = r.step % 3, ch = bars[bar];
+      if (b === 0) note(ch[0], r.next, beat * 1.4, 0.16, 'sine');
+      else { note(ch[1], r.next, beat * 0.7, 0.05); note(ch[2], r.next, beat * 0.7, 0.05); note(ch[3], r.next, beat * 0.7, 0.04); }
+      note(ch[shape[bar][b]] + 12 + (ch[shape[bar][b]] < 55 ? 12 : 0), r.next, beat * 0.95, 0.09);
+      r.next += beat; r.step++;
+    }
+  }, 150);
+}

@@ -63,6 +63,7 @@ async function loadPiece(id) {
 }
 function disposePiece() {
   const p = G.piece; if (!p) return;
+  if (p.dispose) p.dispose();
   R.platter.remove(p.root);
   p.root.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); if (o.material.userData.U.uMap.value) o.material.userData.U.uMap.value.dispose(); } });
   G.piece = null;
@@ -177,7 +178,8 @@ function toast(msg, kind = 'info', secs = 3) {
 function advise(fx) {
   if (!fx || fx.total < 0.04) return;
   const T = fx.total, eff = fx.useful / T, tool = G.tool;
-  if (fx.nofin > T * 0.5) return toast('Nothing on this piece takes a new finish.');
+  if (fx.nofin > T * 0.5) return toast(G.piece.parts.some((p) => p.job.fin)
+    ? `The ${fx.nofinName.toLowerCase()} does not take a finish. It goes on bare wood.` : 'Nothing on this piece takes a new finish.');
   if (fx.blocked > T * 0.4) return toast('A new finish will not take over grime, rust or old varnish. Clean and strip first.');
   if (fx.harm > T * 0.2 && tool === 'wire') return toast('The wire brush is scratching it. Polish will take the scratches back out.', 'warn');
   if (fx.harm > T * 0.2 && tool === 'sand') return toast('The pad is scuffing it. Polish will bring it back.', 'warn');

@@ -47,6 +47,8 @@ function addPart(piece, o) {
 
 // Bake AO/reach for everything on the turntable, then lay down the starting wear.
 function preparePiece(piece) {
+  buildTurntable(piece.table || 0.08);
+  setRig(piece.rig || 1, piece.focus);
   R.platter.add(piece.root);
   R.platter.rotation.y = 0;
   piece.setOpen && piece.setOpen(false, true);
@@ -77,14 +79,14 @@ function preparePiece(piece) {
   for (const p of all) {
     const r = res.get(p.mesh);
     p.ao = r.ao; p.reach = r.reach;
-    const a = p.geom.attributes.aoR.array;
-    for (let i = 0; i < p.n; i++) { a[i * 2] = r.ao[i]; a[i * 2 + 1] = r.reach[i]; }
-    p.geom.attributes.aoR.needsUpdate = true;
     p.rel = new THREE.Matrix4().multiplyMatrices(inv, p.mesh.matrixWorld);
     p.bvh = buildBVH(p.geom);
     p.grid = buildGrid(p.geom.attributes.position.array, piece.brush[1] * 0.7);
     p.geom.computeBoundingSphere();
     initWear(p, piece);
+    const a = p.geom.attributes.aoR.array;
+    for (let i = 0; i < p.n; i++) { a[i * 2] = p.ao[i]; a[i * 2 + 1] = p.reach[i]; }
+    p.geom.attributes.aoR.needsUpdate = true;
     upload(p, true);
     p.beforeA = new THREE.BufferAttribute(p.mA.slice(), 4, true);
     p.beforeB = new THREE.BufferAttribute(p.mB.slice(), 4, true);
@@ -114,6 +116,13 @@ function initWear(p, piece) {
     if (I.polish) { m[o + 5] = I.polish[0] + (n1 - 0.5) * 2 * I.polish[1]; }
     else m[o + 5] = p.job.polish ? 0 : 1;
     if (I.fin !== undefined) m[o + 3] = I.fin;
+    // surfaces the job leaves alone (insides of cabinets): their own state, and they don't count
+    if (I.exclude && I.exclude(v, nv)) {
+      const e = I.excl || [0.1, 0, 0, 0, 0, 1];
+      for (let k = 0; k < 6; k++) m[o + k] = e[k];
+      p.reach[i] = 0;
+      continue;
+    }
     // what the camera can never see starts clean and counts for nothing
     if (p.reach[i] < 0.02) { m[o] = m[o + 1] = m[o + 2] = m[o + 4] = 0; m[o + 3] = p.job.fin ? 1 : m[o + 3]; m[o + 5] = 1; }
     for (let k = 0; k < 6; k++) m[o + k] = sat(m[o + k]);
@@ -219,7 +228,7 @@ function applyTool(p, i, w, tool, fx) {
     case 'sand':
       m[o] -= w * 1.0; m[o + 2] -= w * 1.25; m[o + 3] -= w * 1.5;
       if (J.corr) m[o + 1] -= w * 0.55;
-      if (s !== 'wood') m[o + 4] += w * (s === 'hard' ? 0.5 : 0.95);
+      if (s !== 'wood') m[o + 4] += w * (s === 'hard' ? 0.5 : 0.95); else m[o + 4] -= w * 1.1;
       m[o + 5] -= w * 0.9;
       break;
     case 'polish': {
@@ -231,8 +240,8 @@ function applyTool(p, i, w, tool, fx) {
       break;
     }
     case 'finish':
-      if (!J.fin) { fx.nofin += w; return; }
-      if (m[o] > 0.15 || m[o + 2] > 0.15 || m[o + 1] > 0.15) { fx.blocked += w; return; }
+      if (!J.fin) { fx.nofin += w; fx.total += w; fx.nofinName = p.name; return; }
+      if (m[o] > 0.15 || m[o + 2] > 0.15 || m[o + 1] > 0.15) { fx.blocked += w; fx.total += w; return; }
       m[o + 3] += w * 1.3;
       break;
   }

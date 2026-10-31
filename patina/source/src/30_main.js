@@ -1,7 +1,6 @@
 // Boot, the main loop and the #debug hook (window.PA).
 let _last = performance.now();
 G.lightAng = 0.25;
-const KEY_POS = V3(-0.42, 0.62, 0.46);
 
 function update(dt) {
   G.t += dt;
@@ -15,8 +14,8 @@ function update(dt) {
     G.lightAng = 0.25 + 0.35 * Math.sin(G.revealT * 0.35);
   }
   // key light swings around the bench
-  const a = (G.lightAng - 0.25) * 2.4;
-  R.key.position.set(KEY_POS.x * Math.cos(a) - KEY_POS.z * Math.sin(a), KEY_POS.y, KEY_POS.x * Math.sin(a) + KEY_POS.z * Math.cos(a));
+  const a = (G.lightAng - 0.25) * 2.4, k = R.rig || 1;
+  R.key.position.set((KEY_POS.x * Math.cos(a) - KEY_POS.z * Math.sin(a)) * k, KEY_POS.y * k, (KEY_POS.x * Math.sin(a) + KEY_POS.z * Math.cos(a)) * k);
   if (G.piece) { G.piece.update(dt); stepSettle(G.piece, dt); }
   if (G.state === 'play') paintStep(dt); else auBrush(0, G.tool, dt);
   updateCamera(dt);
@@ -56,6 +55,7 @@ async function boot() {
 
 if (DEBUG) {
   const at = (x, y) => { setNdc(x, y); return PTR.ndc.clone(); };
+  let PA_last = null;
   window.PA = {
     G, CAM, R, PTR, PIECES, LAYER, scene, camera, renderer, paused: false,
     start: async (id = 'watch') => { await startPiece(id); update(0); return G.piece.parts.length; },
@@ -73,10 +73,12 @@ if (DEBUG) {
       const nd = at(x, y), fx = newFx();
       const hit = pick(nd); if (!hit || !hit.part.paint) return null;
       for (let t = 0; t < secs; t += 1 / 30) brushAt(hit, brushRadius(), G.tool, (1 / 30) * 1.2, fx);
+      advise(fx); PA_last = { part: hit.part.name, useful: +fx.useful.toFixed(2), harm: +fx.harm.toFixed(2), toast: $('#toast').textContent };
       for (const p of G.piece.parts) if (p.dirty) { upload(p); p.dirty = false; p.progDirty = true; }
       renderJob();
       return { part: hit.part.name, useful: +fx.useful.toFixed(3), harm: +fx.harm.toFixed(3) };
     },
+    lastAdvice() { return PA_last; },
     pickAt(x, y) { const h = pick(at(x, y)); return h && { part: h.part.name, point: h.point.toArray().map((v) => +v.toFixed(4)) }; },
     // apply a tool to every vertex of the named parts (or all), w per vertex; `where(x, y, z)` (piece space,
     // the watch's dial faces +Z) limits it to part of the piece

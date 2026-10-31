@@ -8,7 +8,7 @@ function resetView(instant) {
   const p = G.piece; if (!p) return;
   const portrait = window.innerWidth / window.innerHeight < 0.8;
   CAM.tYaw = Math.round(CAM.tYaw / TAU) * TAU + 0.35; CAM.tPitch = p.pitch; CAM.tTarget.copy(p.focus);
-  CAM.tDist = p.dist * (portrait ? (G.state === 'title' ? 1.7 : 1.25) : 1);
+  CAM.tDist = p.dist * (portrait ? (G.state === 'title' ? 1.7 : 1.25) : G.state === 'title' ? 1.12 : 1);
   if (instant) { CAM.yaw = CAM.tYaw; CAM.pitch = CAM.tPitch; CAM.dist = CAM.tDist; CAM.target.copy(CAM.tTarget); }
 }
 function updateCamera(dt) {

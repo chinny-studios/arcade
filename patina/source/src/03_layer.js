@@ -23,7 +23,7 @@ uniform float uTime; uniform float uHint;
 uniform vec3 uCol; uniform vec3 uCol2; uniform vec3 uDirt; uniform vec3 uDust; uniform vec3 uFinT; uniform vec3 uOldT;
 uniform float uRough; uniform float uRoughPol; uniform float uMetal; uniform float uScale;
 uniform vec3 uAxis; uniform vec3 uOrigin; uniform vec4 uPat; uniform vec4 uNeed;
-uniform float uCC; uniform float uIrid; uniform float uIridT; uniform float uAOK;
+uniform float uCC; uniform float uIrid; uniform float uIridT; uniform float uAOK; uniform vec3 uEmit;
 #ifdef L_MAP
 uniform sampler2D uMap; uniform vec4 uMapXf;
 #endif
@@ -38,6 +38,15 @@ float hash1(float n) { return fract(sin(n * 12.9898 + 4.1) * 43758.5453); }
 float lodf(float wl) { return smoothstep(1.6, 4.5, wl / max(gFw, 1e-7)); }
 mat3 axisBasis() {
   vec3 a = normalize(uAxis);
+  vec3 t1 = normalize(cross(a, abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  return mat3(t1, cross(a, t1), a);
+}
+
+// wood grain axis; with uPat.z set, faces turned sideways (|n.x| large) get grain running front to back, as a
+// veneered cabinet's side panels do
+mat3 woodBasis() {
+  vec3 a = normalize(uAxis);
+  if (uPat.z > 0.5 && abs(normalize(vON).x) > 0.7) a = vec3(0.0, 0.0, 1.0);
   vec3 t1 = normalize(cross(a, abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
   return mat3(t1, cross(a, t1), a);
 }
@@ -75,9 +84,22 @@ float patH(vec3 op) {
     gMicro += band * (1.0 - lodf(wl)) * 0.25;
   }
 #endif
+#ifdef P_WEAVE
+  {
+    // plain weave: warp and weft threads alternate over and under
+    mat3 B = axisBasis(); vec3 d = op - uOrigin; vec2 q = vec2(dot(d, B[0]), dot(d, B[1])) * uPat.x;
+    float over = mod(floor(q.x) + floor(q.y), 2.0);
+    float a = sin(3.14159 * fract(q.x)), b = sin(3.14159 * fract(q.y));
+    float hh = mix(a, b, over) * 0.8 + 0.2 * min(a, b);
+    float f = lodf(1.0 / uPat.x);
+    h += (hh - 0.5) * uPat.w * f;
+    gGroove += (1.0 - hh) * f * 0.35;
+    gMicro += (1.0 - f) * 0.1;
+  }
+#endif
 #ifdef P_WOOD
   {
-    mat3 B = axisBasis(); vec3 d = op - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
+    mat3 B = woodBasis(); vec3 d = op - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
     float pore = N3(vec3(q.x * uScale * 7.0, q.y * uScale * 7.0, q.z * uScale * 0.35)).b;
     float pr = smoothstep(0.64, 0.8, pore) * lodf(1.0 / (uScale * 7.0));
     h -= pr * uPat.w;
@@ -114,7 +136,7 @@ float layerH(vec3 op) {
   h += cC * ((N3(p * 2.7).r - 0.5) + (N3(p * 9.0).b - 0.5) * 0.6) * 0.3 / (uScale * 2.7);
 #endif
 #ifdef O_OLD
-  h -= cO * (1.0 - smoothstep(0.0, 0.1, N3(p * 1.5).a)) * 0.08 / (uScale * 1.5);
+  h -= cO * (1.0 - smoothstep(0.0, 0.1, N3(p * 1.5).a)) * 0.04 / (uScale * 1.5);
 #endif
   h += cG * (N3(p * 5.0).g - 0.4) * 0.07 / (uScale * 5.0);
   return h;
@@ -144,7 +166,7 @@ void layerEval() {
 
 #ifdef K_METAL
   cP = smoothstep(0.0, 1.0, vMB.g);
-  rough = mix(uRough, uRoughPol, cP) * (0.8 + 0.4 * nC.b) + gMicro;
+  rough = mix(uRough, uRoughPol, cP) * (0.88 + 0.24 * nC.b) + gMicro;
   alb *= 0.94 + 0.08 * nA.r + 0.08 * nD.r;
 #endif
 #ifdef K_ENAMEL
@@ -156,12 +178,13 @@ void layerEval() {
 #endif
 #ifdef K_WOOD
   {
-    mat3 B = axisBasis(); vec3 d = vOP - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
+    mat3 B = woodBasis(); vec3 d = vOP - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
     float warp = (N3(vec3(q.x, q.y, q.z * 0.12) * uScale * 0.45).r - 0.5) * uPat.y + (nB.g - 0.5) * 0.12;
     float ring = fract(length(q.xy) * uPat.x + warp);
-    float late = smoothstep(0.5, 0.86, ring) * (1.0 - smoothstep(0.93, 1.0, ring));
+    float late = smoothstep(0.42, 0.9, ring) * (1.0 - smoothstep(0.93, 1.0, ring));
     float streak = N3(vec3(q.x * uScale * 3.0, q.y * uScale * 3.0, q.z * uScale * 0.18)).r;
-    alb = mix(uCol, uCol2, late * 0.9) * (0.82 + 0.36 * streak);
+    float fine = N3(vec3(q.x * uScale * 9.0, q.y * uScale * 9.0, q.z * uScale * 0.5)).b;
+    alb = mix(uCol, uCol2, late * 0.62) * (0.78 + 0.3 * streak + 0.16 * fine) * (0.86 + 0.28 * nD.r);
     rough = uRough + late * 0.06 + gGroove * 0.2;
   }
 #endif
@@ -170,21 +193,45 @@ void layerEval() {
     float fib = N3(p * 7.0).b * 0.6 + N3(p * 2.0).r * 0.4;
     alb = uCol * (0.75 + 0.5 * fib); rough = 1.0; metal = 0.0;
     gSheenC = uCol2; gSheenR = 0.55;
+#ifdef P_WEAVE
+    // woven grille cloth: pale ground with darker pinstripes, threads shaded by the weave
+    mat3 B = axisBasis(); float sx = dot(vOP - uOrigin, B[0]) * uPat.y;
+    float s = abs(fract(sx) - 0.5);
+    float line = smoothstep(0.075, 0.05, s) + 0.6 * smoothstep(0.2, 0.18, s) * smoothstep(0.14, 0.16, s);
+    alb = mix(alb, uCol2 * (0.8 + 0.4 * fib), clamp(line, 0.0, 1.0)) * (1.0 - gGroove * 0.6);
+    gSheenC = uCol * 1.4; gSheenR = 0.4;
+#endif
+  }
+#endif
+#ifdef K_BAKELITE
+  {
+    // phenolic resin with a marbled swirl; oxidised it goes dull and olive-brown, polishing cuts back to gloss
+    cP = smoothstep(0.0, 1.0, vMB.g);
+    float sw = N3(vec3(p.x * 0.5, p.y * 1.8, p.z * 0.5) + nA.rgb * 0.9).r;
+    alb = mix(uCol, uCol2, smoothstep(0.35, 0.75, sw));
+    alb = mix(alb, vec3(0.085, 0.075, 0.045) + alb * 0.35, (1.0 - cP) * 0.7);
+    rough = mix(uRough, uRoughPol, cP) * (0.85 + 0.3 * nC.b) + gMicro;
+    gCC = cP * 0.7; gCCR = 0.04;
   }
 #endif
 #ifdef K_PAINT
   alb *= 0.95 + 0.1 * nA.r;
   rough = uRough * (0.85 + 0.3 * nC.b);
 #endif
+  float inkAmt = 0.0;
 #ifdef L_MAP
   {
     mat3 B = axisBasis(); vec3 d = vOP - uOrigin;
-    vec2 uv = vec2(dot(d, B[0]), dot(d, B[1])) * uMapXf.x + 0.5;
-    float ink = texture2D(uMap, uv).a;
+    vec2 uv = vec2(dot(d, B[0]) * uMapXf.x, dot(d, B[1]) * (uMapXf.y != 0.0 ? uMapXf.y : uMapXf.x)) + 0.5;
+    float ink = texture2D(uMap, uv).a * step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    inkAmt = ink;
     alb = mix(alb, uCol2, ink);
     rough = mix(rough, 0.55, ink);
+    metal = mix(metal, 0.0, ink);
   }
 #endif
+  // backlit or glowing surfaces (radio dial, valve heaters)
+  gEm += uEmit * (1.0 - inkAmt);
 
   // ---- wear, from the bottom up
   float sAmt = smoothstep(0.03, 0.5, vMB.r);
@@ -217,7 +264,7 @@ void layerEval() {
     vec3 rc = mix(vec3(0.30, 0.10, 0.03), vec3(0.11, 0.045, 0.02), nC.g) * (0.8 + 0.5 * nB.r);
     rc = mix(rc, vec3(0.45, 0.2, 0.06), smoothstep(0.62, 0.8, nC.b) * 0.6);
     alb = mix(alb, rc, t); metal = mix(metal, 0.0, t); rough = mix(rough, 0.9, t); gIrid *= 1.0 - t;
-    float halo = smoothstep(0.0, 0.25, vMA.g + brk * 0.3) * (1.0 - t);
+    float halo = smoothstep(0.02, 0.25, vMA.g * (1.0 + brk)) * (1.0 - t);
     alb *= 1.0 - halo * 0.35; rough = mix(rough, 0.5, halo * 0.5);
   }
 #endif
@@ -233,7 +280,14 @@ void layerEval() {
 #endif
 #ifdef F_COAT
   cF = smoothstep(0.1, 0.9, vMA.a + brk * 0.08);
+#ifdef K_WOOD
+  // bare, freshly sanded wood is pale and dry; the finish wets it to its full colour
+  vec3 dry = mix(alb, vec3(dot(alb, vec3(0.333))), 0.35) * 1.3;
+  alb = mix(mix(alb, dry, 1.0 - cO), alb * uFinT, cF);
+  rough = mix(min(1.0, rough + 0.15 * (1.0 - cO)), rough, cF);
+#else
   alb = mix(alb, alb * uFinT, cF);
+#endif
   gCC = max(gCC, cF); gCCR = mix(gCCR, 0.025 + nC.r * 0.03, cF);
 #endif
 
@@ -313,11 +367,12 @@ function layerMat(o) {
   if (o.map) defs.L_MAP = '';
   const m = new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 0 });
   m.defines = Object.assign({}, m.defines, defs);
-  if (kind === 'enamel' || o.fin || o.old || o.cc) m.clearcoat = 1;
+  if (kind === 'enamel' || kind === 'bakelite' || o.fin || o.old || o.cc) m.clearcoat = 1;
   if (o.corr === 'tarnish' || o.irid) { m.iridescence = 1; m.iridescenceIOR = 1.8; }
   if (kind === 'felt' || o.sheen) { m.sheen = 1; m.sheenColor.setRGB(1, 1, 1); }
   if (kind === 'glass') { m.transmission = 1; m.ior = o.ior || 1.5; m.thickness = o.thick || 0.001; }
   m.envMapIntensity = o.env ?? 1;
+  if (o.side) m.side = o.side;
   const metal = kind === 'metal';
   const U = {
     uNoise: LAYER.noise, uTime: LAYER.time, uHint: LAYER.hint,
@@ -329,6 +384,7 @@ function layerMat(o) {
     uAxis: { value: o.axis || V3(0, 0, 1) }, uOrigin: { value: o.origin || V3() },
     uPat: { value: new THREE.Vector4(...(o.patP || [0, 0, 0, 0])) }, uNeed: { value: new THREE.Vector4() },
     uCC: { value: o.cc || 0 }, uIrid: { value: o.irid || 0 }, uIridT: { value: o.iridT || 380 }, uAOK: { value: o.aoK ?? 1 },
+    uEmit: { value: o.emit || new THREE.Color(0, 0, 0) },
     uMap: { value: o.map || null }, uMapXf: { value: new THREE.Vector4(...(o.mapXf || [1, 0, 0, 0])) },
   };
   m.userData.U = U;

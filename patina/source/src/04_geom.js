@@ -67,8 +67,7 @@ function weld(geom, tol = 1e-6) {
   return out;
 }
 
-// Split every edge longer than maxEdge (recursively), so flat faces carry enough vertices for painting.
-// Works per triangle on non-indexed data: both sides of a shared edge split it at the same midpoint, so no cracks.
+// Split edges longer than maxEdge (recursively), so flat faces carry enough vertices for painting.
 function tess(geom, maxEdge) {
   const g = geom.index ? geom.toNonIndexed() : geom;
   const P = g.attributes.position.array, Nn = g.attributes.normal.array;
@@ -76,24 +75,15 @@ function tess(geom, maxEdge) {
   const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
   const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
   const midn = (a, b) => { const v = [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  // bisect the longest edge until none is too long: every long edge is still split at its own midpoint (so
+  // neighbours agree and nothing cracks), and slivers cost linear, not quadratic, triangles
   function emit(a, b, c, na, nb, nc, depth) {
-    const ab = d2(a, b) > m2, bc = d2(b, c) > m2, ca = d2(c, a) > m2;
-    if (depth > 12 || (!ab && !bc && !ca)) { pos.push(...a, ...b, ...c); nor.push(...na, ...nb, ...nc); return; }
-    const k = (ab ? 1 : 0) + (bc ? 1 : 0) + (ca ? 1 : 0), D = depth + 1;
-    if (k === 3) {
-      const mab = mid(a, b), mbc = mid(b, c), mca = mid(c, a), nab = midn(na, nb), nbc = midn(nb, nc), nca = midn(nc, na);
-      emit(a, mab, mca, na, nab, nca, D); emit(mab, b, mbc, nab, nb, nbc, D); emit(mca, mbc, c, nca, nbc, nc, D); emit(mab, mbc, mca, nab, nbc, nca, D);
-    } else if (k === 1) {
-      if (ab) { const m = mid(a, b), nm = midn(na, nb); emit(a, m, c, na, nm, nc, D); emit(m, b, c, nm, nb, nc, D); }
-      else if (bc) { const m = mid(b, c), nm = midn(nb, nc); emit(a, b, m, na, nb, nm, D); emit(a, m, c, na, nm, nc, D); }
-      else { const m = mid(c, a), nm = midn(nc, na); emit(a, b, m, na, nb, nm, D); emit(m, b, c, nm, nb, nc, D); }
-    } else {
-      // two long edges: rotate so the short one is c-a
-      if (!ab) return emit(b, c, a, nb, nc, na, depth);
-      if (!bc) return emit(c, a, b, nc, na, nb, depth);
-      const mab = mid(a, b), mbc = mid(b, c), nab = midn(na, nb), nbc = midn(nb, nc);
-      emit(mab, b, mbc, nab, nb, nbc, D); emit(a, mab, mbc, na, nab, nbc, D); emit(a, mbc, c, na, nbc, nc, D);
-    }
+    const ab = d2(a, b), bc = d2(b, c), ca = d2(c, a), mx = Math.max(ab, bc, ca);
+    if (depth > 40 || mx <= m2) { pos.push(...a, ...b, ...c); nor.push(...na, ...nb, ...nc); return; }
+    const D = depth + 1;
+    if (mx === ab) { const m = mid(a, b), nm = midn(na, nb); emit(a, m, c, na, nm, nc, D); emit(m, b, c, nm, nb, nc, D); }
+    else if (mx === bc) { const m = mid(b, c), nm = midn(nb, nc); emit(a, b, m, na, nb, nm, D); emit(a, m, c, na, nm, nc, D); }
+    else { const m = mid(c, a), nm = midn(nc, na); emit(a, b, m, na, nb, nm, D); emit(m, b, c, nm, nb, nc, D); }
   }
   for (let i = 0; i < P.length; i += 9) {
     emit([P[i], P[i + 1], P[i + 2]], [P[i + 3], P[i + 4], P[i + 5]], [P[i + 6], P[i + 7], P[i + 8]],
@@ -257,4 +247,158 @@ function gridQuery(g, x, y, z, r, fn) {
       if (d2 < r2) fn(i, d2 / r2);
     }
   }
+}
+
+// Smooth normals across edges flatter than `angle` degrees, keep sharper ones hard (for extrusions, which three
+// gives flat per-face normals). Returns non-indexed geometry, ready for tess().
+function creaseNormals(geom, angle = 35) {
+  const g = geom.index ? geom.toNonIndexed() : geom;
+  const P = g.attributes.position.array, nt = P.length / 9;
+  const fn = new Float32Array(nt * 3), fu = new Float32Array(nt * 3);
+  for (let t = 0; t < nt; t++) {
+    const o = t * 9;
+    const ux = P[o + 3] - P[o], uy = P[o + 4] - P[o + 1], uz = P[o + 5] - P[o + 2];
+    const vx = P[o + 6] - P[o], vy = P[o + 7] - P[o + 1], vz = P[o + 8] - P[o + 2];
+    const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx, l = Math.hypot(cx, cy, cz) || 1e-12;
+    fn[t * 3] = cx; fn[t * 3 + 1] = cy; fn[t * 3 + 2] = cz;
+    fu[t * 3] = cx / l; fu[t * 3 + 1] = cy / l; fu[t * 3 + 2] = cz / l;
+  }
+  const groups = new Map(), q = 1e6;
+  for (let c = 0; c < nt * 3; c++) {
+    const k = Math.round(P[c * 3] * q) + ',' + Math.round(P[c * 3 + 1] * q) + ',' + Math.round(P[c * 3 + 2] * q);
+    let a = groups.get(k); if (!a) groups.set(k, a = []); a.push(c);
+  }
+  const cos = Math.cos((angle * Math.PI) / 180), N = new Float32Array(nt * 9);
+  for (const list of groups.values()) {
+    for (const c of list) {
+      const t = (c / 3) | 0;
+      let x = 0, y = 0, z = 0;
+      for (const c2 of list) {
+        const t2 = (c2 / 3) | 0;
+        if (fu[t * 3] * fu[t2 * 3] + fu[t * 3 + 1] * fu[t2 * 3 + 1] + fu[t * 3 + 2] * fu[t2 * 3 + 2] >= cos) { x += fn[t2 * 3]; y += fn[t2 * 3 + 1]; z += fn[t2 * 3 + 2]; }
+      }
+      const l = Math.hypot(x, y, z) || 1;
+      N[c * 3] = x / l; N[c * 3 + 1] = y / l; N[c * 3 + 2] = z / l;
+    }
+  }
+  g.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+  return g;
+}
+// Shape helpers in the XY plane. A rounded rectangle with its own radius for the top and bottom corners.
+function rrect(w, h, rt, rb, cx = 0, cy = 0, path) {
+  const s = path || new THREE.Shape(), x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2;
+  s.moveTo(x0 + rb, y0); s.lineTo(x1 - rb, y0); s.quadraticCurveTo(x1, y0, x1, y0 + rb);
+  s.lineTo(x1, y1 - rt); s.quadraticCurveTo(x1, y1, x1 - rt, y1);
+  s.lineTo(x0 + rt, y1); s.quadraticCurveTo(x0, y1, x0, y1 - rt);
+  s.lineTo(x0, y0 + rb); s.quadraticCurveTo(x0, y0, x0 + rb, y0);
+  return s;
+}
+// ---- even meshes for extruded slabs
+// three's extrude caps are ear-clipped fans and its walls one quad per contour segment: long slivers that
+// subdivide badly. slab() resamples every outline to an even spacing, extrudes the walls in steps of that size,
+// and replaces the caps with a Delaunay mesh of the outline plus a hexagonal grid of interior points.
+function resampleLoop(pts, s) {
+  const loop = pts.slice();
+  if (loop.length > 1 && loop[0].distanceTo(loop[loop.length - 1]) < 1e-9) loop.pop();
+  const out = [];
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i], b = loop[(i + 1) % loop.length], k = Math.max(1, Math.ceil(a.distanceTo(b) / s));
+    for (let j = 0; j < k; j++) out.push(new THREE.Vector2().lerpVectors(a, b, j / k));
+  }
+  return out;
+}
+function inLoop(loop, x, y) {
+  let c = false;
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+    const a = loop[i], b = loop[j];
+    if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
+}
+// Bowyer-Watson, sweeping in x so finished triangles drop out early. Returns a flat index list.
+function delaunay(X, Y) {
+  const n = X.length;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < n; i++) { x0 = Math.min(x0, X[i]); x1 = Math.max(x1, X[i]); y0 = Math.min(y0, Y[i]); y1 = Math.max(y1, Y[i]); }
+  const dm = Math.max(x1 - x0, y1 - y0), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  const px = [...X, mx - 20 * dm, mx, mx + 20 * dm], py = [...Y, my - dm, my + 20 * dm, my - dm];
+  const tri = (a, b, c) => {
+    const ax = px[a], ay = py[a], bx = px[b], by = py[b], cx = px[c], cy = py[c];
+    const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by)) || 1e-30;
+    const ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
+    const uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
+    return { a, b, c, x: ux, y: uy, r2: (ax - ux) ** 2 + (ay - uy) ** 2 };
+  };
+  const order = Array.from({ length: n }, (_, i) => i).sort((p, q) => px[p] - px[q]);
+  let open = [tri(n, n + 1, n + 2)];
+  const done = [], edges = new Map();
+  for (const i of order) {
+    const x = px[i], y = py[i];
+    edges.clear();
+    for (let j = open.length - 1; j >= 0; j--) {
+      const t = open[j], dx = x - t.x;
+      if (dx > 0 && dx * dx > t.r2) { done.push(t); open[j] = open[open.length - 1]; open.pop(); continue; }
+      const dy = y - t.y;
+      if (dx * dx + dy * dy - t.r2 > 1e-14) continue;
+      for (const [u, v] of [[t.a, t.b], [t.b, t.c], [t.c, t.a]]) { const k = u < v ? u * 1e7 + v : v * 1e7 + u; edges.set(k, edges.has(k) ? null : [u, v]); }
+      open[j] = open[open.length - 1]; open.pop();
+    }
+    for (const e of edges.values()) if (e) open.push(tri(e[0], e[1], i));
+  }
+  const out = [];
+  for (const t of done.concat(open)) if (t.a < n && t.b < n && t.c < n) out.push(t.a, t.b, t.c);
+  return out;
+}
+// flat cap at height z facing +Z (up) or -Z, over `outer` minus `holes` (loops of Vector2, already resampled)
+function capTris(outer, holes, s, z, up, pos) {
+  const X = [], Y = [];
+  for (const loop of [outer, ...holes]) for (const p of loop) { X.push(p.x); Y.push(p.y); }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of outer) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+  const inside = (x, y) => inLoop(outer, x, y) && !holes.some((h) => inLoop(h, x, y));
+  // outline points (no more than s apart) bucketed by cell, to keep grid points off the outline
+  const bucket = new Map(), cell = (x, y) => Math.floor(x / s) * 100003 + Math.floor(y / s);
+  for (let i = 0; i < X.length; i++) { const k = cell(X[i], Y[i]); if (!bucket.has(k)) bucket.set(k, []); bucket.get(k).push(i); }
+  const lim = (s * 0.7) ** 2;
+  const near = (x, y) => {
+    const cx = Math.floor(x / s), cy = Math.floor(y / s);
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      const l = bucket.get((cx + a) * 100003 + cy + b); if (!l) continue;
+      for (const i of l) if ((X[i] - x) ** 2 + (Y[i] - y) ** 2 < lim) return true;
+    }
+    return false;
+  };
+  const rh = s * 0.866;
+  for (let r = 0, y = y0 + rh * 0.5; y < y1; y += rh, r++) {
+    for (let x = x0 + (r % 2 ? s * 0.5 : 0); x < x1; x += s) if (!near(x, y) && inside(x, y)) { X.push(x); Y.push(y); }
+  }
+  const T = delaunay(X, Y);
+  for (let i = 0; i < T.length; i += 3) {
+    let a = T[i], b = T[i + 1], c = T[i + 2];
+    if (!inside((X[a] + X[b] + X[c]) / 3, (Y[a] + Y[b] + Y[c]) / 3)) continue;
+    const ccw = (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]) > 0;
+    if (ccw !== up) { const t = b; b = c; c = t; }
+    pos.push(X[a], Y[a], z, X[b], Y[b], z, X[c], Y[c], z);
+  }
+}
+// extrude shapes along +Z (from z0, `depth` deep, plus `bevel` rounding at both ends), evenly meshed at about s
+function slab(shapes, depth, z0, bevel, s, curveSegments = 18) {
+  const pos = [];
+  for (const sh of shapes) {
+    const ex = sh.extractPoints(curveSegments);
+    const outer = resampleLoop(ex.shape, s), holes = ex.holes.map((h) => resampleLoop(h, s));
+    const shape = new THREE.Shape(outer);
+    for (const h of holes) shape.holes.push(new THREE.Path(h));
+    const g = new THREE.ExtrudeGeometry(shape, { depth, steps: Math.max(1, Math.ceil(depth / s)), curveSegments: 1,
+      bevelEnabled: !!bevel, bevelThickness: bevel || 0, bevelSize: bevel || 0, bevelSegments: 4 });
+    const P = g.attributes.position.array;
+    for (const gr of g.groups) if (gr.materialIndex === 1) for (let i = gr.start * 3; i < (gr.start + gr.count) * 3; i++) pos.push(P[i]);
+    g.dispose();
+    capTris(outer, holes, s, -(bevel || 0), false, pos);
+    capTris(outer, holes, s, depth + (bevel || 0), true, pos);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.translate(0, 0, z0);
+  return tess(creaseNormals(g, 40), s * 1.6);
 }

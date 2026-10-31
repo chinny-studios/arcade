@@ -362,7 +362,7 @@ uniform float uTime; uniform float uHint;
 uniform vec3 uCol; uniform vec3 uCol2; uniform vec3 uDirt; uniform vec3 uDust; uniform vec3 uFinT; uniform vec3 uOldT;
 uniform float uRough; uniform float uRoughPol; uniform float uMetal; uniform float uScale;
 uniform vec3 uAxis; uniform vec3 uOrigin; uniform vec4 uPat; uniform vec4 uNeed;
-uniform float uCC; uniform float uIrid; uniform float uIridT; uniform float uAOK;
+uniform float uCC; uniform float uIrid; uniform float uIridT; uniform float uAOK; uniform vec3 uEmit;
 #ifdef L_MAP
 uniform sampler2D uMap; uniform vec4 uMapXf;
 #endif
@@ -377,6 +377,15 @@ float hash1(float n) { return fract(sin(n * 12.9898 + 4.1) * 43758.5453); }
 float lodf(float wl) { return smoothstep(1.6, 4.5, wl / max(gFw, 1e-7)); }
 mat3 axisBasis() {
   vec3 a = normalize(uAxis);
+  vec3 t1 = normalize(cross(a, abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  return mat3(t1, cross(a, t1), a);
+}
+
+// wood grain axis; with uPat.z set, faces turned sideways (|n.x| large) get grain running front to back, as a
+// veneered cabinet's side panels do
+mat3 woodBasis() {
+  vec3 a = normalize(uAxis);
+  if (uPat.z > 0.5 && abs(normalize(vON).x) > 0.7) a = vec3(0.0, 0.0, 1.0);
   vec3 t1 = normalize(cross(a, abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
   return mat3(t1, cross(a, t1), a);
 }
@@ -414,9 +423,22 @@ float patH(vec3 op) {
     gMicro += band * (1.0 - lodf(wl)) * 0.25;
   }
 #endif
+#ifdef P_WEAVE
+  {
+    // plain weave: warp and weft threads alternate over and under
+    mat3 B = axisBasis(); vec3 d = op - uOrigin; vec2 q = vec2(dot(d, B[0]), dot(d, B[1])) * uPat.x;
+    float over = mod(floor(q.x) + floor(q.y), 2.0);
+    float a = sin(3.14159 * fract(q.x)), b = sin(3.14159 * fract(q.y));
+    float hh = mix(a, b, over) * 0.8 + 0.2 * min(a, b);
+    float f = lodf(1.0 / uPat.x);
+    h += (hh - 0.5) * uPat.w * f;
+    gGroove += (1.0 - hh) * f * 0.35;
+    gMicro += (1.0 - f) * 0.1;
+  }
+#endif
 #ifdef P_WOOD
   {
-    mat3 B = axisBasis(); vec3 d = op - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
+    mat3 B = woodBasis(); vec3 d = op - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
     float pore = N3(vec3(q.x * uScale * 7.0, q.y * uScale * 7.0, q.z * uScale * 0.35)).b;
     float pr = smoothstep(0.64, 0.8, pore) * lodf(1.0 / (uScale * 7.0));
     h -= pr * uPat.w;
@@ -453,7 +475,7 @@ float layerH(vec3 op) {
   h += cC * ((N3(p * 2.7).r - 0.5) + (N3(p * 9.0).b - 0.5) * 0.6) * 0.3 / (uScale * 2.7);
 #endif
 #ifdef O_OLD
-  h -= cO * (1.0 - smoothstep(0.0, 0.1, N3(p * 1.5).a)) * 0.08 / (uScale * 1.5);
+  h -= cO * (1.0 - smoothstep(0.0, 0.1, N3(p * 1.5).a)) * 0.04 / (uScale * 1.5);
 #endif
   h += cG * (N3(p * 5.0).g - 0.4) * 0.07 / (uScale * 5.0);
   return h;
@@ -483,7 +505,7 @@ void layerEval() {
 
 #ifdef K_METAL
   cP = smoothstep(0.0, 1.0, vMB.g);
-  rough = mix(uRough, uRoughPol, cP) * (0.8 + 0.4 * nC.b) + gMicro;
+  rough = mix(uRough, uRoughPol, cP) * (0.88 + 0.24 * nC.b) + gMicro;
   alb *= 0.94 + 0.08 * nA.r + 0.08 * nD.r;
 #endif
 #ifdef K_ENAMEL
@@ -495,12 +517,13 @@ void layerEval() {
 #endif
 #ifdef K_WOOD
   {
-    mat3 B = axisBasis(); vec3 d = vOP - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
+    mat3 B = woodBasis(); vec3 d = vOP - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
     float warp = (N3(vec3(q.x, q.y, q.z * 0.12) * uScale * 0.45).r - 0.5) * uPat.y + (nB.g - 0.5) * 0.12;
     float ring = fract(length(q.xy) * uPat.x + warp);
-    float late = smoothstep(0.5, 0.86, ring) * (1.0 - smoothstep(0.93, 1.0, ring));
+    float late = smoothstep(0.42, 0.9, ring) * (1.0 - smoothstep(0.93, 1.0, ring));
     float streak = N3(vec3(q.x * uScale * 3.0, q.y * uScale * 3.0, q.z * uScale * 0.18)).r;
-    alb = mix(uCol, uCol2, late * 0.9) * (0.82 + 0.36 * streak);
+    float fine = N3(vec3(q.x * uScale * 9.0, q.y * uScale * 9.0, q.z * uScale * 0.5)).b;
+    alb = mix(uCol, uCol2, late * 0.62) * (0.78 + 0.3 * streak + 0.16 * fine) * (0.86 + 0.28 * nD.r);
     rough = uRough + late * 0.06 + gGroove * 0.2;
   }
 #endif
@@ -509,21 +532,45 @@ void layerEval() {
     float fib = N3(p * 7.0).b * 0.6 + N3(p * 2.0).r * 0.4;
     alb = uCol * (0.75 + 0.5 * fib); rough = 1.0; metal = 0.0;
     gSheenC = uCol2; gSheenR = 0.55;
+#ifdef P_WEAVE
+    // woven grille cloth: pale ground with darker pinstripes, threads shaded by the weave
+    mat3 B = axisBasis(); float sx = dot(vOP - uOrigin, B[0]) * uPat.y;
+    float s = abs(fract(sx) - 0.5);
+    float line = smoothstep(0.075, 0.05, s) + 0.6 * smoothstep(0.2, 0.18, s) * smoothstep(0.14, 0.16, s);
+    alb = mix(alb, uCol2 * (0.8 + 0.4 * fib), clamp(line, 0.0, 1.0)) * (1.0 - gGroove * 0.6);
+    gSheenC = uCol * 1.4; gSheenR = 0.4;
+#endif
+  }
+#endif
+#ifdef K_BAKELITE
+  {
+    // phenolic resin with a marbled swirl; oxidised it goes dull and olive-brown, polishing cuts back to gloss
+    cP = smoothstep(0.0, 1.0, vMB.g);
+    float sw = N3(vec3(p.x * 0.5, p.y * 1.8, p.z * 0.5) + nA.rgb * 0.9).r;
+    alb = mix(uCol, uCol2, smoothstep(0.35, 0.75, sw));
+    alb = mix(alb, vec3(0.085, 0.075, 0.045) + alb * 0.35, (1.0 - cP) * 0.7);
+    rough = mix(uRough, uRoughPol, cP) * (0.85 + 0.3 * nC.b) + gMicro;
+    gCC = cP * 0.7; gCCR = 0.04;
   }
 #endif
 #ifdef K_PAINT
   alb *= 0.95 + 0.1 * nA.r;
   rough = uRough * (0.85 + 0.3 * nC.b);
 #endif
+  float inkAmt = 0.0;
 #ifdef L_MAP
   {
     mat3 B = axisBasis(); vec3 d = vOP - uOrigin;
-    vec2 uv = vec2(dot(d, B[0]), dot(d, B[1])) * uMapXf.x + 0.5;
-    float ink = texture2D(uMap, uv).a;
+    vec2 uv = vec2(dot(d, B[0]) * uMapXf.x, dot(d, B[1]) * (uMapXf.y != 0.0 ? uMapXf.y : uMapXf.x)) + 0.5;
+    float ink = texture2D(uMap, uv).a * step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    inkAmt = ink;
     alb = mix(alb, uCol2, ink);
     rough = mix(rough, 0.55, ink);
+    metal = mix(metal, 0.0, ink);
   }
 #endif
+  // backlit or glowing surfaces (radio dial, valve heaters)
+  gEm += uEmit * (1.0 - inkAmt);
 
   // ---- wear, from the bottom up
   float sAmt = smoothstep(0.03, 0.5, vMB.r);
@@ -556,7 +603,7 @@ void layerEval() {
     vec3 rc = mix(vec3(0.30, 0.10, 0.03), vec3(0.11, 0.045, 0.02), nC.g) * (0.8 + 0.5 * nB.r);
     rc = mix(rc, vec3(0.45, 0.2, 0.06), smoothstep(0.62, 0.8, nC.b) * 0.6);
     alb = mix(alb, rc, t); metal = mix(metal, 0.0, t); rough = mix(rough, 0.9, t); gIrid *= 1.0 - t;
-    float halo = smoothstep(0.0, 0.25, vMA.g + brk * 0.3) * (1.0 - t);
+    float halo = smoothstep(0.02, 0.25, vMA.g * (1.0 + brk)) * (1.0 - t);
     alb *= 1.0 - halo * 0.35; rough = mix(rough, 0.5, halo * 0.5);
   }
 #endif
@@ -572,7 +619,14 @@ void layerEval() {
 #endif
 #ifdef F_COAT
   cF = smoothstep(0.1, 0.9, vMA.a + brk * 0.08);
+#ifdef K_WOOD
+  // bare, freshly sanded wood is pale and dry; the finish wets it to its full colour
+  vec3 dry = mix(alb, vec3(dot(alb, vec3(0.333))), 0.35) * 1.3;
+  alb = mix(mix(alb, dry, 1.0 - cO), alb * uFinT, cF);
+  rough = mix(min(1.0, rough + 0.15 * (1.0 - cO)), rough, cF);
+#else
   alb = mix(alb, alb * uFinT, cF);
+#endif
   gCC = max(gCC, cF); gCCR = mix(gCCR, 0.025 + nC.r * 0.03, cF);
 #endif
 
@@ -652,11 +706,12 @@ function layerMat(o) {
   if (o.map) defs.L_MAP = '';
   const m = new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 0 });
   m.defines = Object.assign({}, m.defines, defs);
-  if (kind === 'enamel' || o.fin || o.old || o.cc) m.clearcoat = 1;
+  if (kind === 'enamel' || kind === 'bakelite' || o.fin || o.old || o.cc) m.clearcoat = 1;
   if (o.corr === 'tarnish' || o.irid) { m.iridescence = 1; m.iridescenceIOR = 1.8; }
   if (kind === 'felt' || o.sheen) { m.sheen = 1; m.sheenColor.setRGB(1, 1, 1); }
   if (kind === 'glass') { m.transmission = 1; m.ior = o.ior || 1.5; m.thickness = o.thick || 0.001; }
   m.envMapIntensity = o.env ?? 1;
+  if (o.side) m.side = o.side;
   const metal = kind === 'metal';
   const U = {
     uNoise: LAYER.noise, uTime: LAYER.time, uHint: LAYER.hint,
@@ -668,6 +723,7 @@ function layerMat(o) {
     uAxis: { value: o.axis || V3(0, 0, 1) }, uOrigin: { value: o.origin || V3() },
     uPat: { value: new THREE.Vector4(...(o.patP || [0, 0, 0, 0])) }, uNeed: { value: new THREE.Vector4() },
     uCC: { value: o.cc || 0 }, uIrid: { value: o.irid || 0 }, uIridT: { value: o.iridT || 380 }, uAOK: { value: o.aoK ?? 1 },
+    uEmit: { value: o.emit || new THREE.Color(0, 0, 0) },
     uMap: { value: o.map || null }, uMapXf: { value: new THREE.Vector4(...(o.mapXf || [1, 0, 0, 0])) },
   };
   m.userData.U = U;
@@ -781,8 +837,7 @@ function weld(geom, tol = 1e-6) {
   return out;
 }
 
-// Split every edge longer than maxEdge (recursively), so flat faces carry enough vertices for painting.
-// Works per triangle on non-indexed data: both sides of a shared edge split it at the same midpoint, so no cracks.
+// Split edges longer than maxEdge (recursively), so flat faces carry enough vertices for painting.
 function tess(geom, maxEdge) {
   const g = geom.index ? geom.toNonIndexed() : geom;
   const P = g.attributes.position.array, Nn = g.attributes.normal.array;
@@ -790,24 +845,15 @@ function tess(geom, maxEdge) {
   const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
   const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
   const midn = (a, b) => { const v = [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  // bisect the longest edge until none is too long: every long edge is still split at its own midpoint (so
+  // neighbours agree and nothing cracks), and slivers cost linear, not quadratic, triangles
   function emit(a, b, c, na, nb, nc, depth) {
-    const ab = d2(a, b) > m2, bc = d2(b, c) > m2, ca = d2(c, a) > m2;
-    if (depth > 12 || (!ab && !bc && !ca)) { pos.push(...a, ...b, ...c); nor.push(...na, ...nb, ...nc); return; }
-    const k = (ab ? 1 : 0) + (bc ? 1 : 0) + (ca ? 1 : 0), D = depth + 1;
-    if (k === 3) {
-      const mab = mid(a, b), mbc = mid(b, c), mca = mid(c, a), nab = midn(na, nb), nbc = midn(nb, nc), nca = midn(nc, na);
-      emit(a, mab, mca, na, nab, nca, D); emit(mab, b, mbc, nab, nb, nbc, D); emit(mca, mbc, c, nca, nbc, nc, D); emit(mab, mbc, mca, nab, nbc, nca, D);
-    } else if (k === 1) {
-      if (ab) { const m = mid(a, b), nm = midn(na, nb); emit(a, m, c, na, nm, nc, D); emit(m, b, c, nm, nb, nc, D); }
-      else if (bc) { const m = mid(b, c), nm = midn(nb, nc); emit(a, b, m, na, nb, nm, D); emit(a, m, c, na, nm, nc, D); }
-      else { const m = mid(c, a), nm = midn(nc, na); emit(a, b, m, na, nb, nm, D); emit(m, b, c, nm, nb, nc, D); }
-    } else {
-      // two long edges: rotate so the short one is c-a
-      if (!ab) return emit(b, c, a, nb, nc, na, depth);
-      if (!bc) return emit(c, a, b, nc, na, nb, depth);
-      const mab = mid(a, b), mbc = mid(b, c), nab = midn(na, nb), nbc = midn(nb, nc);
-      emit(mab, b, mbc, nab, nb, nbc, D); emit(a, mab, mbc, na, nab, nbc, D); emit(a, mbc, c, na, nbc, nc, D);
-    }
+    const ab = d2(a, b), bc = d2(b, c), ca = d2(c, a), mx = Math.max(ab, bc, ca);
+    if (depth > 40 || mx <= m2) { pos.push(...a, ...b, ...c); nor.push(...na, ...nb, ...nc); return; }
+    const D = depth + 1;
+    if (mx === ab) { const m = mid(a, b), nm = midn(na, nb); emit(a, m, c, na, nm, nc, D); emit(m, b, c, nm, nb, nc, D); }
+    else if (mx === bc) { const m = mid(b, c), nm = midn(nb, nc); emit(a, b, m, na, nb, nm, D); emit(a, m, c, na, nm, nc, D); }
+    else { const m = mid(c, a), nm = midn(nc, na); emit(a, b, m, na, nb, nm, D); emit(m, b, c, nm, nb, nc, D); }
   }
   for (let i = 0; i < P.length; i += 9) {
     emit([P[i], P[i + 1], P[i + 2]], [P[i + 3], P[i + 4], P[i + 5]], [P[i + 6], P[i + 7], P[i + 8]],
@@ -973,6 +1019,160 @@ function gridQuery(g, x, y, z, r, fn) {
   }
 }
 
+// Smooth normals across edges flatter than `angle` degrees, keep sharper ones hard (for extrusions, which three
+// gives flat per-face normals). Returns non-indexed geometry, ready for tess().
+function creaseNormals(geom, angle = 35) {
+  const g = geom.index ? geom.toNonIndexed() : geom;
+  const P = g.attributes.position.array, nt = P.length / 9;
+  const fn = new Float32Array(nt * 3), fu = new Float32Array(nt * 3);
+  for (let t = 0; t < nt; t++) {
+    const o = t * 9;
+    const ux = P[o + 3] - P[o], uy = P[o + 4] - P[o + 1], uz = P[o + 5] - P[o + 2];
+    const vx = P[o + 6] - P[o], vy = P[o + 7] - P[o + 1], vz = P[o + 8] - P[o + 2];
+    const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx, l = Math.hypot(cx, cy, cz) || 1e-12;
+    fn[t * 3] = cx; fn[t * 3 + 1] = cy; fn[t * 3 + 2] = cz;
+    fu[t * 3] = cx / l; fu[t * 3 + 1] = cy / l; fu[t * 3 + 2] = cz / l;
+  }
+  const groups = new Map(), q = 1e6;
+  for (let c = 0; c < nt * 3; c++) {
+    const k = Math.round(P[c * 3] * q) + ',' + Math.round(P[c * 3 + 1] * q) + ',' + Math.round(P[c * 3 + 2] * q);
+    let a = groups.get(k); if (!a) groups.set(k, a = []); a.push(c);
+  }
+  const cos = Math.cos((angle * Math.PI) / 180), N = new Float32Array(nt * 9);
+  for (const list of groups.values()) {
+    for (const c of list) {
+      const t = (c / 3) | 0;
+      let x = 0, y = 0, z = 0;
+      for (const c2 of list) {
+        const t2 = (c2 / 3) | 0;
+        if (fu[t * 3] * fu[t2 * 3] + fu[t * 3 + 1] * fu[t2 * 3 + 1] + fu[t * 3 + 2] * fu[t2 * 3 + 2] >= cos) { x += fn[t2 * 3]; y += fn[t2 * 3 + 1]; z += fn[t2 * 3 + 2]; }
+      }
+      const l = Math.hypot(x, y, z) || 1;
+      N[c * 3] = x / l; N[c * 3 + 1] = y / l; N[c * 3 + 2] = z / l;
+    }
+  }
+  g.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+  return g;
+}
+// Shape helpers in the XY plane. A rounded rectangle with its own radius for the top and bottom corners.
+function rrect(w, h, rt, rb, cx = 0, cy = 0, path) {
+  const s = path || new THREE.Shape(), x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2;
+  s.moveTo(x0 + rb, y0); s.lineTo(x1 - rb, y0); s.quadraticCurveTo(x1, y0, x1, y0 + rb);
+  s.lineTo(x1, y1 - rt); s.quadraticCurveTo(x1, y1, x1 - rt, y1);
+  s.lineTo(x0 + rt, y1); s.quadraticCurveTo(x0, y1, x0, y1 - rt);
+  s.lineTo(x0, y0 + rb); s.quadraticCurveTo(x0, y0, x0 + rb, y0);
+  return s;
+}
+// ---- even meshes for extruded slabs
+// three's extrude caps are ear-clipped fans and its walls one quad per contour segment: long slivers that
+// subdivide badly. slab() resamples every outline to an even spacing, extrudes the walls in steps of that size,
+// and replaces the caps with a Delaunay mesh of the outline plus a hexagonal grid of interior points.
+function resampleLoop(pts, s) {
+  const loop = pts.slice();
+  if (loop.length > 1 && loop[0].distanceTo(loop[loop.length - 1]) < 1e-9) loop.pop();
+  const out = [];
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i], b = loop[(i + 1) % loop.length], k = Math.max(1, Math.ceil(a.distanceTo(b) / s));
+    for (let j = 0; j < k; j++) out.push(new THREE.Vector2().lerpVectors(a, b, j / k));
+  }
+  return out;
+}
+function inLoop(loop, x, y) {
+  let c = false;
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+    const a = loop[i], b = loop[j];
+    if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
+}
+// Bowyer-Watson, sweeping in x so finished triangles drop out early. Returns a flat index list.
+function delaunay(X, Y) {
+  const n = X.length;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < n; i++) { x0 = Math.min(x0, X[i]); x1 = Math.max(x1, X[i]); y0 = Math.min(y0, Y[i]); y1 = Math.max(y1, Y[i]); }
+  const dm = Math.max(x1 - x0, y1 - y0), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  const px = [...X, mx - 20 * dm, mx, mx + 20 * dm], py = [...Y, my - dm, my + 20 * dm, my - dm];
+  const tri = (a, b, c) => {
+    const ax = px[a], ay = py[a], bx = px[b], by = py[b], cx = px[c], cy = py[c];
+    const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by)) || 1e-30;
+    const ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
+    const uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
+    return { a, b, c, x: ux, y: uy, r2: (ax - ux) ** 2 + (ay - uy) ** 2 };
+  };
+  const order = Array.from({ length: n }, (_, i) => i).sort((p, q) => px[p] - px[q]);
+  let open = [tri(n, n + 1, n + 2)];
+  const done = [], edges = new Map();
+  for (const i of order) {
+    const x = px[i], y = py[i];
+    edges.clear();
+    for (let j = open.length - 1; j >= 0; j--) {
+      const t = open[j], dx = x - t.x;
+      if (dx > 0 && dx * dx > t.r2) { done.push(t); open[j] = open[open.length - 1]; open.pop(); continue; }
+      const dy = y - t.y;
+      if (dx * dx + dy * dy - t.r2 > 1e-14) continue;
+      for (const [u, v] of [[t.a, t.b], [t.b, t.c], [t.c, t.a]]) { const k = u < v ? u * 1e7 + v : v * 1e7 + u; edges.set(k, edges.has(k) ? null : [u, v]); }
+      open[j] = open[open.length - 1]; open.pop();
+    }
+    for (const e of edges.values()) if (e) open.push(tri(e[0], e[1], i));
+  }
+  const out = [];
+  for (const t of done.concat(open)) if (t.a < n && t.b < n && t.c < n) out.push(t.a, t.b, t.c);
+  return out;
+}
+// flat cap at height z facing +Z (up) or -Z, over `outer` minus `holes` (loops of Vector2, already resampled)
+function capTris(outer, holes, s, z, up, pos) {
+  const X = [], Y = [];
+  for (const loop of [outer, ...holes]) for (const p of loop) { X.push(p.x); Y.push(p.y); }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of outer) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+  const inside = (x, y) => inLoop(outer, x, y) && !holes.some((h) => inLoop(h, x, y));
+  // outline points (no more than s apart) bucketed by cell, to keep grid points off the outline
+  const bucket = new Map(), cell = (x, y) => Math.floor(x / s) * 100003 + Math.floor(y / s);
+  for (let i = 0; i < X.length; i++) { const k = cell(X[i], Y[i]); if (!bucket.has(k)) bucket.set(k, []); bucket.get(k).push(i); }
+  const lim = (s * 0.7) ** 2;
+  const near = (x, y) => {
+    const cx = Math.floor(x / s), cy = Math.floor(y / s);
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      const l = bucket.get((cx + a) * 100003 + cy + b); if (!l) continue;
+      for (const i of l) if ((X[i] - x) ** 2 + (Y[i] - y) ** 2 < lim) return true;
+    }
+    return false;
+  };
+  const rh = s * 0.866;
+  for (let r = 0, y = y0 + rh * 0.5; y < y1; y += rh, r++) {
+    for (let x = x0 + (r % 2 ? s * 0.5 : 0); x < x1; x += s) if (!near(x, y) && inside(x, y)) { X.push(x); Y.push(y); }
+  }
+  const T = delaunay(X, Y);
+  for (let i = 0; i < T.length; i += 3) {
+    let a = T[i], b = T[i + 1], c = T[i + 2];
+    if (!inside((X[a] + X[b] + X[c]) / 3, (Y[a] + Y[b] + Y[c]) / 3)) continue;
+    const ccw = (X[b] - X[a]) * (Y[c] - Y[a]) - (Y[b] - Y[a]) * (X[c] - X[a]) > 0;
+    if (ccw !== up) { const t = b; b = c; c = t; }
+    pos.push(X[a], Y[a], z, X[b], Y[b], z, X[c], Y[c], z);
+  }
+}
+// extrude shapes along +Z (from z0, `depth` deep, plus `bevel` rounding at both ends), evenly meshed at about s
+function slab(shapes, depth, z0, bevel, s, curveSegments = 18) {
+  const pos = [];
+  for (const sh of shapes) {
+    const ex = sh.extractPoints(curveSegments);
+    const outer = resampleLoop(ex.shape, s), holes = ex.holes.map((h) => resampleLoop(h, s));
+    const shape = new THREE.Shape(outer);
+    for (const h of holes) shape.holes.push(new THREE.Path(h));
+    const g = new THREE.ExtrudeGeometry(shape, { depth, steps: Math.max(1, Math.ceil(depth / s)), curveSegments: 1,
+      bevelEnabled: !!bevel, bevelThickness: bevel || 0, bevelSize: bevel || 0, bevelSegments: 4 });
+    const P = g.attributes.position.array;
+    for (const gr of g.groups) if (gr.materialIndex === 1) for (let i = gr.start * 3; i < (gr.start + gr.count) * 3; i++) pos.push(P[i]);
+    g.dispose();
+    capTris(outer, holes, s, -(bevel || 0), false, pos);
+    capTris(outer, holes, s, depth + (bevel || 0), true, pos);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.translate(0, 0, z0);
+  return tess(creaseNormals(g, 40), s * 1.6);
+}
+
 // Renderer, the studio environment, lights, the workbench and the turntable.
 const canvas = $('#c');
 let renderer;
@@ -1080,6 +1280,7 @@ function buildLights() {
   key.shadow.bias = -0.00015; key.shadow.normalBias = 0.0004;
   key.shadow.radius = 4;
   scene.add(key, key.target);
+  R.keyI = key.intensity;
   const rim = new THREE.DirectionalLight(0xe4ecff, 1.1);
   rim.position.set(0.5, 0.45, -0.6);
   scene.add(rim);
@@ -1091,25 +1292,52 @@ function buildBench() {
   const oak = layerMat({ kind: 'wood', col: lin(0.30, 0.17, 0.08), col2: lin(0.16, 0.08, 0.035), rough: 0.55, scale: 9,
     pat: 'wood', axis: V3(1, 0, 0.08).normalize(), origin: V3(0, -0.5, -0.9), patP: [55, 1.4, 0, 0.00004], fin: 'oil', finT: lin(0.8, 0.62, 0.45) });
   const bg = tess(new THREE.BoxGeometry(1.8, 0.05, 1.0), 0.06);
-  fixedMasks(bg, 0.12, 0.6, 1, 0.5);
+  fixedMasks(bg, 0.12, 1, 1, 0.5);
   const bench = new THREE.Mesh(bg, oak);
   bench.position.y = -0.055; bench.receiveShadow = true;
   scene.add(bench);
   R.bench = bench;
 
+  buildTurntable(0.08);
+}
+
+// The turntable is sized to the piece: r is the platter radius.
+function buildTurntable(r) {
+  if (R.tt && R.ttR === r) return;
+  // anything riding on the old platter (a piece) moves to the new one
+  const keep = R.tt ? [...R.platter.children].filter((c) => !R.platterParts.includes(c)) : [];
+  if (R.tt) {
+    for (const k of keep) R.platter.remove(k);
+    scene.remove(R.tt);
+    R.tt.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+  }
+  R.ttR = r;
+  const s = r / 0.08, h = Math.min(1.6, Math.sqrt(s));
   const tt = new THREE.Group(); scene.add(tt); R.tt = tt;
   const lac = layerMat({ kind: 'paint', col: lin(0.012, 0.011, 0.01), rough: 0.25, cc: 1, scale: 60 });
-  const baseG = fixedMasks(lathe([[0, -0.03], [0.088, -0.03, 0.002], [0.086, -0.008, 0.003], [0.0, -0.008]], 0.002, 160), 0.06);
+  const baseG = fixedMasks(lathe([[0, -0.03], [0.088 * s, -0.03, 0.002], [0.086 * s, -0.008, 0.003 * h], [0.0, -0.008]], 0.002 * s, Math.round(160 + 40 * h)), 0.06);
   const base = new THREE.Mesh(baseG, lac); base.castShadow = true; base.receiveShadow = true; tt.add(base);
   // the rotating platter
   const plat = new THREE.Group(); tt.add(plat); R.platter = plat;
   const brass = layerMat({ kind: 'metal', col: lin(0.92, 0.72, 0.38), rough: 0.25, roughPol: 0.12, scale: 80, corr: 'tarnish' });
-  const ringG = fixedMasks(lathe([[0.074, -0.008], [0.08, -0.008, 0.001], [0.08, -0.001, 0.0015], [0.0745, 0.0015, 0.001], [0.0735, -0.002]], 0.0008, 220), 0.05, 0, 0.8, 0.3, 0.25);
+  const ro = 0.08 * s;
+  const ringG = fixedMasks(lathe([[ro - 0.006, -0.008], [ro, -0.008, 0.001], [ro, -0.001, 0.0015], [ro - 0.0055, 0.0015, 0.001], [ro - 0.0065, -0.002]], 0.0008, Math.round(220 * h)), 0.05, 0, 0.8, 0.3, 0.25);
   const ring = new THREE.Mesh(ringG, brass); ring.castShadow = true; ring.receiveShadow = true; plat.add(ring);
   const felt = layerMat({ kind: 'felt', col: lin(0.025, 0.06, 0.04), col2: lin(0.18, 0.32, 0.24), scale: 70 });
-  const feltG = fixedMasks(lathe([[0, -0.006], [0.0745, -0.006], [0.0745, 0, 0.001], [0, 0]], 0.003, 160), 0.04);
+  const feltG = fixedMasks(lathe([[0, -0.006], [ro - 0.0055, -0.006], [ro - 0.0055, 0, 0.001], [0, 0]], 0.003 * s, Math.round(160 * h)), 0.04);
   const fm = new THREE.Mesh(feltG, felt); fm.receiveShadow = true; plat.add(fm);
   R.platterParts = [ring, fm];
+  for (const k of keep) plat.add(k);
+}
+
+// The light rig scales with the piece so a radio is lit like a watch, only from further away.
+const KEY_POS = V3(-0.42, 0.62, 0.46);
+function setRig(k, focus) {
+  R.rig = k;
+  R.key.intensity = R.keyI * k * k;
+  R.key.target.position.set(0, focus ? focus.y * 0.6 : 0.03, 0);
+  R.key.shadow.camera.near = 0.3 * k; R.key.shadow.camera.far = 1.6 * k;
+  R.key.shadow.camera.updateProjectionMatrix();
 }
 
 // Bakes per-vertex ambient occlusion and "reach" on the GPU.
@@ -1273,6 +1501,8 @@ function addPart(piece, o) {
 
 // Bake AO/reach for everything on the turntable, then lay down the starting wear.
 function preparePiece(piece) {
+  buildTurntable(piece.table || 0.08);
+  setRig(piece.rig || 1, piece.focus);
   R.platter.add(piece.root);
   R.platter.rotation.y = 0;
   piece.setOpen && piece.setOpen(false, true);
@@ -1303,14 +1533,14 @@ function preparePiece(piece) {
   for (const p of all) {
     const r = res.get(p.mesh);
     p.ao = r.ao; p.reach = r.reach;
-    const a = p.geom.attributes.aoR.array;
-    for (let i = 0; i < p.n; i++) { a[i * 2] = r.ao[i]; a[i * 2 + 1] = r.reach[i]; }
-    p.geom.attributes.aoR.needsUpdate = true;
     p.rel = new THREE.Matrix4().multiplyMatrices(inv, p.mesh.matrixWorld);
     p.bvh = buildBVH(p.geom);
     p.grid = buildGrid(p.geom.attributes.position.array, piece.brush[1] * 0.7);
     p.geom.computeBoundingSphere();
     initWear(p, piece);
+    const a = p.geom.attributes.aoR.array;
+    for (let i = 0; i < p.n; i++) { a[i * 2] = p.ao[i]; a[i * 2 + 1] = p.reach[i]; }
+    p.geom.attributes.aoR.needsUpdate = true;
     upload(p, true);
     p.beforeA = new THREE.BufferAttribute(p.mA.slice(), 4, true);
     p.beforeB = new THREE.BufferAttribute(p.mB.slice(), 4, true);
@@ -1340,6 +1570,13 @@ function initWear(p, piece) {
     if (I.polish) { m[o + 5] = I.polish[0] + (n1 - 0.5) * 2 * I.polish[1]; }
     else m[o + 5] = p.job.polish ? 0 : 1;
     if (I.fin !== undefined) m[o + 3] = I.fin;
+    // surfaces the job leaves alone (insides of cabinets): their own state, and they don't count
+    if (I.exclude && I.exclude(v, nv)) {
+      const e = I.excl || [0.1, 0, 0, 0, 0, 1];
+      for (let k = 0; k < 6; k++) m[o + k] = e[k];
+      p.reach[i] = 0;
+      continue;
+    }
     // what the camera can never see starts clean and counts for nothing
     if (p.reach[i] < 0.02) { m[o] = m[o + 1] = m[o + 2] = m[o + 4] = 0; m[o + 3] = p.job.fin ? 1 : m[o + 3]; m[o + 5] = 1; }
     for (let k = 0; k < 6; k++) m[o + k] = sat(m[o + k]);
@@ -1445,7 +1682,7 @@ function applyTool(p, i, w, tool, fx) {
     case 'sand':
       m[o] -= w * 1.0; m[o + 2] -= w * 1.25; m[o + 3] -= w * 1.5;
       if (J.corr) m[o + 1] -= w * 0.55;
-      if (s !== 'wood') m[o + 4] += w * (s === 'hard' ? 0.5 : 0.95);
+      if (s !== 'wood') m[o + 4] += w * (s === 'hard' ? 0.5 : 0.95); else m[o + 4] -= w * 1.1;
       m[o + 5] -= w * 0.9;
       break;
     case 'polish': {
@@ -1457,8 +1694,8 @@ function applyTool(p, i, w, tool, fx) {
       break;
     }
     case 'finish':
-      if (!J.fin) { fx.nofin += w; return; }
-      if (m[o] > 0.15 || m[o + 2] > 0.15 || m[o + 1] > 0.15) { fx.blocked += w; return; }
+      if (!J.fin) { fx.nofin += w; fx.total += w; fx.nofinName = p.name; return; }
+      if (m[o] > 0.15 || m[o + 2] > 0.15 || m[o + 1] > 0.15) { fx.blocked += w; fx.total += w; return; }
       m[o + 3] += w * 1.3;
       break;
   }
@@ -1725,6 +1962,195 @@ PIECES.push({
   },
 });
 
+// Piece 2: a 1938 walnut table radio, the "Aurelia Super Seven". Local frame: origin at the bottom centre,
+// front +Z. The back is open: turn it round to see the chassis, the valves and the speaker.
+function radioDialTexture() {
+  const S = 1024, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d'), R = S / 2;
+  x.translate(R, R);
+  x.fillStyle = x.strokeStyle = '#000';
+  const ring = (r, lw, a0 = 0, a1 = TAU) => { x.lineWidth = lw; x.beginPath(); x.arc(0, 0, r, a0, a1); x.stroke(); };
+  const A0 = -Math.PI * 0.75, A1 = Math.PI * 0.75;      // the scale runs 270 degrees, clockwise from bottom left
+  const arc = (r, lw) => ring(r, lw, A0 - Math.PI / 2, A1 - Math.PI / 2);
+  arc(R * 0.93, 4); arc(R * 0.86, 2);
+  for (let i = 0; i <= 90; i++) {
+    const a = A0 + (A1 - A0) * (i / 90);
+    x.save(); x.rotate(a); x.lineWidth = i % 5 ? 2 : 4.5;
+    x.beginPath(); x.moveTo(0, -R * 0.86); x.lineTo(0, -R * (i % 5 ? 0.9 : 0.93)); x.stroke(); x.restore();
+  }
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = `600 ${Math.round(R * 0.06)}px Georgia, serif`;
+  for (let i = 0; i <= 6; i++) {
+    const a = A0 + (A1 - A0) * (i / 6);
+    x.save(); x.rotate(a); x.fillText(String(200 + i * 60), 0, -R * 0.79); x.restore();
+  }
+  const stations = ['BUDAPEST', 'BERLIN', 'WIEN', 'PRAHA', 'HILVERSUM', 'BRUXELLES', 'PARIS', 'ROMA', 'OSLO', 'DROITWICH', 'LUXEMBOURG'];
+  x.font = `600 ${Math.round(R * 0.042)}px "Inter", system-ui, sans-serif`;
+  stations.forEach((s, i) => {
+    const a = A0 + (A1 - A0) * ((i + 0.5) / stations.length);
+    x.save(); x.rotate(a); x.translate(0, -R * 0.63); x.rotate(-Math.PI / 2); x.fillText(s, 0, 0); x.restore();
+  });
+  arc(R * 0.42, 1.5);
+  x.font = `italic 600 ${Math.round(R * 0.13)}px "Cormorant Garamond", Georgia, serif`;
+  x.fillText('Aurelia', 0, -R * 0.1);
+  x.font = `600 ${Math.round(R * 0.045)}px "Inter", system-ui, sans-serif`;
+  x.fillText('S U P E R   S E V E N', 0, R * 0.08);
+  x.fillText('MEDIUM WAVE  ·  METRES', 0, R * 0.6);
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+function nameplateTexture() {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#000'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = 'italic 600 96px "Cormorant Garamond", Georgia, serif';
+  x.fillText('Aurelia', 256, 66);
+  x.fillRect(24, 60, 60, 5); x.fillRect(428, 60, 60, 5);
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+// a valve's glass envelope as a thin closed solid around +Y: base, straight wall, domed top
+function valveGlass(R, h, tk) {
+  const pts = [[R * 0.9 - tk, 0], [R * 0.9, 0], [R, 0.008], [R, h - R]];
+  for (let k = 1; k <= 10; k++) { const a = (k / 10) * Math.PI / 2; pts.push([R * Math.cos(a), h - R + R * Math.sin(a)]); }
+  pts.push([0, h - tk]);
+  for (let k = 9; k >= 0; k--) { const a = (k / 10) * Math.PI / 2; pts.push([(R - tk) * Math.cos(a), h - R + (R - tk) * Math.sin(a)]); }
+  pts.push([R - tk, 0.008], [R * 0.9 - tk, 0]);
+  return lathe(pts, 0.0008, 72);
+}
+
+PIECES.push({
+  id: 'radio', title: 'Valve radio', era: 'Walnut and Bakelite, 1938',
+  blurb: 'Crazed, nicotine-brown varnish, a grille cloth gone yellow, dull knobs and a rusty chassis behind.',
+  done: 'It plays again. Walnut under new varnish, the Bakelite back to a deep shine, the dial lit and the valves glowing in the back.',
+  build() {
+    const W = 0.42, H = 0.25, D = 0.21, T = 0.012, bev = 0.004, DX = 0.105, DY = 0.15;
+    const piece = { id: 'radio', parts: [], props: [], root: new THREE.Group(), noiseF: 18, seed: 23,
+      brush: [0.004, 0.034], focus: V3(0, 0.125, 0), dist: 0.95, minDist: 0.2, maxDist: 1.8, pitch: 0.16, table: 0.27, rig: 2.1 };
+    const nicotine = { dirt: lin(0.085, 0.05, 0.02), dust: lin(0.3, 0.25, 0.17) };
+    const woodJob = { surf: 'wood', old: true, fin: 'Varnish' };
+    const woodInit = { grime: [0.15, 0.7, 0.35, 0.3], old: [0.9, 0.12], scratch: [0.6, 0.3], fin: 0 };
+    const veneer = (o) => Object.assign({ kind: 'wood', rough: 0.5, scale: 30, pat: 'wood', old: true, oldT: lin(0.42, 0.25, 0.1),
+      fin: 'varnish', finT: lin(0.8, 0.6, 0.42) }, nicotine, o);
+
+    // cabinet: a rounded tube of walnut veneer, open at the back
+    const outer = rrect(W - 2 * bev, H - 2 * bev, 0.06, 0.014, 0, H / 2);
+    outer.holes.push(rrect(W - 2 * T, H - 2 * T, 0.05, 0.006, 0, H / 2, new THREE.Path()));
+    const shell = slab([outer], D - 2 * bev, -D / 2 + bev, bev, 0.004, 24);
+    // the front baffle sits 12 mm back in the opening (its back is bare board)
+    const Wi = W - 2 * T - 2 * bev + 0.001, Hi = H - 2 * T - 2 * bev + 0.001;
+    const baffle = slab([rrect(Wi, Hi, 0.05 - bev, 0.004, 0, H / 2)], 0.006, 0.087, 0, 0.004, 24);
+    const inside = (v, n) => v.z < 0.086 && n.x * v.x + n.y * (v.y - H / 2) < 0 && Math.abs(n.z) < 0.7;
+    addPart(piece, { name: 'Cabinet', geom: shell, job: woodJob,
+      mat: veneer({ col: lin(0.2, 0.09, 0.035), col2: lin(0.07, 0.03, 0.012), axis: V3(1, 0, 0), origin: V3(0, -0.35, -0.5), patP: [150, 2.4, 1, 0.00003] }),
+      init: Object.assign({ exclude: inside, excl: [0.15, 0, 0, 0, 0, 1] }, woodInit) });
+    addPart(piece, { name: 'Cabinet', geom: baffle, job: woodJob,
+      mat: veneer({ col: lin(0.24, 0.12, 0.05), col2: lin(0.09, 0.04, 0.015), axis: V3(0, 1, 0), origin: V3(-0.6, 0, -0.3), patP: [220, 1.6, 0, 0.00003] }),
+      init: Object.assign({ exclude: (v, n) => n.z < -0.5, excl: [0.15, 0, 0, 0, 0, 1] }, woodInit) });
+
+    // grille: striped cloth behind a frame of dark wood bars
+    const GX = -0.075, GY = 0.14;
+    const cloth = slab([rrect(0.2, 0.15, 0.008, 0.008, GX, GY)], 0.0015, 0.093, 0, 0.003);
+    addPart(piece, { name: 'Grille cloth', geom: cloth, job: { surf: 'fabric' },
+      mat: Object.assign({ kind: 'felt', pat: 'weave', col: lin(0.4, 0.31, 0.18), col2: lin(0.11, 0.055, 0.022), axis: V3(0, 0, 1),
+        origin: V3(GX, GY, 0), patP: [650, 55, 0, 0.00025], scale: 60 }, nicotine),
+      init: { grime: [0.42, 0.4, 0.25, 0.35] } });
+    const frame = rrect(0.218, 0.168, 0.012, 0.012, GX, GY);
+    frame.holes.push(rrect(0.2, 0.15, 0.008, 0.008, GX, GY, new THREE.Path()));
+    const bars = [frame, ...[-0.05, 0, 0.05].map((dx) => rrect(0.009, 0.152, 0.002, 0.002, GX + dx, GY))];
+    addPart(piece, { name: 'Grille frame', geom: slab(bars, 0.006, 0.0935, 0.0015, 0.003), job: woodJob,
+      mat: veneer({ col: lin(0.09, 0.04, 0.017), col2: lin(0.025, 0.011, 0.005), axis: V3(0, 1, 0), origin: V3(0.3, 0, -0.4), patP: [260, 1.2, 0, 0.00003] }),
+      init: woodInit });
+
+    // dial: printed card, needle, domed glass, chrome bezel and a nameplate
+    const card = zlathe([[0, 0.0932], [0.0505, 0.0932], [0.0505, 0.0942], [0, 0.0942]], 0.0008, 160); card.translate(DX, DY, 0);
+    const cardPart = addPart(piece, { name: 'Dial card', geom: card, paint: false, init: { grime: [0.04, 0, 0, 0] },
+      mat: { kind: 'paint', col: lin(0.62, 0.52, 0.35), col2: lin(0.06, 0.035, 0.02), rough: 0.7, scale: 60, map: radioDialTexture(), mapXf: [-1 / 0.1],
+        axis: V3(0, 0, 1), origin: V3(DX, DY, 0), emit: new THREE.Color(0, 0, 0) } });
+    const needlePiv = new THREE.Group(); needlePiv.position.set(DX, DY, 0.0952); piece.root.add(needlePiv);
+    const needle = merge([new THREE.BoxGeometry(0.0012, 0.046, 0.0005).translate(0, 0.019, 0), zlathe([[0, 0], [0.003, 0], [0.003, 0.0012, 0.0005], [0, 0.0014]], 0.0003, 32)]);
+    addPart(piece, { name: 'Needle', geom: needle, parent: needlePiv, paint: false, cast: false, mat: { kind: 'paint', col: lin(0.5, 0.06, 0.02), rough: 0.35, scale: 80 } });
+    const gl = [[0, 0.0978]];
+    for (let i = 1; i <= 16; i++) { const r = (i / 16) * 0.0495; gl.push([r, 0.096 + 0.0018 * (1 - (r / 0.0495) ** 2)]); }
+    for (let i = 16; i >= 0; i--) { const r = (i / 16) * 0.0495; gl.push([r, 0.0972 + 0.003 * (1 - (r / 0.0495) ** 2)]); }
+    const dglass = zlathe(gl, 0.0012, 160); dglass.translate(DX, DY, 0);
+    addPart(piece, { name: 'Dial glass', glass: true, geom: dglass, job: { surf: 'glass' },
+      mat: { kind: 'glass', col: lin(1, 0.98, 0.95), scale: 60, thick: 0.0015, dirt: lin(0.2, 0.12, 0.04), dust: lin(0.32, 0.26, 0.17) },
+      init: { grime: [0.3, 0, 0.15, 0.4], scratch: [0.7, 0.4] } });
+    const chrome = (o) => Object.assign({ kind: 'metal', col: lin(0.6, 0.61, 0.63), rough: 0.32, roughPol: 0.035, scale: 60, corr: 'tarnish' }, nicotine, o);
+    const chromeJob = { surf: 'soft', corr: 'tarnish', polish: true }, chromeInit = { grime: [0.2, 0.8, 0.2, 0.3], corr: [0.5, 0.4, 0.35] };
+    const bez = zlathe([[0.048, 0.0928], [0.057, 0.0928], [0.0575, 0.098, 0.003], [0.0515, 0.1035, 0.002], [0.0485, 0.1015, 0.0008], [0.048, 0.0928]], 0.0004, 220);
+    bez.translate(DX, DY, 0);
+    addPart(piece, { name: 'Chrome trim', geom: bez, mat: chrome(), job: chromeJob, init: chromeInit });
+    const plate = roundBox(0.066, 0.017, 0.003, 0.0012, 0.0012); plate.translate(DX, 0.08, 0.0945);
+    addPart(piece, { name: 'Chrome trim', geom: plate, job: chromeJob, init: chromeInit,
+      mat: chrome({ map: nameplateTexture(), col2: lin(0.015, 0.012, 0.01), mapXf: [-1 / 0.066, -1 / 0.017], axis: V3(0, 0, 1), origin: V3(DX, 0.08, 0) }) });
+
+    // three Bakelite knobs with knurled skirts
+    for (const kx of [GX, 0.06, 0.15]) {
+      const knob = zlathe([[0, 0], [0.017, 0], [0.017, 0.006, 0.001], [0.0155, 0.016, 0.002], [0.0115, 0.0205, 0.003], [0, 0.021]], 0.0004, 96);
+      knob.translate(kx, 0.036, 0.093);
+      addPart(piece, { name: 'Knobs', geom: knob, job: { surf: 'soft', polish: true },
+        mat: { kind: 'bakelite', col: lin(0.09, 0.03, 0.01), col2: lin(0.2, 0.07, 0.022), rough: 0.65, roughPol: 0.1, scale: 70,
+          pat: 'knurl', axis: V3(0, 0, 1), origin: V3(kx, 0.036, 0.093), patP: [28, 0.0004, 0.0008, 0.0125], dirt: nicotine.dirt, dust: nicotine.dust },
+        init: { grime: [0.3, 0.9, 0.2, 0.3], polish: [0.08, 0.08] } });
+    }
+
+    // inside: chassis, valves, transformer, can and speaker (seen through the open back)
+    const CY = 0.0475;
+    const chassis = roundBox(0.34, 0.005, 0.13, 0.002, 0.004); chassis.translate(0.02, CY - 0.0025, -0.03);
+    addPart(piece, { name: 'Chassis', geom: chassis, job: { surf: 'hard', corr: 'rust' },
+      mat: Object.assign({ kind: 'metal', col: lin(0.66, 0.63, 0.55), rough: 0.45, roughPol: 0.22, scale: 50, corr: 'rust' }, nicotine),
+      init: { grime: [0.3, 0.6, 0.4, 0.3], corr: [0.45, 0.4, 0.45] } });
+    const valves = [[0.0, -0.06, 0.012, 0.075], [0.045, -0.065, 0.011, 0.062], [0.09, -0.06, 0.011, 0.062], [0.14, -0.055, 0.015, 0.092]];
+    const glassG = [], baseG = [], anodeG = [], heatG = [];
+    for (const [vx, vz, r, h] of valves) {
+      const y0 = CY + 0.012;
+      glassG.push(valveGlass(r, h, 0.0008).translate(vx, y0, vz));
+      baseG.push(lathe([[0, CY], [r * 0.95, CY, 0.001], [r * 0.95, y0 + 0.001, 0.002], [0, y0 + 0.001]], 0.0008, 48).translate(vx, 0, vz));
+      anodeG.push(lathe([[0, y0 + 0.006], [r * 0.5, y0 + 0.006], [r * 0.5, y0 + h * 0.62], [0, y0 + h * 0.62]], 0.001, 32).translate(vx, 0, vz));
+      heatG.push(lathe([[0, y0 + h * 0.62], [r * 0.2, y0 + h * 0.62], [r * 0.2, y0 + h * 0.72, 0.001], [0, y0 + h * 0.72]], 0.0006, 24).translate(vx, 0, vz));
+    }
+    addPart(piece, { name: 'Valves', glass: true, geom: merge(glassG), job: { surf: 'glass' },
+      mat: { kind: 'glass', col: lin(0.96, 0.97, 1), scale: 80, thick: 0.0008, dirt: lin(0.12, 0.1, 0.08), dust: lin(0.3, 0.28, 0.24) },
+      init: { grime: [0.3, 0, 0.35, 0.3] } });
+    const dusty = { grime: [0.05, 0.25, 0.2, 0.05] };
+    addPart(piece, { name: 'Interior', geom: merge(baseG), paint: false, init: dusty, mat: { kind: 'paint', col: lin(0.02, 0.018, 0.016), rough: 0.4, scale: 60 } });
+    addPart(piece, { name: 'Interior', geom: merge(anodeG), paint: false, init: dusty, mat: { kind: 'metal', col: lin(0.14, 0.14, 0.15), rough: 0.6, roughPol: 0.6, scale: 60 } });
+    const heat = addPart(piece, { name: 'Interior', geom: merge(heatG), paint: false, init: {}, mat: { kind: 'paint', col: lin(0.2, 0.1, 0.05), rough: 0.6, scale: 60, emit: new THREE.Color(0, 0, 0) } });
+    const tr = roundBox(0.055, 0.05, 0.045, 0.004, 0.003); tr.translate(-0.1, CY + 0.025, -0.055);
+    addPart(piece, { name: 'Interior', geom: tr, paint: false, init: dusty, mat: { kind: 'paint', col: lin(0.02, 0.02, 0.02), rough: 0.5, scale: 60 } });
+    const can = lathe([[0, CY], [0.012, CY, 0.001], [0.012, CY + 0.05, 0.002], [0, CY + 0.051]], 0.001, 48); can.translate(-0.035, 0, -0.07);
+    addPart(piece, { name: 'Interior', geom: can, paint: false, init: dusty, mat: { kind: 'metal', col: lin(0.7, 0.71, 0.72), rough: 0.35, roughPol: 0.35, scale: 60 } });
+    const cone = zlathe([[0.015, 0.056], [0.067, 0.0865]], 0.002, 96); cone.translate(GX, GY, 0);
+    addPart(piece, { name: 'Interior', geom: cone, paint: false, init: dusty, mat: { kind: 'paint', col: lin(0.3, 0.22, 0.13), rough: 0.9, scale: 60, side: THREE.DoubleSide } });
+    const magnet = zlathe([[0, 0.03], [0.022, 0.03, 0.002], [0.022, 0.057, 0.002], [0, 0.057]], 0.001, 64); magnet.translate(GX, GY, 0);
+    addPart(piece, { name: 'Interior', geom: magnet, paint: false, init: dusty, mat: { kind: 'metal', col: lin(0.2, 0.2, 0.21), rough: 0.5, roughPol: 0.5, scale: 60 } });
+    const glow = new THREE.PointLight(0xff9450, 0, 0.6, 2); glow.position.set(0.07, 0.12, -0.06); piece.root.add(glow);
+
+    // power: off until the reveal, then the dial lights, the heaters glow and the needle finds a station
+    piece.power = 0; piece.on = false; piece.needle = -1.6; needlePiv.rotation.z = -piece.needle;
+    piece.update = (dt) => {
+      piece.power = damp(piece.power, piece.on ? 1 : 0, 1.2, dt);
+      const p = piece.power;
+      cardPart.mesh.material.userData.U.uEmit.value.setRGB(1.0, 0.6, 0.28).multiplyScalar(p * 1.6);
+      heat.mesh.material.userData.U.uEmit.value.setRGB(1.0, 0.35, 0.08).multiplyScalar(p * 9);
+      glow.intensity = p * 0.25;
+      if (piece.on) {
+        piece.needleT = Math.min(1, (piece.needleT || 0) + dt / 2.4);
+        const k = piece.needleT, ease = 1 - Math.pow(1 - k, 3) + Math.sin(k * Math.PI) * 0.06;
+        needlePiv.rotation.z = -lerp(-1.6, 0.62, ease);
+      }
+    };
+    piece.onReveal = () => { piece.on = true; piece.needleT = 0; auRadio(true); };
+    piece.dispose = () => auRadio(false);
+    return piece;
+  },
+});
+
 // Procedural sound: filtered noise for each tool (louder the faster you scrub), a soft chime per finished part,
 // a chord for the reveal and a watch tick.
 const AU = { ctx: null, on: SAVE.sound !== false, lvl: 0 };
@@ -1779,6 +2205,52 @@ function auTick() {
   s.connect(f); f.connect(g); g.connect(AU.master); s.start(t, Math.random()); s.stop(t + 0.04);
 }
 
+// The radio's broadcast for its reveal: static while the needle travels, then a little parlour waltz,
+// band-limited like medium wave. Scheduled a beat ahead from a timer.
+function auRadio(on) {
+  if (!AU.ctx) return;
+  const ctx = AU.ctx, now = ctx.currentTime;
+  if (!on) {
+    const r = AU.radio; if (!r) return;
+    AU.radio = null; clearInterval(r.timer);
+    r.out.gain.setTargetAtTime(0, now, 0.15);
+    setTimeout(() => { try { r.st.stop(); r.out.disconnect(); } catch (e) { /* already stopped */ } }, 1200);
+    return;
+  }
+  if (AU.radio) return;
+  const out = ctx.createGain(); out.gain.value = 0; out.connect(AU.master);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.8;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 220;
+  const mus = ctx.createGain(); mus.gain.value = 0;
+  mus.connect(lp); lp.connect(hp); hp.connect(out);
+  const st = ctx.createBufferSource(); st.buffer = AU.noise; st.loop = true;
+  const sf = ctx.createBiquadFilter(); sf.type = 'bandpass'; sf.frequency.value = 1700; sf.Q.value = 0.6;
+  const sg = ctx.createGain(); sg.gain.value = 0.22;
+  st.connect(sf); sf.connect(sg); sg.connect(out); st.start();
+  out.gain.setTargetAtTime(0.75, now, 0.2);
+  sg.gain.setTargetAtTime(0.025, now + 2.4, 0.5);
+  mus.gain.setTargetAtTime(1, now + 2.2, 0.7);
+  const beat = 60 / 138, bars = [[48, 60, 64, 67], [45, 60, 64, 69], [41, 60, 65, 69], [43, 59, 62, 65], [48, 60, 64, 67], [52, 59, 64, 67], [50, 62, 65, 69], [43, 59, 62, 67]];
+  // melody: chord tones, one per beat, with a pick-up turn every other bar
+  const shape = [[3, 2, 1], [3, 3, 2], [1, 2, 3], [3, 2, 0], [2, 3, 3], [1, 2, 1], [3, 2, 1], [2, 1, 0]];
+  const note = (m, t, dur, g, type = 'triangle') => {
+    const o = ctx.createOscillator(), e = ctx.createGain();
+    o.type = type; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12);
+    e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(g, t + 0.015); e.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(e); e.connect(mus); o.start(t); o.stop(t + dur + 0.05);
+  };
+  const r = AU.radio = { out, st, step: 0, next: now + 2.2 };
+  r.timer = setInterval(() => {
+    while (r.next < ctx.currentTime + 0.6) {
+      const bar = Math.floor(r.step / 3) % 8, b = r.step % 3, ch = bars[bar];
+      if (b === 0) note(ch[0], r.next, beat * 1.4, 0.16, 'sine');
+      else { note(ch[1], r.next, beat * 0.7, 0.05); note(ch[2], r.next, beat * 0.7, 0.05); note(ch[3], r.next, beat * 0.7, 0.04); }
+      note(ch[shape[bar][b]] + 12 + (ch[shape[bar][b]] < 55 ? 12 : 0), r.next, beat * 0.95, 0.09);
+      r.next += beat; r.step++;
+    }
+  }, 150);
+}
+
 // Camera and input. The camera never orbits: dragging sideways turns the turntable, so the piece rotates under
 // fixed studio lights and the highlights travel across it. Dragging up and down tilts, scrolling zooms toward the
 // cursor, shift-drag pans. Dragging on the piece works it with the current tool.
@@ -1789,7 +2261,7 @@ function resetView(instant) {
   const p = G.piece; if (!p) return;
   const portrait = window.innerWidth / window.innerHeight < 0.8;
   CAM.tYaw = Math.round(CAM.tYaw / TAU) * TAU + 0.35; CAM.tPitch = p.pitch; CAM.tTarget.copy(p.focus);
-  CAM.tDist = p.dist * (portrait ? (G.state === 'title' ? 1.7 : 1.25) : 1);
+  CAM.tDist = p.dist * (portrait ? (G.state === 'title' ? 1.7 : 1.25) : G.state === 'title' ? 1.12 : 1);
   if (instant) { CAM.yaw = CAM.tYaw; CAM.pitch = CAM.tPitch; CAM.dist = CAM.tDist; CAM.target.copy(CAM.tTarget); }
 }
 function updateCamera(dt) {
@@ -2023,6 +2495,7 @@ async function loadPiece(id) {
 }
 function disposePiece() {
   const p = G.piece; if (!p) return;
+  if (p.dispose) p.dispose();
   R.platter.remove(p.root);
   p.root.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); if (o.material.userData.U.uMap.value) o.material.userData.U.uMap.value.dispose(); } });
   G.piece = null;
@@ -2137,7 +2610,8 @@ function toast(msg, kind = 'info', secs = 3) {
 function advise(fx) {
   if (!fx || fx.total < 0.04) return;
   const T = fx.total, eff = fx.useful / T, tool = G.tool;
-  if (fx.nofin > T * 0.5) return toast('Nothing on this piece takes a new finish.');
+  if (fx.nofin > T * 0.5) return toast(G.piece.parts.some((p) => p.job.fin)
+    ? `The ${fx.nofinName.toLowerCase()} does not take a finish. It goes on bare wood.` : 'Nothing on this piece takes a new finish.');
   if (fx.blocked > T * 0.4) return toast('A new finish will not take over grime, rust or old varnish. Clean and strip first.');
   if (fx.harm > T * 0.2 && tool === 'wire') return toast('The wire brush is scratching it. Polish will take the scratches back out.', 'warn');
   if (fx.harm > T * 0.2 && tool === 'sand') return toast('The pad is scuffing it. Polish will bring it back.', 'warn');
@@ -2240,7 +2714,6 @@ $('#bNext').onclick = () => { const i = PIECES.findIndex((x) => x.id === G.piece
 // Boot, the main loop and the #debug hook (window.PA).
 let _last = performance.now();
 G.lightAng = 0.25;
-const KEY_POS = V3(-0.42, 0.62, 0.46);
 
 function update(dt) {
   G.t += dt;
@@ -2254,8 +2727,8 @@ function update(dt) {
     G.lightAng = 0.25 + 0.35 * Math.sin(G.revealT * 0.35);
   }
   // key light swings around the bench
-  const a = (G.lightAng - 0.25) * 2.4;
-  R.key.position.set(KEY_POS.x * Math.cos(a) - KEY_POS.z * Math.sin(a), KEY_POS.y, KEY_POS.x * Math.sin(a) + KEY_POS.z * Math.cos(a));
+  const a = (G.lightAng - 0.25) * 2.4, k = R.rig || 1;
+  R.key.position.set((KEY_POS.x * Math.cos(a) - KEY_POS.z * Math.sin(a)) * k, KEY_POS.y * k, (KEY_POS.x * Math.sin(a) + KEY_POS.z * Math.cos(a)) * k);
   if (G.piece) { G.piece.update(dt); stepSettle(G.piece, dt); }
   if (G.state === 'play') paintStep(dt); else auBrush(0, G.tool, dt);
   updateCamera(dt);
@@ -2295,6 +2768,7 @@ async function boot() {
 
 if (DEBUG) {
   const at = (x, y) => { setNdc(x, y); return PTR.ndc.clone(); };
+  let PA_last = null;
   window.PA = {
     G, CAM, R, PTR, PIECES, LAYER, scene, camera, renderer, paused: false,
     start: async (id = 'watch') => { await startPiece(id); update(0); return G.piece.parts.length; },
@@ -2312,10 +2786,12 @@ if (DEBUG) {
       const nd = at(x, y), fx = newFx();
       const hit = pick(nd); if (!hit || !hit.part.paint) return null;
       for (let t = 0; t < secs; t += 1 / 30) brushAt(hit, brushRadius(), G.tool, (1 / 30) * 1.2, fx);
+      advise(fx); PA_last = { part: hit.part.name, useful: +fx.useful.toFixed(2), harm: +fx.harm.toFixed(2), toast: $('#toast').textContent };
       for (const p of G.piece.parts) if (p.dirty) { upload(p); p.dirty = false; p.progDirty = true; }
       renderJob();
       return { part: hit.part.name, useful: +fx.useful.toFixed(3), harm: +fx.harm.toFixed(3) };
     },
+    lastAdvice() { return PA_last; },
     pickAt(x, y) { const h = pick(at(x, y)); return h && { part: h.part.name, point: h.point.toArray().map((v) => +v.toFixed(4)) }; },
     // apply a tool to every vertex of the named parts (or all), w per vertex; `where(x, y, z)` (piece space,
     // the watch's dial faces +Z) limits it to part of the piece

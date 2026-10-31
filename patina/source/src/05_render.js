@@ -105,6 +105,7 @@ function buildLights() {
   key.shadow.bias = -0.00015; key.shadow.normalBias = 0.0004;
   key.shadow.radius = 4;
   scene.add(key, key.target);
+  R.keyI = key.intensity;
   const rim = new THREE.DirectionalLight(0xe4ecff, 1.1);
   rim.position.set(0.5, 0.45, -0.6);
   scene.add(rim);
@@ -116,23 +117,50 @@ function buildBench() {
   const oak = layerMat({ kind: 'wood', col: lin(0.30, 0.17, 0.08), col2: lin(0.16, 0.08, 0.035), rough: 0.55, scale: 9,
     pat: 'wood', axis: V3(1, 0, 0.08).normalize(), origin: V3(0, -0.5, -0.9), patP: [55, 1.4, 0, 0.00004], fin: 'oil', finT: lin(0.8, 0.62, 0.45) });
   const bg = tess(new THREE.BoxGeometry(1.8, 0.05, 1.0), 0.06);
-  fixedMasks(bg, 0.12, 0.6, 1, 0.5);
+  fixedMasks(bg, 0.12, 1, 1, 0.5);
   const bench = new THREE.Mesh(bg, oak);
   bench.position.y = -0.055; bench.receiveShadow = true;
   scene.add(bench);
   R.bench = bench;
 
+  buildTurntable(0.08);
+}
+
+// The turntable is sized to the piece: r is the platter radius.
+function buildTurntable(r) {
+  if (R.tt && R.ttR === r) return;
+  // anything riding on the old platter (a piece) moves to the new one
+  const keep = R.tt ? [...R.platter.children].filter((c) => !R.platterParts.includes(c)) : [];
+  if (R.tt) {
+    for (const k of keep) R.platter.remove(k);
+    scene.remove(R.tt);
+    R.tt.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+  }
+  R.ttR = r;
+  const s = r / 0.08, h = Math.min(1.6, Math.sqrt(s));
   const tt = new THREE.Group(); scene.add(tt); R.tt = tt;
   const lac = layerMat({ kind: 'paint', col: lin(0.012, 0.011, 0.01), rough: 0.25, cc: 1, scale: 60 });
-  const baseG = fixedMasks(lathe([[0, -0.03], [0.088, -0.03, 0.002], [0.086, -0.008, 0.003], [0.0, -0.008]], 0.002, 160), 0.06);
+  const baseG = fixedMasks(lathe([[0, -0.03], [0.088 * s, -0.03, 0.002], [0.086 * s, -0.008, 0.003 * h], [0.0, -0.008]], 0.002 * s, Math.round(160 + 40 * h)), 0.06);
   const base = new THREE.Mesh(baseG, lac); base.castShadow = true; base.receiveShadow = true; tt.add(base);
   // the rotating platter
   const plat = new THREE.Group(); tt.add(plat); R.platter = plat;
   const brass = layerMat({ kind: 'metal', col: lin(0.92, 0.72, 0.38), rough: 0.25, roughPol: 0.12, scale: 80, corr: 'tarnish' });
-  const ringG = fixedMasks(lathe([[0.074, -0.008], [0.08, -0.008, 0.001], [0.08, -0.001, 0.0015], [0.0745, 0.0015, 0.001], [0.0735, -0.002]], 0.0008, 220), 0.05, 0, 0.8, 0.3, 0.25);
+  const ro = 0.08 * s;
+  const ringG = fixedMasks(lathe([[ro - 0.006, -0.008], [ro, -0.008, 0.001], [ro, -0.001, 0.0015], [ro - 0.0055, 0.0015, 0.001], [ro - 0.0065, -0.002]], 0.0008, Math.round(220 * h)), 0.05, 0, 0.8, 0.3, 0.25);
   const ring = new THREE.Mesh(ringG, brass); ring.castShadow = true; ring.receiveShadow = true; plat.add(ring);
   const felt = layerMat({ kind: 'felt', col: lin(0.025, 0.06, 0.04), col2: lin(0.18, 0.32, 0.24), scale: 70 });
-  const feltG = fixedMasks(lathe([[0, -0.006], [0.0745, -0.006], [0.0745, 0, 0.001], [0, 0]], 0.003, 160), 0.04);
+  const feltG = fixedMasks(lathe([[0, -0.006], [ro - 0.0055, -0.006], [ro - 0.0055, 0, 0.001], [0, 0]], 0.003 * s, Math.round(160 * h)), 0.04);
   const fm = new THREE.Mesh(feltG, felt); fm.receiveShadow = true; plat.add(fm);
   R.platterParts = [ring, fm];
+  for (const k of keep) plat.add(k);
+}
+
+// The light rig scales with the piece so a radio is lit like a watch, only from further away.
+const KEY_POS = V3(-0.42, 0.62, 0.46);
+function setRig(k, focus) {
+  R.rig = k;
+  R.key.intensity = R.keyI * k * k;
+  R.key.target.position.set(0, focus ? focus.y * 0.6 : 0.03, 0);
+  R.key.shadow.camera.near = 0.3 * k; R.key.shadow.camera.far = 1.6 * k;
+  R.key.shadow.camera.updateProjectionMatrix();
 }
