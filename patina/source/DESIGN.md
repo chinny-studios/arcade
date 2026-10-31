@@ -17,7 +17,8 @@ them, so the player watches gloss, colour, relief and reflections change under t
 | `07_piece.js` | parts, starting wear, tools, brushing, progress, the settle animation, picking |
 | `10_watch.js` | piece 1, the pocket watch (dial texture, Breguet hands, hinged bezel, stand) |
 | `11_radio.js` | piece 2, the valve radio (cabinet shell, baffle, grille, dial, knobs, chassis and valves, power-on) |
-| `20_audio.js` | procedural scrub sounds, chimes, the watch tick, the radio's static and waltz |
+| `12_violin.js` | piece 3, the violin (outline, arched plates, ribs, neck and scroll, ebony fittings, bridge, strings, stand) |
+| `20_audio.js` | procedural scrub sounds, chimes, the watch tick, the radio's static and waltz, the violin's phrase |
 | `21_input.js` | camera (turntable yaw, tilt, zoom to cursor, pan), pointer and touch, the brush cursor, keys |
 | `22_ui.js` | shelf, loading, HUD and job card, advice toasts, reveal, before/after, photo mode |
 | `30_main.js` | loop, boot, `window.PA` |
@@ -36,7 +37,11 @@ them, so the player watches gloss, colour, relief and reflections change under t
   halo), an old finish (`O_OLD`, crazed varnish from the Worley channel) and a new finish (`F_COAT`, clear coat).
   Grime sits on top as a dulling film plus crusts that collect in cavities. Bare wood under `F_COAT` is pale and
   dry until the finish wets it. With `uPat.z` set, wood turned sideways gets grain running front to back (veneered
-  side panels). Bakelite uses the polish mask for oxidation: dull olive-brown until polished back to gloss. `uEmit`
+  side panels); with `uPat.z` 2 it is quarter-sawn and book-matched (rings straight along the axis, spaced by
+  distance from the centre line). `W_FLAME` adds flamed figure that is chatoyant: alternate bands brighten or darken
+  with the viewing angle, so they swap as the piece turns. `W_POLISH` lets the polish mask drive oiled sheen (ebony)
+  or varnish gloss. `L_MAPRGB` takes the map's own colours (purfling, f-holes), and maps have their own projection
+  axis and origin (`mapAxis`, `mapOrigin`). Bakelite uses the polish mask for oxidation: dull olive-brown until polished back to gloss. `uEmit`
   adds glow (the radio dial, the valve heaters), masked by printed ink. The shader overrides albedo,
   roughness, metalness, clear coat, iridescence, sheen and transmission per fragment.
 - **No UVs.** Everything samples the 3D noise volume or analytic patterns in object space. Patterns fade out
@@ -96,12 +101,26 @@ reveal the radio powers up: the dial glows, the heaters light a point light insi
 station, and static gives way to a small waltz filtered like medium wave (`auRadio`). The turntable is rebuilt
 larger (`piece.table`) and the light rig scaled (`piece.rig`) for it.
 
+## The violin
+
+A violin of about 1870 on a display stand, leaning back against a padded yoke. The 356 mm outline is a centripetal
+Catmull-Rom through bout and corner points, mirrored. Each plate is a `heightCap` (Delaunay-meshed outline, lifted by
+an arching function of the distance to the edge, with the scooped channel) plus a `sweepLoop` rounded edge; the
+ribs are swept 2.5 mm inside the outline. The spruce top is quarter-sawn; the maple back, ribs and neck are flamed.
+Purfling and f-holes are painted into colour maps projected onto the plates. The neck, pegbox and scroll are
+`loft`s: the scroll is a section swept along a logarithmic spiral, 2.25 turns. Ebony fingerboard, nut, pegs,
+tailpiece and end button; a maple bridge with its heart and kidneys; four strings (props, new). About 143k
+vertices. Job: clean off grime and the rosin caked under the strings, retouch the varnish where it is worn through
+to bare wood (chin, shoulder, edges, corners), French-polish everything, clean the bridge and bring the ebony back
+to black. Sanding warns that it takes original varnish off. The reveal plays a short phrase on a synthesised violin
+(`auViolin`).
+
 ## Adding a piece
 
 Push a definition onto `PIECES` with `build()` returning `{ id, parts, props, root, noiseF, seed, brush: [min, max]
 radius in metres, focus, dist, minDist, maxDist, pitch }` and optional `table` (platter radius), `rig` (light
 scale), `setOpen`, `openLabel`, `update(dt)`, `onReveal`, `dispose`. Use `addPart(piece, { name, geom, mat, job, init, parent, hinged, glass, paint })`; parts with the same
-name share a job-card row. `init.exclude(v, n)` (piece-space position and normal) leaves vertices out of the job
+name share a job-card row. `init.post(localPos, piecePos, n, m, o, cav, n1, n2)` adjusts the starting masks
+per vertex (worn varnish, rosin). `init.exclude(v, n)` (piece-space position and normal) leaves vertices out of the job
 with the state `init.excl`. `UPCOMING` in `22_ui.js` lists the planned pieces after the built ones. Planned: the
-violin (flamed maple with chatoyance, amber varnish, ebony, steel strings) and the kabuto (urushi lacquer, rusted
-iron plates, gilt crest, silk cords).
+kabuto (urushi lacquer, rusted iron plates, gilt crest, silk cords).

@@ -97,3 +97,33 @@ function auRadio(on) {
     }
   }, 150);
 }
+
+// The violin's reveal: a short phrase on a synthesised violin (two detuned saws through body resonances, with
+// vibrato that blooms after the attack).
+function auViolin() {
+  if (!AU.ctx || !AU.on) return;
+  const ctx = AU.ctx, t0 = ctx.currentTime + 1.6;
+  const out = ctx.createGain(); out.gain.value = 0.32;
+  let node = out;
+  for (const [f, q, g] of [[440, 2.2, 7], [1450, 1.6, 5], [2900, 2, 6]]) { const b = ctx.createBiquadFilter(); b.type = 'peaking'; b.frequency.value = f; b.Q.value = q; b.gain.value = g; node.connect(b); node = b; }
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200; node.connect(lp); lp.connect(AU.master);
+  const tune = [[74, 1], [76, 0.5], [78, 0.5], [79, 1.5], [78, 0.5], [76, 1], [74, 1], [71, 1], [73, 0.5], [74, 0.5], [76, 2], [69, 1], [74, 3]];
+  const beat = 0.52;
+  let t = t0;
+  for (const [m, len] of tune) {
+    const d = len * beat, f = 440 * Math.pow(2, (m - 69) / 12), e = ctx.createGain();
+    e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(0.5, t + 0.09); e.gain.setTargetAtTime(0.38, t + 0.09, 0.2);
+    e.gain.setTargetAtTime(0, t + d - 0.02, 0.07);
+    const lfo = ctx.createOscillator(), lg = ctx.createGain();
+    lfo.frequency.value = 5.6; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.007, t + Math.min(0.5, d * 0.6));
+    lfo.connect(lg);
+    for (const det of [0, 5]) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det;
+      lg.connect(o.frequency); o.connect(e); o.start(t); o.stop(t + d + 0.4);
+    }
+    lfo.start(t); lfo.stop(t + d + 0.4);
+    e.connect(out);
+    t += d;
+  }
+  setTimeout(() => out.disconnect(), (t - ctx.currentTime + 1) * 1000);
+}

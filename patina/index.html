@@ -363,8 +363,9 @@ uniform vec3 uCol; uniform vec3 uCol2; uniform vec3 uDirt; uniform vec3 uDust; u
 uniform float uRough; uniform float uRoughPol; uniform float uMetal; uniform float uScale;
 uniform vec3 uAxis; uniform vec3 uOrigin; uniform vec4 uPat; uniform vec4 uNeed;
 uniform float uCC; uniform float uIrid; uniform float uIridT; uniform float uAOK; uniform vec3 uEmit;
+uniform float uFlame;
 #ifdef L_MAP
-uniform sampler2D uMap; uniform vec4 uMapXf;
+uniform sampler2D uMap; uniform vec4 uMapXf; uniform vec3 uMapAxis; uniform vec3 uMapOrigin;
 #endif
 
 float gFw, gGroove, gMicro, cG, cC, cO, cF, cS, cP;
@@ -385,7 +386,7 @@ mat3 axisBasis() {
 // veneered cabinet's side panels do
 mat3 woodBasis() {
   vec3 a = normalize(uAxis);
-  if (uPat.z > 0.5 && abs(normalize(vON).x) > 0.7) a = vec3(0.0, 0.0, 1.0);
+  if (uPat.z > 0.5 && uPat.z < 1.5 && abs(normalize(vON).x) > 0.7) a = vec3(0.0, 0.0, 1.0);
   vec3 t1 = normalize(cross(a, abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
   return mat3(t1, cross(a, t1), a);
 }
@@ -519,12 +520,32 @@ void layerEval() {
   {
     mat3 B = woodBasis(); vec3 d = vOP - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
     float warp = (N3(vec3(q.x, q.y, q.z * 0.12) * uScale * 0.45).r - 0.5) * uPat.y + (nB.g - 0.5) * 0.12;
-    float ring = fract(length(q.xy) * uPat.x + warp);
+    // uPat.z 2: quarter-sawn and book-matched, rings run straight along the axis, spaced across |q.y|
+    float ring = fract((uPat.z > 1.5 ? abs(q.y) : length(q.xy)) * uPat.x + warp);
     float late = smoothstep(0.42, 0.9, ring) * (1.0 - smoothstep(0.93, 1.0, ring));
     float streak = N3(vec3(q.x * uScale * 3.0, q.y * uScale * 3.0, q.z * uScale * 0.18)).r;
     float fine = N3(vec3(q.x * uScale * 9.0, q.y * uScale * 9.0, q.z * uScale * 0.5)).b;
     alb = mix(uCol, uCol2, late * 0.62) * (0.78 + 0.3 * streak + 0.16 * fine) * (0.86 + 0.28 * nD.r);
     rough = uRough + late * 0.06 + gGroove * 0.2;
+#ifdef W_FLAME
+    // flamed maple, book-matched about the centre joint. The figure is chatoyant: alternate bands catch the light
+    // at different angles, so they swap between bright and dark as the piece turns.
+    vec3 fd = vOP - uOrigin;
+    vec4 fw = N3(vec3(fd.x * 1.5, fd.y * 0.4, fd.z * 1.5) * uScale * 0.12);
+    float fu = fd.y * 0.94 + abs(fd.x) * (0.45 + 0.2 * fw.g) + (fw.r - 0.5) * 0.007;
+    float bw = (fw.b - 0.5) * 0.9;
+    float band = smoothstep(-0.4 + bw, 0.5 + bw, sin(fu * uFlame)) * (0.55 + 0.6 * fw.g);
+    float facing = abs(dot(normalize(vNormal), normalize(vViewPosition)));
+    alb *= 1.0 + 0.34 * (band * 2.0 - 1.0) * (facing * 2.4 - 1.5);
+#endif
+#ifdef W_POLISH
+    // oiled or French-polished wood: the polish mask brings up the sheen
+    cP = smoothstep(0.0, 1.0, vMB.g);
+    rough = mix(uRough, uRoughPol, cP) + gGroove * 0.2;
+#ifndef F_COAT
+    gCC = cP * 0.45; gCCR = 0.08;
+#endif
+#endif
   }
 #endif
 #ifdef K_FELT
@@ -560,11 +581,19 @@ void layerEval() {
   float inkAmt = 0.0;
 #ifdef L_MAP
   {
-    mat3 B = axisBasis(); vec3 d = vOP - uOrigin;
-    vec2 uv = vec2(dot(d, B[0]) * uMapXf.x, dot(d, B[1]) * (uMapXf.y != 0.0 ? uMapXf.y : uMapXf.x)) + 0.5;
-    float ink = texture2D(uMap, uv).a * step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    vec3 ma = normalize(uMapAxis);
+    vec3 t1 = normalize(cross(ma, abs(ma.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0))), t2 = cross(ma, t1);
+    vec3 d = vOP - uMapOrigin;
+    vec2 uv = vec2(dot(d, t1) * uMapXf.x, dot(d, t2) * (uMapXf.y != 0.0 ? uMapXf.y : uMapXf.x)) + 0.5;
+    vec4 tx = texture2D(uMap, uv);
+    float ink = tx.a * step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
     inkAmt = ink;
+#ifdef L_MAPRGB
+    // full-colour inlay (purfling, f-holes): the map's own colour
+    alb = mix(alb, pow(tx.rgb, vec3(2.2)) * (0.85 + 0.3 * nC.b), ink);
+#else
     alb = mix(alb, uCol2, ink);
+#endif
     rough = mix(rough, 0.55, ink);
     metal = mix(metal, 0.0, ink);
   }
@@ -621,13 +650,17 @@ void layerEval() {
   cF = smoothstep(0.1, 0.9, vMA.a + brk * 0.08);
 #ifdef K_WOOD
   // bare, freshly sanded wood is pale and dry; the finish wets it to its full colour
-  vec3 dry = mix(alb, vec3(dot(alb, vec3(0.333))), 0.35) * 1.3;
+  float lum = dot(alb, vec3(0.333));
+  vec3 dry = mix(alb, vec3(lum), 0.3) * mix(1.3, 1.02, smoothstep(0.12, 0.45, lum));
   alb = mix(mix(alb, dry, 1.0 - cO), alb * uFinT, cF);
   rough = mix(min(1.0, rough + 0.15 * (1.0 - cO)), rough, cF);
 #else
   alb = mix(alb, alb * uFinT, cF);
 #endif
   gCC = max(gCC, cF); gCCR = mix(gCCR, 0.025 + nC.r * 0.03, cF);
+#ifdef W_POLISH
+  gCCR = mix(0.3, gCCR, cP);
+#endif
 #endif
 
   // grime sits on top of everything: a thin dulling film, and crusts where it builds up in crevices
@@ -704,9 +737,12 @@ function layerMat(o) {
   if (o.old) defs.O_OLD = '';
   if (o.fin) defs.F_COAT = '';
   if (o.map) defs.L_MAP = '';
+  if (o.mapRGB) defs.L_MAPRGB = '';
+  if (o.flame) defs.W_FLAME = '';
+  if (o.polishWood) defs.W_POLISH = '';
   const m = new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 0 });
   m.defines = Object.assign({}, m.defines, defs);
-  if (kind === 'enamel' || kind === 'bakelite' || o.fin || o.old || o.cc) m.clearcoat = 1;
+  if (kind === 'enamel' || kind === 'bakelite' || o.fin || o.old || o.cc || o.polishWood) m.clearcoat = 1;
   if (o.corr === 'tarnish' || o.irid) { m.iridescence = 1; m.iridescenceIOR = 1.8; }
   if (kind === 'felt' || o.sheen) { m.sheen = 1; m.sheenColor.setRGB(1, 1, 1); }
   if (kind === 'glass') { m.transmission = 1; m.ior = o.ior || 1.5; m.thickness = o.thick || 0.001; }
@@ -724,6 +760,8 @@ function layerMat(o) {
     uPat: { value: new THREE.Vector4(...(o.patP || [0, 0, 0, 0])) }, uNeed: { value: new THREE.Vector4() },
     uCC: { value: o.cc || 0 }, uIrid: { value: o.irid || 0 }, uIridT: { value: o.iridT || 380 }, uAOK: { value: o.aoK ?? 1 },
     uEmit: { value: o.emit || new THREE.Color(0, 0, 0) },
+    uFlame: { value: o.flame || 0 },
+    uMapAxis: { value: o.mapAxis || o.axis || V3(0, 0, 1) }, uMapOrigin: { value: o.mapOrigin || o.origin || V3() },
     uMap: { value: o.map || null }, uMapXf: { value: new THREE.Vector4(...(o.mapXf || [1, 0, 0, 0])) },
   };
   m.userData.U = U;
@@ -1173,6 +1211,82 @@ function slab(shapes, depth, z0, bevel, s, curveSegments = 18) {
   return tess(creaseNormals(g, 40), s * 1.6);
 }
 
+// ---- swept, lofted and arched surfaces (the violin)
+// flip triangle winding if the normals mostly point toward the reference points (ref(i) -> Vector3 for vertex i)
+function orientOut(g, ref) {
+  g.computeVertexNormals();
+  const P = g.attributes.position.array, N = g.attributes.normal.array, r = V3();
+  let s = 0;
+  for (let i = 0; i < P.length / 3; i++) { ref(i, r); s += N[i * 3] * (P[i * 3] - r.x) + N[i * 3 + 1] * (P[i * 3 + 1] - r.y) + N[i * 3 + 2] * (P[i * 3 + 2] - r.z); }
+  if (s < 0) {
+    const I = g.index.array;
+    for (let i = 0; i < I.length; i += 3) { const t = I[i + 1]; I[i + 1] = I[i + 2]; I[i + 2] = t; }
+    g.index.needsUpdate = true; g.computeVertexNormals();
+  }
+  return g;
+}
+// outward normals of a closed loop of Vector2 (counter-clockwise loops get normals pointing out)
+function loopNormals(loop) {
+  let area = 0;
+  for (let i = 0; i < loop.length; i++) { const a = loop[i], b = loop[(i + 1) % loop.length]; area += a.x * b.y - b.x * a.y; }
+  const sg = area > 0 ? 1 : -1, n = loop.length;
+  return loop.map((p, i) => {
+    const a = loop[(i + n - 1) % n], b = loop[(i + 1) % n];
+    const v = new THREE.Vector2((b.y - a.y) * sg, -(b.x - a.x) * sg);
+    return v.normalize();
+  });
+}
+function offsetLoop(loop, d) { const N = loopNormals(loop); return loop.map((p, i) => p.clone().addScaledVector(N[i], d)); }
+// sweep a profile [[offset along the outward normal, z], ...] around a closed loop in the XY plane
+function sweepLoop(loop, prof, refOff = -0.01, refZ = 0) {
+  const N = loopNormals(loop), n = loop.length, m = prof.length, pos = [], idx = [];
+  for (let i = 0; i < n; i++) for (const [o, z] of prof) pos.push(loop[i].x + N[i].x * o, loop[i].y + N[i].y * o, z);
+  for (let i = 0; i < n; i++) {
+    const i2 = (i + 1) % n;
+    for (let j = 0; j < m - 1; j++) { const a = i * m + j, b = i2 * m + j; idx.push(a, b, b + 1, a, b + 1, a + 1); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  return orientOut(g, (k, r) => { const i = Math.floor(k / m); r.set(loop[i].x + N[i].x * refOff, loop[i].y + N[i].y * refOff, refZ); });
+}
+// loft through rings (arrays of Vector3, each a closed loop of the same length); ends are capped with fans
+function loft(rings, caps = true) {
+  const n = rings[0].length, pos = [], idx = [], cen = [];
+  for (const r of rings) { const c = V3(); for (const p of r) c.add(p); c.divideScalar(n); cen.push(c); for (const p of r) pos.push(p.x, p.y, p.z); }
+  for (let k = 0; k < rings.length - 1; k++) for (let i = 0; i < n; i++) {
+    const a = k * n + i, b = k * n + (i + 1) % n, c = a + n, d = b + n; idx.push(a, b, d, a, d, c);
+  }
+  const ends = [];
+  if (caps) for (const k of [0, rings.length - 1]) {
+    const ci = pos.length / 3; pos.push(cen[k].x, cen[k].y, cen[k].z); ends.push(ci);
+    for (let i = 0; i < n; i++) { const a = k * n + i, b = k * n + (i + 1) % n; if (k === 0) idx.push(ci, b, a); else idx.push(ci, a, b); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  return orientOut(g, (v, r) => r.copy(cen[Math.min(rings.length - 1, Math.floor(v / n))]));
+}
+function distToLoop(loop, x, y) {
+  let best = Infinity;
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i], b = loop[(i + 1) % loop.length], vx = b.x - a.x, vy = b.y - a.y;
+    const t = sat(((x - a.x) * vx + (y - a.y) * vy) / (vx * vx + vy * vy || 1));
+    const d = (x - a.x - vx * t) ** 2 + (y - a.y - vy * t) ** 2;
+    if (d < best) best = d;
+  }
+  return Math.sqrt(best);
+}
+// an arched plate: the loop's interior meshed evenly, lifted by zfn(x, y); faces +Z if up
+function heightCap(loop, s, zfn, up) {
+  const pos = [];
+  capTris(loop, [], s, 0, up, pos);
+  for (let i = 0; i < pos.length; i += 3) pos[i + 2] = zfn(pos[i], pos[i + 1]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const w = weld(g);
+  w.computeVertexNormals();
+  return w;
+}
+
 // Renderer, the studio environment, lights, the workbench and the turntable.
 const canvas = $('#c');
 let renderer;
@@ -1570,6 +1684,8 @@ function initWear(p, piece) {
     if (I.polish) { m[o + 5] = I.polish[0] + (n1 - 0.5) * 2 * I.polish[1]; }
     else m[o + 5] = p.job.polish ? 0 : 1;
     if (I.fin !== undefined) m[o + 3] = I.fin;
+    // per-piece touches: worn-through varnish, rosin under the strings... (local position, piece-space position)
+    if (I.post) { _lp.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]); I.post(_lp, v, nv, m, o, cav, n1, n2); }
     // surfaces the job leaves alone (insides of cabinets): their own state, and they don't count
     if (I.exclude && I.exclude(v, nv)) {
       const e = I.excl || [0.1, 0, 0, 0, 0, 1];
@@ -1627,6 +1743,7 @@ function progressOf(p) {
   return { all: wAll / W, clean: cl / W, tarnish: co / W, rust: co / W, strip: st / W, scratch: sc / W, polish: po / W, finish: fi / W, scratchShow: scAny / W > 0.004 };
 }
 const PART_DONE = 0.965;
+const _lp = V3();
 
 // Brush: a flattened sphere (a disc that follows the surface), so working a crystal doesn't reach the dial below.
 const _v = V3(), _n = V3(), _inv = new THREE.Matrix4(), _nm = new THREE.Matrix3();
@@ -1666,7 +1783,7 @@ function remaining(m, o, J) {
 }
 function applyTool(p, i, w, tool, fx) {
   const m = p.m, o = i * 8, J = p.job, s = J.surf || 'soft';
-  const before = remaining(m, o, J), sc0 = m[o + 4];
+  const before = remaining(m, o, J), sc0 = m[o + 4], fin0 = m[o + 3];
   switch (tool) {
     case 'solvent':
       m[o] -= w * 1.9;
@@ -1697,19 +1814,21 @@ function applyTool(p, i, w, tool, fx) {
       if (!J.fin) { fx.nofin += w; fx.total += w; fx.nofinName = p.name; return; }
       if (m[o] > 0.15 || m[o + 2] > 0.15 || m[o + 1] > 0.15) { fx.blocked += w; fx.total += w; return; }
       m[o + 3] += w * 1.3;
+      m[o + 5] += w * 1.3;   // a fresh coat is glossy
       break;
   }
   for (let k = 0; k < 6; k++) { const x = m[o + k]; m[o + k] = x < 0 ? 0 : x > 1 ? 1 : x; }
+  if (J.fin && m[o + 3] < fin0) fx.finLost += fin0 - m[o + 3];
   const gain = before - remaining(m, o, J);
   if (gain > 0) fx.useful += gain;
   fx.total += w;
-  if (m[o + 4] > sc0) fx.harm += m[o + 4] - sc0;
+  if (m[o + 4] > sc0) { fx.harm += m[o + 4] - sc0; fx.harmWood = s === 'wood'; }
   // what was the main thing left under the brush (for advice)
   if (m[o + 1] > 0.3) fx[J.corr === 'rust' ? 'rustLeft' : 'tarnLeft'] += w;
   if (m[o + 2] > 0.3) fx.oldLeft += w;
   if (m[o] > 0.3) fx.grimeLeft += w;
 }
-function newFx() { return { useful: 0, total: 0, harm: 0, blocked: 0, nofin: 0, rustLeft: 0, tarnLeft: 0, oldLeft: 0, grimeLeft: 0, parts: new Set() }; }
+function newFx() { return { useful: 0, total: 0, harm: 0, finLost: 0, blocked: 0, nofin: 0, rustLeft: 0, tarnLeft: 0, oldLeft: 0, grimeLeft: 0, parts: new Set() }; }
 
 // When the piece is done, ease every remaining speck to its finished state for the reveal.
 function settlePiece(piece) {
@@ -2151,6 +2270,225 @@ PIECES.push({
   },
 });
 
+// Piece 3: a violin, c. 1870, on a display stand. Local frame: Y runs from the end button (y = 0) to the scroll,
+// the top plate faces +Z, X is across the body. The body is 356 mm long.
+const VL = 0.356;
+function violinOutline(step) {
+  // right half from the bottom of the lower bout to the top, corners as tight turns; the left half mirrors it
+  const R = [[0.03, 0.002], [0.06, 0.012], [0.085, 0.03], [0.1, 0.055], [0.104, 0.08], [0.101, 0.105], [0.092, 0.125], [0.082, 0.137], [0.085, 0.146],
+    [0.072, 0.149], [0.062, 0.16], [0.056, 0.18], [0.056, 0.2], [0.06, 0.217], [0.068, 0.227], [0.077, 0.233],
+    [0.073, 0.24], [0.08, 0.252], [0.084, 0.27], [0.083, 0.29], [0.077, 0.31], [0.064, 0.33], [0.044, 0.346], [0.02, 0.354]];
+  const pts = [V3(0, 0, 0), ...R.map(([x, y]) => V3(x, y, 0)), V3(0, VL, 0), ...R.slice().reverse().map(([x, y]) => V3(-x, y, 0))];
+  const c = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+  const sp = c.getSpacedPoints(Math.ceil(c.getLength() / step));
+  sp.pop();
+  return sp.map((p) => new THREE.Vector2(p.x, p.y));
+}
+// plate arching: flat at the edge, a scooped channel just inside it, then a long rise to the middle
+function plateArch(loop, zE, A, sign) {
+  return (x, y) => {
+    const d = distToLoop(loop, x, y), t = sat((d - 0.003) / 0.042);
+    return sign * (zE + A * t * t * (3 - 2 * t) - 0.0007 * Math.exp(-(((d - 0.0065) / 0.0028) ** 2)));
+  };
+}
+// purfling (and f-holes on the top) painted into a full-colour map projected straight down onto the plate
+const VMAP = { w: 0.22, l: 0.37, oy: 0.178 };
+function violinPlateTexture(loop, fholes) {
+  const cw = 768, ch = Math.round(cw * VMAP.l / VMAP.w), c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  const x = c.getContext('2d'), k = cw / VMAP.w;
+  const px = (v) => (v / VMAP.w + 0.5) * cw, py = (v) => (1 - ((v - VMAP.oy) / VMAP.l + 0.5)) * ch;
+  const path = (lp) => { x.beginPath(); lp.forEach((p, i) => (i ? x.lineTo(px(p.x), py(p.y)) : x.moveTo(px(p.x), py(p.y)))); x.closePath(); };
+  const purf = offsetLoop(loop, -0.0042);
+  x.lineJoin = 'round';
+  path(purf); x.strokeStyle = '#0b0805'; x.lineWidth = 0.0013 * k; x.stroke();
+  path(purf); x.strokeStyle = '#d9c7a2'; x.lineWidth = 0.00045 * k; x.stroke();
+  if (fholes) {
+    x.fillStyle = x.strokeStyle = '#050302';
+    for (const s of [-1, 1]) {
+      x.beginPath(); x.arc(px(s * 0.037), py(0.224), 0.0026 * k, 0, TAU); x.fill();
+      x.beginPath(); x.arc(px(s * 0.051), py(0.152), 0.0034 * k, 0, TAU); x.fill();
+      x.lineCap = 'round'; x.lineWidth = 0.0019 * k;
+      x.beginPath(); x.moveTo(px(s * 0.0385), py(0.222));
+      x.bezierCurveTo(px(s * 0.047), py(0.205), px(s * 0.041), py(0.172), px(s * 0.0495), py(0.155)); x.stroke();
+      // the little nicks halfway down each f
+      x.lineWidth = 0.0008 * k;
+      x.beginPath(); x.moveTo(px(s * 0.0405), py(0.19)); x.lineTo(px(s * 0.0485), py(0.188)); x.stroke();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const fbTop = (y) => 0.0325 + (0.356 - y) * 0.149;
+const fbW = (y) => lerp(0.024, 0.042, sat((0.486 - y) / 0.27));
+const fbTh = (y) => lerp(0.005, 0.0075, sat((0.486 - y) / 0.27));
+const crown = (x, w) => { const R = 0.042; return Math.sqrt(R * R - x * x) - Math.sqrt(R * R - (w / 2) ** 2); };
+// a rounded-rectangle ring (superellipse) in the XZ plane at height y
+function seRing(y, w, h, zc, n = 24, e = 0.35) {
+  const r = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU, c = Math.cos(a), s = Math.sin(a);
+    r.push(V3((w / 2) * Math.sign(c) * Math.abs(c) ** e, y, zc + (h / 2) * Math.sign(s) * Math.abs(s) ** e));
+  }
+  return r;
+}
+
+PIECES.push({
+  id: 'violin', title: 'Violin', era: 'Flamed maple, c. 1870',
+  blurb: 'Rosin caked under the strings, the varnish dull and worn through where it was played, the ebony grey.',
+  done: 'It sings again. Amber varnish over flamed maple that shimmers as it turns, and ebony black as ink.',
+  build() {
+    const piece = { id: 'violin', parts: [], props: [], root: new THREE.Group(), noiseF: 45, seed: 37,
+      brush: [0.003, 0.03], focus: V3(0, 0.31, -0.025), dist: 1.45, minDist: 0.15, maxDist: 2.4, pitch: 0.1, table: 0.16, rig: 2.0 };
+    const vg = new THREE.Group(); vg.position.set(0, 0.03, 0); vg.rotation.x = -0.14; piece.root.add(vg);
+    piece.table = 0.17;
+    const loop = violinOutline(0.002);
+    const ribLoop = offsetLoop(loop, -0.0025);
+    const topZ = plateArch(loop, 0.019, 0.0155, 1), backZ = plateArch(loop, 0.019, 0.0145, -1);
+    const rimProf = [[0, 0.019], [0.0006, 0.0188], [0.001, 0.0182], [0.0012, 0.0172], [0.001, 0.0162], [0.0006, 0.0157], [0, 0.0155], [-0.0025, 0.0155]];
+    const grime = { dirt: lin(0.055, 0.04, 0.025), dust: lin(0.6, 0.56, 0.46) };
+    const varnish = { fin: 'varnish', finT: lin(0.66, 0.3, 0.1), polishWood: true, rough: 0.5, roughPol: 0.3 };
+    const mapping = { mapRGB: true, mapAxis: V3(0, 0, 1), mapOrigin: V3(0, VMAP.oy, 0), mapXf: [-1 / VMAP.w, -1 / VMAP.l] };
+    const maple = (o) => Object.assign({ kind: 'wood', col: lin(0.62, 0.46, 0.25), col2: lin(0.5, 0.34, 0.17), scale: 50, pat: 'wood',
+      axis: V3(0, 1, 0), origin: V3(0, 0, -0.8), patP: [90, 0.6, 2, 0.00001], flame: TAU * 95 }, varnish, grime, { dust: lin(0.3, 0.26, 0.2) }, o);
+    const plateJob = { surf: 'wood', fin: 'Varnish', polish: true };
+    // where a player's chin, hands and shoulder have worn the varnish through to bare wood
+    const wearAt = (spots, edge) => (lp, v, n, m, o, cav, n1) => {
+      let w = 0;
+      for (const [x, y, r, k] of spots) w = Math.max(w, k * Math.exp(-((lp.x - x) ** 2 + (lp.y - y) ** 2) / (r * r)));
+      if (edge) { const d = distToLoop(loop, lp.x, lp.y); w = Math.max(w, edge * (1 - smoothstep(0.002, 0.007, d))); }
+      w += (n1 - 0.5) * 0.9;
+      if (w > 0.5) { m[o + 3] = 0; m[o] += 0.45; }
+    };
+
+    // top plate: spruce, arched, with purfling and f-holes; rosin dust under the strings
+    const top = merge([heightCap(loop, 0.0024, topZ, true), sweepLoop(loop, rimProf, -0.01, 0.017)]);
+    const wearTop = wearAt([[-0.055, 0.05, 0.03, 0.9], [0.06, 0.2, 0.012, 0.6]], 0.55);
+    addPart(piece, { name: 'Top', geom: top, parent: vg, job: plateJob,
+      mat: Object.assign({ kind: 'wood', col: lin(0.66, 0.5, 0.28), col2: lin(0.4, 0.25, 0.11), scale: 60, pat: 'wood', axis: V3(0, 1, 0),
+        origin: V3(0, 0, -0.35), patP: [650, 0.18, 2, 0.000012], map: violinPlateTexture(loop, true) }, varnish, grime, mapping),
+      init: { grime: [0.2, 0.7, 0.2, 0.3], polish: [0.18, 0.12], fin: 1,
+        post(lp, v, n, m, o, cav, n1) {
+          wearTop(lp, v, n, m, o, cav, n1);
+          const r = Math.exp(-((lp.x / 0.03) ** 2) - (((lp.y - 0.2) / 0.035) ** 2));
+          m[o] += r * 0.7;
+        } } });
+    const back = merge([heightCap(loop, 0.0024, backZ, false), sweepLoop(loop, rimProf.map(([o, z]) => [o, -z]), -0.01, -0.017)]);
+    addPart(piece, { name: 'Back', geom: back, parent: vg, job: plateJob,
+      mat: maple(Object.assign({ map: violinPlateTexture(loop, false) }, mapping)),
+      init: { grime: [0.15, 0.6, 0.1, 0.3], polish: [0.18, 0.12], fin: 1, post: wearAt([[0, 0.3, 0.04, 0.85], [-0.06, 0.06, 0.025, 0.6]], 0.45) } });
+    const ribProf = []; for (let z = -0.0157; z <= 0.01571; z += 0.002) ribProf.push([0, z]);
+    addPart(piece, { name: 'Ribs', geom: sweepLoop(ribLoop, ribProf), parent: vg, job: plateJob, mat: maple(),
+      init: { grime: [0.2, 0.7, 0.2, 0.3], polish: [0.18, 0.12], fin: 1, post: wearAt([[-0.08, 0.03, 0.035, 0.8], [0.084, 0.146, 0.012, 0.8], [-0.084, 0.146, 0.012, 0.8], [0.077, 0.233, 0.012, 0.7]], 0) } });
+
+    // neck, pegbox and scroll: one piece of maple
+    const neckR = [];
+    for (let k = 0; k <= 60; k++) {
+      const y = 0.34 + (k / 60) * 0.148, yc = Math.max(y, 0.356), top2 = fbTop(yc) - fbTh(yc), w = fbW(yc) * 0.96;
+      const dn = y < 0.375 ? lerp(0.046, 0.021, (y - 0.34) / 0.035) : lerp(0.021, 0.0185, (y - 0.375) / 0.111);
+      const r = [];
+      for (let i = 1; i < 5; i++) r.push(V3(-w / 2 + (w * i) / 5, y, top2));
+      for (let i = 0; i <= 16; i++) { const a = (i / 16) * Math.PI; r.push(V3((w / 2) * Math.cos(a), y, top2 - dn * Math.sin(a))); }
+      neckR.push(r);
+    }
+    const boxR = [];
+    for (let k = 0; k <= 30; k++) { const t = k / 30; boxR.push(seRing(0.484 + t * 0.078, lerp(0.0235, 0.021, t), 0.027, -0.002)); }
+    const scR = [], ph0 = Math.PI, turns = 2.25, C = [0.5745, -0.002];
+    for (let k = 0; k <= 150; k++) {
+      const f = k / 150, ph = ph0 + f * turns * TAU, r = 0.0165 * Math.exp(-0.15 * (ph - ph0));
+      const uy = Math.cos(ph), uz = Math.sin(ph), py = C[0] + r * uy, pz = C[1] + r * uz;
+      const wx = lerp(0.0105, 0.0035, Math.pow(f, 0.8)), tr = Math.min(0.0047, r * 0.5);
+      const ring = [];
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * TAU, c = Math.cos(a), s = Math.sin(a), xx = wx * Math.sign(c) * Math.abs(c) ** 0.4, rr = tr * Math.sign(s) * Math.abs(s) ** 0.4;
+        ring.push(V3(xx, py + uy * rr, pz + uz * rr));
+      }
+      scR.push(ring);
+    }
+    addPart(piece, { name: 'Neck and scroll', geom: merge([tess(loft(neckR), 0.003), tess(loft(boxR), 0.003), tess(loft(scR), 0.003)]), parent: vg,
+      job: { surf: 'wood', polish: true }, mat: maple(),
+      init: { grime: [0.2, 0.7, 0.2, 0.3], polish: [0.15, 0.1], fin: 1, post(lp, v, n, m, o) { if (lp.y > 0.37 && lp.y < 0.49) m[o] += 0.3; } } });
+    const cav = roundBox(0.012, 0.055, 0.002, 0.0009, 0.0015); cav.translate(0, 0.524, 0.0115);
+    addPart(piece, { name: 'Interior', geom: cav, parent: vg, paint: false, init: {}, mat: { kind: 'paint', col: lin(0.012, 0.008, 0.005), rough: 0.8, scale: 60 } });
+
+    // ebony: fingerboard, nut, pegs, tailpiece, end button
+    const fbR = [];
+    for (let k = 0; k <= 90; k++) {
+      const y = 0.486 - (k / 90) * 0.27, w = fbW(y), t = fbTop(y), th = fbTh(y), r = [];
+      for (let i = 0; i <= 12; i++) { const x = -w / 2 + (w * i) / 12; r.push(V3(x, y, t + crown(x, w))); }
+      for (let i = 0; i <= 6; i++) { const x = w / 2 - (w * i) / 6; r.push(V3(x, y, t - th)); }
+      fbR.push(r);
+    }
+    const ebony = Object.assign({ kind: 'wood', col: lin(0.02, 0.017, 0.015), col2: lin(0.006, 0.005, 0.005), rough: 0.6, roughPol: 0.12, scale: 90, pat: 'wood',
+      axis: V3(0, 1, 0), origin: V3(0, 0, -0.2), patP: [1200, 0.3, 0, 0.000006], polishWood: true }, grime, { dust: lin(0.4, 0.37, 0.3) });
+    const ebJob = { surf: 'wood', polish: true }, ebInit = { grime: [0.28, 0.8, 0.2, 0.3], polish: [0.06, 0.06] };
+    const nut = roundBox(0.024, 0.004, 0.006, 0.0012, 0.001); nut.translate(0, 0.4875, fbTop(0.486) - 0.0015);
+    const tp = new THREE.Shape([[-0.012, 0.035], [0.012, 0.035], [0.019, 0.095], [0.016, 0.108], [0.008, 0.112], [-0.008, 0.112], [-0.016, 0.108], [-0.019, 0.095]].map(([x, y]) => new THREE.Vector2(x, y)));
+    const tail = slab([tp], 0.005, 0, 0.0012, 0.0025);
+    tail.translate(0, -0.035, 0); tail.rotateX(0.2); tail.translate(0, 0.035, 0.034);
+    const button = lathe([[0, -0.007], [0.0045, -0.007, 0.001], [0.006, -0.004, 0.0015], [0.0045, -0.001], [0.0035, 0.003], [0, 0.003]], 0.0003, 48);
+    const pegs = [];
+    [0.497, 0.512, 0.527, 0.542].forEach((y, i) => {
+      const g = lathe([[0, -0.014], [0.0028, -0.014, 0.0006], [0.0034, 0.014], [0.0045, 0.0155, 0.0005], [0.0045, 0.019, 0.0005], [0.004, 0.0205],
+        [0.0095, 0.026, 0.004], [0.0105, 0.032, 0.004], [0.007, 0.038, 0.003], [0, 0.0405]], 0.0005, 40);
+      g.scale(1, 1, 0.38); g.rotateZ(i % 2 ? -Math.PI / 2 : Math.PI / 2); g.translate(0, y, -0.002);
+      pegs.push(g);
+    });
+    addPart(piece, { name: 'Ebony fittings', geom: merge([tess(loft(fbR), 0.003), nut, tail, button, ...pegs]), parent: vg, job: ebJob, mat: ebony, init: ebInit });
+
+    // bridge, standing on the arch between the f-hole nicks
+    const zb = topZ(0.017, 0.195), Hb = 0.0625 - zb;
+    const bs = new THREE.Shape();
+    bs.moveTo(-0.0205, 0); bs.lineTo(-0.011, 0); bs.quadraticCurveTo(0, 0.009, 0.011, 0); bs.lineTo(0.0205, 0); bs.lineTo(0.0195, 0.003);
+    bs.quadraticCurveTo(0.011, 0.007, 0.0125, 0.011); bs.quadraticCurveTo(0.017, 0.015, 0.016, 0.019); bs.lineTo(0.0165, Hb - 0.0035);
+    bs.quadraticCurveTo(0, Hb + 0.0025, -0.0165, Hb - 0.0035); bs.lineTo(-0.016, 0.019); bs.quadraticCurveTo(-0.017, 0.015, -0.0125, 0.011);
+    bs.quadraticCurveTo(-0.011, 0.007, -0.0195, 0.003); bs.closePath();
+    for (const [hx, hy, hr] of [[0, Hb * 0.58, 0.0022], [-0.0085, 0.0105, 0.0017], [0.0085, 0.0105, 0.0017]]) { const h = new THREE.Path(); h.absarc(hx, hy, hr, 0, TAU, true); bs.holes.push(h); }
+    const bridge = slab([bs], 0.0032, -0.0016, 0.0003, 0.0012);
+    bridge.rotateX(Math.PI / 2); bridge.translate(0, 0.195, zb);
+    addPart(piece, { name: 'Bridge', geom: bridge, parent: vg, job: { surf: 'wood' }, init: { grime: [0.35, 0.6, 0.2, 0.3] },
+      mat: Object.assign({ kind: 'wood', col: lin(0.72, 0.58, 0.38), col2: lin(0.56, 0.42, 0.25), rough: 0.6, scale: 80, pat: 'wood',
+        axis: V3(1, 0, 0), origin: V3(0, 0.195, -0.3), patP: [300, 0.4, 0, 0.000008] }, grime) });
+
+    // strings (new, so props): tailpiece, over the bridge, over the nut, into the pegbox
+    const strG = [];
+    for (let i = 0; i < 4; i++) {
+      const xt = -0.00975 + 0.0065 * i, xb = -0.0165 + 0.011 * i, xn = -0.00825 + 0.0055 * i;
+      const zt = 0.034 + 0.073 * Math.sin(0.2) + 0.0058, zbr = 0.0625 - (0.042 - Math.sqrt(0.042 ** 2 - xb * xb)) + 0.0003;
+      const pts = [V3(xt, 0.106, zt), V3(xb, 0.195, zbr), V3(xn, 0.487, fbTop(0.486) + 0.0007 + crown(xn, 0.024)), V3(xn * 0.5, 0.505 + 0.012 * i, -0.002)];
+      const path = new THREE.CurvePath();
+      for (let k = 0; k < 3; k++) path.add(new THREE.LineCurve3(pts[k], pts[k + 1]));
+      strG.push(weld(new THREE.TubeGeometry(path, 140, [0.00045, 0.00038, 0.00032, 0.00026][i], 6, false)));
+    }
+    addPart(piece, { name: 'Strings', geom: merge(strG), parent: vg, paint: false, init: { polish: [1, 0] },
+      mat: { kind: 'metal', col: lin(0.72, 0.7, 0.66), rough: 0.3, roughPol: 0.18, scale: 200 } });
+
+    // display stand: walnut foot, a felt-padded rest under the end button, a brass rod up the back to a padded yoke
+    vg.updateMatrix();
+    const yoke = V3(0, 0.42, -0.003).applyMatrix4(vg.matrix);
+    const walnut = { kind: 'wood', col: lin(0.12, 0.06, 0.03), col2: lin(0.05, 0.022, 0.01), rough: 0.5, scale: 40, pat: 'wood',
+      axis: V3(1, 0, 0.2).normalize(), origin: V3(0, -0.1, 0.3), patP: [300, 1.2, 0, 0.00002], fin: 'oil', finT: lin(0.9, 0.7, 0.5) };
+    const foot = lathe([[0, 0], [0.13, 0], [0.132, 0.005, 0.004], [0.124, 0.012, 0.004], [0, 0.0125]], 0.0008, 200); foot.translate(0, 0, -0.02);
+    addPart(piece, { name: 'Stand', geom: foot, paint: false, mat: walnut, init: { grime: [0.04, 0.1, 0.1, 0.05], fin: 1 } });
+    const felt = { kind: 'felt', col: lin(0.06, 0.02, 0.02), col2: lin(0.3, 0.12, 0.1), scale: 120 };
+    const rest = roundBox(0.05, 0.012, 0.04, 0.004, 0.002); rest.translate(0, 0.0125 + 0.006, 0);
+    const pad = new THREE.CylinderGeometry(0.005, 0.005, 0.04, 24, 8).rotateZ(Math.PI / 2).translate(0, yoke.y - 0.004, yoke.z - 0.005);
+    addPart(piece, { name: 'Stand', geom: merge([rest, weld(pad)]), paint: false, mat: felt, init: {} });
+    // the rod rises beside the body (so the back stays in view) and arcs in over the upper bout to the yoke
+    const rx = -0.125, rz = yoke.z - 0.012, rp = new THREE.CurvePath();
+    rp.add(new THREE.LineCurve3(V3(rx, 0.006, -0.05), V3(rx, yoke.y - 0.06, rz)));
+    rp.add(new THREE.QuadraticBezierCurve3(V3(rx, yoke.y - 0.06, rz), V3(rx, yoke.y - 0.008, rz), V3(-0.03, yoke.y - 0.008, rz)));
+    rp.add(new THREE.LineCurve3(V3(-0.03, yoke.y - 0.008, rz), V3(0.022, yoke.y - 0.008, rz)));
+    const rod = weld(new THREE.TubeGeometry(rp, 220, 0.0028, 16, false));
+    addPart(piece, { name: 'Stand', geom: rod, paint: false, init: { grime: [0.03, 0.1, 0.1, 0.05], corr: [0.1, 0.15, 0.2], polish: [0.8, 0.1] },
+      mat: { kind: 'metal', col: lin(0.92, 0.72, 0.38), rough: 0.3, roughPol: 0.1, scale: 80, corr: 'tarnish' } });
+
+    piece.onReveal = () => auViolin();
+    return piece;
+  },
+});
+
 // Procedural sound: filtered noise for each tool (louder the faster you scrub), a soft chime per finished part,
 // a chord for the reveal and a watch tick.
 const AU = { ctx: null, on: SAVE.sound !== false, lvl: 0 };
@@ -2249,6 +2587,36 @@ function auRadio(on) {
       r.next += beat; r.step++;
     }
   }, 150);
+}
+
+// The violin's reveal: a short phrase on a synthesised violin (two detuned saws through body resonances, with
+// vibrato that blooms after the attack).
+function auViolin() {
+  if (!AU.ctx || !AU.on) return;
+  const ctx = AU.ctx, t0 = ctx.currentTime + 1.6;
+  const out = ctx.createGain(); out.gain.value = 0.32;
+  let node = out;
+  for (const [f, q, g] of [[440, 2.2, 7], [1450, 1.6, 5], [2900, 2, 6]]) { const b = ctx.createBiquadFilter(); b.type = 'peaking'; b.frequency.value = f; b.Q.value = q; b.gain.value = g; node.connect(b); node = b; }
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200; node.connect(lp); lp.connect(AU.master);
+  const tune = [[74, 1], [76, 0.5], [78, 0.5], [79, 1.5], [78, 0.5], [76, 1], [74, 1], [71, 1], [73, 0.5], [74, 0.5], [76, 2], [69, 1], [74, 3]];
+  const beat = 0.52;
+  let t = t0;
+  for (const [m, len] of tune) {
+    const d = len * beat, f = 440 * Math.pow(2, (m - 69) / 12), e = ctx.createGain();
+    e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(0.5, t + 0.09); e.gain.setTargetAtTime(0.38, t + 0.09, 0.2);
+    e.gain.setTargetAtTime(0, t + d - 0.02, 0.07);
+    const lfo = ctx.createOscillator(), lg = ctx.createGain();
+    lfo.frequency.value = 5.6; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.007, t + Math.min(0.5, d * 0.6));
+    lfo.connect(lg);
+    for (const det of [0, 5]) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det;
+      lg.connect(o.frequency); o.connect(e); o.start(t); o.stop(t + d + 0.4);
+    }
+    lfo.start(t); lfo.stop(t + d + 0.4);
+    e.connect(out);
+    t += d;
+  }
+  setTimeout(() => out.disconnect(), (t - ctx.currentTime + 1) * 1000);
 }
 
 // Camera and input. The camera never orbits: dragging sideways turns the turntable, so the piece rotates under
@@ -2613,7 +2981,9 @@ function advise(fx) {
   if (fx.nofin > T * 0.5) return toast(G.piece.parts.some((p) => p.job.fin)
     ? `The ${fx.nofinName.toLowerCase()} does not take a finish. It goes on bare wood.` : 'Nothing on this piece takes a new finish.');
   if (fx.blocked > T * 0.4) return toast('A new finish will not take over grime, rust or old varnish. Clean and strip first.');
-  if (fx.harm > T * 0.2 && tool === 'wire') return toast('The wire brush is scratching it. Polish will take the scratches back out.', 'warn');
+  if (fx.finLost > T * 0.25 && (tool === 'sand' || tool === 'wire') && G.piece.parts.some((p) => p.job.fin && p.init.fin === 1))
+    return toast('Careful: that is taking the original varnish off. It will need retouching.', 'warn');
+  if (fx.harm > T * 0.2 && tool === 'wire') return toast(fx.harmWood ? 'The wire brush is gouging the wood. A light sanding takes it back out.' : 'The wire brush is scratching it. Polish will take the scratches back out.', 'warn');
   if (fx.harm > T * 0.2 && tool === 'sand') return toast('The pad is scuffing it. Polish will bring it back.', 'warn');
   if (eff < 0.1) {
     if (tool === 'polish' && fx.grimeLeft > T * 0.3) return toast('Grime is clogging the cloth. Clean with solvent first.');
@@ -2729,7 +3099,7 @@ function update(dt) {
   // key light swings around the bench
   const a = (G.lightAng - 0.25) * 2.4, k = R.rig || 1;
   R.key.position.set((KEY_POS.x * Math.cos(a) - KEY_POS.z * Math.sin(a)) * k, KEY_POS.y * k, (KEY_POS.x * Math.sin(a) + KEY_POS.z * Math.cos(a)) * k);
-  if (G.piece) { G.piece.update(dt); stepSettle(G.piece, dt); }
+  if (G.piece) { if (G.piece.update) G.piece.update(dt); stepSettle(G.piece, dt); }
   if (G.state === 'play') paintStep(dt); else auBrush(0, G.tool, dt);
   updateCamera(dt);
   hoverStep(dt);

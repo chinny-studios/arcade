@@ -24,8 +24,9 @@ uniform vec3 uCol; uniform vec3 uCol2; uniform vec3 uDirt; uniform vec3 uDust; u
 uniform float uRough; uniform float uRoughPol; uniform float uMetal; uniform float uScale;
 uniform vec3 uAxis; uniform vec3 uOrigin; uniform vec4 uPat; uniform vec4 uNeed;
 uniform float uCC; uniform float uIrid; uniform float uIridT; uniform float uAOK; uniform vec3 uEmit;
+uniform float uFlame;
 #ifdef L_MAP
-uniform sampler2D uMap; uniform vec4 uMapXf;
+uniform sampler2D uMap; uniform vec4 uMapXf; uniform vec3 uMapAxis; uniform vec3 uMapOrigin;
 #endif
 
 float gFw, gGroove, gMicro, cG, cC, cO, cF, cS, cP;
@@ -46,7 +47,7 @@ mat3 axisBasis() {
 // veneered cabinet's side panels do
 mat3 woodBasis() {
   vec3 a = normalize(uAxis);
-  if (uPat.z > 0.5 && abs(normalize(vON).x) > 0.7) a = vec3(0.0, 0.0, 1.0);
+  if (uPat.z > 0.5 && uPat.z < 1.5 && abs(normalize(vON).x) > 0.7) a = vec3(0.0, 0.0, 1.0);
   vec3 t1 = normalize(cross(a, abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
   return mat3(t1, cross(a, t1), a);
 }
@@ -180,12 +181,32 @@ void layerEval() {
   {
     mat3 B = woodBasis(); vec3 d = vOP - uOrigin; vec3 q = vec3(dot(d, B[0]), dot(d, B[1]), dot(d, B[2]));
     float warp = (N3(vec3(q.x, q.y, q.z * 0.12) * uScale * 0.45).r - 0.5) * uPat.y + (nB.g - 0.5) * 0.12;
-    float ring = fract(length(q.xy) * uPat.x + warp);
+    // uPat.z 2: quarter-sawn and book-matched, rings run straight along the axis, spaced across |q.y|
+    float ring = fract((uPat.z > 1.5 ? abs(q.y) : length(q.xy)) * uPat.x + warp);
     float late = smoothstep(0.42, 0.9, ring) * (1.0 - smoothstep(0.93, 1.0, ring));
     float streak = N3(vec3(q.x * uScale * 3.0, q.y * uScale * 3.0, q.z * uScale * 0.18)).r;
     float fine = N3(vec3(q.x * uScale * 9.0, q.y * uScale * 9.0, q.z * uScale * 0.5)).b;
     alb = mix(uCol, uCol2, late * 0.62) * (0.78 + 0.3 * streak + 0.16 * fine) * (0.86 + 0.28 * nD.r);
     rough = uRough + late * 0.06 + gGroove * 0.2;
+#ifdef W_FLAME
+    // flamed maple, book-matched about the centre joint. The figure is chatoyant: alternate bands catch the light
+    // at different angles, so they swap between bright and dark as the piece turns.
+    vec3 fd = vOP - uOrigin;
+    vec4 fw = N3(vec3(fd.x * 1.5, fd.y * 0.4, fd.z * 1.5) * uScale * 0.12);
+    float fu = fd.y * 0.94 + abs(fd.x) * (0.45 + 0.2 * fw.g) + (fw.r - 0.5) * 0.007;
+    float bw = (fw.b - 0.5) * 0.9;
+    float band = smoothstep(-0.4 + bw, 0.5 + bw, sin(fu * uFlame)) * (0.55 + 0.6 * fw.g);
+    float facing = abs(dot(normalize(vNormal), normalize(vViewPosition)));
+    alb *= 1.0 + 0.34 * (band * 2.0 - 1.0) * (facing * 2.4 - 1.5);
+#endif
+#ifdef W_POLISH
+    // oiled or French-polished wood: the polish mask brings up the sheen
+    cP = smoothstep(0.0, 1.0, vMB.g);
+    rough = mix(uRough, uRoughPol, cP) + gGroove * 0.2;
+#ifndef F_COAT
+    gCC = cP * 0.45; gCCR = 0.08;
+#endif
+#endif
   }
 #endif
 #ifdef K_FELT
@@ -221,11 +242,19 @@ void layerEval() {
   float inkAmt = 0.0;
 #ifdef L_MAP
   {
-    mat3 B = axisBasis(); vec3 d = vOP - uOrigin;
-    vec2 uv = vec2(dot(d, B[0]) * uMapXf.x, dot(d, B[1]) * (uMapXf.y != 0.0 ? uMapXf.y : uMapXf.x)) + 0.5;
-    float ink = texture2D(uMap, uv).a * step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
+    vec3 ma = normalize(uMapAxis);
+    vec3 t1 = normalize(cross(ma, abs(ma.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0))), t2 = cross(ma, t1);
+    vec3 d = vOP - uMapOrigin;
+    vec2 uv = vec2(dot(d, t1) * uMapXf.x, dot(d, t2) * (uMapXf.y != 0.0 ? uMapXf.y : uMapXf.x)) + 0.5;
+    vec4 tx = texture2D(uMap, uv);
+    float ink = tx.a * step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
     inkAmt = ink;
+#ifdef L_MAPRGB
+    // full-colour inlay (purfling, f-holes): the map's own colour
+    alb = mix(alb, pow(tx.rgb, vec3(2.2)) * (0.85 + 0.3 * nC.b), ink);
+#else
     alb = mix(alb, uCol2, ink);
+#endif
     rough = mix(rough, 0.55, ink);
     metal = mix(metal, 0.0, ink);
   }
@@ -282,13 +311,17 @@ void layerEval() {
   cF = smoothstep(0.1, 0.9, vMA.a + brk * 0.08);
 #ifdef K_WOOD
   // bare, freshly sanded wood is pale and dry; the finish wets it to its full colour
-  vec3 dry = mix(alb, vec3(dot(alb, vec3(0.333))), 0.35) * 1.3;
+  float lum = dot(alb, vec3(0.333));
+  vec3 dry = mix(alb, vec3(lum), 0.3) * mix(1.3, 1.02, smoothstep(0.12, 0.45, lum));
   alb = mix(mix(alb, dry, 1.0 - cO), alb * uFinT, cF);
   rough = mix(min(1.0, rough + 0.15 * (1.0 - cO)), rough, cF);
 #else
   alb = mix(alb, alb * uFinT, cF);
 #endif
   gCC = max(gCC, cF); gCCR = mix(gCCR, 0.025 + nC.r * 0.03, cF);
+#ifdef W_POLISH
+  gCCR = mix(0.3, gCCR, cP);
+#endif
 #endif
 
   // grime sits on top of everything: a thin dulling film, and crusts where it builds up in crevices
@@ -365,9 +398,12 @@ function layerMat(o) {
   if (o.old) defs.O_OLD = '';
   if (o.fin) defs.F_COAT = '';
   if (o.map) defs.L_MAP = '';
+  if (o.mapRGB) defs.L_MAPRGB = '';
+  if (o.flame) defs.W_FLAME = '';
+  if (o.polishWood) defs.W_POLISH = '';
   const m = new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 0 });
   m.defines = Object.assign({}, m.defines, defs);
-  if (kind === 'enamel' || kind === 'bakelite' || o.fin || o.old || o.cc) m.clearcoat = 1;
+  if (kind === 'enamel' || kind === 'bakelite' || o.fin || o.old || o.cc || o.polishWood) m.clearcoat = 1;
   if (o.corr === 'tarnish' || o.irid) { m.iridescence = 1; m.iridescenceIOR = 1.8; }
   if (kind === 'felt' || o.sheen) { m.sheen = 1; m.sheenColor.setRGB(1, 1, 1); }
   if (kind === 'glass') { m.transmission = 1; m.ior = o.ior || 1.5; m.thickness = o.thick || 0.001; }
@@ -385,6 +421,8 @@ function layerMat(o) {
     uPat: { value: new THREE.Vector4(...(o.patP || [0, 0, 0, 0])) }, uNeed: { value: new THREE.Vector4() },
     uCC: { value: o.cc || 0 }, uIrid: { value: o.irid || 0 }, uIridT: { value: o.iridT || 380 }, uAOK: { value: o.aoK ?? 1 },
     uEmit: { value: o.emit || new THREE.Color(0, 0, 0) },
+    uFlame: { value: o.flame || 0 },
+    uMapAxis: { value: o.mapAxis || o.axis || V3(0, 0, 1) }, uMapOrigin: { value: o.mapOrigin || o.origin || V3() },
     uMap: { value: o.map || null }, uMapXf: { value: new THREE.Vector4(...(o.mapXf || [1, 0, 0, 0])) },
   };
   m.userData.U = U;

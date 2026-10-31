@@ -16,7 +16,7 @@ function update(dt) {
   // key light swings around the bench
   const a = (G.lightAng - 0.25) * 2.4, k = R.rig || 1;
   R.key.position.set((KEY_POS.x * Math.cos(a) - KEY_POS.z * Math.sin(a)) * k, KEY_POS.y * k, (KEY_POS.x * Math.sin(a) + KEY_POS.z * Math.cos(a)) * k);
-  if (G.piece) { G.piece.update(dt); stepSettle(G.piece, dt); }
+  if (G.piece) { if (G.piece.update) G.piece.update(dt); stepSettle(G.piece, dt); }
   if (G.state === 'play') paintStep(dt); else auBrush(0, G.tool, dt);
   updateCamera(dt);
   hoverStep(dt);

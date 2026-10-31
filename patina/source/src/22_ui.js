@@ -181,7 +181,9 @@ function advise(fx) {
   if (fx.nofin > T * 0.5) return toast(G.piece.parts.some((p) => p.job.fin)
     ? `The ${fx.nofinName.toLowerCase()} does not take a finish. It goes on bare wood.` : 'Nothing on this piece takes a new finish.');
   if (fx.blocked > T * 0.4) return toast('A new finish will not take over grime, rust or old varnish. Clean and strip first.');
-  if (fx.harm > T * 0.2 && tool === 'wire') return toast('The wire brush is scratching it. Polish will take the scratches back out.', 'warn');
+  if (fx.finLost > T * 0.25 && (tool === 'sand' || tool === 'wire') && G.piece.parts.some((p) => p.job.fin && p.init.fin === 1))
+    return toast('Careful: that is taking the original varnish off. It will need retouching.', 'warn');
+  if (fx.harm > T * 0.2 && tool === 'wire') return toast(fx.harmWood ? 'The wire brush is gouging the wood. A light sanding takes it back out.' : 'The wire brush is scratching it. Polish will take the scratches back out.', 'warn');
   if (fx.harm > T * 0.2 && tool === 'sand') return toast('The pad is scuffing it. Polish will bring it back.', 'warn');
   if (eff < 0.1) {
     if (tool === 'polish' && fx.grimeLeft > T * 0.3) return toast('Grime is clogging the cloth. Clean with solvent first.');

@@ -402,3 +402,79 @@ function slab(shapes, depth, z0, bevel, s, curveSegments = 18) {
   g.translate(0, 0, z0);
   return tess(creaseNormals(g, 40), s * 1.6);
 }
+
+// ---- swept, lofted and arched surfaces (the violin)
+// flip triangle winding if the normals mostly point toward the reference points (ref(i) -> Vector3 for vertex i)
+function orientOut(g, ref) {
+  g.computeVertexNormals();
+  const P = g.attributes.position.array, N = g.attributes.normal.array, r = V3();
+  let s = 0;
+  for (let i = 0; i < P.length / 3; i++) { ref(i, r); s += N[i * 3] * (P[i * 3] - r.x) + N[i * 3 + 1] * (P[i * 3 + 1] - r.y) + N[i * 3 + 2] * (P[i * 3 + 2] - r.z); }
+  if (s < 0) {
+    const I = g.index.array;
+    for (let i = 0; i < I.length; i += 3) { const t = I[i + 1]; I[i + 1] = I[i + 2]; I[i + 2] = t; }
+    g.index.needsUpdate = true; g.computeVertexNormals();
+  }
+  return g;
+}
+// outward normals of a closed loop of Vector2 (counter-clockwise loops get normals pointing out)
+function loopNormals(loop) {
+  let area = 0;
+  for (let i = 0; i < loop.length; i++) { const a = loop[i], b = loop[(i + 1) % loop.length]; area += a.x * b.y - b.x * a.y; }
+  const sg = area > 0 ? 1 : -1, n = loop.length;
+  return loop.map((p, i) => {
+    const a = loop[(i + n - 1) % n], b = loop[(i + 1) % n];
+    const v = new THREE.Vector2((b.y - a.y) * sg, -(b.x - a.x) * sg);
+    return v.normalize();
+  });
+}
+function offsetLoop(loop, d) { const N = loopNormals(loop); return loop.map((p, i) => p.clone().addScaledVector(N[i], d)); }
+// sweep a profile [[offset along the outward normal, z], ...] around a closed loop in the XY plane
+function sweepLoop(loop, prof, refOff = -0.01, refZ = 0) {
+  const N = loopNormals(loop), n = loop.length, m = prof.length, pos = [], idx = [];
+  for (let i = 0; i < n; i++) for (const [o, z] of prof) pos.push(loop[i].x + N[i].x * o, loop[i].y + N[i].y * o, z);
+  for (let i = 0; i < n; i++) {
+    const i2 = (i + 1) % n;
+    for (let j = 0; j < m - 1; j++) { const a = i * m + j, b = i2 * m + j; idx.push(a, b, b + 1, a, b + 1, a + 1); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  return orientOut(g, (k, r) => { const i = Math.floor(k / m); r.set(loop[i].x + N[i].x * refOff, loop[i].y + N[i].y * refOff, refZ); });
+}
+// loft through rings (arrays of Vector3, each a closed loop of the same length); ends are capped with fans
+function loft(rings, caps = true) {
+  const n = rings[0].length, pos = [], idx = [], cen = [];
+  for (const r of rings) { const c = V3(); for (const p of r) c.add(p); c.divideScalar(n); cen.push(c); for (const p of r) pos.push(p.x, p.y, p.z); }
+  for (let k = 0; k < rings.length - 1; k++) for (let i = 0; i < n; i++) {
+    const a = k * n + i, b = k * n + (i + 1) % n, c = a + n, d = b + n; idx.push(a, b, d, a, d, c);
+  }
+  const ends = [];
+  if (caps) for (const k of [0, rings.length - 1]) {
+    const ci = pos.length / 3; pos.push(cen[k].x, cen[k].y, cen[k].z); ends.push(ci);
+    for (let i = 0; i < n; i++) { const a = k * n + i, b = k * n + (i + 1) % n; if (k === 0) idx.push(ci, b, a); else idx.push(ci, a, b); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  return orientOut(g, (v, r) => r.copy(cen[Math.min(rings.length - 1, Math.floor(v / n))]));
+}
+function distToLoop(loop, x, y) {
+  let best = Infinity;
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i], b = loop[(i + 1) % loop.length], vx = b.x - a.x, vy = b.y - a.y;
+    const t = sat(((x - a.x) * vx + (y - a.y) * vy) / (vx * vx + vy * vy || 1));
+    const d = (x - a.x - vx * t) ** 2 + (y - a.y - vy * t) ** 2;
+    if (d < best) best = d;
+  }
+  return Math.sqrt(best);
+}
+// an arched plate: the loop's interior meshed evenly, lifted by zfn(x, y); faces +Z if up
+function heightCap(loop, s, zfn, up) {
+  const pos = [];
+  capTris(loop, [], s, 0, up, pos);
+  for (let i = 0; i < pos.length; i += 3) pos[i + 2] = zfn(pos[i], pos[i + 1]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const w = weld(g);
+  w.computeVertexNormals();
+  return w;
+}

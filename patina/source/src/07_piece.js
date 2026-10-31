@@ -116,6 +116,8 @@ function initWear(p, piece) {
     if (I.polish) { m[o + 5] = I.polish[0] + (n1 - 0.5) * 2 * I.polish[1]; }
     else m[o + 5] = p.job.polish ? 0 : 1;
     if (I.fin !== undefined) m[o + 3] = I.fin;
+    // per-piece touches: worn-through varnish, rosin under the strings... (local position, piece-space position)
+    if (I.post) { _lp.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]); I.post(_lp, v, nv, m, o, cav, n1, n2); }
     // surfaces the job leaves alone (insides of cabinets): their own state, and they don't count
     if (I.exclude && I.exclude(v, nv)) {
       const e = I.excl || [0.1, 0, 0, 0, 0, 1];
@@ -173,6 +175,7 @@ function progressOf(p) {
   return { all: wAll / W, clean: cl / W, tarnish: co / W, rust: co / W, strip: st / W, scratch: sc / W, polish: po / W, finish: fi / W, scratchShow: scAny / W > 0.004 };
 }
 const PART_DONE = 0.965;
+const _lp = V3();
 
 // Brush: a flattened sphere (a disc that follows the surface), so working a crystal doesn't reach the dial below.
 const _v = V3(), _n = V3(), _inv = new THREE.Matrix4(), _nm = new THREE.Matrix3();
@@ -212,7 +215,7 @@ function remaining(m, o, J) {
 }
 function applyTool(p, i, w, tool, fx) {
   const m = p.m, o = i * 8, J = p.job, s = J.surf || 'soft';
-  const before = remaining(m, o, J), sc0 = m[o + 4];
+  const before = remaining(m, o, J), sc0 = m[o + 4], fin0 = m[o + 3];
   switch (tool) {
     case 'solvent':
       m[o] -= w * 1.9;
@@ -243,19 +246,21 @@ function applyTool(p, i, w, tool, fx) {
       if (!J.fin) { fx.nofin += w; fx.total += w; fx.nofinName = p.name; return; }
       if (m[o] > 0.15 || m[o + 2] > 0.15 || m[o + 1] > 0.15) { fx.blocked += w; fx.total += w; return; }
       m[o + 3] += w * 1.3;
+      m[o + 5] += w * 1.3;   // a fresh coat is glossy
       break;
   }
   for (let k = 0; k < 6; k++) { const x = m[o + k]; m[o + k] = x < 0 ? 0 : x > 1 ? 1 : x; }
+  if (J.fin && m[o + 3] < fin0) fx.finLost += fin0 - m[o + 3];
   const gain = before - remaining(m, o, J);
   if (gain > 0) fx.useful += gain;
   fx.total += w;
-  if (m[o + 4] > sc0) fx.harm += m[o + 4] - sc0;
+  if (m[o + 4] > sc0) { fx.harm += m[o + 4] - sc0; fx.harmWood = s === 'wood'; }
   // what was the main thing left under the brush (for advice)
   if (m[o + 1] > 0.3) fx[J.corr === 'rust' ? 'rustLeft' : 'tarnLeft'] += w;
   if (m[o + 2] > 0.3) fx.oldLeft += w;
   if (m[o] > 0.3) fx.grimeLeft += w;
 }
-function newFx() { return { useful: 0, total: 0, harm: 0, blocked: 0, nofin: 0, rustLeft: 0, tarnLeft: 0, oldLeft: 0, grimeLeft: 0, parts: new Set() }; }
+function newFx() { return { useful: 0, total: 0, harm: 0, finLost: 0, blocked: 0, nofin: 0, rustLeft: 0, tarnLeft: 0, oldLeft: 0, grimeLeft: 0, parts: new Set() }; }
 
 // When the piece is done, ease every remaining speck to its finished state for the reveal.
 function settlePiece(piece) {
