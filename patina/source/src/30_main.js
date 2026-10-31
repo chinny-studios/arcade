@@ -51,6 +51,7 @@ async function boot() {
   resetView(true);
   CAM.tPitch = CAM.pitch = 0.08;
   window.__ready = true;
+  if (window.PA) window.PA.ready = true;
 }
 
 if (DEBUG) {
@@ -77,12 +78,17 @@ if (DEBUG) {
       return { part: hit.part.name, useful: +fx.useful.toFixed(3), harm: +fx.harm.toFixed(3) };
     },
     pickAt(x, y) { const h = pick(at(x, y)); return h && { part: h.part.name, point: h.point.toArray().map((v) => +v.toFixed(4)) }; },
-    // apply a tool to every vertex of the named parts (or all), w per vertex
-    workAll(tool, w = 1, names) {
-      const fx = newFx();
+    // apply a tool to every vertex of the named parts (or all), w per vertex; `where(x, y, z)` (piece space,
+    // the watch's dial faces +Z) limits it to part of the piece
+    workAll(tool, w = 1, names, where) {
+      const fx = newFx(), v = V3();
       for (const p of G.piece.parts) {
         if (names && !names.includes(p.name)) continue;
-        for (let i = 0; i < p.n; i++) applyTool(p, i, w, tool, fx);
+        const P = p.geom.attributes.position.array;
+        for (let i = 0; i < p.n; i++) {
+          if (where) { v.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]).applyMatrix4(p.rel); if (!where(v.x, v.y, v.z)) continue; }
+          applyTool(p, i, w, tool, fx);
+        }
         upload(p, true); p.progDirty = true;
       }
       renderJob();

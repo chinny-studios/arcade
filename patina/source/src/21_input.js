@@ -6,7 +6,9 @@ const PTR = { ndc: new THREE.Vector2(), last: new THREE.Vector2(), x: 0, y: 0, m
 
 function resetView(instant) {
   const p = G.piece; if (!p) return;
-  CAM.tYaw = Math.round(CAM.tYaw / TAU) * TAU + 0.35; CAM.tPitch = p.pitch; CAM.tDist = p.dist; CAM.tTarget.copy(p.focus);
+  const portrait = window.innerWidth / window.innerHeight < 0.8;
+  CAM.tYaw = Math.round(CAM.tYaw / TAU) * TAU + 0.35; CAM.tPitch = p.pitch; CAM.tTarget.copy(p.focus);
+  CAM.tDist = p.dist * (portrait ? (G.state === 'title' ? 1.7 : 1.25) : 1);
   if (instant) { CAM.yaw = CAM.tYaw; CAM.pitch = CAM.tPitch; CAM.dist = CAM.tDist; CAM.target.copy(CAM.tTarget); }
 }
 function updateCamera(dt) {
@@ -75,7 +77,7 @@ canvas.addEventListener('pointermove', (e) => {
   if (PTR.pointers.size > 1 && prev && e.pointerId !== [...PTR.pointers.keys()][0]) return;
   setNdc(e.clientX, e.clientY);
   PTR.speed = Math.max(PTR.speed, Math.hypot(dx, dy) / 0.016);
-  if (PTR.mode === 'orbit') { CAM.tYaw += dx * 0.0085; CAM.tPitch += dy * 0.006; }
+  if (PTR.mode === 'orbit') { CAM.tYaw += dx * 0.0065; CAM.tPitch += dy * 0.005; }
   else if (PTR.mode === 'pan') panBy(dx, dy);
 });
 function panBy(dx, dy) {

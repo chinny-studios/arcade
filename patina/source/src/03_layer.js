@@ -263,7 +263,7 @@ void layerEval() {
     w = max(w, uNeed.x * (0.85 - vMB.g));
     w = max(w, uNeed.y * (0.85 - vMA.a));
     float on = step(0.0, w) * step(0.03, vAO.y) * uNeed.w;
-    gEm += uHint * on * vec3(0.12, 0.36, 0.8) * (0.4 + 0.15 * sin(uTime * 5.0));
+    gEm += uHint * on * vec3(0.08, 0.24, 0.6) * (0.35 + 0.12 * sin(uTime * 5.0));
     gAlb *= 1.0 - uHint * 0.3 * uNeed.w;
   }
 }

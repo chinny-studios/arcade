@@ -133,6 +133,11 @@
     #help { display: none; }
     #side { bottom: 96px; right: 12px; }
     #tooltip { display: none; }
+    #ptitle { left: 14px; top: 12px; } #ptitle .sub { display: none; }
+    #topr { right: 10px; top: 10px; gap: 4px; } #topr .chip { padding: 6px 10px; font-size: 11.5px; } #bHelp { display: none; }
+    #toast { bottom: auto; top: 76px; font-size: 12.5px; }
+    #photo { flex-wrap: wrap; justify-content: center; width: calc(100vw - 40px); box-sizing: border-box; }
+    #reveal .row .btn { padding: 8px 14px; font-size: 13px; }
     #title { padding: 0 6vw 5vh; background: linear-gradient(0deg, rgba(10,8,6,.9) 0%, rgba(10,8,6,.5) 55%, rgba(10,8,6,0) 80%); }
   }
 </style>
@@ -597,7 +602,7 @@ void layerEval() {
     w = max(w, uNeed.x * (0.85 - vMB.g));
     w = max(w, uNeed.y * (0.85 - vMA.a));
     float on = step(0.0, w) * step(0.03, vAO.y) * uNeed.w;
-    gEm += uHint * on * vec3(0.12, 0.36, 0.8) * (0.4 + 0.15 * sin(uTime * 5.0));
+    gEm += uHint * on * vec3(0.08, 0.24, 0.6) * (0.35 + 0.12 * sin(uTime * 5.0));
     gAlb *= 1.0 - uHint * 0.3 * uNeed.w;
   }
 }
@@ -1782,7 +1787,9 @@ const PTR = { ndc: new THREE.Vector2(), last: new THREE.Vector2(), x: 0, y: 0, m
 
 function resetView(instant) {
   const p = G.piece; if (!p) return;
-  CAM.tYaw = Math.round(CAM.tYaw / TAU) * TAU + 0.35; CAM.tPitch = p.pitch; CAM.tDist = p.dist; CAM.tTarget.copy(p.focus);
+  const portrait = window.innerWidth / window.innerHeight < 0.8;
+  CAM.tYaw = Math.round(CAM.tYaw / TAU) * TAU + 0.35; CAM.tPitch = p.pitch; CAM.tTarget.copy(p.focus);
+  CAM.tDist = p.dist * (portrait ? (G.state === 'title' ? 1.7 : 1.25) : 1);
   if (instant) { CAM.yaw = CAM.tYaw; CAM.pitch = CAM.tPitch; CAM.dist = CAM.tDist; CAM.target.copy(CAM.tTarget); }
 }
 function updateCamera(dt) {
@@ -1851,7 +1858,7 @@ canvas.addEventListener('pointermove', (e) => {
   if (PTR.pointers.size > 1 && prev && e.pointerId !== [...PTR.pointers.keys()][0]) return;
   setNdc(e.clientX, e.clientY);
   PTR.speed = Math.max(PTR.speed, Math.hypot(dx, dy) / 0.016);
-  if (PTR.mode === 'orbit') { CAM.tYaw += dx * 0.0085; CAM.tPitch += dy * 0.006; }
+  if (PTR.mode === 'orbit') { CAM.tYaw += dx * 0.0065; CAM.tPitch += dy * 0.005; }
   else if (PTR.mode === 'pan') panBy(dx, dy);
 });
 function panBy(dx, dy) {
@@ -1992,7 +1999,7 @@ function showScreen(state) {
   $('#photo').hidden = state !== 'photo';
   const portrait = window.innerWidth / window.innerHeight < 0.8;
   CAM.tShift = state === 'title' ? (portrait ? 0 : 0.2) : state === 'play' && !portrait ? 0.06 : 0;
-  CAM.tShiftY = state === 'title' && portrait ? 0.16 : state === 'reveal' ? 0.08 : 0;
+  CAM.tShiftY = state === 'title' && portrait ? 0.24 : state === 'reveal' ? 0.08 : 0;
 }
 function setLoad(msg, k) { $('#loadmsg').textContent = msg; $('#loading .bar i').style.width = Math.round(k * 100) + '%'; }
 const frameWait = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
@@ -2283,6 +2290,7 @@ async function boot() {
   resetView(true);
   CAM.tPitch = CAM.pitch = 0.08;
   window.__ready = true;
+  if (window.PA) window.PA.ready = true;
 }
 
 if (DEBUG) {
@@ -2309,12 +2317,17 @@ if (DEBUG) {
       return { part: hit.part.name, useful: +fx.useful.toFixed(3), harm: +fx.harm.toFixed(3) };
     },
     pickAt(x, y) { const h = pick(at(x, y)); return h && { part: h.part.name, point: h.point.toArray().map((v) => +v.toFixed(4)) }; },
-    // apply a tool to every vertex of the named parts (or all), w per vertex
-    workAll(tool, w = 1, names) {
-      const fx = newFx();
+    // apply a tool to every vertex of the named parts (or all), w per vertex; `where(x, y, z)` (piece space,
+    // the watch's dial faces +Z) limits it to part of the piece
+    workAll(tool, w = 1, names, where) {
+      const fx = newFx(), v = V3();
       for (const p of G.piece.parts) {
         if (names && !names.includes(p.name)) continue;
-        for (let i = 0; i < p.n; i++) applyTool(p, i, w, tool, fx);
+        const P = p.geom.attributes.position.array;
+        for (let i = 0; i < p.n; i++) {
+          if (where) { v.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]).applyMatrix4(p.rel); if (!where(v.x, v.y, v.z)) continue; }
+          applyTool(p, i, w, tool, fx);
+        }
         upload(p, true); p.progDirty = true;
       }
       renderJob();

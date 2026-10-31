@@ -39,7 +39,7 @@ function showScreen(state) {
   $('#photo').hidden = state !== 'photo';
   const portrait = window.innerWidth / window.innerHeight < 0.8;
   CAM.tShift = state === 'title' ? (portrait ? 0 : 0.2) : state === 'play' && !portrait ? 0.06 : 0;
-  CAM.tShiftY = state === 'title' && portrait ? 0.16 : state === 'reveal' ? 0.08 : 0;
+  CAM.tShiftY = state === 'title' && portrait ? 0.24 : state === 'reveal' ? 0.08 : 0;
 }
 function setLoad(msg, k) { $('#loadmsg').textContent = msg; $('#loading .bar i').style.width = Math.round(k * 100) + '%'; }
 const frameWait = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));

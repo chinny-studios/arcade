@@ -8,8 +8,9 @@ not covered by that license, or is covered by its own.
 [three.js](https://threejs.org/) is MIT-licensed, © 2010-2021 three.js authors.
 
 - Vendored (and inlined into each built `index.html`, with its license header
-  kept) in: `act-of-god`, `apogee`, `ashreach`, `calamity-bay`, `copter-city`, `creature-feature`, `farhold`, `highguard`, `hollowmere`, `iron-saber`, `mud-and-iron`, `nathan-road`, `revenant-protocol`, `ricky-rescue`, `roma-aeterna`, `sea-of-smoke`, `shot-heard`, `studworks`, `time-apprentice`, `tokoyo`, `valor-bay`, `veyra-below`, `vyrium`, `willow-lane`
-  (`*/source/vendor/three.min.js`).
+  kept) in: `act-of-god`, `apogee`, `ashreach`, `calamity-bay`, `copter-city`, `creature-feature`, `farhold`, `highguard`, `hollowmere`, `patina`, `iron-saber`, `mud-and-iron`, `nathan-road`, `revenant-protocol`, `ricky-rescue`, `roma-aeterna`, `sea-of-smoke`, `shot-heard`, `studworks`, `time-apprentice`, `tokoyo`, `valor-bay`, `veyra-below`, `vyrium`, `willow-lane`
+  (`*/source/vendor/three.min.js`). These are release r128, except `patina`, which vendors r159 (© 2010-2023
+  three.js authors, MIT) with its two build/three.min.js deprecation warning and a URL in one warning string trimmed.
 - Loaded from public CDNs (cdnjs, jsDelivr) by the other 3D games.
 
 ## Fonts
