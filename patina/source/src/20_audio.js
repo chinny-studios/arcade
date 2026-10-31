@@ -127,3 +127,12 @@ function auViolin() {
   }
   setTimeout(() => out.disconnect(), (t - ctx.currentTime + 1) * 1000);
 }
+
+// The kabuto's reveal: a temple bell, struck once (inharmonic partials with long, staggered decays).
+function auBell() {
+  if (!AU.ctx || !AU.on) return;
+  const t = AU.ctx.currentTime + 1.4;
+  [[1, 0.12, 9], [2.32, 0.07, 6], [3.01, 0.04, 5], [4.25, 0.05, 3.5], [5.4, 0.025, 2.4], [6.63, 0.025, 2], [9.38, 0.012, 1.2]].forEach(([k, g, d]) => {
+    for (const det of [0, 0.7]) tone(98 * k + det, d, g * (det ? 0.6 : 1), 'sine', t - AU.ctx.currentTime);
+  });
+}

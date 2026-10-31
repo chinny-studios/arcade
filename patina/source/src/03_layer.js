@@ -85,6 +85,24 @@ float patH(vec3 op) {
     gMicro += band * (1.0 - lodf(wl)) * 0.25;
   }
 #endif
+#ifdef P_SUJI
+  {
+    // a riveted helmet bowl (hoshi-bachi): raised seams between uPat.x plates, a rivet head every 1/uPat.y metres
+    // up each seam, smaller toward the crown. uPat.z seam height, uPat.w rivet radius.
+    mat3 B = axisBasis(); vec3 d = op - uOrigin; vec2 q = vec2(dot(d, B[0]), dot(d, B[1]));
+    float r = length(q), a = atan(q.y, q.x), along = dot(d, B[2]), cell = 6.2832 / uPat.x;
+    float da = abs(fract(a / cell + 0.5) - 0.5) * cell * r;
+    float band = smoothstep(0.012, 0.016, along);
+    float rw = 0.0014, f = lodf(rw * 2.0) * band;
+    h += uPat.z * (1.0 - smoothstep(0.0, rw, da)) * f;
+    float dv = (fract(along * uPat.y) - 0.5) / uPat.y;
+    float rr = uPat.w * mix(1.0, 0.5, clamp(along / 0.12, 0.0, 1.0));
+    float rd = length(vec2(da, dv)), rf = lodf(rr * 2.0) * band * step(along, 0.112);
+    h += sqrt(max(0.0, 1.0 - rd * rd / (rr * rr))) * rr * 0.7 * rf;
+    gGroove += smoothstep(rr * 0.85, rr * 1.2, rd) * smoothstep(rr * 1.8, rr * 1.25, rd) * 0.6 * rf + (1.0 - smoothstep(rw, rw * 2.5, da)) * 0.2 * f;
+    gMicro += (1.0 - lodf(rr * 2.0)) * band * 0.08;
+  }
+#endif
 #ifdef P_WEAVE
   {
     // plain weave: warp and weft threads alternate over and under
@@ -275,7 +293,7 @@ void layerEval() {
 
 #ifdef C_TARNISH
   {
-    float t = smoothstep(0.03, 0.95, vMA.g + brk * 0.18 + cav * 0.15 * vMA.g);
+    float t = smoothstep(0.03, 0.95, vMA.g + (brk * 0.18 + cav * 0.15) * min(1.0, vMA.g * 4.0));
     cC = t;
     alb = alb * mix(vec3(1.0), vec3(0.42, 0.29, 0.17), t) * (1.0 - 0.38 * t);
     rough = mix(rough, 0.42, t * 0.75);
@@ -288,7 +306,7 @@ void layerEval() {
 #endif
 #ifdef C_RUST
   {
-    float t = smoothstep(0.12, 0.32, vMA.g + brk * 0.45 + cav * 0.2 * vMA.g);
+    float t = smoothstep(0.12, 0.32, vMA.g + (brk * 0.45 + cav * 0.2) * min(1.0, vMA.g * 4.0));
     cC = t;
     vec3 rc = mix(vec3(0.30, 0.10, 0.03), vec3(0.11, 0.045, 0.02), nC.g) * (0.8 + 0.5 * nB.r);
     rc = mix(rc, vec3(0.45, 0.2, 0.06), smoothstep(0.62, 0.8, nC.b) * 0.6);
@@ -299,17 +317,29 @@ void layerEval() {
 #endif
 #ifdef O_OLD
   {
-    float t = smoothstep(0.1, 0.28, vMA.b + brk * 0.35);
+    float t = smoothstep(0.1, 0.28, vMA.b + brk * 0.35 * min(1.0, vMA.b * 4.0));
     cO = t;
     float crack = 1.0 - smoothstep(0.0, 0.1, N3(p * 1.5).a);
+#ifdef L_OPAQUE
+    // opaque lacquer: covers the metal completely
+    alb = mix(alb, uOldT * (1.0 - crack * 0.5) * (0.8 + 0.4 * nA.g), t); metal = mix(metal, 0.0, t);
+#else
     alb = mix(alb, alb * uOldT * (1.0 - crack * 0.6), t);
-    gCC = mix(gCC, 0.75 * (1.0 - crack), t); gCCR = mix(gCCR, 0.16 + nB.r * 0.2, t); gCCB = t;
+#endif
+#ifdef L_OPAQUE
+    gCC = mix(gCC, 0.4 * (1.0 - crack), t);
+#else
+    gCC = mix(gCC, 0.75 * (1.0 - crack), t);
+#endif
+    gCCR = mix(gCCR, 0.16 + nB.r * 0.2, t); gCCB = t;
     rough = mix(rough, 0.6, t);
   }
 #endif
 #ifdef F_COAT
-  cF = smoothstep(0.1, 0.9, vMA.a + brk * 0.08);
-#ifdef K_WOOD
+  cF = smoothstep(0.1, 0.9, vMA.a + brk * 0.08 * min(1.0, vMA.a * 4.0));
+#if defined(L_OPAQUE)
+  alb = mix(alb, uFinT * (0.92 + 0.16 * nA.r), cF); metal = mix(metal, 0.0, cF); rough = mix(rough, 0.3, cF);
+#elif defined(K_WOOD)
   // bare, freshly sanded wood is pale and dry; the finish wets it to its full colour
   float lum = dot(alb, vec3(0.333));
   vec3 dry = mix(alb, vec3(lum), 0.3) * mix(1.3, 1.02, smoothstep(0.12, 0.45, lum));
@@ -401,6 +431,7 @@ function layerMat(o) {
   if (o.mapRGB) defs.L_MAPRGB = '';
   if (o.flame) defs.W_FLAME = '';
   if (o.polishWood) defs.W_POLISH = '';
+  if (o.opaque) defs.L_OPAQUE = '';
   const m = new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 0 });
   m.defines = Object.assign({}, m.defines, defs);
   if (kind === 'enamel' || kind === 'bakelite' || o.fin || o.old || o.cc || o.polishWood) m.clearcoat = 1;

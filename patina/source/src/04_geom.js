@@ -478,3 +478,29 @@ function heightCap(loop, s, zfn, up) {
   w.computeVertexNormals();
   return w;
 }
+// a lathe over part of a turn (phi from phiStart, phiLength radians; phi 0 faces +Z), with the profile capped at
+// both cut ends so thin plates don't show their hollow edges
+function plathe(pts, step, segs, phiStart, phiLength) {
+  const pr = prof(pts, step);
+  const body = new THREE.LatheGeometry(pr, segs, phiStart, phiLength);
+  const loop = pr.slice(); if (loop[0].distanceTo(loop[loop.length - 1]) < 1e-9) loop.pop();
+  const tris = THREE.ShapeUtils.triangulateShape(loop, []);
+  const caps = [];
+  for (const [phi, sg] of [[phiStart, -1], [phiStart + phiLength, 1]]) {
+    const s = Math.sin(phi), c = Math.cos(phi), nx = c * sg, nz = -s * sg, pos = [], nor = [];
+    for (const t of tris) {
+      const order = sg > 0 ? t : [t[0], t[2], t[1]];
+      for (const k of order) { pos.push(loop[k].x * s, loop[k].y, loop[k].x * c); nor.push(nx, 0, nz); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    const cg = tess(g, step * 2); fixWinding(cg); caps.push(cg);
+  }
+  return merge([weld(body), ...caps]);
+}
+// closed profile of a thin curved plate from (r0, y0) (top, inner) to (r1, y1) (bottom, outer), th thick
+function plateProf(r0, y0, r1, y1, th, bulge = 0) {
+  const ux = r0 - r1, uy = y0 - y1, L = Math.hypot(ux, uy), nx = uy / L, ny = -ux / L;
+  const mx = (r0 + r1) / 2 + nx * bulge, my = (y0 + y1) / 2 + ny * bulge;
+  return [[r1, y1], [mx, my], [r0, y0, th * 0.45], [r0 - nx * th, y0 - ny * th, th * 0.45], [mx - nx * th, my - ny * th], [r1 - nx * th, y1 - ny * th, th * 0.45], [r1, y1]];
+}

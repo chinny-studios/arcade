@@ -4,11 +4,7 @@ const UI = { jobT: 0, toastT: 0, lastToast: {}, allDone: false, chimed: new Set(
 
 function pieceDone(id) { return SAVE.done.includes(id); }
 function pieceUnlocked(i) { return DEBUG || i === 0 || pieceDone(PIECES[i - 1].id); }
-const UPCOMING = [
-  { title: 'Valve radio', era: 'Walnut and Bakelite, 1938' },
-  { title: 'Violin', era: 'Flamed maple, c. 1870' },
-  { title: 'Kabuto helmet', era: 'Iron and urushi lacquer, Edo period' },
-];
+const UPCOMING = [];   // planned pieces, listed on the shelf as "In the post" until they are built
 function buildShelf() {
   const el = $('#cards'); el.innerHTML = '';
   PIECES.forEach((p, i) => {
@@ -20,7 +16,7 @@ function buildShelf() {
     b.onclick = () => { auInit(); auClick(); startPiece(p.id); };
     el.appendChild(b);
   });
-  for (const u of UPCOMING.slice(PIECES.length - 1)) {
+  for (const u of UPCOMING) {
     const b = document.createElement('button');
     b.className = 'card'; b.disabled = true;
     b.innerHTML = `<b>${u.title}</b><span>${u.era}</span><i>In the post</i>`;

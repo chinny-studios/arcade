@@ -247,6 +247,7 @@ function applyTool(p, i, w, tool, fx) {
       if (m[o] > 0.15 || m[o + 2] > 0.15 || m[o + 1] > 0.15) { fx.blocked += w; fx.total += w; return; }
       m[o + 3] += w * 1.3;
       m[o + 5] += w * 1.3;   // a fresh coat is glossy
+      m[o + 4] -= w * 1.0;   // and fills fine scratches
       break;
   }
   for (let k = 0; k < 6; k++) { const x = m[o + k]; m[o + k] = x < 0 ? 0 : x > 1 ? 1 : x; }

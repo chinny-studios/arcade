@@ -2,9 +2,9 @@
 
 A restoration workshop: an antique sits on a turntable under studio lights and you scrub, strip, polish and
 refinish it with five tools until it looks new, then get a turntable reveal, a before/after wipe and a photo
-mode. It is a showcase for procedural models and layered physically based materials. The pocket watch, the
-valve radio and the violin are built (each unlocks when the one before is done; everything is unlocked under
-`#debug`); the kabuto is planned (it shows as "In the post" on the shelf).
+mode. It is a showcase for procedural models and layered physically based materials. Four pieces are built:
+the pocket watch, the valve radio, the violin and a kabuto (each unlocks when the one before is done; everything is
+unlocked under `#debug`).
 
 - **Read first:** `source/DESIGN.md`.
 - **Build:** `cd source && python3 build.py`, which writes `../index.html`. **three.js is r159**, not the r128 the
@@ -23,7 +23,8 @@ valve radio and the violin are built (each unlocks when the one before is done; 
   varnished, reveal with the valves lit) and `--piece radio --steps test/advice.js` checks the wrong-tool advice;
   `shelf2.js --no-start` finishes the watch and checks the radio comes up on the shelf. `--piece violin` with
   `violin.js` (front, back, scroll, reveal), `violin2.js` (close-ups of the restored flamed back and spruce top) or
-  `vadvice.js` (sanding warns about original varnish). Also `open.js` (hinged bezel), `input.js` (real pointer events: scrubbing, turning),
+  `vadvice.js` (sanding warns about original varnish). `--piece kabuto` with `kabuto.js` (dirty, stripped,
+  restored, close-ups) or `kabuto2.js` (quick dirty and restored pair). Also `open.js` (hinged bezel), `input.js` (real pointer events: scrubbing, turning),
   `reveal.js`, `flow.js --no-start` (shelf → reveal → before/after → photo), `phone.js --no-start --w 390 --h 844`.
   Boot takes 40–70 s on SwiftShader because the AO bake renders the piece from 96 directions, twice for the watch.
 - **Input:** mouse (drag on the piece works it, drag elsewhere or right-drag turns and tilts, wheel zooms toward the

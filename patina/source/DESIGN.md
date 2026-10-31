@@ -18,7 +18,8 @@ them, so the player watches gloss, colour, relief and reflections change under t
 | `10_watch.js` | piece 1, the pocket watch (dial texture, Breguet hands, hinged bezel, stand) |
 | `11_radio.js` | piece 2, the valve radio (cabinet shell, baffle, grille, dial, knobs, chassis and valves, power-on) |
 | `12_violin.js` | piece 3, the violin (outline, arched plates, ribs, neck and scroll, ebony fittings, bridge, strings, stand) |
-| `20_audio.js` | procedural scrub sounds, chimes, the watch tick, the radio's static and waltz, the violin's phrase |
+| `13_kabuto.js` | piece 4, the kabuto (riveted bowl, neck guard lames, visor, turnbacks, gilt horns, rosette and crests, silk lacing, stand) |
+| `20_audio.js` | procedural scrub sounds, chimes, the watch tick, the radio's static and waltz, the violin's phrase, the kabuto's temple bell |
 | `21_input.js` | camera (turntable yaw, tilt, zoom to cursor, pan), pointer and touch, the brush cursor, keys |
 | `22_ui.js` | shelf, loading, HUD and job card, advice toasts, reveal, before/after, photo mode |
 | `30_main.js` | loop, boot, `window.PA` |
@@ -32,7 +33,8 @@ them, so the player watches gloss, colour, relief and reflections change under t
   casts PCF soft shadows; a cool directional rim has none. The turntable rotates the piece under fixed lights.
 - **Layered material** (`03_layer.js`): `MeshPhysicalMaterial` patched with `onBeforeCompile`. Defines pick the base
   (`K_METAL`, `K_ENAMEL`, `K_GLASS`, `K_WOOD`, `K_FELT`, `K_PAINT`, `K_BAKELITE`), relief (`P_GUILLOCHE`, `P_KNURL`,
-  `P_WOOD`, `P_WEAVE`),
+  `P_WOOD`, `P_WEAVE`, and `P_SUJI` for a riveted helmet bowl: raised seams between the plates, a rivet head every
+  so far up each seam),
   corrosion (`C_TARNISH` with iridescent thin film and verdigris in crevices, `C_RUST` with bumpy crust and stain
   halo), an old finish (`O_OLD`, crazed varnish from the Worley channel) and a new finish (`F_COAT`, clear coat).
   Grime sits on top as a dulling film plus crusts that collect in cavities. Bare wood under `F_COAT` is pale and
@@ -41,7 +43,9 @@ them, so the player watches gloss, colour, relief and reflections change under t
   distance from the centre line). `W_FLAME` adds flamed figure that is chatoyant: alternate bands brighten or darken
   with the viewing angle, so they swap as the piece turns. `W_POLISH` lets the polish mask drive oiled sheen (ebony)
   or varnish gloss. `L_MAPRGB` takes the map's own colours (purfling, f-holes), and maps have their own projection
-  axis and origin (`mapAxis`, `mapOrigin`). Bakelite uses the polish mask for oxidation: dull olive-brown until polished back to gloss. `uEmit`
+  axis and origin (`mapAxis`, `mapOrigin`). `L_OPAQUE` makes the old and new finishes opaque lacquer that hides the
+  metal (urushi) rather than a tinted clear coat. Every noisy layer edge is scaled by its own mask, so a cleaned
+  surface never shows specks of a layer it no longer has. Bakelite uses the polish mask for oxidation: dull olive-brown until polished back to gloss. `uEmit`
   adds glow (the radio dial, the valve heaters), masked by printed ink. The shader overrides albedo,
   roughness, metalness, clear coat, iridescence, sheen and transmission per fragment.
 - **No UVs.** Everything samples the 3D noise volume or analytic patterns in object space. Patterns fade out
@@ -115,6 +119,18 @@ to bare wood (chin, shoulder, edges, corners), French-polish everything, clean t
 to black. Sanding warns that it takes original varnish off. The reveal plays a short phrase on a synthesised violin
 (`auViolin`).
 
+## The kabuto
+
+An Edo-period helmet on a lacquered stand with a brocade cushion. The bowl is a lathed dome of 32 plates over a
+plain rim band; the seams and rows of rivet heads are `P_SUJI` relief, so they cost no vertices. Five neck-guard
+lames and the visor are `plathe`s (part-turn lathes of a thin curved plate profile, with capped ends); the turnbacks
+are slabs folded out at the front. Gilt: two sweeping horns (slabs of a generated outline) on a mount, the crown
+rosette (knurled into petals) and a mitsudomoe crest inlaid on each turnback. Indigo silk cords run down every
+column of lames in pairs, with red edge cords along each lame. About 223k vertices. Job: the iron is under old black
+urushi that is crazed and has flaked away in patches where rust has bloomed. Clean it, strip the old lacquer,
+wire-brush the rust, lay new urushi (which also fills the scuffs from stripping), polish the gilt and dust the silk.
+The reveal strikes a temple bell (`auBell`).
+
 ## Adding a piece
 
 Push a definition onto `PIECES` with `build()` returning `{ id, parts, props, root, noiseF, seed, brush: [min, max]
@@ -122,5 +138,5 @@ radius in metres, focus, dist, minDist, maxDist, pitch }` and optional `table` (
 scale), `setOpen`, `openLabel`, `update(dt)`, `onReveal`, `dispose`. Use `addPart(piece, { name, geom, mat, job, init, parent, hinged, glass, paint })`; parts with the same
 name share a job-card row. `init.post(localPos, piecePos, n, m, o, cav, n1, n2)` adjusts the starting masks
 per vertex (worn varnish, rosin). `init.exclude(v, n)` (piece-space position and normal) leaves vertices out of the job
-with the state `init.excl`. `UPCOMING` in `22_ui.js` lists the planned pieces after the built ones. Planned: the
-kabuto (urushi lacquer, rusted iron plates, gilt crest, silk cords).
+with the state `init.excl`. `UPCOMING` in `22_ui.js` lists planned pieces (shown as "In the post");
+it is empty now that all four are built.
