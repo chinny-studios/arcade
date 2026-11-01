@@ -1,5 +1,5 @@
 // Creature Feature — you: the monster. Movement (walk, run, stalk, jump, roofs), the third-person camera, the
-// attack, the two powers of each monster, feeding, breaking in, and things thrown
+// attack, the two powers of each monster, feeding, breaking in, things thrown, and the necromancer's risen dead
 
 let P = null;
 const CAM = { yaw: 0, pitch: 0.28, zoom: 1, x: 0, y: 5, z: 5, snap: true, tx: 0, ty: 0, tz: 0 };
@@ -38,7 +38,7 @@ function updateMonster(dt) {
   const [fx, fz] = camFwd(), rx = -fz, rz = fx;
   let wx = fx * -mv.y + rx * mv.x, wz = fz * -mv.y + rz * mv.x;
   const wl = Math.hypot(wx, wz);
-  const locked = P.act && ['grab', 'feed', 'howl', 'stomp', 'lift', 'stare', 'beckon', 'lash', 'smashDoor', 'cast'].includes(P.act);
+  const locked = P.act && ['grab', 'feed', 'howl', 'stomp', 'lift', 'stare', 'beckon', 'lash', 'smashDoor', 'cast', 'raise', 'curse'].includes(P.act);
   P.stalk = !locked && Input.held('stalk') && P.form !== 'bat' && !P.held;
   P.running = !locked && wl > 0.1 && Input.held('run') && !P.stalk && !P.held && P.form !== 'bat';
   let speed = P.form === 'bat' ? 15 : P.stalk ? D.stalk : P.running ? D.run : D.walk;
@@ -84,7 +84,7 @@ function updateMonster(dt) {
   if (P.storm > 0) stormStep(dt);
   if (P.held) carryHeld();
   // pose
-  const mode = P.form === 'bat' ? 'bat' : P.act === 'attack' ? 'attack' : P.act === 'grab' || P.act === 'swoopGrab' ? (P.id === 'mummy' ? 'grab' : 'grab') : P.act === 'feed' ? 'feed' : P.act === 'howl' ? 'howl' : P.act === 'stomp' ? 'stomp' : P.act === 'throw' ? 'throw' : P.act === 'lash' ? 'lash' : P.act === 'stare' || P.act === 'beckon' ? 'stare' : P.act === 'cast' ? 'cast' : P.act === 'smashDoor' ? 'attack' : P.held ? 'hold' : !P.onGround ? 'air' : hs > 0.5 ? (P.running ? 'run' : P.stalk ? 'stalk' : 'walk') : 'idle';
+  const mode = P.form === 'bat' ? 'bat' : P.act === 'attack' ? 'attack' : P.act === 'grab' || P.act === 'swoopGrab' ? (P.id === 'mummy' ? 'grab' : 'grab') : P.act === 'feed' ? 'feed' : P.act === 'howl' ? 'howl' : P.act === 'stomp' ? 'stomp' : P.act === 'throw' ? 'throw' : P.act === 'lash' ? 'lash' : P.act === 'stare' || P.act === 'beckon' ? 'stare' : P.act === 'cast' ? 'cast' : P.act === 'raise' ? 'raise' : P.act === 'curse' ? 'curse' : P.act === 'smashDoor' ? (P.id === 'lich' ? 'cast' : 'attack') : P.held ? 'hold' : !P.onGround ? 'air' : hs > 0.5 ? (P.running ? 'run' : P.stalk ? 'stalk' : 'walk') : 'idle';
   if (mode === 'bat') {
     for (const w of M.wings) w.rotation.z = (w.position.x < 0 ? 1 : -1) * Math.sin(G.t * 16) * 0.8;
     M.bat.rotation.x = clamp(-P.vy * 0.04, -0.5, 0.5);
@@ -124,8 +124,10 @@ function updateAct(dt) {
     const v = P.grab;
     if (v && v.state === 'held') {
       const [fx, fz] = [fwdX(P.yaw), fwdZ(P.yaw)];
-      v.x = P.x + fx * 0.7; v.z = P.z + fz * 0.7; v.y = P.y + (P.id === 'vampire' ? 0.1 : 0.25); v.yaw = P.yaw + Math.PI;
+      v.x = P.x + fx * 0.7; v.z = P.z + fz * 0.7; v.y = P.y + (P.id === 'vampire' ? 0.1 : P.id === 'lich' ? 0.25 + P.actK * 0.55 : 0.25); v.yaw = P.yaw + Math.PI;
       if (G.frame % 4 === 0 && P.id === 'vampire' && OPTS.gore === 'full') spray(v.x, v.y + 1.45, v.z, 2, { speed: 1.5, up: 0.8, spread: 0.5, size: 0.05 });
+      // the life drawn out of them in green motes
+      if (G.frame % 2 === 0 && P.id === 'lich') spray(v.x + rr(-0.2, 0.2), v.y + rr(0.6, 1.5), v.z + rr(-0.2, 0.2), 1, { kind: 'debris', col: [0x9aff6a, 0x5ad84a], dx: P.x - v.x, dz: P.z - v.z, speed: 1.6, up: 0.8, spread: 0.3, size: 0.05, life: 0.6, g: -1 });
     }
     if (P.actK >= 1) { P.act = null; if (v && v.state === 'held') killPerson(v, P.D.attack.kind, fwdX(P.yaw), fwdZ(P.yaw), { bonus: P.grabBonus || [] }); P.grab = null; }
     return;
@@ -141,7 +143,10 @@ function updateAct(dt) {
   if (a === 'throw' && !P.actFired && P.actK > 0.35) { P.actFired = true; release(); }
   if (a === 'lash') lashStep(dt);
   if (a === 'beckon' && P.actK >= 1) { P.act = null; const r = P.door; if (r && r.occ.length) { const v = r.occ[0]; leaveRefuge(v, false); v.state = 'trance'; v.tranceT = 6; say(v, pick(LINES.trance)); bus.emit('beckon', v); } }
-  if (a === 'smashDoor' && !P.actFired && P.actK > 0.45) { P.actFired = true; hitDoor(P.doorTarget); }
+  if (a === 'smashDoor' && !P.actFired && P.actK > 0.45) { P.actFired = true; if (P.id === 'lich') blastFx(P.doorTarget); hitDoor(P.doorTarget); }
+  if (a === 'raise' && !P.actFired && P.actK > 0.45) { P.actFired = true; raiseDead(); }
+  if (a === 'raise' && P.actK >= 1) P.act = null;
+  if (a === 'curse' && P.actK >= 1) P.act = null;
   if (a === 'stare' && P.actK >= 1) P.act = null;
   if (a === 'cast' && P.actK >= 1) P.act = null;
   if (a === 'swoop') swoopStep(dt);
@@ -227,7 +232,7 @@ function grabVictim(v, bonus) {
   AUDIO.scream(v.x, v.z, v.look.f, 1);
   say(v, pick(LINES.hurt), 1.4);
   witness(v.x, v.z);
-  if (P.id === 'vampire') AUDIO.sfx('bite', P.x, P.z); else AUDIO.sfx('choke', P.x, P.z);
+  AUDIO.sfx(P.id === 'vampire' ? 'bite' : P.id === 'lich' ? 'drain' : 'choke', P.x, P.z);
 }
 function pullFromCar(v) {
   const c = v.car; if (c) { const i = c.occ.indexOf(v); if (i >= 0) c.occ.splice(i, 1); }
@@ -278,6 +283,7 @@ function startDoor(r) {
   if (!r || r.broken) return;
   P.yaw = yawOf(r.x - P.x, r.z - P.z);
   if (D.door < 0) { setAct('beckon', 1.4, { door: r }); AUDIO.sfx('beckon', P.x, P.z); return; }
+  if (P.id === 'lich') { setAct('smashDoor', 0.8, { doorTarget: r }); AUDIO.sfx('chime', P.x, P.z); return; }
   setAct('smashDoor', P.id === 'frank' ? 0.55 : 0.5, { doorTarget: r });
   AUDIO.sfx('swipe', P.x, P.z);
 }
@@ -322,6 +328,7 @@ function doPower1() {
   else if (P.id === 'werewolf') startPounce();
   else if (P.id === 'frank') { if (P.held) startThrow(); else liftNearest(); }
   else if (P.id === 'mummy') startLash();
+  else if (P.id === 'lich') startRaise();
 }
 function doPower2() {
   if (P.id === 'vampire') { if (P.form === 'bat') { endBat(); return; } }
@@ -330,6 +337,7 @@ function doPower2() {
   else if (P.id === 'werewolf') { setAct('howl', 1.4); P.cd.a2 = P.D.a2.cd; }
   else if (P.id === 'frank') { setAct('stomp', 0.9); P.cd.a2 = P.D.a2.cd; AUDIO.sfx('roar', P.x, P.z); }
   else if (P.id === 'mummy') { setAct('cast', 0.6); P.storm = P.D.a2.dur; P.cd.a2 = P.D.a2.cd + P.D.a2.dur; AUDIO.sfx('sand', P.x, P.z); }
+  else if (P.id === 'lich') startCurse();
 }
 // whoever is closest to the middle of the screen, within range and in sight
 function aimTarget(range, cone = 0.22) {
@@ -582,4 +590,162 @@ function swoopStep(dt) {
     P.vx = P.vy = P.vz = 0;
     grabVictim(v, ['air']);
   }
+}
+
+// --- the necromancer
+// Raise Dead: bodies nearby get up as zombies (MINIONS) that hunt the living. Each one is the dead person's own rig,
+// tinted grey-green with glowing eyes; the person drops out of PEOPLE (state 'gone') and the zombie owns the mesh.
+const MINIONS = [];
+let _zMat = null, _wMat = null;
+const zombieMat = () => _zMat || (_zMat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x8aa882 }));
+const witherMat = () => _wMat || (_wMat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x8a8478 }));
+function raiseable(range) {
+  const out = [];
+  for (const v of PEOPLE.corpses) {
+    if (v.state !== 'dead' || v.fly || v.removed || v.raised) continue;
+    if (FX.gibs.some((g) => g.owner === v)) continue; // too few pieces left to walk
+    const d = dist(v.x, v.z, P.x, P.z);
+    if (d < range && Math.abs(v.y - P.y) < 4) out.push({ v, d });
+  }
+  return out.sort((a, b) => a.d - b.d);
+}
+function startRaise() {
+  if (P.cd.a1 > 0 || P.form !== 'normal' || P.act) return;
+  if (!raiseable(P.D.a1.range).length) { P.cd.a1 = 0.6; HUD.toast('No bodies close enough to raise', 'info'); return; }
+  setAct('raise', 1.0);
+  P.cd.a1 = P.D.a1.cd;
+  AUDIO.sfx('raise', P.x, P.z);
+}
+function raiseDead() {
+  const A = P.D.a1, list = raiseable(A.range).slice(0, A.max);
+  // a full graveyard: the oldest zombies fall apart to make room
+  while (MINIONS.length + list.length > A.max && MINIONS.length) crumble(MINIONS[0]);
+  for (const { v } of list) riseMinion(v, A.life);
+  FX.shake = Math.max(FX.shake, 0.3);
+  if (list.length) { AUDIO.sfx('cackle', P.x, P.z); bus.emit('raised', list.length); }
+  return list.length;
+}
+function riseMinion(v, life = 24) {
+  const i = PEOPLE.corpses.indexOf(v); if (i >= 0) PEOPLE.corpses.splice(i, 1);
+  v.state = 'gone'; v.raised = true;
+  const M = v.M;
+  for (const k in M.parts) M.parts[k].material = zombieMat();
+  M.head.add(glowBits([[-0.055, 0.17, -0.124, 0.045, 0.03, 0.01, 0x9aff6a], [0.055, 0.17, -0.124, 0.045, 0.03, 0.01, 0x9aff6a]]));
+  const z = { id: v.id, v, M, x: v.x, z: v.z, y: v.y, yaw: v.fallYaw + Math.PI, speed: 0, phase: 0, rise: 1.1, life, target: null, retarget: 0, atkT: 0, scareT: 0, groanT: rr(1, 4), kills: 0 };
+  MINIONS.push(z);
+  puff(z.x, z.y + 0.4, z.z, { col: 0x5ad84a, size: 1.8, grow: 2, life: 1.3, op: 0.45 });
+  spray(z.x, z.y + 0.3, z.z, 14, { kind: 'debris', col: [0x9aff6a, 0x3ad84a, 0x4a3a2a], speed: 3, up: 1.2, spread: 0.6, size: 0.07, life: 1.2, g: 4 });
+  return z;
+}
+function crumble(z) {
+  const i = MINIONS.indexOf(z); if (i >= 0) MINIONS.splice(i, 1);
+  R.scene.remove(z.M.root);
+  z.v.removed = true;
+  puff(z.x, z.y + 0.9, z.z, { col: 0x6a7a62, size: 2, grow: 1.6, life: 1.4, op: 0.5 });
+  spray(z.x, z.y + 1, z.z, 18, { kind: 'debris', col: [0x7a8a6a, 0xd8d0b4, 0x4a4a3a], speed: 2.5, up: 0.4, spread: 1, size: 0.08, life: 2.5 });
+  AUDIO.sfx('crumble', z.x, z.z);
+}
+function clearMinions() { for (const z of MINIONS) R.scene.remove(z.M.root); MINIONS.length = 0; }
+const preyOk = (v) => v && !v.hidden && !v.inside && ['idle', 'walk', 'flee', 'trance', 'cower', 'down', 'blind'].includes(v.state);
+function updateMinions(dt) {
+  for (let i = MINIONS.length - 1; i >= 0; i--) {
+    const z = MINIONS[i], M = z.M;
+    if (z.rise > 0) {
+      // getting up off the ground
+      z.rise -= dt;
+      const k = 1 - clamp(z.rise / 1.1, 0, 1), e = 1 - (1 - k) * (1 - k);
+      poseHuman(M, 'drag', 0, 0, G.t);
+      M.root.rotation.set((1 - e) * Math.PI / 2, z.yaw, 0);
+      M.root.position.set(z.x, z.y + 0.12 * (1 - e), z.z);
+      if (G.frame % 4 === 0) spray(z.x + rr(-0.4, 0.4), z.y + 0.1, z.z + rr(-0.4, 0.4), 1, { kind: 'debris', col: [0x4a3a2a, 0x5ad84a], speed: 1.5, up: 1, size: 0.05, life: 0.8 });
+      if (z.rise <= 0) { z.yaw = P ? yawOf(P.x - z.x, P.z - z.z) : z.yaw; AUDIO.sfx('groan', z.x, z.z); }
+      continue;
+    }
+    z.life -= dt;
+    if (z.life <= 0 || G.over) { crumble(z); continue; }
+    // the nearest living person in reach, or else back to the master
+    z.retarget -= dt;
+    if (z.retarget <= 0 || !preyOk(z.target)) {
+      z.retarget = 0.5; z.target = null;
+      let bd = 40 * 40;
+      for (const v of PEOPLE.list) { if (!preyOk(v)) continue; const d = dist2(v.x, v.z, z.x, z.z); if (d < bd && Math.abs(v.y - z.y) < 2.5) { bd = d; z.target = v; } }
+    }
+    z.atkT -= dt;
+    const t = z.target;
+    let mode = 'trance';
+    if (t) {
+      const dx = t.x - z.x, dz = t.z - z.z, d = Math.hypot(dx, dz);
+      if (d < 1.15 && z.atkT <= 0) {
+        killPerson(t, 'zombie', dx, dz, { bonus: ['risen'], hungerK: 0.5 });
+        z.kills++; z.life += 4; z.atkT = 0.9; z.target = null;
+        AUDIO.sfx('groan', z.x, z.z);
+      } else if (z.atkT <= 0) moveAgent(z, dx / (d || 1) * 4.3, dz / (d || 1) * 4.3, dt);
+      else { z.speed = 0; mode = 'drag'; }
+    } else if (P) {
+      const dx = P.x - z.x, dz = P.z - z.z, d = Math.hypot(dx, dz);
+      if (d > 4) moveAgent(z, dx / d * 3.6, dz / d * 3.6, dt); else z.speed = 0;
+    }
+    // the living see them coming
+    z.scareT -= dt;
+    if (z.scareT <= 0) {
+      z.scareT = 0.3;
+      for (const v of PEOPLE.list) {
+        if (!(CALM[v.state] || v.state === 'incar')) continue;
+        const d = dist(v.x, v.z, z.x, z.z);
+        if (d > 9 || !losClear(v.x, v.y + 1.6, v.z, z.x, z.y + 1.4, z.z)) continue;
+        const loud = v.screamT <= 0;
+        startle(v, z.x, z.z);
+        if (loud && v.state !== 'incar') say(v, pick(LINES.risen), 2.4);
+      }
+    }
+    z.groanT -= dt;
+    if (z.groanT <= 0) { z.groanT = rr(3, 7); AUDIO.sfx('groan', z.x, z.z); }
+    poseHuman(M, mode, z.phase, z.speed * 1.6, G.t + z.id);
+    M.head.rotation.z = 0.3; M.torso.rotation.x = -0.12;
+    M.root.position.set(z.x, z.y + Math.abs(Math.sin(z.phase)) * 0.03, z.z);
+    M.root.rotation.set(0, z.yaw, Math.sin(z.phase * 0.5) * 0.06);
+  }
+}
+// people flee from whatever horror is closest: you or one of your dead
+function threatPos(v) {
+  let mx = P ? P.x : v.lastMx, mz = P ? P.z : v.lastMz, bd = P ? dist2(mx, mz, v.x, v.z) : 1e9;
+  for (const z of MINIONS) { if (z.rise > 0) continue; const d = dist2(z.x, z.z, v.x, v.z); if (d < bd) { bd = d; mx = z.x; mz = z.z; } }
+  return [mx, mz];
+}
+// Curse: whoever you aim at floats up, writhes and snaps (09_people.js runs the 'cursed' state)
+function startCurse() {
+  if (P.cd.a2 > 0 || P.act || P.form !== 'normal') return;
+  let v = aimTarget(P.D.a2.range, 0.24);
+  if (v && v.state === 'cursed') v = null;
+  setAct('curse', 0.7);
+  AUDIO.sfx('chime', P.x, P.z);
+  P.cd.a2 = v ? P.D.a2.cd : 1;
+  if (v) curseVictim(v);
+}
+function curseVictim(v) {
+  if (v.state === 'incar') { const c = v.car; pullFromCar(v); if (c && c.state === 'drive') { c.state = 'stopped'; c.speed = 0; } }
+  if (v.state === 'inside' || v.state === 'dead' || v.state === 'gone') return false;
+  const b = ['cursed'];
+  if (dist(v.x, v.z, P.x, P.z) > 12) b.push('range');
+  if (v.alert < 0.5 && CALM[v.state]) b.push('silent');
+  if (v.state === 'trance') b.push('trance');
+  if (v.state === 'down') b.push(v.tripped ? 'tripped' : 'flat');
+  v.curseBonus = b;
+  v.state = 'cursed'; v.t = 0; v.curseY = v.y; v.sit = false; v.speed = 0; setHidden(v, false);
+  v.M.root.rotation.set(0, v.yaw, 0);
+  P.yaw = yawOf(v.x - P.x, v.z - P.z);
+  say(v, pick(LINES.cursed), 2.2);
+  AUDIO.scream(v.x, v.z, v.look.f, 1);
+  witness(v.x, v.z);
+  // a thread of green fire from your hand to them
+  const n = 16;
+  for (let i = 0; i < n; i++) { const k = i / n; spray(lerp(P.x, v.x, k), lerp(P.y + 1.9, v.y + 1.3, k), lerp(P.z, v.z, k), 1, { kind: 'debris', col: [0x9aff6a, 0x3ad84a], speed: 0.3, up: 1, size: 0.07, life: 0.7, g: -1 }); }
+  bus.emit('curse', v);
+  return true;
+}
+// the door bursts inward in green fire
+function blastFx(r) {
+  if (!r) return;
+  puff(r.x, 1.4, r.z, { col: 0x5ad84a, size: 2.4, grow: 2, life: 1, op: 0.5 });
+  spray(r.x, 1.4, r.z, 20, { kind: 'debris', col: [0x9aff6a, 0x3ad84a, 0xd8ffb0], dx: -r.nx, dz: -r.nz, speed: 6, up: 0.4, spread: 0.8, size: 0.06, life: 0.8, g: -1 });
 }

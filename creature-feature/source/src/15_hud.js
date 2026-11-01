@@ -65,6 +65,7 @@ const HUD = (() => {
     for (const ab of $$('#abil .ab')) {
       const k = ab.dataset.k, D = P.D;
       const max = k === 'atk' ? D.attack.cd + D.attack.lock * 0.5 : k === 'a1' ? D.a1.cd : D.a2.cd + (P.id === 'mummy' ? D.a2.dur : 0);
+      if (k === 'a1' && P.id === 'lich') ab.querySelector('span').textContent = MINIONS.length ? `${D.a1.name} (${MINIONS.length})` : D.a1.name;
       let f = clamp(P.cd[k] / max, 0, 1);
       if (k === 'a2' && P.form === 'bat') { f = 0; ab.classList.add('active'); ab.querySelector('span').textContent = 'Land (' + Math.ceil(P.batT) + ')'; }
       else if (k === 'a2' && P.storm > 0) { ab.classList.add('active'); }
@@ -83,9 +84,9 @@ const HUD = (() => {
     } else pr.hidden = true;
     $('#tUse').classList.toggle('ready', !!(P.near && !P.near.empty));
     // crosshair for aimed powers
-    const aim = (P.id === 'vampire' && P.form !== 'bat') || P.id === 'mummy' || P.id === 'werewolf' || (P.id === 'frank' && P.held);
+    const aim = (P.id === 'vampire' && P.form !== 'bat') || P.id === 'mummy' || P.id === 'werewolf' || P.id === 'lich' || (P.id === 'frank' && P.held);
     $('#cross').hidden = !aim || G.over;
-    if (aim && G.frame % 6 === 0) { const range = P.id === 'vampire' ? 32 : P.id === 'mummy' ? 24 : P.id === 'werewolf' ? 18 : 40; $('#cross').classList.toggle('lock', !!aimTarget(range)); }
+    if (aim && G.frame % 6 === 0) { const range = P.id === 'vampire' ? 32 : P.id === 'mummy' ? 24 : P.id === 'werewolf' ? 18 : P.id === 'lich' ? 30 : 40; $('#cross').classList.toggle('lock', !!aimTarget(range)); }
     bubblesUpdate();
     senseUpdate();
     if (G.frame % 3 === 0) drawRadar();
@@ -152,6 +153,9 @@ const HUD = (() => {
       x.fillStyle = v.state === 'incar' ? '#6ab0ff' : v.state === 'flee' ? '#ff3a3a' : v.alert > 0.3 ? '#ffd040' : '#f0e8d8';
       x.beginPath(); x.arc(a, b, v.state === 'incar' ? 3.4 : 2.6, 0, TAU); x.fill();
     }
+    // your risen dead
+    x.fillStyle = '#7aff5a';
+    for (const z of MINIONS) { const [a, b] = toR(z.x, z.z); if (Math.hypot(a - c, b - c) > c) continue; x.fillRect(a - 2.5, b - 2.5, 5, 5); }
     x.restore();
     x.fillStyle = '#ff2a2a'; x.beginPath(); x.moveTo(c, c - 6); x.lineTo(c + 4, c + 4); x.lineTo(c - 4, c + 4); x.fill();
     x.strokeStyle = 'rgba(200,40,40,0.6)'; x.lineWidth = 2; x.beginPath(); x.arc(c, c, c - 1, 0, TAU); x.stroke();

@@ -1,5 +1,5 @@
 <title>Creature Feature</title>
-<meta name="description" content="Pick a classic monster (the vampire, the werewolf, Frankenstein's monster or the mummy) and stalk the people of a 1950s small town in third person. An endless, gory score attack.">
+<meta name="description" content="Pick a classic monster (the vampire, the werewolf, Frankenstein's monster, the mummy or the necromancer) and stalk the people of a 1950s small town in third person. An endless, gory score attack.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&family=Bangers&display=swap" rel="stylesheet">
@@ -40,11 +40,11 @@
   #select { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; box-sizing: border-box; background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.75)); }
   #select h2 { position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-size: clamp(28px, 5vw, 44px); }
   #selBlurb { max-width: 760px; margin: 0 auto 10px; text-align: center; font-size: 17px; text-shadow: 2px 2px 0 #000, 0 0 8px #000; color: var(--ink); }
-  #cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 1180px; margin: 0 auto; width: 100%; }
-  .card { background: rgba(14,6,8,.88); border: 2px solid #3a1416; padding: 10px 12px; cursor: pointer; outline: none; transition: transform .15s, border-color .15s; font-size: 14px; line-height: 1.3; }
+  #cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 1320px; margin: 0 auto; width: 100%; }
+  .card { background: rgba(14,6,8,.88); border: 2px solid #3a1416; padding: 9px 11px; cursor: pointer; outline: none; transition: transform .15s, border-color .15s; font-size: 13px; line-height: 1.25; }
   .card.sel, .card:focus-visible { border-color: var(--blood); transform: translateY(-6px); box-shadow: 0 0 24px rgba(200,20,30,.4); }
   .card .ck { color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; }
-  .card h3 { font-family: var(--title); font-weight: normal; color: #d8ff4a; font-size: 30px; margin: 2px 0; text-shadow: 2px 2px 0 var(--blood2); }
+  .card h3 { font-family: var(--title); font-weight: normal; color: #d8ff4a; font-size: 28px; margin: 2px 0; text-shadow: 2px 2px 0 var(--blood2); }
   .card .tagl { color: var(--yel); font-style: italic; margin-bottom: 4px; }
   .card p { margin: 4px 0 6px; color: var(--dim); }
   .card ul { margin: 6px 0; padding-left: 16px; color: var(--dim); } .card ul b { color: var(--ink); font-weight: normal; }
@@ -52,8 +52,11 @@
   .stats b { display: flex; gap: 2px; } .stats i { width: 14px; height: 7px; background: #2a1416; display: inline-block; } .stats i.on { background: var(--blood); }
   .card .best { color: var(--yel); margin-top: 4px; }
   #selFoot { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
-  @media (max-width: 900px) { #cards { grid-template-columns: repeat(2, 1fr); } .card ul, .card .tagl { display: none; } }
+  @media (max-width: 1100px) { #cards { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 900px) { .card ul, .card .tagl { display: none; } }
+  @media (max-width: 600px) { #cards { grid-template-columns: repeat(2, 1fr); } }
   @media (max-height: 560px) { .card ul, .stats, #selBlurb { display: none !important; } #select h2 { font-size: 30px; top: 6px; } }
+  @media (max-height: 560px) and (min-width: 600px) { #cards { grid-template-columns: repeat(5, 1fr); } .card h3 { font-size: 22px; } }
   /* HUD */
   .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
   body[data-state="play"] .hud { display: block; }

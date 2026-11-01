@@ -53,7 +53,7 @@ const AUDIO = (() => {
     const t = now();
     if (busy[name] && t - busy[name] < 0.05) return;
     busy[name] = t;
-    const [v, pan] = place(x, z, name === 'howl' || name === 'roar' || name === 'stomp' ? 400 : 70);
+    const [v, pan] = place(x, z, name === 'howl' || name === 'roar' || name === 'stomp' || name === 'cackle' || name === 'chime' ? 400 : 70);
     if (v < 0.01) return;
     const o = out(v, pan);
     switch (name) {
@@ -86,6 +86,14 @@ const AUDIO = (() => {
       case 'beckon': tone(o, 'sine', 220, 180, 1.4, 0.2, t, 0.3); tone(o, 'sine', 330, 270, 1.4, 0.1, t, 0.3); break;
       case 'bats': for (let i = 0; i < 10; i++) burst(o, 'bandpass', rr(1500, 3000), 1000, 0.05, 0.35, 4, t + i * 0.05); break;
       case 'swoop': burst(o, 'bandpass', 2400, 400, 0.6, 0.5, 1); break;
+      // the necromancer: a tolling clock, an organ swell from under the ground, bones giving way, a dry cackle
+      case 'chime': for (let i = 0; i < 2; i++) { const tt = t + i * 0.45; tone(o, 'sine', 196, 194, 1.6, 0.22, tt, 0.005); tone(o, 'sine', 392, 390, 1.2, 0.1, tt, 0.005); tone(o, 'sine', 523, 520, 0.9, 0.06, tt, 0.005); } break;
+      case 'raise': tone(o, 'sawtooth', 55, 82, 1.4, 0.12, t, 0.4); tone(o, 'sawtooth', 82, 123, 1.4, 0.08, t, 0.4); burst(o, 'lowpass', 300, 900, 1.2, 0.5, 1, t, 0.3); break;
+      case 'snap': for (let i = 0; i < 6; i++) burst(o, 'bandpass', rr(1500, 3200), 900, 0.04, 0.9, 4, t + i * rr(0.03, 0.07)); tone(o, 'sine', 140, 50, 0.15, 0.5); break;
+      case 'drain': tone(o, 'sine', 880, 220, 1.1, 0.08, t, 0.2); burst(o, 'bandpass', 700, 300, 1, 0.25, 4, t, 0.2); break;
+      case 'crumble': for (let i = 0; i < 5; i++) burst(o, 'lowpass', rr(900, 1800), 200, 0.15, 0.4, 1, t + i * 0.06); break;
+      case 'groan': tone(o, 'sawtooth', rr(85, 110), rr(60, 75), rr(0.7, 1.1), 0.05, t, 0.15); burst(o, 'bandpass', 380, 260, 0.9, 0.15, 6, t, 0.15); break;
+      case 'cackle': for (let i = 0; i < 6; i++) { const tt = t + i * 0.16, f = 330 - i * 18; tone(o, 'sawtooth', f, f * 0.8, 0.11, 0.06, tt, 0.01); burst(o, 'bandpass', 1400 - i * 60, 1000, 0.1, 0.25, 5, tt); } break;
     }
   }
   // a scream; when cut short it stops halfway

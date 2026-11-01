@@ -1,6 +1,6 @@
 // each monster kills someone with its attack
 const res = {};
-for (const m of ['vampire', 'werewolf', 'frank', 'mummy']) {
+for (const m of ['vampire', 'werewolf', 'frank', 'mummy', 'lich']) {
   CF.start({ monster: m });
   const v = CF.spawn('greaser', P_X = CF.P.x + 1.5, CF.P.z - 1.5);
   CF.aimAt(v);

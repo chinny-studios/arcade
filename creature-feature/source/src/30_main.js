@@ -39,6 +39,7 @@ function frame(dt, draw) {
   if (!paused) {
     if (state === 'play') {
       updateMonster(sdt);
+      updateMinions(sdt);
       updateThrown(sdt);
       updateRules(sdt);
     }
@@ -104,9 +105,9 @@ function selectCam(dt) {
 function installDebug() {
   const step = 1 / 30;
   const CF = {
-    G, R, CAM, TOWN, WORLD, PEOPLE, CARS, FX, UI, HUD, Input, OPTS, MONSTERS, FOLK, LIGHTS, THROWN, AUDIO,
+    G, R, CAM, TOWN, WORLD, PEOPLE, CARS, FX, UI, HUD, Input, OPTS, MONSTERS, FOLK, LIGHTS, THROWN, AUDIO, MINIONS,
     get P() { return P; },
-    f: { startRun, endRun, killPerson, spawnPerson, spawnMonster, startle, breakRefuge, leaveRefuge, planFlee, route, nearestRoad, terrainH, supportY, collide, losClear, lightAt, aimTarget, hypnotise, smashCar, wreckCar, startDriving, arriveCar, parkCar, resetTown, populate, smashLamp, screenSplat, bloodBurst, showPreview, poseMonster, knockDown, howl, stomp, director, sightRange },
+    f: { startRun, endRun, killPerson, spawnPerson, spawnMonster, startle, breakRefuge, leaveRefuge, planFlee, route, nearestRoad, terrainH, supportY, collide, losClear, lightAt, aimTarget, hypnotise, smashCar, wreckCar, startDriving, arriveCar, parkCar, resetTown, populate, smashLamp, screenSplat, bloodBurst, showPreview, poseMonster, knockDown, howl, stomp, director, sightRange, raiseDead, riseMinion, crumble, curseVictim, threatPos },
     // start({ monster, empty, people }) — a run that's never saved; the monster is already up
     start(o = {}) {
       G.noSave = true; OPTS.tips = false;

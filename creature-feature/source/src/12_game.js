@@ -24,10 +24,10 @@ function killPerson(v, how, dx, dz, o = {}) {
   G.bestCombo = Math.max(G.bestCombo, G.combo);
   const gain = pts * G.combo;
   G.score += gain; G.kills++; P.kills++;
-  G.hunger = Math.min(HUNGER_MAX, G.hunger + P.D.killGain);
+  G.hunger = Math.min(HUNGER_MAX, G.hunger + P.D.killGain * (o.hungerK === undefined ? 1 : o.hungerK));
   G.panic = Math.min(100, G.panic + 7);
   witness(v.x, v.z);
-  AUDIO.sfx(how === 'strangle' ? 'crunch' : 'splat', v.x, v.z);
+  AUDIO.sfx(how === 'strangle' || how === 'wither' ? 'crunch' : how === 'curse' ? 'snap' : 'splat', v.x, v.z);
   AUDIO.scream(v.x, v.z, v.look.f, 0.9, true);
   const near = dist(v.x, v.z, R.camera.position.x, R.camera.position.z);
   if (near < 7 && how !== 'thrown') screenSplat(how === 'smash' || how === 'claw' ? 1 : 0.5);
@@ -51,6 +51,7 @@ bus.on('escaped', (v) => {
 bus.on('broke', (r, n) => { if (n) HUD.toast(n === 1 ? 'Home invasion!' : `Home invasion! ${n} inside`, 'good'); G.panic = Math.min(100, G.panic + 5); });
 bus.on('hid', (v, r) => { if (P && dist(v.x, v.z, P.x, P.z) < 30 && G.t - (G.hidToast || -9) > 5) { G.hidToast = G.t; HUD.toast(`Someone bolted into ${r.name}`, 'info'); } });
 bus.on('scream', () => { G.panic = Math.min(100, G.panic + 1.5); });
+bus.on('raised', (n) => { G.panic = Math.min(100, G.panic + 6); HUD.toast(n === 1 ? 'The dead rise!' : `The dead rise! ${n} of them`, 'good'); });
 bus.on('howl', (n) => { G.panic = Math.min(100, G.panic + 10); if (n) HUD.toast(n + ' frozen with terror', 'info'); });
 
 function updateRules(dt) {
@@ -92,7 +93,7 @@ function director(dt) {
 
 // ---------- runs ----------
 function resetTown() {
-  clearPeople(); clearCars(); clearFX();
+  clearPeople(); clearCars(); clearFX(); clearMinions();
   for (const s of TOWN.carSpecs) parkCar(...s);
   const o = new THREE.Object3D();
   for (const L of TOWN.lamps) {
@@ -128,7 +129,7 @@ function endRun() {
   if (G.over) return;
   G.over = true; P.dead = true; P.act = null; P.actT = 0;
   if (P.form === 'bat') { P.form = 'normal'; setBatVisible(false); }
-  AUDIO.sfx(P.D.voice === 'growl' ? 'howl' : 'roar', P.x, P.z);
+  AUDIO.sfx({ growl: 'howl', cackle: 'cackle' }[P.D.voice] || 'roar', P.x, P.z);
   const prev = SAVE.best[G.monster] || 0, best = G.score > prev;
   if (best) SAVE.best[G.monster] = G.score;
   SAVE.kills[G.monster] = (SAVE.kills[G.monster] || 0) + G.kills;
