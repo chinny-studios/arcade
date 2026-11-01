@@ -44,10 +44,11 @@ function snapSearch(artist, title) {
   const qa = artist.trim().toLowerCase(), qt = title.trim().toLowerCase();
   const words = (qa + ' ' + qt).split(/\s+/).filter((w) => w.length > 1);
   if (!words.length) return { results: [] };
-  const norm = (s) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ');
-  const match = (s) => words.every((w) => norm(s.artist + ' ' + s.title).includes(w.replace(/[^a-z0-9]/g, '')));
+  const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const needle = (w) => w.replace(/[^a-z0-9]/g, '');
+  const match = (s) => words.every((w) => norm(s.artist + ' ' + s.title).includes(needle(w)));
   let hits = SONGS.filter(match);
-  if (!hits.length) hits = SONGS.filter((s) => words.some((w) => w.length > 2 && norm(s.artist + ' ' + s.title).includes(w.replace(/[^a-z0-9]/g, ''))));
+  if (!hits.length) hits = SONGS.filter((s) => words.some((w) => w.length > 2 && norm(s.artist + ' ' + s.title).includes(needle(w))));
   const blocked = hits.some((s) => BLOCKED.includes(s.id));
   const out = [];
   for (const s of hits) {

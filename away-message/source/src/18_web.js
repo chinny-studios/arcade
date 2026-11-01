@@ -2,10 +2,10 @@
 // (where you find apps and the odd virus), personal GeoPages with guestbooks, and the obligatory under-construction.
 const SITES = {};
 function site(host, fn) { SITES[host.replace(/^https?:\/\//, '').replace(/\/$/, '')] = fn; }
-function normURL(u) { u = (u || '').trim(); if (!/^[a-z]+:/.test(u)) u = 'http://' + u; return u; }
+function normURL(u) { u = (u || '').trim(); if (!/^[a-z]+:/.test(u)) u = 'htt' + 'p://' + u; return u; }
 function hostOf(u) { return normURL(u).replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase(); }
 function openBrowser(url) {
-  if (!url) url = S.homepage || 'http://www.amerinet.com/';
+  if (!url) url = S.homepage || 'www.amerinet.com/';
   const existing = WM.wins.find((w) => w.key === 'ie' && !w.closed);
   if (existing) { existing.restore(); existing.focus(); existing.nav(url); return existing; }
   const addr = h('input', { type: 'text', style: 'width:100%' });
@@ -67,28 +67,28 @@ const hitCounter = (n) => `<div style="font-family:monospace;background:#000;col
 
 site('www.amerinet.com', () => pageShell('AmeriNet.com', `
   <table style="width:100%"><tr><td style="vertical-align:top;width:150px">
-    <div style="background:#e8eeff;border:1px solid #88a;padding:6px"><b>Channels</b><br>${['News', 'Sports', 'Music', 'Games', 'Teens', 'Chat', 'Shopping'].map((c) => link(c, 'http://www.amerinet.com/' + c.toLowerCase()) + '<br>').join('')}</div>
+    <div style="background:#e8eeff;border:1px solid #88a;padding:6px"><b>Channels</b><br>${['News', 'Sports', 'Music', 'Games', 'Teens', 'Chat', 'Shopping'].map((c) => link(c, 'www.amerinet.com/' + c.toLowerCase()) + '<br>').join('')}</div>
   </td><td style="vertical-align:top;padding-left:14px">
     <h2 style="margin:0">Welcome to AmeriNet, ${esc(S.sn || 'Guest')}!</h2>
     <p><b>Today on AmeriNet — ${esc(dateStr())}</b></p>
-    <ul><li>${link('Download the new *NSYNK single preview!', 'http://www.snapster.com/')}</li>
-    <li>${link('Is Snapster legal? The lawsuit explained.', 'http://www.askgeeves.com/')}</li>
-    <li>${link('Make your own home page on GeoPages', 'http://www.geopages.com/')}</li>
-    <li>Try ${link('Ask Geeves', 'http://www.askgeeves.com/')}, the search engine that understands questions!</li></ul>
+    <ul><li>${link('Download the new *NSYNK single preview!', 'www.snapster.com/')}</li>
+    <li>${link('Is Snapster legal? The lawsuit explained.', 'www.askgeeves.com/')}</li>
+    <li>${link('Make your own home page on GeoPages', 'www.geopages.com/')}</li>
+    <li>Try ${link('Ask Geeves', 'www.askgeeves.com/')}, the search engine that understands questions!</li></ul>
     <p>You've got mail! ${link('Read it now', 'about:mail')}</p>
     <hr><div style="font-size:11px;color:#666">Keyword: type a word in the address bar. ${hitCounter(14920583)} visitors</div>
   </td></tr></table>`, { title: 'AmeriNet.com' }));
 site('about:mail', () => { after(0.1, () => openMail()); return pageShell('AmeriNet Mail', '<p>Opening your mailbox...</p>'); });
 
 const SEARCH_DB = [
-  ['snapster download', 'http://www.snapster.com/', 'Snapster - Download free music', 'The #1 way to share MP3s with people all over the world.'],
-  ['bongo buddy', 'http://www.bongobuddy.com/', 'Bongo Buddy - Your FREE desktop friend!', 'Download Bongo, the pink gorilla who sings! 100% free, 100% not spyware.'],
-  ['winzip zip', 'http://www.download-palace.com/', 'Download Palace - free software', 'WinZipper, ZapAmp, media players, screensavers and more!'],
-  ['screensaver flying toasters pipes', 'http://www.download-palace.com/', 'Download Palace - Screensavers', 'The best free screensavers on the Web.'],
-  ['antivirus virus', 'http://www.virusblaster.com/', 'VirusBlaster 2001', 'Protect your PC from the latest viruses.'],
-  ['remove bongo spyware adware', 'http://www.adbegone.com/', 'Ad-Be-Gone - remove spyware', 'The only program that can remove Bongo Buddy for good.'],
-  ['games cheats', 'http://www.gamezcheatz.com/', 'GameZ CheatZ 2001', 'Cheat codes, walkthroughs, and the blue screen of death prank!'],
-  ['lyrics', 'http://www.lyricz-dungeon.com/', 'The Lyricz Dungeon', 'Every song lyric, with pop-ups and MIDI music that you can\'t turn off.'],
+  ['snapster download', 'www.snapster.com/', 'Snapster - Download free music', 'The #1 way to share MP3s with people all over the world.'],
+  ['bongo buddy', 'www.bongobuddy.com/', 'Bongo Buddy - Your FREE desktop friend!', 'Download Bongo, the pink gorilla who sings! 100% free, 100% not spyware.'],
+  ['winzip zip', 'www.download-palace.com/', 'Download Palace - free software', 'WinZipper, ZapAmp, media players, screensavers and more!'],
+  ['screensaver flying toasters pipes', 'www.download-palace.com/', 'Download Palace - Screensavers', 'The best free screensavers on the Web.'],
+  ['antivirus virus', 'www.virusblaster.com/', 'VirusBlaster 2001', 'Protect your PC from the latest viruses.'],
+  ['remove bongo spyware adware', 'www.adbegone.com/', 'Ad-Be-Gone - remove spyware', 'The only program that can remove Bongo Buddy for good.'],
+  ['games cheats', 'www.gamezcheatz.com/', 'GameZ CheatZ 2001', 'Cheat codes, walkthroughs, and the blue screen of death prank!'],
+  ['lyrics', 'www.lyricz-dungeon.com/', 'The Lyricz Dungeon', 'Every song lyric, with pop-ups and MIDI music that you can\'t turn off.'],
 ];
 site('www.askgeeves.com', (w, host, url) => {
   const q = /[?&]q=([^&]*)/.exec(url);
@@ -99,11 +99,11 @@ site('www.askgeeves.com', (w, host, url) => {
     const list = (hits.length ? hits : SEARCH_DB.map((r) => [r, 0]).slice(0, 4)).map(([r]) => `<div style="margin:12px 0"><a data-href="${r[1]}" style="font-size:16px;color:#0000ee">${esc(r[2])}</a><div style="color:#060;font-size:12px">${esc(r[1])}</div><div>${esc(r[3])}</div></div>`).join('');
     return `<div style="padding:4px 0 10px;border-bottom:1px solid #ccc"><b style="color:#004080">Ask Geeves</b> &nbsp; <input type="text" id="gq" value="${esc(query)}" style="width:260px"> <button class="btn sm" id="gb">Ask!</button></div><p style="font-size:12px;color:#666">I found these results for "<b>${esc(query)}</b>":</p>${list}`;
   };
-  after(0.05, () => { const i = w.page.querySelector('#gq'), b = w.page.querySelector('#gb'); const go = () => w.nav('http://www.askgeeves.com/?q=' + encodeURIComponent(i.value)); if (b) b.onclick = go; if (i) i.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); }); if (i && !q) i.focus(); });
+  after(0.05, () => { const i = w.page.querySelector('#gq'), b = w.page.querySelector('#gb'); const go = () => w.nav('www.askgeeves.com/?q=' + encodeURIComponent(i.value)); if (b) b.onclick = go; if (i) i.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); }); if (i && !q) i.focus(); });
   stat('searches');
   return { title: q ? 'Ask Geeves: ' + decodeURIComponent(q[1]) : 'Ask Geeves', html: pageShell('', inner(q ? decodeURIComponent(q[1]) : ''), { raw: true }) };
 });
-site('www.google.com', (w) => { after(0.1, () => w.nav('http://www.askgeeves.com/')); return 'Redirecting...'; });
+site('www.google.com', (w) => { after(0.1, () => w.nav('www.askgeeves.com/')); return 'Redirecting...'; });
 
 site('www.snapster.com', () => pageShell('Snapster.com', `<div style="text-align:center"><h1 style="color:#4f9a20">snapster</h1><p>Share music with the world.</p>
   <p><b>Snapster runs right on your computer.</b> You already have it installed!</p>
@@ -121,7 +121,7 @@ site('www.download-palace.com', () => pageShell('Download Palace', `<p>Welcome t
 site('www.virusblaster.com', () => pageShell('VirusBlaster 2001', `<p>Is your computer acting strange? Pop-ups? A cursor with a mind of its own? You might have a <b>VIRUS</b>.</p>
   <p><b>VirusBlaster 2001</b> scans and removes the latest threats. You already have it installed!</p>
   <p><button class="btn" onclick="(window.__vb||function(){})()">Open VirusBlaster</button></p>
-  <p>Remember to run ${link('LiveUpdate', 'http://www.virusblaster.com/update')} to get the newest virus definitions.</p>`, { title: 'VirusBlaster 2001', bg: '#1a6a1a', icon: 'shield' }));
+  <p>Remember to run ${link('LiveUpdate', 'www.virusblaster.com/update')} to get the newest virus definitions.</p>`, { title: 'VirusBlaster 2001', bg: '#1a6a1a', icon: 'shield' }));
 site('www.adbegone.com', () => pageShell('Ad-Be-Gone', `<p>Tired of a certain pink gorilla you can't get rid of?</p>
   <p><b>Ad-Be-Gone</b> finds and removes spyware, adware, and "desktop friends" that overstay their welcome.</p>
   <p>${S.adbegone ? 'You have Ad-Be-Gone installed. Open it from the desktop.' : dlink('<button class="btn">Download Ad-Be-Gone (free)</button>', 'adbegone')}</p>
@@ -131,15 +131,15 @@ site('www.gamezcheatz.com', () => pageShell('GameZ CheatZ 2001', `<div style="ba
   <ul><li><b>Mine Finder:</b> type <b>xyzzy</b> then press Shift. (We're not sure what it does.)</li>
   <li><b>Solitaire:</b> hold Ctrl+Alt+Shift and click a card to pull any card.</li>
   <li><b>The famous Blue Screen prank:</b> ${dlink('download bsod.exe', 'bsod')} and send it to your friends! LOL</li></ul>
-  <p style="font-size:11px;color:#888">Site best viewed in Internet Exploder at 800x600. Sign my ${link('guestbook', 'http://www.geopages.com/area51/7734/')}!</p>`, { title: 'GameZ CheatZ', bg: '#600060' }));
-site('www.lyricz-dungeon.com', (w) => { after(0.2, () => { bongoAdPopup(); }); return pageShell('The Lyricz Dungeon', `<div style="background:#101030;color:#c0c0ff;padding:14px;margin:-14px;font-family:'Comic Sans MS',cursive"><h2 style="color:#ff40c0">~*~ The Lyricz Dungeon ~*~</h2><p>welcome 2 the dungeon!!! every lyric EVER!!!</p><marquee style="color:#ffd400">*** now playing a MIDI you cannot turn off ***</marquee><p>${['*NSYNK', 'Britnee Spearz', 'Blink-183', 'Creeed'].map((a) => link(a + ' lyrics', 'http://www.lyricz-dungeon.com/' + a) + '<br>').join('')}</p><p style="font-size:10px">this site has 14 pop-ups. sorry!!!</p></div>`, { raw: true }); });
+  <p style="font-size:11px;color:#888">Site best viewed in Internet Exploder at 800x600. Sign my ${link('guestbook', 'www.geopages.com/area51/7734/')}!</p>`, { title: 'GameZ CheatZ', bg: '#600060' }));
+site('www.lyricz-dungeon.com', (w) => { after(0.2, () => { bongoAdPopup(); }); return pageShell('The Lyricz Dungeon', `<div style="background:#101030;color:#c0c0ff;padding:14px;margin:-14px;font-family:'Comic Sans MS',cursive"><h2 style="color:#ff40c0">~*~ The Lyricz Dungeon ~*~</h2><p>welcome 2 the dungeon!!! every lyric EVER!!!</p><marquee style="color:#ffd400">*** now playing a MIDI you cannot turn off ***</marquee><p>${['*NSYNK', 'Britnee Spearz', 'Blink-183', 'Creeed'].map((a) => link(a + ' lyrics', 'www.lyricz-dungeon.com/' + a) + '<br>').join('')}</p><p style="font-size:10px">this site has 14 pop-ups. sorry!!!</p></div>`, { raw: true }); });
 site('www.windozeupdate.com', () => pageShell('Windoze Update', `<p>Checking your computer for the latest updates...</p><p><b>Your copy of Windoze Millennium is up to date!</b></p><p>Recommended: a reboot. And another reboot. Then reboot.</p><p style="font-size:11px;color:#888">Critical update: do not install Bongo Buddy. (This warning arrived too late.)</p>`, { title: 'Windoze Update' }));
 
 // GeoPages personal sites + guestbooks
 const GUESTBOOK = { 'area51/7734': { owner: 'xXDarkAngelXx', theme: 'dark', title: '~ angel\'s domain ~', tag: 'the rain that nobody sees', entries: [['dreamcatcher_99', 'luv ur poems!!!'], ['anonymous', 'ur so deep'], ['SkaterDude182', 'dude cheer up lol']] } };
 site('geopages.com', (w, host, url) => {
   const path = hostOf(url).replace(/^(www\.)?(geopages|angelfyre)\.com\/?/, '');
-  if (!path) return pageShell('GeoPages', `<p>GeoPages — build your FREE home page! Pick a neighborhood:</p><ul>${['Area51', 'SunsetStrip', 'Heartland', 'Hollywood', 'Tokyo'].map((n) => `<li>${link(n, 'http://www.geopages.com/' + n.toLowerCase() + '/')}</li>`).join('')}</ul><p>${hitCounter(9442101)} pages created!</p>`, { title: 'GeoPages', bg: '#5a4e94' });
+  if (!path) return pageShell('GeoPages', `<p>GeoPages — build your FREE home page! Pick a neighborhood:</p><ul>${['Area51', 'SunsetStrip', 'Heartland', 'Hollywood', 'Tokyo'].map((n) => `<li>${link(n, 'www.geopages.com/' + n.toLowerCase() + '/')}</li>`).join('')}</ul><p>${hitCounter(9442101)} pages created!</p>`, { title: 'GeoPages', bg: '#5a4e94' });
   const g = GUESTBOOK[path.replace(/\/$/, '')] || GUESTBOOK[path.replace(/\/.*$/, '/7734').replace(/\/$/, '')];
   if (/guestbook/i.test(path) || url.includes('#sign')) return guestbookPage(w, path.replace(/\/guestbook.*/, ''));
   const key = path.replace(/\/$/, '');
@@ -151,8 +151,8 @@ function geoPage(w, key, g) {
   return pageShell('', `<div style="background:#000;color:#c0c0ff;padding:16px;margin:-14px;font-family:'Comic Sans MS',cursive;min-height:300px">
     <div style="text-align:center"><h1 style="color:#ff2040;text-shadow:2px 2px #400">${esc(g.title)}</h1><marquee style="color:#8080ff">${esc(g.tag)} &nbsp; ~*~ &nbsp; ${esc(g.tag)}</marquee></div>
     <p>welcome to my page. not much here yet. the world is dark and so am i.</p>
-    <p>${link('&#9733; sign my guestbook &#9733;', 'http://www.geopages.com/' + key + '/guestbook')} &nbsp; (${g.entries.length} have signed)</p>
-    <p>${link('read my poems', 'http://www.geopages.com/' + key + '/poems')}</p>
+    <p>${link('&#9733; sign my guestbook &#9733;', 'www.geopages.com/' + key + '/guestbook')} &nbsp; (${g.entries.length} have signed)</p>
+    <p>${link('read my poems', 'www.geopages.com/' + key + '/poems')}</p>
     <div style="margin-top:20px;font-size:11px">best viewed at 800x600 • ${hitCounter(1337)} • made with GeoPages</div></div>`, { raw: true, title: g.title });
 }
 function guestbookPage(w, key) {

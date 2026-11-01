@@ -3,7 +3,7 @@
 const BC = { on: false, w: null, since: 0, ims: {}, rooms: {}, st: {}, warn: 0, busy: {}, quest: {}, done: {}, away: null, lastStart: -99, iblocked: {} };
 const AWAY_PRESETS = ['~*~ at the mall ~*~', 'brb shower', 'sleeping... or am i?', 'eating dinner. IM me and ill get back 2 u', 'out with friends. leave a msg!!', '<i>"and i wonder if u know... how it really feels..."</i> ~*~', 'not here. obviously.'];
 function bcRow(sn) { return BC.st[sn] || (BC.st[sn] = { state: 'off', since: 0, away: '', awayUntil: 0 }); }
-function bcLink(t) { return esc(t).replace(/(www\.[a-z0-9.\-/]+)/gi, '<a data-href="http://$1">$1</a>').replace(/:\)|:-\)/g, `<img src="${icon('smiley', 16)}" style="vertical-align:-4px;width:15px">`); }
+function bcLink(t) { return esc(t).replace(/(www\.[a-z0-9.\-/]+)/gi, '<a data-href="$1">$1</a>').replace(/:\)|:-\)/g, `<img src="${icon('smiley', 16)}" style="vertical-align:-4px;width:15px">`); }
 
 // ---- sign on / off ----
 function openBuddyChat() {

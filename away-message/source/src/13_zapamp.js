@@ -70,7 +70,7 @@ function zapApplySkin(id = S.skin) {
 function zapSkinMenu() {
   const r = ZAP.el.root.getBoundingClientRect(), A = APP().getBoundingClientRect();
   const owned = Object.keys(SKINS).filter((k) => S.skins.includes(k) || (k === 'bongo' && S.bongo.adware.includes('bongoskin')));
-  popMenu(owned.map((k) => ({ label: SKINS[k].name, radio: S.skin === k, act: () => { S.skin = k; save(); zapApplySkin(); if (k !== 'base') unlock('skin'); } })).concat([{ sep: 1 }, { label: 'Get more skins...', act: () => openBrowser('http://www.zapamp.com/skins/') }]), r.right - A.left - 160, r.bottom - A.top - 10);
+  popMenu(owned.map((k) => ({ label: SKINS[k].name, radio: S.skin === k, act: () => { S.skin = k; save(); zapApplySkin(); if (k !== 'base') unlock('skin'); } })).concat([{ sep: 1 }, { label: 'Get more skins...', act: () => openBrowser('www.zapamp.com/skins/') }]), r.right - A.left - 160, r.bottom - A.top - 10);
 }
 function zapPaint() { if (!ZAP.el.shuf) return; ZAP.el.shuf.classList.toggle('on', ZAP.shuffle); ZAP.el.rep.classList.toggle('on', ZAP.repeat); }
 function zapRenderList() {

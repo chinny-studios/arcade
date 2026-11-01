@@ -6,9 +6,9 @@ const BW = 110, BH = 132;
 const ADWARE = {
   bongobar: { name: 'BongoBar Toolbar', icon: 'bongo', offer: 'a FREE toolbar that makes the Internet faster', toolbar: 'bongo' },
   smileypal: { name: 'SmileyPal 2001', icon: 'smiley', offer: 'over 9,000 FREE smileys for your e-mail', toolbar: 'smiley', tray: true },
-  homepage: { name: 'BongoSearch Home Page', icon: 'globe', offer: 'a better home page, picked just for you', fx: () => { S.homepage = 'http://www.bongosearch.com/'; } },
-  ringtones: { name: 'Free Ringtones!! Shortcut', icon: 'ringtone', desk: 'FREE Ringtones!!', offer: 'FREE ringtones for the cell phone you don\'t have yet', open: () => openBrowser('http://www.free-ringtonez.com/') },
-  casino: { name: 'Lucky Casino 2001', icon: 'casino', desk: 'Lucky Casino 2001', tray: true, offer: 'a fun casino game (play money only!)', open: () => openBrowser('http://www.luckycasino2001.com/') },
+  homepage: { name: 'BongoSearch Home Page', icon: 'globe', offer: 'a better home page, picked just for you', fx: () => { S.homepage = 'www.bongosearch.com/'; } },
+  ringtones: { name: 'Free Ringtones!! Shortcut', icon: 'ringtone', desk: 'FREE Ringtones!!', offer: 'FREE ringtones for the cell phone you don\'t have yet', open: () => openBrowser('www.free-ringtonez.com/') },
+  casino: { name: 'Lucky Casino 2001', icon: 'casino', desk: 'Lucky Casino 2001', tray: true, offer: 'a fun casino game (play money only!)', open: () => openBrowser('www.luckycasino2001.com/') },
   clockfix: { name: 'ClockFixer Pro', icon: 'calendar', offer: 'a program that checks your clock every 5 minutes' },
   bongoskin: { name: 'Bongo Gold Skin for ZapAmp', icon: 'zapamp', offer: 'a gorgeous gold skin for ZapAmp', fx: () => { S.skin = 'bongo'; if (ZAP.w && !ZAP.w.closed) zapApplySkin(); } },
   bongowall: { name: 'Bongo Love Wallpaper', icon: 'display', offer: 'a beautiful new wallpaper. Of me!', fx: () => { S.wall = 'bongo'; applyWall(); } },
@@ -208,7 +208,7 @@ function installAdware(id, asked) {
 }
 function removeAdware(id) {
   S.bongo.adware = S.bongo.adware.filter((x) => x !== id);
-  if (id === 'homepage' && /bongo/.test(S.homepage)) S.homepage = 'http://www.amerinet.com/';
+  if (id === 'homepage' && /bongo/.test(S.homepage)) S.homepage = 'www.amerinet.com/';
   if (id === 'bongowall' && S.wall === 'bongo') { S.wall = 'clouds'; applyWall(); }
   if (id === 'bongoskin' && S.skin === 'bongo') { S.skin = 'base'; if (ZAP.w && !ZAP.w.closed) zapApplySkin(); }
   trayRemove(id === 'smileypal' ? 'smiley' : id);

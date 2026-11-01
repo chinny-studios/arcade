@@ -40,7 +40,7 @@ function startDesktop() {
   addEventListener('pointerdown', once); addEventListener('keydown', once);
   // welcome
   const restarted = (() => { try { const r = sessionStorage.getItem('away-message-restart'); sessionStorage.removeItem('away-message-restart'); return r; } catch (e) { return null; } })();
-  if (!S.noWelcome) after(restarted ? 0.5 : 1.5, openWelcome);
+  after(restarted ? 0.5 : 1.5, () => { if (!S.noWelcome) openWelcome(); });
   if (restarted) MAIN.wasRestart = true;
 }
 async function boot() {
@@ -77,5 +77,10 @@ if (DEBUG) {
     songs: () => SONGS.map((s) => s.id),
     achList: () => ACH.map((a) => a.id),
     wins: () => WM.wins.map((w) => w.title),
+    // helpers for covers/tests
+    save, snapSearch, filesIn, zapQueue, openIM, imLine, snapTab, deskW, deskH,
+    win: (key) => WM.wins.find((w) => w.key === key),
+    place: (key, x, y, ww, hh) => { const w = WM.wins.find((o) => o.key === key); if (w) { w.move(x, y); if (ww) w.size(ww, hh); } return !!w; },
+    snap: SNAP, zap: ZAP, bc: BC, bongoObj: BONGO,
   };
 }

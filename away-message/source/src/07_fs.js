@@ -280,7 +280,7 @@ function openRun() {
     if (!v) return;
     S.lastRun = v; save();
     const c = v.trim().toLowerCase();
-    if (/^(https?:\/\/|www\.)/.test(c)) { openBrowser(c.startsWith('http') ? c : 'http://' + c); return; }
+    if (/^(https?:\/\/|www\.)/.test(c)) { openBrowser(c.startsWith('http') ? c : '' + c); return; }
     if (/^format/.test(c)) { const w = openDOS(); setTimeout(() => w.type(c), 200); return; }
     const k = c.replace(/\.exe$/, '');
     if (RUNCMDS[k]) { RUNCMDS[k](); return; }

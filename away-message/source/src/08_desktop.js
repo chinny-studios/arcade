@@ -117,12 +117,12 @@ function startItems() {
     return [{ label: 'My Documents', icon: 'docs', act: APPS.mydocs.open }, { sep: 1 }].concat(r.length ? r.map((f) => ({ label: esc(displayName(f)), icon: fileIcon(f), act: () => openFile(f) })) : [{ label: '(Empty)', dis: 1 }]);
   };
   return [
-    { label: 'Windoze Update', icon: 'globe', act: () => openBrowser('http://www.windozeupdate.com/') },
+    { label: 'Windoze Update', icon: 'globe', act: () => openBrowser('www.windozeupdate.com/') },
     { sep: 1 },
     { label: '<u>P</u>rograms', icon: 'programs', items: progs() },
     { label: '<u>D</u>ocuments', icon: 'docsmenu', items: docs() },
     { label: '<u>S</u>ettings', icon: 'settings', items: [{ label: 'Control Panel', icon: 'control', act: openControlPanel }, { label: 'Printers', icon: 'printer', act: APPS.printers.open }, { label: 'Folder Options...', icon: 'folderopt', act: openFolderOptions }, { label: 'Display', icon: 'display', act: openDisplay }] },
-    { label: 'S<u>e</u>arch', icon: 'find', items: [{ label: 'For Files or Folders...', icon: 'find', act: openFind }, { label: 'On the Internet...', icon: 'globe', act: () => openBrowser('http://www.askgeeves.com/') }] },
+    { label: 'S<u>e</u>arch', icon: 'find', items: [{ label: 'For Files or Folders...', icon: 'find', act: openFind }, { label: 'On the Internet...', icon: 'globe', act: () => openBrowser('www.askgeeves.com/') }] },
     { label: '<u>H</u>elp', icon: 'help', act: openHelp },
     { label: '<u>R</u>un...', icon: 'run', act: openRun },
     { sep: 1 },

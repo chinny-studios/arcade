@@ -159,7 +159,7 @@ function openInternetOptions() {
   let home = S.homepage;
   propSheet({ key: 'inetopt', title: 'Internet Options', icon: 'globe', h: 300, onApply: () => { S.homepage = home; save(); }, pages: [['General', (p) => {
     const i = h('input', { type: 'text', value: home, style: 'width:100%' }); i.addEventListener('input', () => (home = i.value));
-    p.append(h('fieldset', null, h('legend', { text: 'Home page' }), i, h('div', { class: 'row', style: 'margin-top:6px' }, h('button', { class: 'btn sm', text: 'Use Default', onclick: () => { i.value = home = 'http://www.amerinet.com/'; } }), h('button', { class: 'btn sm', text: 'Use Blank', onclick: () => { i.value = home = 'about:blank'; } }))),
+    p.append(h('fieldset', null, h('legend', { text: 'Home page' }), i, h('div', { class: 'row', style: 'margin-top:6px' }, h('button', { class: 'btn sm', text: 'Use Default', onclick: () => { i.value = home = 'www.amerinet.com/'; } }), h('button', { class: 'btn sm', text: 'Use Blank', onclick: () => { i.value = home = 'about:blank'; } }))),
       h('fieldset', null, h('legend', { text: 'Temporary Internet files' }), h('button', { class: 'btn sm', text: 'Delete Files...', onclick: () => msgBox({ icon: 'info', title: 'Internet Options', text: 'Deleted 4,211 cookies. Bongo saved copies for you.' }) })));
   }]] });
 }
