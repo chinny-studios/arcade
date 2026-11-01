@@ -56,9 +56,9 @@ function buddyList() {
   const body = h('div', { class: 'col grow', style: 'gap:4px;padding:4px;min-height:0' },
     h('div', { style: 'background:linear-gradient(180deg,#ffe866,#ffb000);padding:6px;display:flex;align-items:center;gap:8px;box-shadow:var(--in)' }, img('buddy', 32), h('div', null, h('div', { style: 'font:bold italic 15px Arial;color:#003a8a', text: 'BuddyChat' }), h('div', { style: 'font-weight:bold', text: S.sn }))),
     tree, warnEl,
-    h('div', { class: 'row', style: 'gap:2px' }, btn('chat', 'IM', () => openIM(selSn() || BUDDIES[0].sn)), btn('network', 'Chat', chooseRoom), btn('info', 'Info', () => selSn() && buddyInfo(selSn())), btn('away', 'Away', awayDialog)));
+    h('div', { class: 'row', style: 'gap:2px' }, btn('chat', 'IM', () => openIM(selSn() || BUDDIES[0].sn)), btn('network', 'Chat', chooseRoom), btn('info', 'Info', () => selSn() && buddyInfo(selSn())), btn('away', 'Away', awayDialog), btn('star', 'Board', openAwayBoard)));
   const w = BC.w = openWin({ key: 'buddylist', title: S.sn + '\'s Buddy List', icon: 'buddy', w: 210, h: 470, minW: 170, x: deskW() - 230, y: 10, body,
-    menu: [{ label: 'My BuddyChat', items: () => [{ label: 'Edit Profile...', act: editProfile }, { label: 'Away Message...', act: awayDialog }, { sep: 1 }, { label: 'Warning Level: ' + Math.round(BC.warn) + '%', dis: 1 }, { sep: 1 }, { label: 'Sign Off', act: () => bcSignOff() }] },
+    menu: [{ label: 'My BuddyChat', items: () => [{ label: 'Edit Profile...', act: editProfile }, { label: 'Fill Out Survey...', act: openSurvey }, { label: 'Away Message...', act: awayDialog }, { label: 'Away Message Board', act: openAwayBoard }, { sep: 1 }, { label: 'Warning Level: ' + Math.round(BC.warn) + '%', dis: 1 }, { sep: 1 }, { label: 'Sign Off', act: () => bcSignOff() }] },
       { label: 'People', items: () => [{ label: 'Send Instant Message', act: () => sendIMTo() }, { label: 'Get Member Info', act: () => selSn() && buddyInfo(selSn()) }, { label: 'Join a Chat Room...', act: chooseRoom }] },
       { label: 'Help', items: [{ label: 'BuddyChat Help', act: () => openHelp(3) }] }],
     onClose: () => { if (BC.on) { msgBox({ title: 'BuddyChat', icon: 'question', text: 'Closing the Buddy List signs you off BuddyChat. Sign off?', buttons: ['Sign Off', 'Cancel'] }).then((b) => b === 'Sign Off' && bcSignOff()); return false; } } });
@@ -253,18 +253,20 @@ function richEditor(html) {
   const cmd = (c, v) => { ed.focus(); document.execCommand(c, false, v); };
   const colors = ['#000000', '#ff0000', '#ff00ff', '#8000ff', '#0000ff', '#008000', '#ff8000', '#808080'];
   const bar = h('div', { class: 'row', style: 'gap:2px;flex-wrap:wrap' }, h('button', { class: 'btn sm', html: '<b>B</b>', onclick: () => cmd('bold') }), h('button', { class: 'btn sm', html: '<i>I</i>', onclick: () => cmd('italic') }), h('button', { class: 'btn sm', html: '<u>U</u>', onclick: () => cmd('underline') }),
-    colors.map((c) => h('button', { class: 'btn sm', style: `min-width:16px;background:${c}`, onclick: () => cmd('foreColor', c) })), h('button', { class: 'btn sm', text: '~*~', onclick: () => cmd('insertText', '~*~') }), h('button', { class: 'btn sm', text: '<3', onclick: () => cmd('insertText', '<3') }));
-  return { ed, bar };
+    colors.map((c) => h('button', { class: 'btn sm', style: `min-width:16px;background:${c}`, onclick: () => cmd('foreColor', c) })), h('button', { class: 'btn sm', text: '~*~', onclick: () => cmd('insertText', '~*~') }), h('button', { class: 'btn sm', text: '<3', onclick: () => cmd('insertText', '<3') }),
+    h('button', { class: 'btn sm', text: 'Lyrics...', onclick: () => pickLyrics((html, song) => { ed.focus(); document.execCommand('insertHTML', false, html); out.song = song; }) }));
+  const out = { ed, bar, song: null };
+  return out;
 }
 function editProfile() {
-  const { ed, bar } = richEditor(S.profile || `<div style="text-align:center"><b>~*~ ${esc(S.sn)} ~*~</b><br><br><i>"put ur favorite song lyrics here"</i></div>`);
-  const w = openWin({ key: 'profile', title: 'Edit Profile', icon: 'user', w: 380, h: 340, small: true, body: h('div', { class: 'col grow pad', style: 'min-height:0' }, h('div', { text: 'Your profile is what people see when they click Get Info on you. Make it deep.' }), bar, ed,
-    h('div', { class: 'btns' }, h('button', { class: 'btn def', text: 'Save', onclick: () => { S.profile = ed.innerHTML; save(); unlock('profile'); w.close(); if (BC.on && chance(0.8)) after(rnd(8, 20), () => { const b = BUDDIES.find((x) => buddyAvailable(x.sn) && !bcRow(x.sn).away && !BC.busy[x.sn]); if (b) buddySay(b.sn, pick(['nice profile lol', 'omg i love ur new profile', 'ur profile is so deep', 'lol whats with ur profile'])); }); } }), h('button', { class: 'btn', text: 'Cancel', onclick: () => w.close() }))) });
+  const E = richEditor(S.profile || `<div style="text-align:center"><b>~*~ ${esc(S.sn)} ~*~</b><br><br><i>"put ur favorite song lyrics here"</i></div>`);
+  const w = openWin({ key: 'profile', title: 'Edit Profile', icon: 'user', w: 380, h: 340, small: true, body: h('div', { class: 'col grow pad', style: 'min-height:0' }, h('div', { text: 'Your profile is what people see when they click Get Info on you. Make it deep.' }), E.bar, E.ed,
+    h('div', { class: 'btns' }, h('button', { class: 'btn def', text: 'Save', onclick: () => { S.profile = E.ed.innerHTML; save(); unlock('profile'); w.close(); buddyComment(E.song ? 'lyrics' : 'profile', E.song); } }), h('button', { class: 'btn', text: 'Cancel', onclick: () => w.close() }))) });
 }
 function awayDialog() {
   if (!BC.on) { openBuddyChat(); return; }
   const presets = (S.aways || AWAY_PRESETS);
-  const { ed, bar } = richEditor(presets[0]);
+  const E = richEditor(presets[0]), ed = E.ed, bar = E.bar;
   const sel = h('select', { style: 'width:100%' }, presets.map((p, i) => h('option', { value: i, text: p.replace(/<[^>]+>/g, '') })));
   sel.addEventListener('change', () => { ed.innerHTML = presets[sel.value]; });
   const w = openWin({ key: 'awayedit', title: 'New Away Message', icon: 'away', w: 360, h: 320, small: true, body: h('div', { class: 'col grow pad', style: 'min-height:0' }, sel, bar, ed,
@@ -274,7 +276,9 @@ function setAway(m) {
   BC.away = m; unlock('away'); stat('aways'); bcRender();
   const back = () => { BC.away = null; bcRender(); if (BC.awayW && !BC.awayW.closed) BC.awayW.close(true); };
   BC.awayW = openWin({ key: 'away', title: 'Away Message', icon: 'away', w: 260, small: true, resizable: false, onClose: () => { back(); }, body: h('div', { class: 'col pad' }, h('div', { class: 'field', style: 'background:#ffffe0;min-height:50px', html: m }), h('div', { class: 'btns c' }, h('button', { class: 'btn def', text: 'I\'m Back', onclick: back }))) });
-  if (/[“"].*[”"]|~\*~|<i>/.test(m)) after(rnd(20, 40), () => { if (BC.away) unlock('deepaway'); });
+  const d = deepScore(m);
+  if (d >= 60) { unlock('deepaway'); buddyComment('deep'); }
+  toast('Deep-o-Meter', 'Your away message scored ' + d + '%: ' + deepLabel(d) + '.', 'away');
 }
 
 // ---- chat rooms ----
