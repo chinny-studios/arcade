@@ -1,6 +1,6 @@
 // BuddyChat: sign-on, the buddy list, IM windows with scripted buddies, profiles, away messages, warnings, file
-// sends, chat rooms with regulars and punters, and the punters' attacks on you.
-const BC = { on: false, w: null, since: 0, ims: {}, rooms: {}, st: {}, warn: 0, busy: {}, quest: {}, done: {}, away: null, lastStart: -99, iblocked: {}, rival: {}, punted: 0 };
+// sends and chat rooms.
+const BC = { on: false, w: null, since: 0, ims: {}, rooms: {}, st: {}, warn: 0, busy: {}, quest: {}, done: {}, away: null, lastStart: -99, iblocked: {} };
 const AWAY_PRESETS = ['~*~ at the mall ~*~', 'brb shower', 'sleeping... or am i?', 'eating dinner. IM me and ill get back 2 u', 'out with friends. leave a msg!!', '<i>"and i wonder if u know... how it really feels..."</i> ~*~', 'not here. obviously.'];
 function bcRow(sn) { return BC.st[sn] || (BC.st[sn] = { state: 'off', since: 0, away: '', awayUntil: 0 }); }
 function bcLink(t) { return esc(t).replace(/(www\.[a-z0-9.\-/]+)/gi, '<a data-href="http://$1">$1</a>').replace(/:\)|:-\)/g, `<img src="${icon('smiley', 16)}" style="vertical-align:-4px;width:15px">`); }
@@ -37,7 +37,7 @@ function bcSignOff(why) {
   BC.on = false;
   SFX.doorClose();
   trayRemove('buddy');
-  for (const sn in BC.ims) { const w = BC.ims[sn]; if (w && !w.closed) imSys(w, why === 'punt' ? 'You have been signed off.' : 'You are no longer signed on.'); }
+  for (const sn in BC.ims) { const w = BC.ims[sn]; if (w && !w.closed) imSys(w, 'You are no longer signed on.'); }
   for (const r in BC.rooms) { const w = BC.rooms[r]; if (w && !w.closed) w.close(true); }
   if (BC.w && !BC.w.closed) BC.w.close(true);
   if (BC.awayW && !BC.awayW.closed) BC.awayW.close(true);
@@ -56,7 +56,7 @@ function buddyList() {
   const body = h('div', { class: 'col grow', style: 'gap:4px;padding:4px;min-height:0' },
     h('div', { style: 'background:linear-gradient(180deg,#ffe866,#ffb000);padding:6px;display:flex;align-items:center;gap:8px;box-shadow:var(--in)' }, img('buddy', 32), h('div', null, h('div', { style: 'font:bold italic 15px Arial;color:#003a8a', text: 'BuddyChat' }), h('div', { style: 'font-weight:bold', text: S.sn }))),
     tree, warnEl,
-    h('div', { class: 'row', style: 'gap:2px' }, btn('chat', 'IM', () => openIM(selSn() || BUDDIES[0].sn)), btn('network', 'Chat', chooseRoom), btn('info', 'Info', () => selSn() && buddyInfo(selSn())), btn('away', 'Away', awayDialog), S.progz ? btn('progz', 'Progz', openProgz) : null));
+    h('div', { class: 'row', style: 'gap:2px' }, btn('chat', 'IM', () => openIM(selSn() || BUDDIES[0].sn)), btn('network', 'Chat', chooseRoom), btn('info', 'Info', () => selSn() && buddyInfo(selSn())), btn('away', 'Away', awayDialog)));
   const w = BC.w = openWin({ key: 'buddylist', title: S.sn + '\'s Buddy List', icon: 'buddy', w: 210, h: 470, minW: 170, x: deskW() - 230, y: 10, body,
     menu: [{ label: 'My BuddyChat', items: () => [{ label: 'Edit Profile...', act: editProfile }, { label: 'Away Message...', act: awayDialog }, { sep: 1 }, { label: 'Warning Level: ' + Math.round(BC.warn) + '%', dis: 1 }, { sep: 1 }, { label: 'Sign Off', act: () => bcSignOff() }] },
       { label: 'People', items: () => [{ label: 'Send Instant Message', act: () => sendIMTo() }, { label: 'Get Member Info', act: () => selSn() && buddyInfo(selSn()) }, { label: 'Join a Chat Room...', act: chooseRoom }] },
@@ -87,7 +87,7 @@ function bcRender() { if (BC.w && !BC.w.closed) BC.w.render(); }
 async function sendIMTo() { const v = await inputBox({ title: 'Send Instant Message', icon: 'chat', text: 'To (screen name):' }); if (v) openIM(v.trim()); }
 function buddyInfo(sn) {
   const b = BUDDY(sn), r = b ? bcRow(b.sn) : null;
-  const pr = b ? b.profile.replace(/\{sn\}/g, esc(S.sn)) : PUNTERS[sn] ? '<b style="color:red">xXx I AM THE ONE WHO PUNTS xXx</b><br>progz: like 20<br>n00bz punted: ALL OF THEM' : 'No profile.';
+  const pr = b ? b.profile.replace(/\{sn\}/g, esc(S.sn)) : 'No profile.';
   const body = h('div', { class: 'col grow pad', style: 'min-height:0' }, h('div', { class: 'row' }, img('user', 32), h('b', { style: 'font-size:13px', text: sn })), h('div', { class: 'dim', text: r && r.state !== 'off' && !S.blocked[sn] ? 'Online for ' + fmtTime(T.t - r.since) + (r.away ? ' • Away' : '') : 'Offline' }),
     r && r.away ? h('div', { class: 'field', style: 'background:#ffffe0', html: '<b>Away message:</b><br>' + r.away }) : null,
     h('div', { class: 'field sel-text', style: 'flex:1;overflow:auto;font:12px Arial', html: pr }));
@@ -118,7 +118,7 @@ function openIM(sn, quiet) {
 }
 function imLine(w, who, text, mine) {
   if (!w || w.closed) return;
-  const c = mine ? '#0000ff' : (BUDDY(who) || {}).color || (PUNTERS[who] || {}).color || '#ff0000';
+  const c = mine ? '#0000ff' : (BUDDY(who) || {}).color || '#ff0000';
   w.log.append(h('div', { html: `<b style="color:${c}">${esc(who)}</b>: ${bcLink(text)}` }));
   w.log.scrollTop = w.log.scrollHeight;
 }
@@ -135,10 +135,9 @@ function imSend(sn, text) {
   if (BC.warn >= 100) { imSys(w, 'You are warned to 100% and can\'t send messages right now. Wait for your warning level to go down.'); return; }
   const b = BUDDY(sn);
   if (b && !buddyAvailable(b.sn)) { imSys(w, sn + ' is not currently signed on.'); SFX.error(); return; }
-  if (!b && !PUNTERS[sn] && !roomUserOnline(sn)) { imSys(w, sn + ' is not currently signed on.'); SFX.error(); return; }
+  if (!b && !roomUserOnline(sn)) { imSys(w, sn + ' is not currently signed on.'); SFX.error(); return; }
   imLine(w, S.sn, text, true); SFX.imOut(); stat('ims'); unlock('im');
   if (w) imChips(w, []);
-  if (PUNTERS[sn]) { punterIMReply(sn, text); return; }
   if (!b) { after(rnd(2, 6), () => { if (chance(0.7)) buddySay(sn, pick(['who is this', 'lol hi', 'do i know u?', 'asdfgh', 'brb'])); }); return; }
   const r = bcRow(b.sn);
   if (r.away) { after(0.3, () => imLine(w, b.sn, 'Auto response from ' + b.sn + ': ' + r.away.replace(/<[^>]+>/g, ''))); return; }
@@ -181,7 +180,6 @@ on('guestbook', (who) => { for (const sn in BC.quest) if (BC.quest[sn].kind === 
 function imWarn(sn) {
   const w = BC.ims[sn];
   if (!BC.on) return;
-  if (PUNTERS[sn]) { warnRival(sn, w); return; }
   const b = BUDDY(sn); if (!b || !buddyAvailable(b.sn)) { imSys(w, 'You can only warn people who are online.'); return; }
   imSys(w, 'You warned ' + sn + '. Their warning level is now ' + (10 + irnd(0, 10)) + '%.'); SFX.warn();
   relAdd(b.sn, -3); after(2, () => buddySay(b.sn, pick(['did u just WARN me???', 'wow. ok.', 'WHY WOULD U WARN ME', 'rude!!!'])));
@@ -248,11 +246,6 @@ every(1, () => {
   // blocked by a buddy you annoyed too much
   for (const b of BUDDIES) if (!S.blocked[b.sn] && relOf(b.sn) <= -7 && bcRow(b.sn).state !== 'off') { const w = BC.ims[b.sn]; if (w && !w.closed) imLine(w, b.sn, pick(['im blocking u.', 'ur so annoying. bye.', 'blocked.'])); S.blocked[b.sn] = true; save(); buddySignOff(b.sn); unlock('blocked'); }
 });
-function cousinPrank() {
-  if (!BC.on) return;
-  for (let i = 0; i < 4; i++) after(i * 0.5, () => { const w = openWin({ title: 'cousinTJ - Instant Message', icon: 'chat', w: 260, h: 120, x: 80 + i * 40, y: 60 + i * 30, small: true, body: h('div', { class: 'pad', html: '<b style="color:#008080">cousinTJ</b>: ' + pick(['HAHAHAHA', 'u got bombed', 'lol', 'PWNED']) }) }); SFX.imIn(); });
-  after(3, () => buddySay('cousinTJ', 'lol see i told u. i am a hacker'));
-}
 
 // ---- profile and away ----
 function richEditor(html) {
@@ -300,64 +293,27 @@ function joinRoom(name) {
   const inp = h('input', { type: 'text', class: 'grow' });
   const w = openWin({ title: 'Chat Room: ' + name, icon: 'network', w: 520, h: 360, minW: 360, body: h('div', { class: 'col grow pad', style: 'min-height:0' }, h('div', { class: 'row grow', style: 'align-items:stretch;min-height:0' }, log, ppl), h('div', { class: 'row' }, inp, h('button', { class: 'btn def', text: 'Send', onclick: () => send() }))),
     onClose: () => { delete BC.rooms[name]; } });
-  w.log = log; w.name = name; w.people = shuffle(R.users.slice()).slice(0, irnd(4, R.users.length)); w.said = 0; w.punter = R.punter;
-  if (!BC.rival[R.punter] || BC.rival[R.punter].gone !== true) { const rv = BC.rival[R.punter] || (BC.rival[R.punter] = { punts: 0, warn: 0, back: 0, anger: 0 }); if (T.t >= rv.back) w.people.push(R.punter); }
+  w.log = log; w.name = name; w.people = shuffle(R.users.slice()).slice(0, irnd(4, R.users.length)); w.said = 0;
   BC.rooms[name] = w;
   const send = () => { const v = inp.value.trim(); if (!v) return; inp.value = ''; roomSay(w, S.sn, v, true); w.said++; stat('roomlines'); roomReact(w, v); };
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
   log.addEventListener('click', (e) => { const a = e.target.closest('[data-href]'); if (a) openBrowser(a.dataset.href); });
-  w.renderPeople = () => { ppl.textContent = ''; ppl.append(h('div', { style: 'font-weight:bold;padding:2px', text: (w.people.length + 1) + ' people here' })); [S.sn].concat(w.people).forEach((p) => { const e = h('div', { style: 'padding:1px 4px;' + (PUNTERS[p] ? 'color:' + PUNTERS[p].color + ';font-weight:bold' : ''), text: p }); e.addEventListener('dblclick', () => p !== S.sn && openIM(p)); ctxMenu(e, p === S.sn ? [] : [{ label: 'Send IM', act: () => openIM(p) }, { label: 'Get Info', act: () => buddyInfo(p) }, { label: 'Warn', act: () => PUNTERS[p] ? warnRival(p) : roomSys(w, 'You warned ' + p + '.') }]); ppl.append(e); }); };
+  w.renderPeople = () => { ppl.textContent = ''; ppl.append(h('div', { style: 'font-weight:bold;padding:2px', text: (w.people.length + 1) + ' people here' })); [S.sn].concat(w.people).forEach((p) => { const e = h('div', { style: 'padding:1px 4px;' + '', text: p }); e.addEventListener('dblclick', () => p !== S.sn && openIM(p)); ctxMenu(e, p === S.sn ? [] : [{ label: 'Send IM', act: () => openIM(p) }, { label: 'Get Info', act: () => buddyInfo(p) }, { label: 'Warn', act: () => roomSys(w, 'You warned ' + p + '.') }]); ppl.append(e); }); };
   w.renderPeople();
   roomSys(w, '*** You are in "' + name + '". ***'); unlock('chatroom'); stat('rooms');
   return w;
 }
-function roomSay(w, who, text, mine) { if (!w || w.closed) return; const c = mine ? '#0000ff' : (PUNTERS[who] || {}).color || '#a00000'; w.log.append(h('div', { style: text.includes('\n') ? 'white-space:pre;font-family:monospace' : '', html: `<b style="color:${c}">${esc(who)}</b>: ${bcLink(text)}` })); while (w.log.children.length > 200) w.log.firstChild.remove(); w.log.scrollTop = w.log.scrollHeight; }
+function roomSay(w, who, text, mine) { if (!w || w.closed) return; const c = mine ? '#0000ff' : '#a00000'; w.log.append(h('div', { style: text.includes('\n') ? 'white-space:pre;font-family:monospace' : '', html: `<b style="color:${c}">${esc(who)}</b>: ${bcLink(text)}` })); while (w.log.children.length > 200) w.log.firstChild.remove(); w.log.scrollTop = w.log.scrollHeight; }
 function roomSys(w, text) { if (!w || w.closed) return; w.log.append(h('div', { style: 'color:#808080', text })); w.log.scrollTop = w.log.scrollHeight; }
 function roomReact(w, text) {
-  if (chance(0.6)) after(rnd(2, 5), () => { const u = pick(w.people.filter((p) => !PUNTERS[p])); if (u) roomSay(w, u, pick(['lol ' + S.sn, 'hi ' + S.sn + '!', 'haha', S.sn + ' ur funny', 'same', 'totally', 'whatever ' + S.sn, '???'])); });
-  const p = w.people.find((x) => PUNTERS[x]);
-  if (p && (w.said >= 2 || /punt|n00b|noob|loser|lame/i.test(text)) && chance(0.5)) after(rnd(3, 8), () => punterAttack(p, w));
+  if (chance(0.6)) after(rnd(2, 5), () => { const u = pick(w.people); if (u) roomSay(w, u, pick(['lol ' + S.sn, 'hi ' + S.sn + '!', 'haha', S.sn + ' ur funny', 'same', 'totally', 'whatever ' + S.sn, '???'])); });
 }
 every(2.5, () => {
   for (const n in BC.rooms) {
     const w = BC.rooms[n]; if (!w || w.closed || !BC.on) continue;
     const R = ROOMS[n];
-    if (chance(0.6)) { const u = pick(w.people); if (u) roomSay(w, u, PUNTERS[u] ? pick(PUNTERS[u].lines) : pick(R.lines)); }
-    if (chance(0.06) && w.people.length > 3) { const u = pick(w.people.filter((p) => !PUNTERS[p])); w.people = w.people.filter((p) => p !== u); roomSys(w, u + ' has left the room.'); w.renderPeople(); }
+    if (chance(0.6)) { const u = pick(w.people); if (u) roomSay(w, u, pick(R.lines)); }
+    if (chance(0.06) && w.people.length > 3) { const u = pick(w.people); w.people = w.people.filter((p) => p !== u); roomSys(w, u + ' has left the room.'); w.renderPeople(); }
     else if (chance(0.06)) { const u = pick(R.users.filter((p) => !w.people.includes(p))); if (u) { w.people.splice(irnd(0, w.people.length), 0, u); roomSys(w, u + ' has entered the room.'); w.renderPeople(); } }
-    // punters punt the regulars, come back after being punted, and pick on you
-    const rv = BC.rival[R.punter];
-    if (rv && !rv.gone && !w.people.includes(R.punter) && rv.back && T.t >= rv.back) { w.people.push(R.punter); roomSys(w, R.punter + ' has entered the room.'); roomSay(w, R.punter, pick(['IM BACK n00bz', 'u cant get rid of me', 'round 2 ' + S.sn])); w.renderPeople(); rv.anger++; }
-    if (w.people.includes(R.punter) && chance(0.05)) { const v = pick(w.people.filter((p) => !PUNTERS[p])); if (v) { roomSay(w, R.punter, 'say bye bye ' + v); after(2, () => { if (w.closed) return; w.people = w.people.filter((p) => p !== v); roomSys(w, v + ' has been punted.'); w.renderPeople(); }); } }
-    if (w.people.includes(R.punter) && T.t - (w.lastAtk || -99) > 70 && chance(0.03 + (rv ? rv.anger * 0.02 : 0))) punterAttack(R.punter, w);
   }
 });
-function punterAttack(p, w) {
-  if (!BC.on || (w && w.closed)) return;
-  w = w || Object.values(BC.rooms).find((r) => r && !r.closed);
-  if (w) w.lastAtk = T.t;
-  const P = PUNTERS[p];
-  const kind = pick(['bomb', 'bomb', 'punt', 'warn', 'fake']);
-  if (w) roomSay(w, p, pick(P.taunt));
-  if (kind === 'warn') { BC.warn = clamp(BC.warn + irnd(12, 24), 0, 100); bcRender(); if (w) roomSys(w, p + ' warned you. Your warning level is now ' + Math.round(BC.warn) + '%.'); SFX.warn(); unlock('warned'); return; }
-  if (kind === 'fake') { msgBox({ title: 'AmeriNet TOS Department', icon: 'error', text: 'YOU HAVE BEEN TERMINATED FOR VIOLATING THE TERMS OF SERVICE.\n\nPLEASE ENTER YOUR PASSWORD TO APPEAL.\n\n(Looks a little fishy. AmeriNet staff never ask for your password.)', buttons: ['Close'] }); after(1, () => w && roomSay(w, p, 'LOL ' + S.sn + ' fell for the fake boot')); unlock('fakebooted'); return; }
-  if (kind === 'bomb') {
-    const n = irnd(6, 10);
-    for (let i = 0; i < n; i++) after(i * 0.25, () => { if (!BC.on) return; const iw = openWin({ title: p + ' - Instant Message', icon: 'chat', w: 260, h: 110, x: irnd(20, Math.max(30, deskW() - 280)), y: irnd(10, Math.max(20, deskH() - 130)), small: true, body: h('div', { class: 'pad', html: `<b style="color:${P.color}">${esc(p)}</b>: ${esc(pick(P.taunt))}` }) }); iw.bomb = true; SFX.imIn(); });
-    stat('bombed'); after(n * 0.25 + 0.5, () => unlock('imbombed'));
-    return;
-  }
-  // punt
-  if (S.progz && S.antipunt && chance(0.9)) { toast('Anti-Punt', 'Anti-Punt blocked a punt from ' + p + '!', 'progz'); if (w) roomSay(w, p, pick(['wtf my punter didnt work', 'u have anti-punt?? no fair', 'grrrr'])); unlock('antipunt'); return; }
-  SFX.punt(); BC.punted++; stat('punted'); unlock('punted');
-  after(0.4, () => { bcSignOff('punt'); msgBox({ title: 'BuddyChat', icon: 'error', text: 'You have been disconnected from BuddyChat.\n\nThe server received a message it couldn\'t understand. (Error 18)', task: true }); });
-}
-function punterIMReply(p, text) { after(rnd(1, 3), () => { const w = openIM(p, true); imLine(w, p, pick(PUNTERS[p].taunt.concat(['lol', 'make me', 'n00b']))); SFX.imIn(); }); if (chance(0.3)) after(rnd(4, 8), () => punterAttack(p)); }
-function warnRival(p, w) {
-  const rv = BC.rival[p] || (BC.rival[p] = { punts: 0, warn: 0, back: 0, anger: 0 });
-  rv.warn = clamp(rv.warn + 20, 0, 100); SFX.warn();
-  const msg = 'You warned ' + p + '. Their warning level is now ' + rv.warn + '%.';
-  if (w) imSys(w, msg); for (const n in BC.rooms) roomSys(BC.rooms[n], msg);
-  unlock('warnrival');
-  if (rv.warn >= 100) { for (const n in BC.rooms) { const r = BC.rooms[n]; if (r && r.people.includes(p)) { r.people = r.people.filter((x) => x !== p); roomSys(r, p + ' has been signed off (warning level too high).'); r.renderPeople(); } } rv.back = T.t + rnd(90, 150); rv.warn = 40; }
-}

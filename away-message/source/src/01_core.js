@@ -81,7 +81,7 @@ function DEFAULT_SAVE() {
     v: 1, sn: '', scheme: 'standard', wall: 'clouds', saver: 'pipes', saverWait: 120, skin: 'base', vol: 0.8, modemSound: true,
     hideExt: true, trails: false, files: [], ach: {}, stats: {}, rel: {}, blocked: {}, pranked: {},
     bongo: { installed: true, updater: true, voice: true, roam: true, adware: [], uninstalls: 0, met: false, sang: {} },
-    profile: '', aways: null, viruses: [], progz: false, antipunt: false, adbegone: false, defs: false, homepage: 'http://www.amerinet.com/',
+    profile: '', aways: null, viruses: [], adbegone: false, defs: false, homepage: 'http://www.amerinet.com/',
     desktop: {}, notepad: '', mail: [], mailSeen: {}, crush: 0, guestbook: false, cleanShutdown: true, boots: 0, quests: {}, playlist: [], skins: ['base', 'chrome', 'bubblegum'],
   };
 }

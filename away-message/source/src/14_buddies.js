@@ -1,5 +1,5 @@
 // BuddyChat people: your buddy list (with profiles, away messages and conversation scripts), chat rooms, their
-// regulars, and the punters who fight with progz. Conversation nodes: { say: [lines], opts: [[reply, next, rel]],
+// regulars. Conversation nodes: { say: [lines], opts: [[reply, next, rel]],
 // fx(), quest: { kind: 'file', song } | { kind: 'guestbook' } }. A node without opts ends the thread.
 const BUDDIES = [
   { sn: 'jenny4eva', group: 'Buddies', color: '#c000c0', on: [5, 1e9], likes: ['teenpop', 'boyband'],
@@ -33,10 +33,6 @@ const BUDDIES = [
         y: { say: ['nice', 'the live version is even better'] },
         n: { say: ['all the small thongs', 'get it on snapster. find somebody on cable tho, 56k ppl take forever'] },
         bad: { say: ['wow ok poser'] } } },
-      punter: { at: 230, start: 'a', nodes: {
-        a: { say: ['ugh', 'this kid xXPuNtMaStErXx punted me like 3 times today in the skaters room', 'my cousin has a prog that can punt him back. its on punterzparadise.net'], opts: [['send me the link', 'link', 1], ['thats messed up', 'x', 0]] },
-        link: { say: ['www.punterzparadise.net', 'turn on anti-punt before u do anything. trust me'], fx: () => { S.quests.progzHint = 1; save(); } },
-        x: { say: ['ya. buddychat is like the wild west'] } } },
       req: { at: 400, start: 'a', nodes: {
         a: { say: ['yo can u send me Pretty Fly (For a Housefly)?', 'the offsprung. my snapster keeps crashing'], opts: [['k', 'ok', 1], ['nah', 'no', -1]] },
         ok: { say: ['sweet'], quest: { kind: 'file', song: 'offsprung', done: 'thx' } },
@@ -91,12 +87,11 @@ const BUDDIES = [
     small: ['OK DEAR', 'THAT IS NICE', 'I DO NOT KNOW WHAT LOL MEANS', 'HOW IS SCHOOL', 'TELL YOUR MOTHER TO CALL ME', 'GOD BLESS'],
   },
   { sn: 'cousinTJ', group: 'Family', color: '#008080', on: [150, 1e9], likes: ['numetal', 'hiphop'],
-    profile: 'TJ 11 yrs old<br>i am a HACKER<br>dont mess with me i have progz',
+    profile: 'TJ 11 yrs old<br>i like video games and pizza<br>my cousin is ' + '{sn}' + ' lol',
     aways: ['hacking', 'eating', 'grounded lol'],
-    threads: { prog: { at: 260, start: 'a', nodes: {
-      a: { say: ['hahahaha', 'i have a prog now', 'i can punt anyone'], opts: [['no u cant', 'dare', 0], ['cool, can u show me?', 'show', 1], ['dont u dare', 'dare', 0]] },
-      dare: { say: ['watch this'], fx: () => after(2, () => cousinPrank()) },
-      show: { say: ['no its mine', 'get ur own lol. punterzparadise.net'], fx: () => { S.quests.progzHint = 1; save(); } } } } },
+    threads: { game: { at: 260, start: 'a', nodes: {
+      a: { say: ['hi', 'do u know any good games', 'i beat mine finder on beginner. its SO hard'], opts: [['try solitaire', 'sol', 1], ['try pinball', 'pin', 1], ['ur 11 go to bed', 'bed', -1]] },
+      sol: { say: ['solitaire is for grandmas lol', 'ok fine ill try it'] }, pin: { say: ['PINBALL!!!! brb'] }, bed: { say: ['NO U go to bed'] } } } },
     small: ['lol', 'ur a n00b', 'hahahahahahaha', 'i am bored', 'do u have any games', 'can i have ur password lol jk', 'brb'],
   },
 ];
@@ -106,21 +101,15 @@ function relAdd(sn, n) { S.rel[sn] = clamp((S.rel[sn] || 0) + n, -10, 10); save(
 
 // chat rooms
 const ROOMS = {
-  'Teen Chat 14': { users: ['kewlgurl14', 'Br1tn3yFan', 'bored_in_ohio', 'popcorn_kid', 'sunflowerzzz', 'dj_tunez', 'rollerblade_ray', 'Mallrat01'], punter: 'xXPuNtMaStErXx',
+  'Teen Chat 14': { users: ['kewlgurl14', 'Br1tn3yFan', 'bored_in_ohio', 'popcorn_kid', 'sunflowerzzz', 'dj_tunez', 'rollerblade_ray', 'Mallrat01'],
     lines: ['anyone here like *NSYNK', 'hiiii everybody', 'this room is so dead', 'whos watching TRL', 'lol', 'brb', 'ne1 wanna talk', 'i just got snapster its SO cool', 'my mom is yelling at me to get off', 'any1 from ohio??', 'sing w/ me: bye bye bye bye', 'omg the new britnee video!!!', 'who has the best away message'] },
-  'Snapster Fans': { users: ['mp3king', 'downloadz4life', 'T1_Tony', 'rip_master', 'cdburner99', 'bitrate_snob', 'leech_lord', 'kbps_kevin'], punter: 'l33t_h4x0r',
-    lines: ['anyone have the daroot remix', 'who has a T1 i need a fast peer', 'my download keeps getting cancelled', 'dont download anything ending in .exe lol', '128 kbps is fine stop complaining', 'everything is labeled Wired Al again', 'i have 4000 songs', 'snapster is the future man', 'metallicuh is suing everyone lol', 'my cd burner made a coaster again'] },
-  'Skaters': { users: ['sk8ordie', 'kickflip_kid', 'grindrail', 'tony_fan_900', 'ollie_ollie', 'bailed_hard'], punter: 'xXPuNtMaStErXx',
+  'Snapster Fans': { users: ['mp3king', 'downloadz4life', 'T1_Tony', 'rip_master', 'cdburner99', 'bitrate_snob', 'leech_lord', 'kbps_kevin'],
+    lines: ['anyone have the daroot remix', 'who has a T1 i need a fast peer', 'my download keeps getting cancelled', '128 kbps is fine stop complaining', 'everything is labeled Wired Al again', 'i have 4000 songs', 'snapster is the future man', 'metallicuh is suing everyone lol', 'my cd burner made a coaster again'] },
+  'Skaters': { users: ['sk8ordie', 'kickflip_kid', 'grindrail', 'tony_fan_900', 'ollie_ollie', 'bailed_hard'],
     lines: ['sk8 or die', 'just landed a kickflip', 'tony hawk 2 is the best game ever', 'blink-183 rules', 'who wants to go to the skatepark sat', 'my board snapped lol', 'dude', 'that ollie was sick'] },
-  'Lobby 182': { users: ['Guest_4421', 'Guest_8890', 'newbie_2001', 'lost_in_chat', 'helpme_plz', 'grandpa_joe'], punter: 'D3athB1rd666',
+  'Lobby 182': { users: ['Guest_4421', 'Guest_8890', 'newbie_2001', 'lost_in_chat', 'helpme_plz', 'grandpa_joe'],
     lines: ['how do i leave this room', 'hello?', 'is this the internet', 'what is a buddy list', 'why is everyone typing so fast', 'HOW DO I MAKE THE LETTERS SMALLER', 'test', 'test test', 'brb'] },
 };
-const PUNTERS = {
-  xXPuNtMaStErXx: { color: '#ff0000', anti: 0.35, lines: ['LoL u all n00bz', 'i can punt anyone in this room', 'w0rd 2 my prog', 'who wants 2 get punted', 'xXx PuNtMaStEr iN tHe HoUsE xXx'], taunt: ['ur next n00b', 'say bye bye', 'lol u got pwned', 'IM bombing u now lol'] },
-  l33t_h4x0r: { color: '#00a000', anti: 0.5, lines: ['1 4m l33t', 'ur s0ngz r b3l0ng 2 m3', 'h4x0r1ng th3 g1bs0n', 'w4r3z 4 l1f3', 'n00bz'], taunt: ['u r s0 n00b', 'g3t r34dy 2 b3 punt3d', 'l0l 0wn3d'] },
-  D3athB1rd666: { color: '#600080', anti: 0.25, lines: ['the lobby is MINE', 'bow before d3athb1rd', 'caw caw', 'i have 47 progz', 'ur all getting punted at midnite'], taunt: ['caw caw ur next', 'feel the wrath of the bird', 'lol scrub'] },
-};
-const ASCII_ART = ['   (\\_/)\n  (o.o)\n  (> <)  PuNtZoNe RuLeZ', '  ____\n |    |\n |o  o|  xXx\n |  > |\n  \\__/', ' \u00B8,\u00F8\u00A4\u00BA\u00B0`\u00B0\u00BA\u00A4\u00F8,\u00B8 ~*~ PuNtZoNe ~*~ \u00B8,\u00F8\u00A4\u00BA\u00B0`\u00B0\u00BA\u00A4\u00F8,\u00B8'];
 // small-talk responses by keyword (when no thread is running)
 function buddyReply(b, text) {
   const t = text.toLowerCase();

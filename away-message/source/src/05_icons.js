@@ -147,13 +147,6 @@ Object.assign(ICONS, {
     const quad = (ox, oy, c) => { x.beginPath(); for (let i = 0; i <= 10; i++) { const X = ox + i * 1.2; x.lineTo(X, oy + Math.sin(X * 0.32) * 1.6); } for (let i = 10; i >= 0; i--) { const X = ox + i * 1.2; x.lineTo(X, oy + 11 + Math.sin(X * 0.32) * 1.6); } x.closePath(); x.fillStyle = c; x.fill(); x.strokeStyle = '#000'; x.lineWidth = 0.8; x.stroke(); };
     quad(3, 3, cols[0]); quad(16, 3, cols[1]); quad(3, 16, cols[2]); quad(16, 16, cols[3]);
   },
-  progz(x) {
-    R_(x, 1, 1, 30, 30, '#000');
-    P_(x, [[4, 30], [7, 18], [10, 24], [13, 14], [16, 22], [19, 12], [22, 22], [25, 16], [28, 30]], '#ff3a00');
-    C_(x, 16, 13, 9, '#f2f2f2', '#000'); R_(x, 12, 19, 8, 6, '#f2f2f2', '#000');
-    C_(x, 12.5, 13, 2.5, '#ff0000'); C_(x, 19.5, 13, 2.5, '#ff0000'); P_(x, [[16, 16], [14.5, 19], [17.5, 19]], '#000');
-    for (let X = 13; X < 20; X += 2) R_(x, X, 22, 1, 3, '#000');
-  },
   shield(x) { P_(x, [[16, 2], [28, 6], [27, 18], [16, 30], [5, 18], [4, 6]], G_(x, 0, 0, 32, 32, ['#ffe44a', '#e0a000']), '#4a3000', 1.5); P_(x, [[16, 6], [24, 9], [23, 18], [16, 26]], '#d02020'); T_(x, 'V', 13, 15, 'bold 12px Arial', '#d02020'); },
   adbegone(x) { C_(x, 16, 16, 13, '#fff', '#c00000', 3); T_(x, 'AD', 16, 16.5, 'bold 11px Arial', '#000'); x.strokeStyle = '#c00000'; x.lineWidth = 3; x.beginPath(); x.moveTo(7, 7); x.lineTo(25, 25); x.stroke(); },
   trophy(x) { P_(x, [[8, 4], [24, 4], [23, 13], [18, 18], [14, 18], [9, 13]], G_(x, 8, 0, 24, 0, ['#fff2a0', '#ffc400', '#a06a00']), '#5a3a00'); x.strokeStyle = '#a06a00'; x.lineWidth = 2; x.beginPath(); x.arc(8, 9, 4, Math.PI * 0.5, Math.PI * 1.5); x.stroke(); x.beginPath(); x.arc(24, 9, 4, -Math.PI * 0.5, Math.PI * 0.5); x.stroke(); R_(x, 14, 18, 4, 5, '#c08a00'); R_(x, 9, 23, 14, 5, '#6a3a1a', '#2a1000'); },

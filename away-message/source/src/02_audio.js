@@ -113,7 +113,6 @@ const SFX = {
   imIn() { tone({ f: 784, d: 0.07, v: 0.16, type: 'triangle', r: 0.05 }); tone({ f: 1175, t: 0.09, d: 0.12, v: 0.16, type: 'triangle', r: 0.12 }); },
   imOut() { tone({ f: 600, f2: 900, d: 0.08, v: 0.1, type: 'triangle', r: 0.05 }); },
   warn() { tone({ f: 220, d: 0.25, v: 0.15, type: 'square', lp: 900, r: 0.05 }); tone({ f: 196, t: 0.25, d: 0.35, v: 0.15, type: 'square', lp: 900 }); },
-  punt() { tone({ f: 1400, f2: 90, d: 0.45, v: 0.15, type: 'sawtooth', lp: 3000 }); noise({ t: 0.35, d: 0.2, v: 0.2, lp: 800, r: 0.2 }); },
   pop() { tone({ f: 500, f2: 1400, d: 0.05, v: 0.12, r: 0.03 }); },
   bsod() { tone({ f: 880, d: 0.3, v: 0.12, type: 'square', lp: 2000 }); },
   coin() { tone({ f: 988, d: 0.07, v: 0.1, type: 'square' }); tone({ f: 1319, t: 0.07, d: 0.25, v: 0.1, type: 'square', r: 0.15 }); },

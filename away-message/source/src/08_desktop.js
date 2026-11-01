@@ -12,7 +12,6 @@ const APPS = {
   bongo: { title: 'Bongo Buddy', icon: 'bongo', open: () => { bongoSummon(); bongoMenu(); }, prog: true, when: () => S.bongo.installed },
   vblaster: { title: 'VirusBlaster 2001', icon: 'shield', open: () => openVirusBlaster(), prog: true },
   adbegone: { title: 'Ad-Be-Gone', icon: 'adbegone', open: () => openAdBeGone(), prog: true, when: () => S.adbegone },
-  progz: { title: 'PuNtZoNe 3.1', icon: 'progz', open: () => openProgz(), prog: true, when: () => S.progz },
   mines: { title: 'Mine Finder', icon: 'mines', open: () => openMines() },
   sol: { title: 'Solitaire', icon: 'cards', open: () => openSolitaire() },
   pinball: { title: '3D Pinball', icon: 'pinball', open: () => openPinball() },
@@ -24,7 +23,7 @@ const APPS = {
   trophy: { title: 'My Achievements', icon: 'trophy', open: () => openAchievements() },
   help: { title: 'Help', icon: 'help', open: () => openHelp() },
 };
-const DESK_SC = ['mycomp', 'mydocs', 'ie', 'recycle', 'amerinet', 'snapster', 'buddy', 'zapamp', 'bongo', 'vblaster', 'trophy', 'progz', 'adbegone'];
+const DESK_SC = ['mycomp', 'mydocs', 'ie', 'recycle', 'amerinet', 'snapster', 'buddy', 'zapamp', 'bongo', 'vblaster', 'trophy', 'adbegone'];
 const DESK = { sel: null, els: {} };
 
 function deskItems() {
@@ -110,7 +109,7 @@ function startItems() {
       { label: 'Online Services', icon: 'programs', items: [{ label: 'AmeriNet Online', icon: 'amerinet', act: APPS.amerinet.open }, { label: 'AmeriNet Mail', icon: 'mail', act: APPS.mail.open }] },
       { label: 'StartUp', icon: 'programs', items: S.bongo.updater ? [{ label: 'Bongo Search Assistant', icon: 'bongo', act: () => bongoSay('That\'s my helper! It keeps me safe. From you. Hee hee!', { emote: 'wave' }) }] : [{ label: '(Empty)', dis: 1 }] },
     ];
-    for (const id of ['ie', 'snapster', 'buddy', 'zapamp', 'bongo', 'vblaster', 'progz', 'adbegone']) { const a = APPS[id]; if (!a.when || a.when()) list.push({ label: a.title, icon: a.icon, act: a.open }); }
+    for (const id of ['ie', 'snapster', 'buddy', 'zapamp', 'bongo', 'vblaster', 'adbegone']) { const a = APPS[id]; if (!a.when || a.when()) list.push({ label: a.title, icon: a.icon, act: a.open }); }
     return list;
   };
   const docs = () => {
