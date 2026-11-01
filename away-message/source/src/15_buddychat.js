@@ -274,6 +274,7 @@ function awayDialog() {
 }
 function setAway(m) {
   BC.away = m; unlock('away'); stat('aways'); bcRender();
+  if (BC.awayW && !BC.awayW.closed) BC.awayW.close(true);
   const back = () => { BC.away = null; bcRender(); if (BC.awayW && !BC.awayW.closed) BC.awayW.close(true); };
   BC.awayW = openWin({ key: 'away', title: 'Away Message', icon: 'away', w: 260, small: true, resizable: false, onClose: () => { back(); }, body: h('div', { class: 'col pad' }, h('div', { class: 'field', style: 'background:#ffffe0;min-height:50px', html: m }), h('div', { class: 'btns c' }, h('button', { class: 'btn def', text: 'I\'m Back', onclick: back }))) });
   const d = deepScore(m);
@@ -297,7 +298,7 @@ function joinRoom(name) {
   const inp = h('input', { type: 'text', class: 'grow' });
   const w = openWin({ title: 'Chat Room: ' + name, icon: 'network', w: 520, h: 360, minW: 360, body: h('div', { class: 'col grow pad', style: 'min-height:0' }, h('div', { class: 'row grow', style: 'align-items:stretch;min-height:0' }, log, ppl), h('div', { class: 'row' }, inp, h('button', { class: 'btn def', text: 'Send', onclick: () => send() }))),
     onClose: () => { delete BC.rooms[name]; } });
-  w.log = log; w.name = name; w.people = shuffle(R.users.slice()).slice(0, irnd(4, R.users.length)); w.said = 0;
+  w.log = log; w.name = name; w.joined = T.t; w.people = shuffle(R.users.slice()).slice(0, irnd(4, R.users.length)); w.said = 0;
   BC.rooms[name] = w;
   const send = () => { const v = inp.value.trim(); if (!v) return; inp.value = ''; roomSay(w, S.sn, v, true); w.said++; stat('roomlines'); roomReact(w, v); };
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
@@ -307,7 +308,8 @@ function joinRoom(name) {
   roomSys(w, '*** You are in "' + name + '". ***'); unlock('chatroom'); stat('rooms');
   return w;
 }
-function roomSay(w, who, text, mine) { if (!w || w.closed) return; const c = mine ? '#0000ff' : '#a00000'; w.log.append(h('div', { style: text.includes('\n') ? 'white-space:pre;font-family:monospace' : '', html: `<b style="color:${c}">${esc(who)}</b>: ${bcLink(text)}` })); while (w.log.children.length > 200) w.log.firstChild.remove(); w.log.scrollTop = w.log.scrollHeight; }
+// html: an already-built message (prog fades and macros); otherwise text is escaped and linkified
+function roomSay(w, who, text, mine, html) { if (!w || w.closed) return; const c = mine ? '#0000ff' : '#a00000'; w.log.append(h('div', { style: !html && text.includes('\n') ? 'white-space:pre;font-family:monospace' : '', html: `<b style="color:${c}">${esc(who)}</b>: ${html || bcLink(text)}` })); while (w.log.children.length > 200) w.log.firstChild.remove(); w.log.scrollTop = w.log.scrollHeight; }
 function roomSys(w, text) { if (!w || w.closed) return; w.log.append(h('div', { style: 'color:#808080', text })); w.log.scrollTop = w.log.scrollHeight; }
 function roomReact(w, text) {
   if (chance(0.6)) after(rnd(2, 5), () => { const u = pick(w.people); if (u) roomSay(w, u, pick(['lol ' + S.sn, 'hi ' + S.sn + '!', 'haha', S.sn + ' ur funny', 'same', 'totally', 'whatever ' + S.sn, '???'])); });

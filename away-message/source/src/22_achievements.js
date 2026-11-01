@@ -84,6 +84,16 @@ const ACH = [
   { id: 'pinball', g: 'Games', name: 'Game Over', desc: 'Finish a game of 3D Pinball.' },
   { id: 'pinball50k', g: 'Games', name: 'High Score', desc: 'Score 50,000 in 3D Pinball.', secret: true },
   { id: 'gerbil', g: 'Games', name: 'Dancing Gerbils', desc: 'Run the dancing gerbil program.', secret: true },
+  // progz
+  { id: 'progz', g: 'Progz', name: 'Elite Haxor', desc: 'Load a prog.' },
+  { id: 'vbdll', g: 'Progz', name: 'DLL Not Found', desc: 'Try to run a prog without VB40032.DLL.', secret: true },
+  { id: 'punt', g: 'Progz', name: 'Punted', desc: 'Punt someone off BuddyChat.' },
+  { id: 'gotpunted', g: 'Progz', name: 'Lamer', desc: 'Get punted off BuddyChat yourself.' },
+  { id: 'antipunt', g: 'Progz', name: 'Anti-Punt', desc: 'Block a punt with anti-punt.' },
+  { id: 'imbomb', g: 'Progz', name: 'IM Bomber', desc: 'IM bomb someone.' },
+  { id: 'fader', g: 'Progz', name: 'Taste the Rainbow', desc: 'Put faded text in your away message.' },
+  { id: 'macro', g: 'Progz', name: 'Scroller', desc: 'Scroll a macro in a chat room.' },
+  { id: 'tosd', g: 'Progz', name: 'TOS\'d', desc: 'Get kicked off AmeriNet for breaking the Terms of Service.', secret: true },
   // secrets / easter eggs
   { id: 'secretbongo', g: 'Secrets', name: 'He\'s Everywhere', desc: 'Summon Bongo from the Run box.', secret: true },
   { id: 'bongosite', g: 'Secrets', name: 'Bongo HQ', desc: 'Visit a Bongo web site.', secret: true },

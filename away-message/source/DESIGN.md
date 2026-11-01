@@ -19,6 +19,15 @@ assets (no real brands, logos, sounds or songs). Plain DOM + canvas, no librarie
   tells jokes and facts, **sings** (formant voice + lyrics), and keeps installing "free" adware. Removing him takes
   Ad-Be-Gone (to disable his updater) **and** Add/Remove Programs — and he gets stuck at 99%.
 
+- **Progz** (`24_progz.js`): PhAnToM 3.2, a parody Visual Basic "prog" from a GeoPages warez site (it needs
+  `vb40032.dll` from the same site, like they all did). A **punter** sends an IM stuffed with thousands of tags that
+  older BuddyChat clients choke on while drawing, which signs the victim off (4.7 shrugs off small punts; buddies
+  with anti-punt bounce it and punt you back). The **IM bomber** hits flood control at 20 and gets you warned. The
+  **fader** wraps each letter in its own `<font color>` for away messages and profiles. **Macros** scroll ASCII art
+  into a chat room, and **anti-punt** (only while the prog is open) throws punts away. Someone in the Progz 4 Trade
+  room always tries to punt you. Every punt, bomb or scroll is a TOS report: three brings a warning e-mail, five and
+  AmeriNet ends your session. All of it is simulated; nothing real is sent anywhere.
+
 ## Architecture
 
 One build concatenates `src/NN_*.js` into a single IIFE, so every file shares one scope (names are global across

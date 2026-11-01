@@ -23,7 +23,7 @@ function webDownload(key) {
     const p = Math.min(1, got / d.size);
     bar.firstChild.style.width = p * 100 + '%';
     info.textContent = `${fmtSize(Math.min(got, d.size))} of ${fmtSize(d.size)}  (${fmtTime((d.size - got) / rate)} left)`;
-    if (p >= 1) { cancel(iv); w.close(); const f = addFile({ dir: 'desktop', name: d.name, size: d.size, app: d.app, payload: d.payload, installer: !!d.app, icon: d.payload ? 'exe' : null }); msgBox({ title: 'Download complete', icon: 'info', text: `"${d.name}" was saved to your Desktop.\n\nWould you like to run it now?`, buttons: ['Run', 'Close'] }).then((b) => { if (b === 'Run') runFile(f); }); stat('webdl'); }
+    if (p >= 1) { cancel(iv); w.close(); const f = addFile({ dir: 'desktop', name: d.name, size: d.size, app: d.app, payload: d.payload, installer: !!d.app && !d.noSetup, icon: d.payload ? 'exe' : null }); msgBox({ title: 'Download complete', icon: 'info', text: `"${d.name}" was saved to your Desktop.\n\nWould you like to run it now?`, buttons: ['Run', 'Close'] }).then((b) => { if (b === 'Run') runFile(f); }); stat('webdl'); }
   });
 }
 // installers: each is an APP with installer:true semantics handled here

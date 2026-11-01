@@ -120,6 +120,7 @@ function buddyReply(b, text) {
   if (/\b(hi|hey|sup|yo|hello|hiya)\b/.test(t)) return pick(['hey', 'hiii', 'sup', 'heyy :)']);
   if (/\b(lol|haha|lmao|rofl|hehe)\b/.test(t)) return pick(['lol', 'haha', ':-P', 'hehe']);
   if (/\bbongo\b/.test(t)) return pick(['the pink monkey thing? my dad says its spyware lol', 'omg i have him too he wont stop singing', 'bongo is creepy']);
+  if (/\b(progz?|punt|punter|punted|fader)\b/.test(t)) return b.sn === 'cousinTJ' ? pick(['i have progz lol. dont make me punt u', 'my anti-punt is always on lol']) : pick(['progz r how u get TOSed', 'dont punt me!!!', 'my brother got punted like 10 times yesterday lol', 'r u a hacker now lol']);
   if (/\b(snapster|mp3)\b/.test(t)) return pick(['snapster is the best', 'my snapster takes forever', 'did u get anything good?']);
   if (/\?$/.test(t)) return pick(['idk', 'maybe', 'y?', 'hmm', 'i dunno lol']);
   if (/[a-z]/.test(t) && t === t.toUpperCase() && t.length > 4) return pick(['why r u yelling lol', 'CAPS LOCK', 'ok ok!!']);
