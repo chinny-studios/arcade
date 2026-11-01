@@ -1,6 +1,6 @@
 // a crude bot hunts on foot with each monster until hunger runs out (or 8 minutes): how long, how many kills
 const res = {};
-for (const m of ['vampire', 'werewolf', 'frank', 'mummy']) {
+for (const m of ['vampire', 'werewolf', 'frank', 'mummy', 'lich']) {
   CF.start({ monster: m });
   let t = 0;
   while (!CF.G.over && t < 480) {
@@ -14,7 +14,9 @@ for (const m of ['vampire', 'werewolf', 'frank', 'mummy']) {
     const d = Math.hypot(target.x - P.x, target.z - P.z);
     CF.CAM.yaw = Math.atan2(-(target.x - P.x), -(target.z - P.z)); CF.CAM.pitch = 0.2;
     if (v && target === v && d < 3) { CF.press('atk'); CF.sim(0.5); t += 0.5; continue; }
-    if (v && target === v && d < 16 && P.cd.a1 <= 0 && m !== 'frank') { CF.aimAt(v); CF.press('a1'); CF.sim(0.5); t += 0.5; continue; }
+    if (m === 'lich' && P.cd.a1 <= 0 && CF.PEOPLE.corpses.some((c) => !c.fly && Math.hypot(c.x - P.x, c.z - P.z) < 14)) { CF.press('a1'); CF.sim(1); t += 1; continue; }
+    if (m === 'lich' && v && target === v && d < 25 && P.cd.a2 <= 0) { CF.aimAt(v); CF.press('a2'); CF.sim(0.7); t += 0.7; continue; }
+    if (v && target === v && d < 16 && P.cd.a1 <= 0 && m !== 'frank' && m !== 'lich') { CF.aimAt(v); CF.press('a1'); CF.sim(0.5); t += 0.5; continue; }
     if (m === 'frank' && v && d < 12 && P.cd.a2 <= 0) { CF.press('a2'); CF.sim(1); t += 1; continue; }
     CF.hold(['run'], 0.4, { x: 0, y: -1 }); t += 0.4;
   }

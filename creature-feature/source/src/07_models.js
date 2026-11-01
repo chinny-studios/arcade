@@ -1,5 +1,5 @@
 // Creature Feature — models built from boxes and cylinders: the townsfolk (jointed so they can walk, run, flail,
-// cower and come apart), the four monsters and the bat, and 1950s cars with fins and whitewalls.
+// cower and come apart), the five monsters and the bat, and 1950s cars with fins and whitewalls.
 // Everything faces -z. Limbs are merged per joint into one vertex-coloured mesh each.
 
 const GEO_CACHE = new Map();
@@ -97,7 +97,7 @@ function poseHuman(M, mode, phase, speed, t) {
 // ---------- monsters ----------
 // shared rig: { root, hips, torso, head, armL, armR, legL, legR } plus extras; poseMonster() animates them
 function buildMonster(id) {
-  const B = { vampire: buildVampire, werewolf: buildWerewolf, frank: buildFrank, mummy: buildMummy }[id];
+  const B = { vampire: buildVampire, werewolf: buildWerewolf, frank: buildFrank, mummy: buildMummy, lich: buildLich }[id];
   const M = B();
   M.id = id;
   M.root.traverse((o) => { if (o.isMesh) o.castShadow = false; });
@@ -227,16 +227,71 @@ function buildMummy() {
   }
   return M;
 }
-// pose a monster: mode 'idle' | 'walk' | 'run' | 'stalk' | 'air' | 'attack' | 'grab' | 'feed' | 'howl' | 'hold' | 'throw' | 'stomp' | 'cast' | 'dead'
+// the necromancer: a crowned corpse in a tattered robe, one eye burning and the other gone, the left hand missing,
+// dark vine-like scars over the grey skin. The robe hangs from the hips so it stays upright when the torso leans.
+function buildLich() {
+  const M = rig(1.0, 0.26, 0.62, 0.68, 0.1);
+  const robe = 0x2c2034, robe2 = 0x18111e, trim = 0x8a7432, skin = 0x9c9a84, skin2 = 0x7a7866, bone = 0xd8d0b4, scar = 0x4a1612, dark = 0x050505;
+  const vine = (m, x, y, z, len, rz, w = 0.016) => m.geo(P_CYL(4), scar, x, y, z, 0, 0, rz, w, len, w);
+  const t = new Mesher();
+  t.box(0, 0.33, 0, 0.44, 0.66, 0.26, robe);
+  // the robe falls open over a sunken chest: ribs and scars
+  t.box(0, 0.42, -0.125, 0.17, 0.42, 0.02, skin);
+  for (const y of [0.32, 0.4, 0.48]) t.box(0, y, -0.137, 0.13, 0.014, 0.01, bone);
+  vine(t, -0.03, 0.44, -0.14, 0.34, 0.5); vine(t, 0.04, 0.36, -0.14, 0.22, -0.7); vine(t, 0.02, 0.55, -0.14, 0.14, 1.2, 0.012);
+  t.box(-0.13, 0.4, -0.13, 0.05, 0.5, 0.02, trim); t.box(0.13, 0.4, -0.13, 0.05, 0.5, 0.02, trim);
+  t.box(0, 0.02, 0, 0.46, 0.08, 0.28, trim);
+  // the mantle, its spiked shoulders and a hood fallen down the back
+  t.box(0, 0.62, 0.02, 0.58, 0.12, 0.32, robe2);
+  for (const s of [-1, 1]) { t.geo(P_CONE(4), trim, s * 0.25, 0.75, 0.02, 0, 0, s * -0.3, 0.07, 0.18, 0.07); t.geo(P_CONE(4), trim, s * 0.2, 0.72, 0.1, 0, 0, s * -0.2, 0.05, 0.13, 0.05); }
+  t.box(0, 0.56, 0.17, 0.38, 0.28, 0.08, robe2);
+  t.box(0, 0.71, 0, 0.11, 0.1, 0.11, skin2);
+  M.torso.add(meshOf(t.build()));
+  // the skull with its crown
+  const h = new Mesher();
+  h.box(0, 0.16, 0, 0.22, 0.27, 0.24, skin); h.box(0, 0.04, -0.02, 0.17, 0.08, 0.18, skin2);
+  h.box(-0.1, 0.1, -0.08, 0.03, 0.07, 0.07, skin2); h.box(0.1, 0.1, -0.08, 0.03, 0.07, 0.07, skin2);
+  h.box(-0.055, 0.17, -0.121, 0.06, 0.05, 0.01, dark); h.box(0.055, 0.17, -0.121, 0.055, 0.045, 0.01, dark);
+  h.box(0, 0.115, -0.121, 0.03, 0.03, 0.01, dark);
+  h.box(0, 0.06, -0.121, 0.12, 0.024, 0.01, bone); for (const x of [-0.04, -0.013, 0.013, 0.04]) h.box(x, 0.06, -0.123, 0.005, 0.026, 0.01, dark);
+  vine(h, -0.075, 0.24, -0.123, 0.12, 0.4, 0.012); vine(h, -0.085, 0.1, -0.123, 0.1, -0.3, 0.012); vine(h, 0.08, 0.06, -0.122, 0.08, 0.5, 0.01);
+  h.box(0, 0.11, 0.115, 0.2, 0.2, 0.04, 0xb8b4a4);
+  h.geo(P_CYL(8), trim, 0, 0.3, 0, 0, 0, 0, 0.27, 0.05, 0.28);
+  for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.5; h.geo(P_CONE(4), trim, Math.cos(a) * 0.13, 0.37 + (i === 3 ? 0.03 : 0), Math.sin(a) * 0.13, 0, 0, 0, 0.04, i === 3 ? 0.16 : 0.11, 0.04); }
+  M.head.add(meshOf(h.build()));
+  // one eye burning in its socket and a gem in the crown
+  M.head.add(glowBits([[0.055, 0.17, -0.123, 0.03, 0.025, 0.01, 0xb8ff7a], [0, 0.305, -0.138, 0.04, 0.035, 0.01, 0x6aff9a]]));
+  // arms: wide sleeves; the left ends in a stump, the right in long bone fingers
+  const sleeve = (m) => { m.box(0, -0.29, 0, 0.13, 0.58, 0.14, robe); m.box(0, -0.55, 0, 0.18, 0.12, 0.19, robe2); };
+  const al = new Mesher(); sleeve(al); al.box(0, -0.63, 0, 0.07, 0.06, 0.07, skin2); al.box(0, -0.665, 0, 0.05, 0.02, 0.05, scar);
+  M.armL.add(meshOf(al.build()));
+  const ar = new Mesher(); sleeve(ar); ar.box(0, -0.65, 0, 0.08, 0.08, 0.06, skin);
+  for (const x of [-0.03, -0.01, 0.01, 0.03]) ar.geo(P_CYL(4), bone, x, -0.74, -0.015, 0.25, 0, 0, 0.016, 0.13, 0.016);
+  ar.geo(P_CYL(4), bone, -0.045, -0.68, -0.03, 0.3, 0, 0.6, 0.016, 0.08, 0.016);
+  M.armR.add(meshOf(ar.build()));
+  // a green flame that burns in the right hand while it casts
+  const fl = new Mesher(); fl.box(0, 0, 0, 0.1, 0.12, 0.1, 0x6aff6a); fl.box(0, 0.06, 0, 0.06, 0.1, 0.06, 0xd8ffb0); fl.geo(P_CONE(4), 0x3ad84a, 0, 0.15, 0, 0, 0.7, 0, 0.08, 0.16, 0.08);
+  M.flame = new THREE.Mesh(fl.build(), MATS.glow); M.flame.position.set(0, -0.82, -0.04); M.flame.visible = false; M.armR.add(M.flame);
+  const leg = new Mesher(); leg.box(0, -0.48, 0, 0.15, 0.92, 0.16, robe2); leg.box(0, -0.96, -0.05, 0.12, 0.07, 0.26, bone);
+  const gl = leg.build(); M.legL.add(meshOf(gl)); M.legR.add(meshOf(gl));
+  // the robe skirt and its ragged hem
+  const rb = new Mesher();
+  rb.geo(P_TAPER(0.62, 10), robe, 0, -0.44, 0, 0, 0, 0, 0.62, 0.9, 0.58);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, l = i % 3 ? 0.14 : 0.22; rb.box(Math.sin(a) * 0.27, -0.89 - l / 2 + 0.02, Math.cos(a) * 0.26, 0.17, l, 0.025, i % 2 ? robe : robe2, a); }
+  M.robe = group(); M.robe.add(meshOf(rb.build())); M.hips.add(M.robe);
+  return M;
+}
+// pose a monster: mode 'idle' | 'walk' | 'run' | 'stalk' | 'air' | 'attack' | 'grab' | 'feed' | 'howl' | 'hold' | 'throw' | 'stomp' | 'cast' | 'raise' | 'curse' | 'dead'
 function poseMonster(M, mode, phase, speed, t, k = 0) {
   const id = M.id, s = Math.sin(phase), c = Math.cos(phase);
   let hy = M.hipY, lean = 0, aL = 0, aR = 0, azL = 0.08, azR = -0.08, lL = 0, lR = 0, hx = 0, hry = 0, hz = 0;
-  const stiff = id === 'frank', shuffle = id === 'mummy';
+  const stiff = id === 'frank', shuffle = id === 'mummy', lich = id === 'lich';
   if (mode === 'walk' || mode === 'stalk') {
     const a = (mode === 'stalk' ? 0.3 : 0.5) * clamp(speed / 3, 0.3, 1.2);
     lL = s * a; lR = -s * a; aL = -s * a * 0.7; aR = s * a * 0.7;
     if (stiff) { aL = -1.3 + s * 0.12; aR = -1.3 - s * 0.12; azL = 0.15; azR = -0.15; hry = s * 0.12; }
     if (shuffle) { aL = -1.4 + s * 0.1; aR = -0.2 + s * 0.2; lL = s * a * 0.6; lR = -s * a * 0.6; hz = s * 0.06; hx = 0.1; }
+    if (lich) { aL = -0.25 - s * 0.12; aR = -0.45 + s * 0.15; lean = 0.1; hx = 0.06; }
     if (mode === 'stalk') { hy -= 0.18; lean = 0.35; lL -= 0.35; lR -= 0.35; }
     hy += Math.abs(c) * (stiff ? 0.06 : 0.03);
   } else if (mode === 'run') {
@@ -248,6 +303,7 @@ function poseMonster(M, mode, phase, speed, t, k = 0) {
       const a = 0.85; lL = s * a; lR = -s * a; aL = -s * 1.0; aR = s * 1.0; lean = 0.22; hy += Math.abs(c) * 0.07;
       if (stiff) { aL = -1.4 + s * 0.2; aR = -1.4 - s * 0.2; lean = 0.1; }
       if (shuffle) { aL = -1.5; aR = -1.3; lean = 0.18; }
+      if (lich) { aL = -0.5 - s * 0.3; aR = -0.6 + s * 0.4; lean = 0.3; }
     }
   } else if (mode === 'air') { lL = -0.6; lR = 0.2; aL = -2.2; aR = -2.2; lean = 0.3; azL = 0.5; azR = -0.5; }
   else if (mode === 'attack') {
@@ -256,7 +312,7 @@ function poseMonster(M, mode, phase, speed, t, k = 0) {
     if (id === 'werewolf') { const right = Math.floor(t * 0) % 2 === 0; aR = lerp(-0.5, -2.6, w); azR = lerp(-0.1, -1.0, w); aL = lerp(-2.4, -0.3, w); lean = 0.3 + w * 0.2; hy -= 0.1; void right; }
     else if (id === 'frank') { aL = aR = k < 0.5 ? lerp(0, -3.0, k / 0.5) : lerp(-3.0, -0.8, (k - 0.5) / 0.5); lean = k < 0.5 ? -0.15 : 0.4; azL = 0.25; azR = -0.25; }
     else { aL = aR = -1.5; lean = 0.25 + w * 0.2; }
-  } else if (mode === 'grab') { aL = -1.3; aR = -1.3; azL = 0.5; azR = -0.5; lean = 0.35; hx = 0.4; }
+  } else if (mode === 'grab') { aL = -1.3; aR = -1.3; azL = 0.5; azR = -0.5; lean = 0.35; hx = 0.4; if (lich) { aR = -2.0 - k * 0.3; azR = -0.1; aL = -0.4; azL = 0.25; lean = -0.08; hx = -0.15; } }
   else if (mode === 'feed') { hy -= 0.3; lean = 0.9; lL = -1.0; lR = -0.8; aL = -1.3; aR = -1.1; hx = 0.4 + Math.sin(t * 9) * 0.08; }
   else if (mode === 'howl') { lean = -0.35; hx = -0.9; aL = -0.6; aR = -0.6; azL = 0.6; azR = -0.6; }
   else if (mode === 'hold') { aL = aR = -3.0; azL = 0.15; azR = -0.15; lean = -0.1; const a = 0.3 * clamp(speed / 3, 0, 1); lL = s * a; lR = -s * a; }
@@ -265,14 +321,18 @@ function poseMonster(M, mode, phase, speed, t, k = 0) {
   else if (mode === 'cast') { aL = -2.0 + Math.sin(t * 10) * 0.2; aR = -2.0 - Math.sin(t * 10) * 0.2; azL = 0.7; azR = -0.7; hx = -0.3; }
   else if (mode === 'lash') { aR = lerp(-2.8, -1.5, k); aL = -0.3; lean = 0.15; }
   else if (mode === 'stare') { aL = -1.2; aR = -1.6; azL = 0.4; azR = -0.2; lean = 0.15; hx = -0.05; }
+  else if (mode === 'raise') { const u = clamp(k * 1.8, 0, 1); aL = aR = lerp(-0.4, -2.8, u) + Math.sin(t * 12) * 0.06 * u; azL = 0.45; azR = -0.45; lean = -0.2 * u; hx = -0.45 * u; }
+  else if (mode === 'curse') { aR = -2.25 + Math.sin(t * 40) * 0.03; azR = -0.15; aL = -0.8; azL = 0.3; lean = -0.12; hx = -0.12; }
   else if (mode === 'dead') { hy = 0.25; lean = 1.4; lL = -1.5; lR = -1.4; aL = -2.5; aR = -2.3; azL = 0.9; azR = -0.9; hx = 0.4; }
-  else { aL = Math.sin(t * 1.4) * 0.05; aR = -aL; if (stiff) { aL = -0.2; aR = -0.2; } if (shuffle) { aL = -1.2; aR = -0.1; } hy += Math.sin(t * 1.6) * 0.012; if (id === 'werewolf') { lean = 0.25; hy -= 0.06; } }
+  else { aL = Math.sin(t * 1.4) * 0.05; aR = -aL; if (stiff) { aL = -0.2; aR = -0.2; } if (shuffle) { aL = -1.2; aR = -0.1; } if (lich) { aL = -0.3; aR = -0.5 + Math.sin(t * 1.2) * 0.08; azR = -0.2; lean = 0.14; hx = 0.1; } hy += Math.sin(t * 1.6) * 0.012; if (id === 'werewolf') { lean = 0.25; hy -= 0.06; } }
   M.hips.position.y = hy; M.legL.position.y = M.legR.position.y = hy;
   M.torso.rotation.x = -lean; M.torso.rotation.z = hz; M.legL.rotation.x = lL; M.legR.rotation.x = lR;
   M.armL.rotation.x = aL; M.armR.rotation.x = aR; M.armL.rotation.z = azL; M.armR.rotation.z = azR;
   M.head.rotation.x = hx; M.head.rotation.y = hry;
   if (M.capes) { const flare = mode === 'run' ? 0.9 : mode === 'air' ? 1.2 : mode === 'walk' ? 0.25 : mode === 'stare' ? 0.5 : 0.08; M.capes.forEach((p, i) => { p.rotation.x = flare * (0.8 + Math.sin(t * 7 + i) * 0.2) + lean * 0.4; p.rotation.z = (i ? -1 : 1) * (flare * 0.35); }); }
   if (M.tail) M.tail.rotation.set(0.6 + (mode === 'run' ? 0.7 : 0) + Math.sin(t * 6) * 0.1, Math.sin(t * 3) * 0.3, 0);
+  if (M.robe) M.robe.rotation.x = -clamp(speed * (mode === 'run' ? 0.05 : 0.03), 0, 0.4) + Math.sin(t * 2.1) * 0.02;
+  if (M.flame) { const on = mode === 'cast' || mode === 'raise' || mode === 'curse' || mode === 'grab'; M.flame.visible = on; if (on) M.flame.scale.set(1 + Math.sin(t * 23) * 0.15, 1 + Math.sin(t * 31) * 0.25, 1 + Math.cos(t * 19) * 0.15); }
   if (M.strips) M.strips.forEach((p, i) => { p.rotation.x = 0.3 + Math.sin(t * 2.3 + i * 1.7) * 0.25 + (mode === 'run' ? 0.6 : 0); p.rotation.z = Math.sin(t * 1.7 + i) * 0.2; });
 }
 

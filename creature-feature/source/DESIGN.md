@@ -2,7 +2,7 @@
 
 ## The pitch
 
-A 1950s B-movie in reverse: you are the thing from the graveyard. Pick one of four classic monsters and hunt the
+A 1950s B-movie in reverse: you are the thing from the graveyard. Pick one of five classic monsters and hunt the
 people of Pine Hollow in third person. There is no one to fight; the only threat is your own hunger. The run is an
 endless score attack that ends when hunger runs out, and the drain rises with time, so every run ends.
 
@@ -14,7 +14,7 @@ Tone: gory but cartoonish. Low-poly people come apart, blood sprays, pools sprea
 | File | What |
 | --- | --- |
 | `01_core.js` | math, seeded RNG, value noise, event bus, options and save (`creature-feature.v1`), the run state `G` |
-| `02_data.js` | `MONSTERS` (speeds, attack, powers, hunger gains), `FOLK` (townsfolk types, looks, points), lines, `BONUS` |
+| `02_data.js` | `MONSTERS` (speeds, attack, powers, hunger gains; five of them), `FOLK` (townsfolk types, looks, points), lines, `BONUS` |
 | `03_render.js` | renderer, sky dome, stars, moon, the 8-light pool that follows the camera, materials, `Mesher` |
 | `04_tex.js` | canvas textures: moon, glow, puff, blood atlas, fur, bandage, neon and sign boards, the drive-in movie |
 | `05_town.js` | the town layout and builders (houses, shops, diner, Rialto, motel, gas station, church and graveyard, park, school and water tower, drive-in, lovers' lane, woods, cornfield, farm) |
@@ -23,7 +23,7 @@ Tone: gory but cartoonish. Low-poly people come apart, blood sprays, pools sprea
 | `08_fx.js` | instanced blood and debris cubes, blood pools, puffs, flying limbs, screen splatter, shake |
 | `09_people.js` | townsfolk: spawning, perception, startle and screams, fleeing and refuges, cars, trance, cower, blind, knocked down, corpses |
 | `10_cars.js` | parked, arriving and escaping cars, headlights, smashing, wrecks, thrown cars |
-| `11_monster.js` | the player: movement, roofs, attack, powers, feeding, doors, carrying and throwing, the camera state |
+| `11_monster.js` | the player: movement, roofs, attack, powers, feeding, doors, carrying and throwing, the camera state; the necromancer's zombies (`MINIONS`) and curse |
 | `12_game.js` | scoring, combo, hunger, panic, the director that keeps the streets populated, starting and ending runs |
 | `13_audio.js` | synthesized SFX and the theremin score |
 | `14_input.js` | keyboard and mouse, gamepad, touch |
@@ -72,6 +72,15 @@ a trance. Hidden people come back out on their own after 40 s once the town is c
 | The Wolf Man | 5 / 13.5 on all fours | Claw: everyone in a 2.6 m, 120° arc | Pounce (leads a running target) | Howl: 40 m, cower ~4 s | 2 hits | 14 (+26) |
 | The Monster | 3.5 / 6.4 | Smash: 3 m, 140°, cars and lamps too | Grab and hurl (people, bodies, cars, props, road) | Stomp: 15 m knock-down | smashes in | 19 (+26) |
 | The Mummy | 3.8 / 6.2 | Strangle: grab one, 1 s | Bandage lash (24 m, reel in) | Sandstorm 7 s, 16 m: blind and slow | 3 hits | 19 (+26) |
+| The Necromancer | 4.0 / 7.2 | Death grip: lift one by the throat and drain, 1.1 s | Raise dead (bodies within 16 m, up to 3 zombies, 24 s) | Curse (30 m): float 2.6 m up, die after 2.3 s | blasts open in 1 | 16 (+22) |
+
+**The necromancer** is a lich in the D&D mould with a nod to Stranger Things: a crowned corpse missing its left eye and
+left hand, with vine-like scars over the grey skin. Its zombies are the bodies it raises: each walks at 4.3 m/s
+toward the nearest living person within 40 m (or follows you), kills on contact for the *Risen dead* bonus and half the
+usual hunger, gains 4 s of life per kill and crumbles when its time runs out. Raising when three are up crumbles the
+oldest first. People who see a zombie within 9 m startle, and fleeing people run from whichever horror is closest.
+A raised body is gone, so it can't also be fed on. A cursed victim (state `cursed`) can't be startled out of it and
+falls from the air when it dies. The death grip leaves a grey, withered body.
 
 Aimed powers pick whoever is nearest the middle of the screen within a cone (twice as wide on pad and touch) with
 line of sight from the monster. Melee attacks soft-lock toward the best victim in front.

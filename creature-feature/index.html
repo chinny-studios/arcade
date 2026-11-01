@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Creature Feature</title>
-<meta name="description" content="Pick a classic monster (the vampire, the werewolf, Frankenstein's monster or the mummy) and stalk the people of a 1950s small town in third person. An endless, gory score attack.">
+<meta name="description" content="Pick a classic monster (the vampire, the werewolf, Frankenstein's monster, the mummy or the necromancer) and stalk the people of a 1950s small town in third person. An endless, gory score attack.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&family=Bangers&display=swap" rel="stylesheet">
@@ -45,11 +45,11 @@
   #select { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; box-sizing: border-box; background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,.75)); }
   #select h2 { position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-size: clamp(28px, 5vw, 44px); }
   #selBlurb { max-width: 760px; margin: 0 auto 10px; text-align: center; font-size: 17px; text-shadow: 2px 2px 0 #000, 0 0 8px #000; color: var(--ink); }
-  #cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 1180px; margin: 0 auto; width: 100%; }
-  .card { background: rgba(14,6,8,.88); border: 2px solid #3a1416; padding: 10px 12px; cursor: pointer; outline: none; transition: transform .15s, border-color .15s; font-size: 14px; line-height: 1.3; }
+  #cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 1320px; margin: 0 auto; width: 100%; }
+  .card { background: rgba(14,6,8,.88); border: 2px solid #3a1416; padding: 9px 11px; cursor: pointer; outline: none; transition: transform .15s, border-color .15s; font-size: 13px; line-height: 1.25; }
   .card.sel, .card:focus-visible { border-color: var(--blood); transform: translateY(-6px); box-shadow: 0 0 24px rgba(200,20,30,.4); }
   .card .ck { color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; }
-  .card h3 { font-family: var(--title); font-weight: normal; color: #d8ff4a; font-size: 30px; margin: 2px 0; text-shadow: 2px 2px 0 var(--blood2); }
+  .card h3 { font-family: var(--title); font-weight: normal; color: #d8ff4a; font-size: 28px; margin: 2px 0; text-shadow: 2px 2px 0 var(--blood2); }
   .card .tagl { color: var(--yel); font-style: italic; margin-bottom: 4px; }
   .card p { margin: 4px 0 6px; color: var(--dim); }
   .card ul { margin: 6px 0; padding-left: 16px; color: var(--dim); } .card ul b { color: var(--ink); font-weight: normal; }
@@ -57,8 +57,11 @@
   .stats b { display: flex; gap: 2px; } .stats i { width: 14px; height: 7px; background: #2a1416; display: inline-block; } .stats i.on { background: var(--blood); }
   .card .best { color: var(--yel); margin-top: 4px; }
   #selFoot { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
-  @media (max-width: 900px) { #cards { grid-template-columns: repeat(2, 1fr); } .card ul, .card .tagl { display: none; } }
+  @media (max-width: 1100px) { #cards { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 900px) { .card ul, .card .tagl { display: none; } }
+  @media (max-width: 600px) { #cards { grid-template-columns: repeat(2, 1fr); } }
   @media (max-height: 560px) { .card ul, .stats, #selBlurb { display: none !important; } #select h2 { font-size: 30px; top: 6px; } }
+  @media (max-height: 560px) and (min-width: 600px) { #cards { grid-template-columns: repeat(5, 1fr); } .card h3 { font-size: 22px; } }
   /* HUD */
   .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
   body[data-state="play"] .hud { display: block; }
@@ -321,7 +324,7 @@ const G = {
   over: false, god: false, noSave: false, frame: 0, sense: false, feed: null,
 };
 
-// Creature Feature — data: the four monsters, the townsfolk of Pine Hollow, what they shout, and the scoring
+// Creature Feature — data: the five monsters, the townsfolk of Pine Hollow, what they shout, and the scoring
 
 // Speeds in m/s. attack: the primary (click / RT). a1: right click / LT. a2: Q / RB. door: hits to break a door
 // (0 = walks through it, -1 = can't break doors at all and beckons the people inside out instead).
@@ -370,8 +373,19 @@ const MONSTERS = {
     door: 3, doorVerb: 'Break in', feedGain: 26, killGain: 19,
     voice: 'moan', films: ["THE MUMMY'S HUNGER", 'CURSE OF THE SAND KING', 'TOMB OF PINE HOLLOW'],
   },
+  lich: {
+    id: 'lich', name: 'The Necromancer', kind: 'Lich', tag: "The dead don't stay buried.",
+    blurb: 'A crowned corpse with one eye and one hand. Raises the people it kills to hunt for it, curses victims into the air until their bones snap and blasts doors open.',
+    walk: 4.0, run: 7.2, stalk: 2.3, jump: 6.4, radius: 0.45, height: 2.2, cam: 5.0, eye: 1.85, sight: 1.0,
+    stats: { speed: 2, power: 3, stealth: 3, range: 5 },
+    attack: { name: 'Death Grip', reach: 2.1, arc: 1.3, cd: 0.45, lock: 1.1, kind: 'wither', multi: false },
+    a1: { name: 'Raise Dead', cd: 8, range: 16, max: 3, life: 24, desc: 'Bodies within 16 m rise as zombies and hunt for you. Up to three at once.' },
+    a2: { name: 'Curse', cd: 9, range: 30, desc: 'Lift whoever you aim at (30 m) into the air until they snap.' },
+    door: 1, doorVerb: 'Blast open', feedGain: 22, killGain: 16,
+    voice: 'cackle', films: ['NIGHT OF THE NECROMANCER', 'THE DEAD WALK AT MIDNIGHT', 'CHIME OF THE CRYPT'],
+  },
 };
-const MONSTER_ORDER = ['vampire', 'werewolf', 'frank', 'mummy'];
+const MONSTER_ORDER = ['vampire', 'werewolf', 'frank', 'mummy', 'lich'];
 
 // Townsfolk. pts: base score. spd: sprint multiplier. stam: seconds of sprint. f: wears a skirt.
 // Colours: skin, hair, top, jacket (0 = none), legs, shoes, hat (0 = none).
@@ -403,9 +417,12 @@ const LINES = {
   calm: ['Did you hear something?', 'Probably just raccoons.', "Swell night, isn't it?", 'Is that a dog howling?', 'Swell picture tonight.', 'Pass the popcorn.'],
   car: ['Step on it!', 'Drive, drive, DRIVE!', "It won't start!"],
   trance: ['Yes... master...', 'So... sleepy...', 'Your eyes...'],
+  cursed: ["I can't move!", "What's happening to me?!", 'Put me down!', 'Somebody help me!', 'Make it stop!'],
+  risen: ['The dead are walking!', "That's Harold! But Harold's dead!", "They're coming out of the ground!", 'Zombies!', 'Stay back! Stay back!', 'Their eyes are glowing!'],
   monster: {
     vampire: ['Dracula', 'a vampire', 'the Count'], werewolf: ['a werewolf', 'the Wolf Man', 'a wolf walking like a man'],
     frank: ["Frankenstein's monster", 'a monster', 'the creature'], mummy: ['the Mummy', 'a walking mummy', 'the curse'],
+    lich: ['a necromancer', 'a walking skeleton', 'the Grim Reaper', 'a corpse in a crown'],
   },
 };
 
@@ -415,7 +432,7 @@ const BONUS = {
   car: { pts: 150, label: 'Roadkill' }, multi: { pts: 200, label: 'Double feature' }, range: { pts: 60, label: 'Long reach' },
   thrown: { pts: 120, label: 'Special delivery' }, trance: { pts: 50, label: 'Entranced' }, tripped: { pts: 40, label: 'Tripped' },
   flat: { pts: 80, label: 'While they were down' }, blind: { pts: 60, label: 'Lost in the sand' }, frozen: { pts: 60, label: 'Petrified' },
-  pounce: { pts: 100, label: 'Pounce' }, feed: { pts: 50, label: 'Fed' }, rare: { pts: 0, label: 'The Professor' },
+  pounce: { pts: 100, label: 'Pounce' }, cursed: { pts: 90, label: 'Cursed' }, risen: { pts: 60, label: 'Risen dead' }, feed: { pts: 50, label: 'Fed' }, rare: { pts: 0, label: 'The Professor' },
 };
 const COMBO_TIME = 9, COMBO_MAX = 8;
 const PANIC_NAMES = [[0, 'Quiet'], [20, 'Uneasy'], [45, 'Alarmed'], [70, 'Panic'], [90, 'Hysteria']];
@@ -1780,7 +1797,7 @@ function lightAt(x, z) {
 const inCorn = (x, z) => x > CORN.x0 && x < CORN.x1 && z > CORN.z0 && z < CORN.z1;
 
 // Creature Feature — models built from boxes and cylinders: the townsfolk (jointed so they can walk, run, flail,
-// cower and come apart), the four monsters and the bat, and 1950s cars with fins and whitewalls.
+// cower and come apart), the five monsters and the bat, and 1950s cars with fins and whitewalls.
 // Everything faces -z. Limbs are merged per joint into one vertex-coloured mesh each.
 
 const GEO_CACHE = new Map();
@@ -1878,7 +1895,7 @@ function poseHuman(M, mode, phase, speed, t) {
 // ---------- monsters ----------
 // shared rig: { root, hips, torso, head, armL, armR, legL, legR } plus extras; poseMonster() animates them
 function buildMonster(id) {
-  const B = { vampire: buildVampire, werewolf: buildWerewolf, frank: buildFrank, mummy: buildMummy }[id];
+  const B = { vampire: buildVampire, werewolf: buildWerewolf, frank: buildFrank, mummy: buildMummy, lich: buildLich }[id];
   const M = B();
   M.id = id;
   M.root.traverse((o) => { if (o.isMesh) o.castShadow = false; });
@@ -2008,16 +2025,71 @@ function buildMummy() {
   }
   return M;
 }
-// pose a monster: mode 'idle' | 'walk' | 'run' | 'stalk' | 'air' | 'attack' | 'grab' | 'feed' | 'howl' | 'hold' | 'throw' | 'stomp' | 'cast' | 'dead'
+// the necromancer: a crowned corpse in a tattered robe, one eye burning and the other gone, the left hand missing,
+// dark vine-like scars over the grey skin. The robe hangs from the hips so it stays upright when the torso leans.
+function buildLich() {
+  const M = rig(1.0, 0.26, 0.62, 0.68, 0.1);
+  const robe = 0x2c2034, robe2 = 0x18111e, trim = 0x8a7432, skin = 0x9c9a84, skin2 = 0x7a7866, bone = 0xd8d0b4, scar = 0x4a1612, dark = 0x050505;
+  const vine = (m, x, y, z, len, rz, w = 0.016) => m.geo(P_CYL(4), scar, x, y, z, 0, 0, rz, w, len, w);
+  const t = new Mesher();
+  t.box(0, 0.33, 0, 0.44, 0.66, 0.26, robe);
+  // the robe falls open over a sunken chest: ribs and scars
+  t.box(0, 0.42, -0.125, 0.17, 0.42, 0.02, skin);
+  for (const y of [0.32, 0.4, 0.48]) t.box(0, y, -0.137, 0.13, 0.014, 0.01, bone);
+  vine(t, -0.03, 0.44, -0.14, 0.34, 0.5); vine(t, 0.04, 0.36, -0.14, 0.22, -0.7); vine(t, 0.02, 0.55, -0.14, 0.14, 1.2, 0.012);
+  t.box(-0.13, 0.4, -0.13, 0.05, 0.5, 0.02, trim); t.box(0.13, 0.4, -0.13, 0.05, 0.5, 0.02, trim);
+  t.box(0, 0.02, 0, 0.46, 0.08, 0.28, trim);
+  // the mantle, its spiked shoulders and a hood fallen down the back
+  t.box(0, 0.62, 0.02, 0.58, 0.12, 0.32, robe2);
+  for (const s of [-1, 1]) { t.geo(P_CONE(4), trim, s * 0.25, 0.75, 0.02, 0, 0, s * -0.3, 0.07, 0.18, 0.07); t.geo(P_CONE(4), trim, s * 0.2, 0.72, 0.1, 0, 0, s * -0.2, 0.05, 0.13, 0.05); }
+  t.box(0, 0.56, 0.17, 0.38, 0.28, 0.08, robe2);
+  t.box(0, 0.71, 0, 0.11, 0.1, 0.11, skin2);
+  M.torso.add(meshOf(t.build()));
+  // the skull with its crown
+  const h = new Mesher();
+  h.box(0, 0.16, 0, 0.22, 0.27, 0.24, skin); h.box(0, 0.04, -0.02, 0.17, 0.08, 0.18, skin2);
+  h.box(-0.1, 0.1, -0.08, 0.03, 0.07, 0.07, skin2); h.box(0.1, 0.1, -0.08, 0.03, 0.07, 0.07, skin2);
+  h.box(-0.055, 0.17, -0.121, 0.06, 0.05, 0.01, dark); h.box(0.055, 0.17, -0.121, 0.055, 0.045, 0.01, dark);
+  h.box(0, 0.115, -0.121, 0.03, 0.03, 0.01, dark);
+  h.box(0, 0.06, -0.121, 0.12, 0.024, 0.01, bone); for (const x of [-0.04, -0.013, 0.013, 0.04]) h.box(x, 0.06, -0.123, 0.005, 0.026, 0.01, dark);
+  vine(h, -0.075, 0.24, -0.123, 0.12, 0.4, 0.012); vine(h, -0.085, 0.1, -0.123, 0.1, -0.3, 0.012); vine(h, 0.08, 0.06, -0.122, 0.08, 0.5, 0.01);
+  h.box(0, 0.11, 0.115, 0.2, 0.2, 0.04, 0xb8b4a4);
+  h.geo(P_CYL(8), trim, 0, 0.3, 0, 0, 0, 0, 0.27, 0.05, 0.28);
+  for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.5; h.geo(P_CONE(4), trim, Math.cos(a) * 0.13, 0.37 + (i === 3 ? 0.03 : 0), Math.sin(a) * 0.13, 0, 0, 0, 0.04, i === 3 ? 0.16 : 0.11, 0.04); }
+  M.head.add(meshOf(h.build()));
+  // one eye burning in its socket and a gem in the crown
+  M.head.add(glowBits([[0.055, 0.17, -0.123, 0.03, 0.025, 0.01, 0xb8ff7a], [0, 0.305, -0.138, 0.04, 0.035, 0.01, 0x6aff9a]]));
+  // arms: wide sleeves; the left ends in a stump, the right in long bone fingers
+  const sleeve = (m) => { m.box(0, -0.29, 0, 0.13, 0.58, 0.14, robe); m.box(0, -0.55, 0, 0.18, 0.12, 0.19, robe2); };
+  const al = new Mesher(); sleeve(al); al.box(0, -0.63, 0, 0.07, 0.06, 0.07, skin2); al.box(0, -0.665, 0, 0.05, 0.02, 0.05, scar);
+  M.armL.add(meshOf(al.build()));
+  const ar = new Mesher(); sleeve(ar); ar.box(0, -0.65, 0, 0.08, 0.08, 0.06, skin);
+  for (const x of [-0.03, -0.01, 0.01, 0.03]) ar.geo(P_CYL(4), bone, x, -0.74, -0.015, 0.25, 0, 0, 0.016, 0.13, 0.016);
+  ar.geo(P_CYL(4), bone, -0.045, -0.68, -0.03, 0.3, 0, 0.6, 0.016, 0.08, 0.016);
+  M.armR.add(meshOf(ar.build()));
+  // a green flame that burns in the right hand while it casts
+  const fl = new Mesher(); fl.box(0, 0, 0, 0.1, 0.12, 0.1, 0x6aff6a); fl.box(0, 0.06, 0, 0.06, 0.1, 0.06, 0xd8ffb0); fl.geo(P_CONE(4), 0x3ad84a, 0, 0.15, 0, 0, 0.7, 0, 0.08, 0.16, 0.08);
+  M.flame = new THREE.Mesh(fl.build(), MATS.glow); M.flame.position.set(0, -0.82, -0.04); M.flame.visible = false; M.armR.add(M.flame);
+  const leg = new Mesher(); leg.box(0, -0.48, 0, 0.15, 0.92, 0.16, robe2); leg.box(0, -0.96, -0.05, 0.12, 0.07, 0.26, bone);
+  const gl = leg.build(); M.legL.add(meshOf(gl)); M.legR.add(meshOf(gl));
+  // the robe skirt and its ragged hem
+  const rb = new Mesher();
+  rb.geo(P_TAPER(0.62, 10), robe, 0, -0.44, 0, 0, 0, 0, 0.62, 0.9, 0.58);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, l = i % 3 ? 0.14 : 0.22; rb.box(Math.sin(a) * 0.27, -0.89 - l / 2 + 0.02, Math.cos(a) * 0.26, 0.17, l, 0.025, i % 2 ? robe : robe2, a); }
+  M.robe = group(); M.robe.add(meshOf(rb.build())); M.hips.add(M.robe);
+  return M;
+}
+// pose a monster: mode 'idle' | 'walk' | 'run' | 'stalk' | 'air' | 'attack' | 'grab' | 'feed' | 'howl' | 'hold' | 'throw' | 'stomp' | 'cast' | 'raise' | 'curse' | 'dead'
 function poseMonster(M, mode, phase, speed, t, k = 0) {
   const id = M.id, s = Math.sin(phase), c = Math.cos(phase);
   let hy = M.hipY, lean = 0, aL = 0, aR = 0, azL = 0.08, azR = -0.08, lL = 0, lR = 0, hx = 0, hry = 0, hz = 0;
-  const stiff = id === 'frank', shuffle = id === 'mummy';
+  const stiff = id === 'frank', shuffle = id === 'mummy', lich = id === 'lich';
   if (mode === 'walk' || mode === 'stalk') {
     const a = (mode === 'stalk' ? 0.3 : 0.5) * clamp(speed / 3, 0.3, 1.2);
     lL = s * a; lR = -s * a; aL = -s * a * 0.7; aR = s * a * 0.7;
     if (stiff) { aL = -1.3 + s * 0.12; aR = -1.3 - s * 0.12; azL = 0.15; azR = -0.15; hry = s * 0.12; }
     if (shuffle) { aL = -1.4 + s * 0.1; aR = -0.2 + s * 0.2; lL = s * a * 0.6; lR = -s * a * 0.6; hz = s * 0.06; hx = 0.1; }
+    if (lich) { aL = -0.25 - s * 0.12; aR = -0.45 + s * 0.15; lean = 0.1; hx = 0.06; }
     if (mode === 'stalk') { hy -= 0.18; lean = 0.35; lL -= 0.35; lR -= 0.35; }
     hy += Math.abs(c) * (stiff ? 0.06 : 0.03);
   } else if (mode === 'run') {
@@ -2029,6 +2101,7 @@ function poseMonster(M, mode, phase, speed, t, k = 0) {
       const a = 0.85; lL = s * a; lR = -s * a; aL = -s * 1.0; aR = s * 1.0; lean = 0.22; hy += Math.abs(c) * 0.07;
       if (stiff) { aL = -1.4 + s * 0.2; aR = -1.4 - s * 0.2; lean = 0.1; }
       if (shuffle) { aL = -1.5; aR = -1.3; lean = 0.18; }
+      if (lich) { aL = -0.5 - s * 0.3; aR = -0.6 + s * 0.4; lean = 0.3; }
     }
   } else if (mode === 'air') { lL = -0.6; lR = 0.2; aL = -2.2; aR = -2.2; lean = 0.3; azL = 0.5; azR = -0.5; }
   else if (mode === 'attack') {
@@ -2037,7 +2110,7 @@ function poseMonster(M, mode, phase, speed, t, k = 0) {
     if (id === 'werewolf') { const right = Math.floor(t * 0) % 2 === 0; aR = lerp(-0.5, -2.6, w); azR = lerp(-0.1, -1.0, w); aL = lerp(-2.4, -0.3, w); lean = 0.3 + w * 0.2; hy -= 0.1; void right; }
     else if (id === 'frank') { aL = aR = k < 0.5 ? lerp(0, -3.0, k / 0.5) : lerp(-3.0, -0.8, (k - 0.5) / 0.5); lean = k < 0.5 ? -0.15 : 0.4; azL = 0.25; azR = -0.25; }
     else { aL = aR = -1.5; lean = 0.25 + w * 0.2; }
-  } else if (mode === 'grab') { aL = -1.3; aR = -1.3; azL = 0.5; azR = -0.5; lean = 0.35; hx = 0.4; }
+  } else if (mode === 'grab') { aL = -1.3; aR = -1.3; azL = 0.5; azR = -0.5; lean = 0.35; hx = 0.4; if (lich) { aR = -2.0 - k * 0.3; azR = -0.1; aL = -0.4; azL = 0.25; lean = -0.08; hx = -0.15; } }
   else if (mode === 'feed') { hy -= 0.3; lean = 0.9; lL = -1.0; lR = -0.8; aL = -1.3; aR = -1.1; hx = 0.4 + Math.sin(t * 9) * 0.08; }
   else if (mode === 'howl') { lean = -0.35; hx = -0.9; aL = -0.6; aR = -0.6; azL = 0.6; azR = -0.6; }
   else if (mode === 'hold') { aL = aR = -3.0; azL = 0.15; azR = -0.15; lean = -0.1; const a = 0.3 * clamp(speed / 3, 0, 1); lL = s * a; lR = -s * a; }
@@ -2046,14 +2119,18 @@ function poseMonster(M, mode, phase, speed, t, k = 0) {
   else if (mode === 'cast') { aL = -2.0 + Math.sin(t * 10) * 0.2; aR = -2.0 - Math.sin(t * 10) * 0.2; azL = 0.7; azR = -0.7; hx = -0.3; }
   else if (mode === 'lash') { aR = lerp(-2.8, -1.5, k); aL = -0.3; lean = 0.15; }
   else if (mode === 'stare') { aL = -1.2; aR = -1.6; azL = 0.4; azR = -0.2; lean = 0.15; hx = -0.05; }
+  else if (mode === 'raise') { const u = clamp(k * 1.8, 0, 1); aL = aR = lerp(-0.4, -2.8, u) + Math.sin(t * 12) * 0.06 * u; azL = 0.45; azR = -0.45; lean = -0.2 * u; hx = -0.45 * u; }
+  else if (mode === 'curse') { aR = -2.25 + Math.sin(t * 40) * 0.03; azR = -0.15; aL = -0.8; azL = 0.3; lean = -0.12; hx = -0.12; }
   else if (mode === 'dead') { hy = 0.25; lean = 1.4; lL = -1.5; lR = -1.4; aL = -2.5; aR = -2.3; azL = 0.9; azR = -0.9; hx = 0.4; }
-  else { aL = Math.sin(t * 1.4) * 0.05; aR = -aL; if (stiff) { aL = -0.2; aR = -0.2; } if (shuffle) { aL = -1.2; aR = -0.1; } hy += Math.sin(t * 1.6) * 0.012; if (id === 'werewolf') { lean = 0.25; hy -= 0.06; } }
+  else { aL = Math.sin(t * 1.4) * 0.05; aR = -aL; if (stiff) { aL = -0.2; aR = -0.2; } if (shuffle) { aL = -1.2; aR = -0.1; } if (lich) { aL = -0.3; aR = -0.5 + Math.sin(t * 1.2) * 0.08; azR = -0.2; lean = 0.14; hx = 0.1; } hy += Math.sin(t * 1.6) * 0.012; if (id === 'werewolf') { lean = 0.25; hy -= 0.06; } }
   M.hips.position.y = hy; M.legL.position.y = M.legR.position.y = hy;
   M.torso.rotation.x = -lean; M.torso.rotation.z = hz; M.legL.rotation.x = lL; M.legR.rotation.x = lR;
   M.armL.rotation.x = aL; M.armR.rotation.x = aR; M.armL.rotation.z = azL; M.armR.rotation.z = azR;
   M.head.rotation.x = hx; M.head.rotation.y = hry;
   if (M.capes) { const flare = mode === 'run' ? 0.9 : mode === 'air' ? 1.2 : mode === 'walk' ? 0.25 : mode === 'stare' ? 0.5 : 0.08; M.capes.forEach((p, i) => { p.rotation.x = flare * (0.8 + Math.sin(t * 7 + i) * 0.2) + lean * 0.4; p.rotation.z = (i ? -1 : 1) * (flare * 0.35); }); }
   if (M.tail) M.tail.rotation.set(0.6 + (mode === 'run' ? 0.7 : 0) + Math.sin(t * 6) * 0.1, Math.sin(t * 3) * 0.3, 0);
+  if (M.robe) M.robe.rotation.x = -clamp(speed * (mode === 'run' ? 0.05 : 0.03), 0, 0.4) + Math.sin(t * 2.1) * 0.02;
+  if (M.flame) { const on = mode === 'cast' || mode === 'raise' || mode === 'curse' || mode === 'grab'; M.flame.visible = on; if (on) M.flame.scale.set(1 + Math.sin(t * 23) * 0.15, 1 + Math.sin(t * 31) * 0.25, 1 + Math.cos(t * 19) * 0.15); }
   if (M.strips) M.strips.forEach((p, i) => { p.rotation.x = 0.3 + Math.sin(t * 2.3 + i * 1.7) * 0.25 + (mode === 'run' ? 0.6 : 0); p.rotation.z = Math.sin(t * 1.7 + i) * 0.2; });
 }
 
@@ -2268,7 +2345,7 @@ function clearFX() {
 
 const PEOPLE = { list: [], next: 1, corpses: [] };
 const CALM = { idle: 1, walk: 1, sit: 1 };
-// states: idle, walk, flee, inside, incar, trance, cower, down, blind, held, snared, thrown, dead, gone
+// states: idle, walk, flee, inside, incar, trance, cower, down, blind, held, snared, cursed, thrown, dead, gone
 function spawnPerson(type, x, z, o = {}) {
   if (!type) type = Math.random() < 0.035 ? 'scientist' : pick(FOLK_COMMON);
   const look = folkLook(type, RNG((Math.random() * 1e9) | 0));
@@ -2346,7 +2423,7 @@ function perceive(v, dt) {
 }
 // they've seen you (or heard a scream): run, and scream so others know
 function startle(v, mx, mz, quiet) {
-  if (v.state === 'dead' || v.state === 'gone' || v.state === 'held' || v.state === 'snared' || v.state === 'thrown') return;
+  if (v.state === 'dead' || v.state === 'gone' || v.state === 'held' || v.state === 'snared' || v.state === 'thrown' || v.state === 'cursed') return;
   v.alert = 1; v.lastMx = mx; v.lastMz = mz;
   if (v.state === 'incar') {
     const c = v.car;
@@ -2385,7 +2462,7 @@ function witness(x, z) {
 
 // ---------- fleeing ----------
 function planFlee(v) {
-  const mx = P ? P.x : v.lastMx, mz = P ? P.z : v.lastMz;
+  const [mx, mz] = threatPos(v);
   const dm = dist(v.x, v.z, mx, mz);
   let best = null, bc = 1e9;
   const danger = (tx, tz) => {
@@ -2437,7 +2514,7 @@ function planFlee(v) {
 }
 function fleeStep(v, dt) {
   v.plan -= dt;
-  const mx = P ? P.x : v.lastMx, mz = P ? P.z : v.lastMz, dm = dist(v.x, v.z, mx, mz);
+  const [mx, mz] = threatPos(v), dm = dist(v.x, v.z, mx, mz);
   if (v.plan <= 0 || !v.path) planFlee(v);
   // sprint while there's breath, then jog
   const sprint = v.stam > 0;
@@ -2570,6 +2647,17 @@ function updatePeople(dt) {
         break;
       }
       case 'held': v.mode = 'held'; break;
+      case 'cursed': {
+        // lifted into the air by the necromancer's curse, writhing, until something gives
+        v.speed = 0; v.mode = 'held';
+        const k = clamp(v.t / 1.6, 0, 1);
+        v.y = v.curseY + (1 - (1 - k) * (1 - k)) * 2.6 + Math.sin(G.t * 3 + v.id) * 0.06;
+        v.yaw += dt * 0.8 * k;
+        v.M.root.rotation.x = -0.35 * k;
+        if (G.frame % 3 === 0) spray(v.x + rr(-0.3, 0.3), v.y + rr(0.2, 1.8), v.z + rr(-0.3, 0.3), 1, { kind: 'debris', col: [0x9aff6a, 0x3ad84a], speed: 0.6, up: 1, spread: 0.4, size: 0.05, life: 0.7, g: -1.5 });
+        if (v.t > 2.3) killPerson(v, 'curse', fwdX(v.yaw), fwdZ(v.yaw), { bonus: v.curseBonus || ['cursed'] });
+        break;
+      }
       case 'thrown': throwStep(v, dt); break;
     }
     // the poses
@@ -2643,7 +2731,7 @@ function makeCorpse(v, how, dx, dz) {
   const hx = v.x, hz = v.z;
   const nx = dx || 0, nz = dz || 0, nl = Math.hypot(nx, nz) || 1;
   const ux = nx / nl, uz = nz / nl;
-  bloodPool(hx - ux * 0.9, hz - uz * 0.9, how === 'strangle' ? 0.5 : how === 'bite' ? 1.0 : 1.3, v.y);
+  if (how !== 'curse') bloodPool(hx - ux * 0.9, hz - uz * 0.9, how === 'wither' ? 0.3 : how === 'strangle' ? 0.5 : how === 'bite' || how === 'zombie' ? 1.0 : 1.3, v.y);
   if (how === 'bite') { v.spurt = 1.6; }
   else if (how === 'claw' || how === 'pounce') {
     bloodBurst(hx, v.y + 1.2, hz, ux, uz, 1.2);
@@ -2653,6 +2741,18 @@ function makeCorpse(v, how, dx, dz) {
     if (gore) { for (const part of [M.armL, M.legR, chance(0.5) ? M.head : M.armR]) if (chance(0.7)) gib(part, ux * 6 + rr(-2, 2), 4 + rr(0, 3), uz * 6 + rr(-2, 2), v); v.spurt = 1; }
     if (how === 'smash') { v.fly = { vx: ux * 9, vy: 5, vz: uz * 9, spin: rr(-8, 8) }; }
   } else if (how === 'strangle') { spray(hx, v.y + 1.5, hz, 10, { speed: 1.5, up: 0.3, spread: 0.5 }); }
+  else if (how === 'wither') {
+    // drained dry: grey and shrivelled
+    for (const k of ['torso', 'head', 'armL', 'armR']) M.parts[k].material = witherMat();
+    spray(hx, v.y + 1.2, hz, 16, { kind: 'debris', col: [0x9aff6a, 0x5ad84a, 0x8a8478], speed: 1.2, up: 1, spread: 0.6, size: 0.05, life: 1, g: -1 });
+  } else if (how === 'curse') {
+    // every bone at once: twisted limbs, the neck turned too far, then the fall
+    bloodBurst(hx, v.y + 1.2, hz, 0, 0, 0.7);
+    M.armL.rotation.set(0.9, 0, 2.4); M.armR.rotation.set(-2.9, 0, -2.2); M.legL.rotation.set(-1.2, 0, 0.7); M.legR.rotation.set(0.8, 0, -0.5);
+    M.head.rotation.set(0.5, 1.9, 0.3);
+    v.spurt = gore ? 1 : 0;
+    v.fly = { vx: 0, vy: -1, vz: 0, spin: 0 };
+  } else if (how === 'zombie') { bloodBurst(hx, v.y + 1.3, hz, ux, uz, 0.7); v.spurt = 1.2; }
   PEOPLE.corpses.push(v);
   if (PEOPLE.corpses.length > 36) removeCorpse(PEOPLE.corpses[0]);
 }
@@ -2863,7 +2963,7 @@ function flyCar(c, dt) {
 function clearCars() { for (const c of CARS.list) { R.scene.remove(c.mesh); if (c.light) c.light.on = false; } CARS.list.length = 0; LIGHTS.extra.length = 0; }
 
 // Creature Feature — you: the monster. Movement (walk, run, stalk, jump, roofs), the third-person camera, the
-// attack, the two powers of each monster, feeding, breaking in, and things thrown
+// attack, the two powers of each monster, feeding, breaking in, things thrown, and the necromancer's risen dead
 
 let P = null;
 const CAM = { yaw: 0, pitch: 0.28, zoom: 1, x: 0, y: 5, z: 5, snap: true, tx: 0, ty: 0, tz: 0 };
@@ -2902,7 +3002,7 @@ function updateMonster(dt) {
   const [fx, fz] = camFwd(), rx = -fz, rz = fx;
   let wx = fx * -mv.y + rx * mv.x, wz = fz * -mv.y + rz * mv.x;
   const wl = Math.hypot(wx, wz);
-  const locked = P.act && ['grab', 'feed', 'howl', 'stomp', 'lift', 'stare', 'beckon', 'lash', 'smashDoor', 'cast'].includes(P.act);
+  const locked = P.act && ['grab', 'feed', 'howl', 'stomp', 'lift', 'stare', 'beckon', 'lash', 'smashDoor', 'cast', 'raise', 'curse'].includes(P.act);
   P.stalk = !locked && Input.held('stalk') && P.form !== 'bat' && !P.held;
   P.running = !locked && wl > 0.1 && Input.held('run') && !P.stalk && !P.held && P.form !== 'bat';
   let speed = P.form === 'bat' ? 15 : P.stalk ? D.stalk : P.running ? D.run : D.walk;
@@ -2948,7 +3048,7 @@ function updateMonster(dt) {
   if (P.storm > 0) stormStep(dt);
   if (P.held) carryHeld();
   // pose
-  const mode = P.form === 'bat' ? 'bat' : P.act === 'attack' ? 'attack' : P.act === 'grab' || P.act === 'swoopGrab' ? (P.id === 'mummy' ? 'grab' : 'grab') : P.act === 'feed' ? 'feed' : P.act === 'howl' ? 'howl' : P.act === 'stomp' ? 'stomp' : P.act === 'throw' ? 'throw' : P.act === 'lash' ? 'lash' : P.act === 'stare' || P.act === 'beckon' ? 'stare' : P.act === 'cast' ? 'cast' : P.act === 'smashDoor' ? 'attack' : P.held ? 'hold' : !P.onGround ? 'air' : hs > 0.5 ? (P.running ? 'run' : P.stalk ? 'stalk' : 'walk') : 'idle';
+  const mode = P.form === 'bat' ? 'bat' : P.act === 'attack' ? 'attack' : P.act === 'grab' || P.act === 'swoopGrab' ? (P.id === 'mummy' ? 'grab' : 'grab') : P.act === 'feed' ? 'feed' : P.act === 'howl' ? 'howl' : P.act === 'stomp' ? 'stomp' : P.act === 'throw' ? 'throw' : P.act === 'lash' ? 'lash' : P.act === 'stare' || P.act === 'beckon' ? 'stare' : P.act === 'cast' ? 'cast' : P.act === 'raise' ? 'raise' : P.act === 'curse' ? 'curse' : P.act === 'smashDoor' ? (P.id === 'lich' ? 'cast' : 'attack') : P.held ? 'hold' : !P.onGround ? 'air' : hs > 0.5 ? (P.running ? 'run' : P.stalk ? 'stalk' : 'walk') : 'idle';
   if (mode === 'bat') {
     for (const w of M.wings) w.rotation.z = (w.position.x < 0 ? 1 : -1) * Math.sin(G.t * 16) * 0.8;
     M.bat.rotation.x = clamp(-P.vy * 0.04, -0.5, 0.5);
@@ -2988,8 +3088,10 @@ function updateAct(dt) {
     const v = P.grab;
     if (v && v.state === 'held') {
       const [fx, fz] = [fwdX(P.yaw), fwdZ(P.yaw)];
-      v.x = P.x + fx * 0.7; v.z = P.z + fz * 0.7; v.y = P.y + (P.id === 'vampire' ? 0.1 : 0.25); v.yaw = P.yaw + Math.PI;
+      v.x = P.x + fx * 0.7; v.z = P.z + fz * 0.7; v.y = P.y + (P.id === 'vampire' ? 0.1 : P.id === 'lich' ? 0.25 + P.actK * 0.55 : 0.25); v.yaw = P.yaw + Math.PI;
       if (G.frame % 4 === 0 && P.id === 'vampire' && OPTS.gore === 'full') spray(v.x, v.y + 1.45, v.z, 2, { speed: 1.5, up: 0.8, spread: 0.5, size: 0.05 });
+      // the life drawn out of them in green motes
+      if (G.frame % 2 === 0 && P.id === 'lich') spray(v.x + rr(-0.2, 0.2), v.y + rr(0.6, 1.5), v.z + rr(-0.2, 0.2), 1, { kind: 'debris', col: [0x9aff6a, 0x5ad84a], dx: P.x - v.x, dz: P.z - v.z, speed: 1.6, up: 0.8, spread: 0.3, size: 0.05, life: 0.6, g: -1 });
     }
     if (P.actK >= 1) { P.act = null; if (v && v.state === 'held') killPerson(v, P.D.attack.kind, fwdX(P.yaw), fwdZ(P.yaw), { bonus: P.grabBonus || [] }); P.grab = null; }
     return;
@@ -3005,7 +3107,10 @@ function updateAct(dt) {
   if (a === 'throw' && !P.actFired && P.actK > 0.35) { P.actFired = true; release(); }
   if (a === 'lash') lashStep(dt);
   if (a === 'beckon' && P.actK >= 1) { P.act = null; const r = P.door; if (r && r.occ.length) { const v = r.occ[0]; leaveRefuge(v, false); v.state = 'trance'; v.tranceT = 6; say(v, pick(LINES.trance)); bus.emit('beckon', v); } }
-  if (a === 'smashDoor' && !P.actFired && P.actK > 0.45) { P.actFired = true; hitDoor(P.doorTarget); }
+  if (a === 'smashDoor' && !P.actFired && P.actK > 0.45) { P.actFired = true; if (P.id === 'lich') blastFx(P.doorTarget); hitDoor(P.doorTarget); }
+  if (a === 'raise' && !P.actFired && P.actK > 0.45) { P.actFired = true; raiseDead(); }
+  if (a === 'raise' && P.actK >= 1) P.act = null;
+  if (a === 'curse' && P.actK >= 1) P.act = null;
   if (a === 'stare' && P.actK >= 1) P.act = null;
   if (a === 'cast' && P.actK >= 1) P.act = null;
   if (a === 'swoop') swoopStep(dt);
@@ -3091,7 +3196,7 @@ function grabVictim(v, bonus) {
   AUDIO.scream(v.x, v.z, v.look.f, 1);
   say(v, pick(LINES.hurt), 1.4);
   witness(v.x, v.z);
-  if (P.id === 'vampire') AUDIO.sfx('bite', P.x, P.z); else AUDIO.sfx('choke', P.x, P.z);
+  AUDIO.sfx(P.id === 'vampire' ? 'bite' : P.id === 'lich' ? 'drain' : 'choke', P.x, P.z);
 }
 function pullFromCar(v) {
   const c = v.car; if (c) { const i = c.occ.indexOf(v); if (i >= 0) c.occ.splice(i, 1); }
@@ -3142,6 +3247,7 @@ function startDoor(r) {
   if (!r || r.broken) return;
   P.yaw = yawOf(r.x - P.x, r.z - P.z);
   if (D.door < 0) { setAct('beckon', 1.4, { door: r }); AUDIO.sfx('beckon', P.x, P.z); return; }
+  if (P.id === 'lich') { setAct('smashDoor', 0.8, { doorTarget: r }); AUDIO.sfx('chime', P.x, P.z); return; }
   setAct('smashDoor', P.id === 'frank' ? 0.55 : 0.5, { doorTarget: r });
   AUDIO.sfx('swipe', P.x, P.z);
 }
@@ -3186,6 +3292,7 @@ function doPower1() {
   else if (P.id === 'werewolf') startPounce();
   else if (P.id === 'frank') { if (P.held) startThrow(); else liftNearest(); }
   else if (P.id === 'mummy') startLash();
+  else if (P.id === 'lich') startRaise();
 }
 function doPower2() {
   if (P.id === 'vampire') { if (P.form === 'bat') { endBat(); return; } }
@@ -3194,6 +3301,7 @@ function doPower2() {
   else if (P.id === 'werewolf') { setAct('howl', 1.4); P.cd.a2 = P.D.a2.cd; }
   else if (P.id === 'frank') { setAct('stomp', 0.9); P.cd.a2 = P.D.a2.cd; AUDIO.sfx('roar', P.x, P.z); }
   else if (P.id === 'mummy') { setAct('cast', 0.6); P.storm = P.D.a2.dur; P.cd.a2 = P.D.a2.cd + P.D.a2.dur; AUDIO.sfx('sand', P.x, P.z); }
+  else if (P.id === 'lich') startCurse();
 }
 // whoever is closest to the middle of the screen, within range and in sight
 function aimTarget(range, cone = 0.22) {
@@ -3448,6 +3556,164 @@ function swoopStep(dt) {
   }
 }
 
+// --- the necromancer
+// Raise Dead: bodies nearby get up as zombies (MINIONS) that hunt the living. Each one is the dead person's own rig,
+// tinted grey-green with glowing eyes; the person drops out of PEOPLE (state 'gone') and the zombie owns the mesh.
+const MINIONS = [];
+let _zMat = null, _wMat = null;
+const zombieMat = () => _zMat || (_zMat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x8aa882 }));
+const witherMat = () => _wMat || (_wMat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x8a8478 }));
+function raiseable(range) {
+  const out = [];
+  for (const v of PEOPLE.corpses) {
+    if (v.state !== 'dead' || v.fly || v.removed || v.raised) continue;
+    if (FX.gibs.some((g) => g.owner === v)) continue; // too few pieces left to walk
+    const d = dist(v.x, v.z, P.x, P.z);
+    if (d < range && Math.abs(v.y - P.y) < 4) out.push({ v, d });
+  }
+  return out.sort((a, b) => a.d - b.d);
+}
+function startRaise() {
+  if (P.cd.a1 > 0 || P.form !== 'normal' || P.act) return;
+  if (!raiseable(P.D.a1.range).length) { P.cd.a1 = 0.6; HUD.toast('No bodies close enough to raise', 'info'); return; }
+  setAct('raise', 1.0);
+  P.cd.a1 = P.D.a1.cd;
+  AUDIO.sfx('raise', P.x, P.z);
+}
+function raiseDead() {
+  const A = P.D.a1, list = raiseable(A.range).slice(0, A.max);
+  // a full graveyard: the oldest zombies fall apart to make room
+  while (MINIONS.length + list.length > A.max && MINIONS.length) crumble(MINIONS[0]);
+  for (const { v } of list) riseMinion(v, A.life);
+  FX.shake = Math.max(FX.shake, 0.3);
+  if (list.length) { AUDIO.sfx('cackle', P.x, P.z); bus.emit('raised', list.length); }
+  return list.length;
+}
+function riseMinion(v, life = 24) {
+  const i = PEOPLE.corpses.indexOf(v); if (i >= 0) PEOPLE.corpses.splice(i, 1);
+  v.state = 'gone'; v.raised = true;
+  const M = v.M;
+  for (const k in M.parts) M.parts[k].material = zombieMat();
+  M.head.add(glowBits([[-0.055, 0.17, -0.124, 0.045, 0.03, 0.01, 0x9aff6a], [0.055, 0.17, -0.124, 0.045, 0.03, 0.01, 0x9aff6a]]));
+  const z = { id: v.id, v, M, x: v.x, z: v.z, y: v.y, yaw: v.fallYaw + Math.PI, speed: 0, phase: 0, rise: 1.1, life, target: null, retarget: 0, atkT: 0, scareT: 0, groanT: rr(1, 4), kills: 0 };
+  MINIONS.push(z);
+  puff(z.x, z.y + 0.4, z.z, { col: 0x5ad84a, size: 1.8, grow: 2, life: 1.3, op: 0.45 });
+  spray(z.x, z.y + 0.3, z.z, 14, { kind: 'debris', col: [0x9aff6a, 0x3ad84a, 0x4a3a2a], speed: 3, up: 1.2, spread: 0.6, size: 0.07, life: 1.2, g: 4 });
+  return z;
+}
+function crumble(z) {
+  const i = MINIONS.indexOf(z); if (i >= 0) MINIONS.splice(i, 1);
+  R.scene.remove(z.M.root);
+  z.v.removed = true;
+  puff(z.x, z.y + 0.9, z.z, { col: 0x6a7a62, size: 2, grow: 1.6, life: 1.4, op: 0.5 });
+  spray(z.x, z.y + 1, z.z, 18, { kind: 'debris', col: [0x7a8a6a, 0xd8d0b4, 0x4a4a3a], speed: 2.5, up: 0.4, spread: 1, size: 0.08, life: 2.5 });
+  AUDIO.sfx('crumble', z.x, z.z);
+}
+function clearMinions() { for (const z of MINIONS) R.scene.remove(z.M.root); MINIONS.length = 0; }
+const preyOk = (v) => v && !v.hidden && !v.inside && ['idle', 'walk', 'flee', 'trance', 'cower', 'down', 'blind'].includes(v.state);
+function updateMinions(dt) {
+  for (let i = MINIONS.length - 1; i >= 0; i--) {
+    const z = MINIONS[i], M = z.M;
+    if (z.rise > 0) {
+      // getting up off the ground
+      z.rise -= dt;
+      const k = 1 - clamp(z.rise / 1.1, 0, 1), e = 1 - (1 - k) * (1 - k);
+      poseHuman(M, 'drag', 0, 0, G.t);
+      M.root.rotation.set((1 - e) * Math.PI / 2, z.yaw, 0);
+      M.root.position.set(z.x, z.y + 0.12 * (1 - e), z.z);
+      if (G.frame % 4 === 0) spray(z.x + rr(-0.4, 0.4), z.y + 0.1, z.z + rr(-0.4, 0.4), 1, { kind: 'debris', col: [0x4a3a2a, 0x5ad84a], speed: 1.5, up: 1, size: 0.05, life: 0.8 });
+      if (z.rise <= 0) { z.yaw = P ? yawOf(P.x - z.x, P.z - z.z) : z.yaw; AUDIO.sfx('groan', z.x, z.z); }
+      continue;
+    }
+    z.life -= dt;
+    if (z.life <= 0 || G.over) { crumble(z); continue; }
+    // the nearest living person in reach, or else back to the master
+    z.retarget -= dt;
+    if (z.retarget <= 0 || !preyOk(z.target)) {
+      z.retarget = 0.5; z.target = null;
+      let bd = 40 * 40;
+      for (const v of PEOPLE.list) { if (!preyOk(v)) continue; const d = dist2(v.x, v.z, z.x, z.z); if (d < bd && Math.abs(v.y - z.y) < 2.5) { bd = d; z.target = v; } }
+    }
+    z.atkT -= dt;
+    const t = z.target;
+    let mode = 'trance';
+    if (t) {
+      const dx = t.x - z.x, dz = t.z - z.z, d = Math.hypot(dx, dz);
+      if (d < 1.15 && z.atkT <= 0) {
+        killPerson(t, 'zombie', dx, dz, { bonus: ['risen'], hungerK: 0.5 });
+        z.kills++; z.life += 4; z.atkT = 0.9; z.target = null;
+        AUDIO.sfx('groan', z.x, z.z);
+      } else if (z.atkT <= 0) moveAgent(z, dx / (d || 1) * 4.3, dz / (d || 1) * 4.3, dt);
+      else { z.speed = 0; mode = 'drag'; }
+    } else if (P) {
+      const dx = P.x - z.x, dz = P.z - z.z, d = Math.hypot(dx, dz);
+      if (d > 4) moveAgent(z, dx / d * 3.6, dz / d * 3.6, dt); else z.speed = 0;
+    }
+    // the living see them coming
+    z.scareT -= dt;
+    if (z.scareT <= 0) {
+      z.scareT = 0.3;
+      for (const v of PEOPLE.list) {
+        if (!(CALM[v.state] || v.state === 'incar')) continue;
+        const d = dist(v.x, v.z, z.x, z.z);
+        if (d > 9 || !losClear(v.x, v.y + 1.6, v.z, z.x, z.y + 1.4, z.z)) continue;
+        const loud = v.screamT <= 0;
+        startle(v, z.x, z.z);
+        if (loud && v.state !== 'incar') say(v, pick(LINES.risen), 2.4);
+      }
+    }
+    z.groanT -= dt;
+    if (z.groanT <= 0) { z.groanT = rr(3, 7); AUDIO.sfx('groan', z.x, z.z); }
+    poseHuman(M, mode, z.phase, z.speed * 1.6, G.t + z.id);
+    M.head.rotation.z = 0.3; M.torso.rotation.x = -0.12;
+    M.root.position.set(z.x, z.y + Math.abs(Math.sin(z.phase)) * 0.03, z.z);
+    M.root.rotation.set(0, z.yaw, Math.sin(z.phase * 0.5) * 0.06);
+  }
+}
+// people flee from whatever horror is closest: you or one of your dead
+function threatPos(v) {
+  let mx = P ? P.x : v.lastMx, mz = P ? P.z : v.lastMz, bd = P ? dist2(mx, mz, v.x, v.z) : 1e9;
+  for (const z of MINIONS) { if (z.rise > 0) continue; const d = dist2(z.x, z.z, v.x, v.z); if (d < bd) { bd = d; mx = z.x; mz = z.z; } }
+  return [mx, mz];
+}
+// Curse: whoever you aim at floats up, writhes and snaps (09_people.js runs the 'cursed' state)
+function startCurse() {
+  if (P.cd.a2 > 0 || P.act || P.form !== 'normal') return;
+  let v = aimTarget(P.D.a2.range, 0.24);
+  if (v && v.state === 'cursed') v = null;
+  setAct('curse', 0.7);
+  AUDIO.sfx('chime', P.x, P.z);
+  P.cd.a2 = v ? P.D.a2.cd : 1;
+  if (v) curseVictim(v);
+}
+function curseVictim(v) {
+  if (v.state === 'incar') { const c = v.car; pullFromCar(v); if (c && c.state === 'drive') { c.state = 'stopped'; c.speed = 0; } }
+  if (v.state === 'inside' || v.state === 'dead' || v.state === 'gone') return false;
+  const b = ['cursed'];
+  if (dist(v.x, v.z, P.x, P.z) > 12) b.push('range');
+  if (v.alert < 0.5 && CALM[v.state]) b.push('silent');
+  if (v.state === 'trance') b.push('trance');
+  if (v.state === 'down') b.push(v.tripped ? 'tripped' : 'flat');
+  v.curseBonus = b;
+  v.state = 'cursed'; v.t = 0; v.curseY = v.y; v.sit = false; v.speed = 0; setHidden(v, false);
+  v.M.root.rotation.set(0, v.yaw, 0);
+  P.yaw = yawOf(v.x - P.x, v.z - P.z);
+  say(v, pick(LINES.cursed), 2.2);
+  AUDIO.scream(v.x, v.z, v.look.f, 1);
+  witness(v.x, v.z);
+  // a thread of green fire from your hand to them
+  const n = 16;
+  for (let i = 0; i < n; i++) { const k = i / n; spray(lerp(P.x, v.x, k), lerp(P.y + 1.9, v.y + 1.3, k), lerp(P.z, v.z, k), 1, { kind: 'debris', col: [0x9aff6a, 0x3ad84a], speed: 0.3, up: 1, size: 0.07, life: 0.7, g: -1 }); }
+  bus.emit('curse', v);
+  return true;
+}
+// the door bursts inward in green fire
+function blastFx(r) {
+  if (!r) return;
+  puff(r.x, 1.4, r.z, { col: 0x5ad84a, size: 2.4, grow: 2, life: 1, op: 0.5 });
+  spray(r.x, 1.4, r.z, 20, { kind: 'debris', col: [0x9aff6a, 0x3ad84a, 0xd8ffb0], dx: -r.nx, dz: -r.nz, speed: 6, up: 0.4, spread: 0.8, size: 0.06, life: 0.8, g: -1 });
+}
+
 // Creature Feature — the rules of the hunt: kills and their score, the combo, hunger (the only thing that ends a
 // run), the town's panic, new people arriving through the night, and starting and ending a run
 
@@ -3474,10 +3740,10 @@ function killPerson(v, how, dx, dz, o = {}) {
   G.bestCombo = Math.max(G.bestCombo, G.combo);
   const gain = pts * G.combo;
   G.score += gain; G.kills++; P.kills++;
-  G.hunger = Math.min(HUNGER_MAX, G.hunger + P.D.killGain);
+  G.hunger = Math.min(HUNGER_MAX, G.hunger + P.D.killGain * (o.hungerK === undefined ? 1 : o.hungerK));
   G.panic = Math.min(100, G.panic + 7);
   witness(v.x, v.z);
-  AUDIO.sfx(how === 'strangle' ? 'crunch' : 'splat', v.x, v.z);
+  AUDIO.sfx(how === 'strangle' || how === 'wither' ? 'crunch' : how === 'curse' ? 'snap' : 'splat', v.x, v.z);
   AUDIO.scream(v.x, v.z, v.look.f, 0.9, true);
   const near = dist(v.x, v.z, R.camera.position.x, R.camera.position.z);
   if (near < 7 && how !== 'thrown') screenSplat(how === 'smash' || how === 'claw' ? 1 : 0.5);
@@ -3501,6 +3767,7 @@ bus.on('escaped', (v) => {
 bus.on('broke', (r, n) => { if (n) HUD.toast(n === 1 ? 'Home invasion!' : `Home invasion! ${n} inside`, 'good'); G.panic = Math.min(100, G.panic + 5); });
 bus.on('hid', (v, r) => { if (P && dist(v.x, v.z, P.x, P.z) < 30 && G.t - (G.hidToast || -9) > 5) { G.hidToast = G.t; HUD.toast(`Someone bolted into ${r.name}`, 'info'); } });
 bus.on('scream', () => { G.panic = Math.min(100, G.panic + 1.5); });
+bus.on('raised', (n) => { G.panic = Math.min(100, G.panic + 6); HUD.toast(n === 1 ? 'The dead rise!' : `The dead rise! ${n} of them`, 'good'); });
 bus.on('howl', (n) => { G.panic = Math.min(100, G.panic + 10); if (n) HUD.toast(n + ' frozen with terror', 'info'); });
 
 function updateRules(dt) {
@@ -3542,7 +3809,7 @@ function director(dt) {
 
 // ---------- runs ----------
 function resetTown() {
-  clearPeople(); clearCars(); clearFX();
+  clearPeople(); clearCars(); clearFX(); clearMinions();
   for (const s of TOWN.carSpecs) parkCar(...s);
   const o = new THREE.Object3D();
   for (const L of TOWN.lamps) {
@@ -3578,7 +3845,7 @@ function endRun() {
   if (G.over) return;
   G.over = true; P.dead = true; P.act = null; P.actT = 0;
   if (P.form === 'bat') { P.form = 'normal'; setBatVisible(false); }
-  AUDIO.sfx(P.D.voice === 'growl' ? 'howl' : 'roar', P.x, P.z);
+  AUDIO.sfx({ growl: 'howl', cackle: 'cackle' }[P.D.voice] || 'roar', P.x, P.z);
   const prev = SAVE.best[G.monster] || 0, best = G.score > prev;
   if (best) SAVE.best[G.monster] = G.score;
   SAVE.kills[G.monster] = (SAVE.kills[G.monster] || 0) + G.kills;
@@ -3659,7 +3926,7 @@ const AUDIO = (() => {
     const t = now();
     if (busy[name] && t - busy[name] < 0.05) return;
     busy[name] = t;
-    const [v, pan] = place(x, z, name === 'howl' || name === 'roar' || name === 'stomp' ? 400 : 70);
+    const [v, pan] = place(x, z, name === 'howl' || name === 'roar' || name === 'stomp' || name === 'cackle' || name === 'chime' ? 400 : 70);
     if (v < 0.01) return;
     const o = out(v, pan);
     switch (name) {
@@ -3692,6 +3959,14 @@ const AUDIO = (() => {
       case 'beckon': tone(o, 'sine', 220, 180, 1.4, 0.2, t, 0.3); tone(o, 'sine', 330, 270, 1.4, 0.1, t, 0.3); break;
       case 'bats': for (let i = 0; i < 10; i++) burst(o, 'bandpass', rr(1500, 3000), 1000, 0.05, 0.35, 4, t + i * 0.05); break;
       case 'swoop': burst(o, 'bandpass', 2400, 400, 0.6, 0.5, 1); break;
+      // the necromancer: a tolling clock, an organ swell from under the ground, bones giving way, a dry cackle
+      case 'chime': for (let i = 0; i < 2; i++) { const tt = t + i * 0.45; tone(o, 'sine', 196, 194, 1.6, 0.22, tt, 0.005); tone(o, 'sine', 392, 390, 1.2, 0.1, tt, 0.005); tone(o, 'sine', 523, 520, 0.9, 0.06, tt, 0.005); } break;
+      case 'raise': tone(o, 'sawtooth', 55, 82, 1.4, 0.12, t, 0.4); tone(o, 'sawtooth', 82, 123, 1.4, 0.08, t, 0.4); burst(o, 'lowpass', 300, 900, 1.2, 0.5, 1, t, 0.3); break;
+      case 'snap': for (let i = 0; i < 6; i++) burst(o, 'bandpass', rr(1500, 3200), 900, 0.04, 0.9, 4, t + i * rr(0.03, 0.07)); tone(o, 'sine', 140, 50, 0.15, 0.5); break;
+      case 'drain': tone(o, 'sine', 880, 220, 1.1, 0.08, t, 0.2); burst(o, 'bandpass', 700, 300, 1, 0.25, 4, t, 0.2); break;
+      case 'crumble': for (let i = 0; i < 5; i++) burst(o, 'lowpass', rr(900, 1800), 200, 0.15, 0.4, 1, t + i * 0.06); break;
+      case 'groan': tone(o, 'sawtooth', rr(85, 110), rr(60, 75), rr(0.7, 1.1), 0.05, t, 0.15); burst(o, 'bandpass', 380, 260, 0.9, 0.15, 6, t, 0.15); break;
+      case 'cackle': for (let i = 0; i < 6; i++) { const tt = t + i * 0.16, f = 330 - i * 18; tone(o, 'sawtooth', f, f * 0.8, 0.11, 0.06, tt, 0.01); burst(o, 'bandpass', 1400 - i * 60, 1000, 0.1, 0.25, 5, tt); } break;
     }
   }
   // a scream; when cut short it stops halfway
@@ -4007,6 +4282,7 @@ const HUD = (() => {
     for (const ab of $$('#abil .ab')) {
       const k = ab.dataset.k, D = P.D;
       const max = k === 'atk' ? D.attack.cd + D.attack.lock * 0.5 : k === 'a1' ? D.a1.cd : D.a2.cd + (P.id === 'mummy' ? D.a2.dur : 0);
+      if (k === 'a1' && P.id === 'lich') ab.querySelector('span').textContent = MINIONS.length ? `${D.a1.name} (${MINIONS.length})` : D.a1.name;
       let f = clamp(P.cd[k] / max, 0, 1);
       if (k === 'a2' && P.form === 'bat') { f = 0; ab.classList.add('active'); ab.querySelector('span').textContent = 'Land (' + Math.ceil(P.batT) + ')'; }
       else if (k === 'a2' && P.storm > 0) { ab.classList.add('active'); }
@@ -4025,9 +4301,9 @@ const HUD = (() => {
     } else pr.hidden = true;
     $('#tUse').classList.toggle('ready', !!(P.near && !P.near.empty));
     // crosshair for aimed powers
-    const aim = (P.id === 'vampire' && P.form !== 'bat') || P.id === 'mummy' || P.id === 'werewolf' || (P.id === 'frank' && P.held);
+    const aim = (P.id === 'vampire' && P.form !== 'bat') || P.id === 'mummy' || P.id === 'werewolf' || P.id === 'lich' || (P.id === 'frank' && P.held);
     $('#cross').hidden = !aim || G.over;
-    if (aim && G.frame % 6 === 0) { const range = P.id === 'vampire' ? 32 : P.id === 'mummy' ? 24 : P.id === 'werewolf' ? 18 : 40; $('#cross').classList.toggle('lock', !!aimTarget(range)); }
+    if (aim && G.frame % 6 === 0) { const range = P.id === 'vampire' ? 32 : P.id === 'mummy' ? 24 : P.id === 'werewolf' ? 18 : P.id === 'lich' ? 30 : 40; $('#cross').classList.toggle('lock', !!aimTarget(range)); }
     bubblesUpdate();
     senseUpdate();
     if (G.frame % 3 === 0) drawRadar();
@@ -4094,6 +4370,9 @@ const HUD = (() => {
       x.fillStyle = v.state === 'incar' ? '#6ab0ff' : v.state === 'flee' ? '#ff3a3a' : v.alert > 0.3 ? '#ffd040' : '#f0e8d8';
       x.beginPath(); x.arc(a, b, v.state === 'incar' ? 3.4 : 2.6, 0, TAU); x.fill();
     }
+    // your risen dead
+    x.fillStyle = '#7aff5a';
+    for (const z of MINIONS) { const [a, b] = toR(z.x, z.z); if (Math.hypot(a - c, b - c) > c) continue; x.fillRect(a - 2.5, b - 2.5, 5, 5); }
     x.restore();
     x.fillStyle = '#ff2a2a'; x.beginPath(); x.moveTo(c, c - 6); x.lineTo(c + 4, c + 4); x.lineTo(c - 4, c + 4); x.fill();
     x.strokeStyle = 'rgba(200,40,40,0.6)'; x.lineWidth = 2; x.beginPath(); x.arc(c, c, c - 1, 0, TAU); x.stroke();
@@ -4140,6 +4419,7 @@ const UI = (() => {
     document.body.dataset.state = 'title';
     $('#title').hidden = false; $('#select').hidden = true;
     if (P) { R.scene.remove(P.M.root); P = null; }
+    clearMinions();
     G.over = false;
     AUDIO.music(false);
     hidePreview();
@@ -4150,6 +4430,7 @@ const UI = (() => {
   function toSelect() {
     for (const id of stack.slice()) hide(id);
     if (P) { R.scene.remove(P.M.root); P = null; }
+    clearMinions();
     document.body.dataset.state = 'select';
     $('#title').hidden = true; $('#select').hidden = false;
     const cards = $('#cards'); cards.innerHTML = '';
@@ -4198,6 +4479,7 @@ const UI = (() => {
         werewolf: `${mv}. Hold <b>${touch ? 'RUN' : Input.mode === 'pad' ? 'B' : 'Shift'}</b> to run on all fours. <b>${k.a1 || 'POUNCE'}</b> leaps at whoever you aim at, <b>${k.a2 || 'HOWL'}</b> freezes everyone near you.`,
         frank: `${mv}. You're slow: <b>${k.a2 || 'STOMP'}</b> knocks everyone down, <b>${k.a1 || 'GRAB'}</b> picks up cars, bins, people and the road itself, then throws them.`,
         mummy: `${mv}. <b>${k.a1 || 'LASH'}</b> reels in whoever you aim at from 24 m. <b>${k.a2 || 'SAND'}</b> raises a sandstorm that blinds everyone in it.`,
+        lich: `${mv}. <b>${k.atk || 'GRIP'}</b> drains a victim dry. <b>${k.a1 || 'RAISE'}</b> raises the bodies around you to hunt for you, <b>${k.a2 || 'CURSE'}</b> lifts whoever you aim at into the air until they snap. Bolted doors blast open at a gesture.`,
       };
       setTimeout(() => { if (P && !G.over) HUD.tip(tips[id] + ` Hold <b>${touch ? 'SENSE' : Input.mode === 'pad' ? 'Y' : 'V'}</b> to sense your prey through walls. Kills and feeding (<b>${k.use || 'USE'}</b> on a body) keep the hunger away.`, 14); }, 3800);
     }
@@ -4303,6 +4585,7 @@ function frame(dt, draw) {
   if (!paused) {
     if (state === 'play') {
       updateMonster(sdt);
+      updateMinions(sdt);
       updateThrown(sdt);
       updateRules(sdt);
     }
@@ -4368,9 +4651,9 @@ function selectCam(dt) {
 function installDebug() {
   const step = 1 / 30;
   const CF = {
-    G, R, CAM, TOWN, WORLD, PEOPLE, CARS, FX, UI, HUD, Input, OPTS, MONSTERS, FOLK, LIGHTS, THROWN, AUDIO,
+    G, R, CAM, TOWN, WORLD, PEOPLE, CARS, FX, UI, HUD, Input, OPTS, MONSTERS, FOLK, LIGHTS, THROWN, AUDIO, MINIONS,
     get P() { return P; },
-    f: { startRun, endRun, killPerson, spawnPerson, spawnMonster, startle, breakRefuge, leaveRefuge, planFlee, route, nearestRoad, terrainH, supportY, collide, losClear, lightAt, aimTarget, hypnotise, smashCar, wreckCar, startDriving, arriveCar, parkCar, resetTown, populate, smashLamp, screenSplat, bloodBurst, showPreview, poseMonster, knockDown, howl, stomp, director, sightRange },
+    f: { startRun, endRun, killPerson, spawnPerson, spawnMonster, startle, breakRefuge, leaveRefuge, planFlee, route, nearestRoad, terrainH, supportY, collide, losClear, lightAt, aimTarget, hypnotise, smashCar, wreckCar, startDriving, arriveCar, parkCar, resetTown, populate, smashLamp, screenSplat, bloodBurst, showPreview, poseMonster, knockDown, howl, stomp, director, sightRange, raiseDead, riseMinion, crumble, curseVictim, threatPos },
     // start({ monster, empty, people }) — a run that's never saved; the monster is already up
     start(o = {}) {
       G.noSave = true; OPTS.tips = false;

@@ -1,4 +1,4 @@
-// Creature Feature — data: the four monsters, the townsfolk of Pine Hollow, what they shout, and the scoring
+// Creature Feature — data: the five monsters, the townsfolk of Pine Hollow, what they shout, and the scoring
 
 // Speeds in m/s. attack: the primary (click / RT). a1: right click / LT. a2: Q / RB. door: hits to break a door
 // (0 = walks through it, -1 = can't break doors at all and beckons the people inside out instead).
@@ -47,8 +47,19 @@ const MONSTERS = {
     door: 3, doorVerb: 'Break in', feedGain: 26, killGain: 19,
     voice: 'moan', films: ["THE MUMMY'S HUNGER", 'CURSE OF THE SAND KING', 'TOMB OF PINE HOLLOW'],
   },
+  lich: {
+    id: 'lich', name: 'The Necromancer', kind: 'Lich', tag: "The dead don't stay buried.",
+    blurb: 'A crowned corpse with one eye and one hand. Raises the people it kills to hunt for it, curses victims into the air until their bones snap and blasts doors open.',
+    walk: 4.0, run: 7.2, stalk: 2.3, jump: 6.4, radius: 0.45, height: 2.2, cam: 5.0, eye: 1.85, sight: 1.0,
+    stats: { speed: 2, power: 3, stealth: 3, range: 5 },
+    attack: { name: 'Death Grip', reach: 2.1, arc: 1.3, cd: 0.45, lock: 1.1, kind: 'wither', multi: false },
+    a1: { name: 'Raise Dead', cd: 8, range: 16, max: 3, life: 24, desc: 'Bodies within 16 m rise as zombies and hunt for you. Up to three at once.' },
+    a2: { name: 'Curse', cd: 9, range: 30, desc: 'Lift whoever you aim at (30 m) into the air until they snap.' },
+    door: 1, doorVerb: 'Blast open', feedGain: 22, killGain: 16,
+    voice: 'cackle', films: ['NIGHT OF THE NECROMANCER', 'THE DEAD WALK AT MIDNIGHT', 'CHIME OF THE CRYPT'],
+  },
 };
-const MONSTER_ORDER = ['vampire', 'werewolf', 'frank', 'mummy'];
+const MONSTER_ORDER = ['vampire', 'werewolf', 'frank', 'mummy', 'lich'];
 
 // Townsfolk. pts: base score. spd: sprint multiplier. stam: seconds of sprint. f: wears a skirt.
 // Colours: skin, hair, top, jacket (0 = none), legs, shoes, hat (0 = none).
@@ -80,9 +91,12 @@ const LINES = {
   calm: ['Did you hear something?', 'Probably just raccoons.', "Swell night, isn't it?", 'Is that a dog howling?', 'Swell picture tonight.', 'Pass the popcorn.'],
   car: ['Step on it!', 'Drive, drive, DRIVE!', "It won't start!"],
   trance: ['Yes... master...', 'So... sleepy...', 'Your eyes...'],
+  cursed: ["I can't move!", "What's happening to me?!", 'Put me down!', 'Somebody help me!', 'Make it stop!'],
+  risen: ['The dead are walking!', "That's Harold! But Harold's dead!", "They're coming out of the ground!", 'Zombies!', 'Stay back! Stay back!', 'Their eyes are glowing!'],
   monster: {
     vampire: ['Dracula', 'a vampire', 'the Count'], werewolf: ['a werewolf', 'the Wolf Man', 'a wolf walking like a man'],
     frank: ["Frankenstein's monster", 'a monster', 'the creature'], mummy: ['the Mummy', 'a walking mummy', 'the curse'],
+    lich: ['a necromancer', 'a walking skeleton', 'the Grim Reaper', 'a corpse in a crown'],
   },
 };
 
@@ -92,7 +106,7 @@ const BONUS = {
   car: { pts: 150, label: 'Roadkill' }, multi: { pts: 200, label: 'Double feature' }, range: { pts: 60, label: 'Long reach' },
   thrown: { pts: 120, label: 'Special delivery' }, trance: { pts: 50, label: 'Entranced' }, tripped: { pts: 40, label: 'Tripped' },
   flat: { pts: 80, label: 'While they were down' }, blind: { pts: 60, label: 'Lost in the sand' }, frozen: { pts: 60, label: 'Petrified' },
-  pounce: { pts: 100, label: 'Pounce' }, feed: { pts: 50, label: 'Fed' }, rare: { pts: 0, label: 'The Professor' },
+  pounce: { pts: 100, label: 'Pounce' }, cursed: { pts: 90, label: 'Cursed' }, risen: { pts: 60, label: 'Risen dead' }, feed: { pts: 50, label: 'Fed' }, rare: { pts: 0, label: 'The Professor' },
 };
 const COMBO_TIME = 9, COMBO_MAX = 8;
 const PANIC_NAMES = [[0, 'Quiet'], [20, 'Uneasy'], [45, 'Alarmed'], [70, 'Panic'], [90, 'Hysteria']];

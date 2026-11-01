@@ -36,6 +36,7 @@ const UI = (() => {
     document.body.dataset.state = 'title';
     $('#title').hidden = false; $('#select').hidden = true;
     if (P) { R.scene.remove(P.M.root); P = null; }
+    clearMinions();
     G.over = false;
     AUDIO.music(false);
     hidePreview();
@@ -46,6 +47,7 @@ const UI = (() => {
   function toSelect() {
     for (const id of stack.slice()) hide(id);
     if (P) { R.scene.remove(P.M.root); P = null; }
+    clearMinions();
     document.body.dataset.state = 'select';
     $('#title').hidden = true; $('#select').hidden = false;
     const cards = $('#cards'); cards.innerHTML = '';
@@ -94,6 +96,7 @@ const UI = (() => {
         werewolf: `${mv}. Hold <b>${touch ? 'RUN' : Input.mode === 'pad' ? 'B' : 'Shift'}</b> to run on all fours. <b>${k.a1 || 'POUNCE'}</b> leaps at whoever you aim at, <b>${k.a2 || 'HOWL'}</b> freezes everyone near you.`,
         frank: `${mv}. You're slow: <b>${k.a2 || 'STOMP'}</b> knocks everyone down, <b>${k.a1 || 'GRAB'}</b> picks up cars, bins, people and the road itself, then throws them.`,
         mummy: `${mv}. <b>${k.a1 || 'LASH'}</b> reels in whoever you aim at from 24 m. <b>${k.a2 || 'SAND'}</b> raises a sandstorm that blinds everyone in it.`,
+        lich: `${mv}. <b>${k.atk || 'GRIP'}</b> drains a victim dry. <b>${k.a1 || 'RAISE'}</b> raises the bodies around you to hunt for you, <b>${k.a2 || 'CURSE'}</b> lifts whoever you aim at into the air until they snap. Bolted doors blast open at a gesture.`,
       };
       setTimeout(() => { if (P && !G.over) HUD.tip(tips[id] + ` Hold <b>${touch ? 'SENSE' : Input.mode === 'pad' ? 'Y' : 'V'}</b> to sense your prey through walls. Kills and feeding (<b>${k.use || 'USE'}</b> on a body) keep the hunger away.`, 14); }, 3800);
     }

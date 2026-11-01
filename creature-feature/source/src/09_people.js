@@ -3,7 +3,7 @@
 
 const PEOPLE = { list: [], next: 1, corpses: [] };
 const CALM = { idle: 1, walk: 1, sit: 1 };
-// states: idle, walk, flee, inside, incar, trance, cower, down, blind, held, snared, thrown, dead, gone
+// states: idle, walk, flee, inside, incar, trance, cower, down, blind, held, snared, cursed, thrown, dead, gone
 function spawnPerson(type, x, z, o = {}) {
   if (!type) type = Math.random() < 0.035 ? 'scientist' : pick(FOLK_COMMON);
   const look = folkLook(type, RNG((Math.random() * 1e9) | 0));
@@ -81,7 +81,7 @@ function perceive(v, dt) {
 }
 // they've seen you (or heard a scream): run, and scream so others know
 function startle(v, mx, mz, quiet) {
-  if (v.state === 'dead' || v.state === 'gone' || v.state === 'held' || v.state === 'snared' || v.state === 'thrown') return;
+  if (v.state === 'dead' || v.state === 'gone' || v.state === 'held' || v.state === 'snared' || v.state === 'thrown' || v.state === 'cursed') return;
   v.alert = 1; v.lastMx = mx; v.lastMz = mz;
   if (v.state === 'incar') {
     const c = v.car;
@@ -120,7 +120,7 @@ function witness(x, z) {
 
 // ---------- fleeing ----------
 function planFlee(v) {
-  const mx = P ? P.x : v.lastMx, mz = P ? P.z : v.lastMz;
+  const [mx, mz] = threatPos(v);
   const dm = dist(v.x, v.z, mx, mz);
   let best = null, bc = 1e9;
   const danger = (tx, tz) => {
@@ -172,7 +172,7 @@ function planFlee(v) {
 }
 function fleeStep(v, dt) {
   v.plan -= dt;
-  const mx = P ? P.x : v.lastMx, mz = P ? P.z : v.lastMz, dm = dist(v.x, v.z, mx, mz);
+  const [mx, mz] = threatPos(v), dm = dist(v.x, v.z, mx, mz);
   if (v.plan <= 0 || !v.path) planFlee(v);
   // sprint while there's breath, then jog
   const sprint = v.stam > 0;
@@ -305,6 +305,17 @@ function updatePeople(dt) {
         break;
       }
       case 'held': v.mode = 'held'; break;
+      case 'cursed': {
+        // lifted into the air by the necromancer's curse, writhing, until something gives
+        v.speed = 0; v.mode = 'held';
+        const k = clamp(v.t / 1.6, 0, 1);
+        v.y = v.curseY + (1 - (1 - k) * (1 - k)) * 2.6 + Math.sin(G.t * 3 + v.id) * 0.06;
+        v.yaw += dt * 0.8 * k;
+        v.M.root.rotation.x = -0.35 * k;
+        if (G.frame % 3 === 0) spray(v.x + rr(-0.3, 0.3), v.y + rr(0.2, 1.8), v.z + rr(-0.3, 0.3), 1, { kind: 'debris', col: [0x9aff6a, 0x3ad84a], speed: 0.6, up: 1, spread: 0.4, size: 0.05, life: 0.7, g: -1.5 });
+        if (v.t > 2.3) killPerson(v, 'curse', fwdX(v.yaw), fwdZ(v.yaw), { bonus: v.curseBonus || ['cursed'] });
+        break;
+      }
       case 'thrown': throwStep(v, dt); break;
     }
     // the poses
@@ -378,7 +389,7 @@ function makeCorpse(v, how, dx, dz) {
   const hx = v.x, hz = v.z;
   const nx = dx || 0, nz = dz || 0, nl = Math.hypot(nx, nz) || 1;
   const ux = nx / nl, uz = nz / nl;
-  bloodPool(hx - ux * 0.9, hz - uz * 0.9, how === 'strangle' ? 0.5 : how === 'bite' ? 1.0 : 1.3, v.y);
+  if (how !== 'curse') bloodPool(hx - ux * 0.9, hz - uz * 0.9, how === 'wither' ? 0.3 : how === 'strangle' ? 0.5 : how === 'bite' || how === 'zombie' ? 1.0 : 1.3, v.y);
   if (how === 'bite') { v.spurt = 1.6; }
   else if (how === 'claw' || how === 'pounce') {
     bloodBurst(hx, v.y + 1.2, hz, ux, uz, 1.2);
@@ -388,6 +399,18 @@ function makeCorpse(v, how, dx, dz) {
     if (gore) { for (const part of [M.armL, M.legR, chance(0.5) ? M.head : M.armR]) if (chance(0.7)) gib(part, ux * 6 + rr(-2, 2), 4 + rr(0, 3), uz * 6 + rr(-2, 2), v); v.spurt = 1; }
     if (how === 'smash') { v.fly = { vx: ux * 9, vy: 5, vz: uz * 9, spin: rr(-8, 8) }; }
   } else if (how === 'strangle') { spray(hx, v.y + 1.5, hz, 10, { speed: 1.5, up: 0.3, spread: 0.5 }); }
+  else if (how === 'wither') {
+    // drained dry: grey and shrivelled
+    for (const k of ['torso', 'head', 'armL', 'armR']) M.parts[k].material = witherMat();
+    spray(hx, v.y + 1.2, hz, 16, { kind: 'debris', col: [0x9aff6a, 0x5ad84a, 0x8a8478], speed: 1.2, up: 1, spread: 0.6, size: 0.05, life: 1, g: -1 });
+  } else if (how === 'curse') {
+    // every bone at once: twisted limbs, the neck turned too far, then the fall
+    bloodBurst(hx, v.y + 1.2, hz, 0, 0, 0.7);
+    M.armL.rotation.set(0.9, 0, 2.4); M.armR.rotation.set(-2.9, 0, -2.2); M.legL.rotation.set(-1.2, 0, 0.7); M.legR.rotation.set(0.8, 0, -0.5);
+    M.head.rotation.set(0.5, 1.9, 0.3);
+    v.spurt = gore ? 1 : 0;
+    v.fly = { vx: 0, vy: -1, vz: 0, spin: 0 };
+  } else if (how === 'zombie') { bloodBurst(hx, v.y + 1.3, hz, ux, uz, 0.7); v.spurt = 1.2; }
   PEOPLE.corpses.push(v);
   if (PEOPLE.corpses.length > 36) removeCorpse(PEOPLE.corpses[0]);
 }
