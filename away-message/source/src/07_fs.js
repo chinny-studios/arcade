@@ -270,7 +270,7 @@ function openDOS() {
 // ---- Run and Find ----
 const RUNCMDS = {
   notepad: () => openNotepad(), command: openDOS, cmd: openDOS, winmine: () => openMines(), mines: () => openMines(), sol: () => openSolitaire(), pinball: () => openPinball(),
-  iexplore: () => openBrowser(), explorer: () => openExplorer(), regedit: openRegedit, control: openControlPanel, 'desk.cpl': openDisplay, scandisk: () => runScandisk(true),
+  iexplore: () => openBrowser(), explorer: () => openExplorer(), regedit: openRegedit, control: openControlPanel, 'desk.cpl': openDisplay, display: openDisplay, sounds: openSounds, mouse: openMouse, dialup: () => openAmeriNet(), scandisk: () => runScandisk(true),
   snapster: () => APPS.snapster.open(), zapamp: () => APPS.zapamp.open(), bongo: () => { bongoSummon(); bongoSay('You called? I\'m always here for you. ALWAYS.', { emote: 'wave' }); unlock('secretbongo'); },
   mail: () => openMail(), aim: () => msgBox({ icon: 'info', title: 'Run', text: 'Did you mean BuddyChat? We don\'t talk about the other one.' }), calc: () => msgBox({ icon: 'info', title: 'Calculator', text: '2 + 2 = 5\n\n(Calculator is still installing. Please try again in 2002.)' }),
 };
