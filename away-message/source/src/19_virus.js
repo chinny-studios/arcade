@@ -53,6 +53,7 @@ function openVirusBlaster() {
       let found = 0;
       for (const f of infected) { print('THREAT: ' + (VIRUSES[f.payload] || {}).name + ' in ' + f.name, '#ff4040'); found++; }
       for (const n of activeNames) { print('ACTIVE THREAT IN MEMORY: ' + n, '#ff4040'); found++; }
+      for (const f of scanFiles.filter((g) => g.app === 'progz')) print('RISKWARE (left alone): Hacktool.Punter in ' + f.name, '#ffd000');
       if (!found) print('Scan complete. No threats found. You\'re clean!', '#40ff40');
       else {
         print('\n' + found + ' threat(s) found. Cleaning...', '#ffd000');

@@ -19,7 +19,7 @@ function displayName(f) { const n = typeof f === 'string' ? f : f.name; return S
 function fileIcon(f) {
   if (f.icon) return f.icon;
   const e = extOf(f.name);
-  return { mp3: 'mp3', txt: 'txt', ini: 'txt', vbs: 'vbs', zip: 'zip', bat: 'bat', com: 'bat', doc: 'txt', jpg: 'display', bmp: 'display', wav: 'sound', scr: 'pipes', sys: 'gear' }[e] || (f.app ? (APPS[f.app] && APPS[f.app].icon) || 'exe' : 'exe');
+  return { mp3: 'mp3', txt: 'txt', ini: 'txt', vbs: 'vbs', zip: 'zip', bat: 'bat', com: 'bat', doc: 'txt', jpg: 'display', bmp: 'display', wav: 'sound', scr: 'pipes', sys: 'gear', dll: 'gear' }[e] || (f.app ? (APPS[f.app] && APPS[f.app].icon) || 'exe' : 'exe');
 }
 function filesIn(dir) { return S.files.filter((f) => f.dir === dir); }
 function addFile(f) {
@@ -61,6 +61,7 @@ function runFile(f) {
   stat('ran');
   if (f.payload) { infect(f.payload, f); return; }
   if (f.app && APPS[f.app]) { if (f.installer) installApp(f.app, f); else APPS[f.app].open(); return; }
+  if (extOf(f.name) === 'dll') { msgBox({ title: displayName(f), icon: 'info', text: f.name + ' is a library, not a program. You don\'t run it: programs that need it (like progz) just look for it.' }); return; }
   if (extOf(f.name) === 'zip') { msgBox({ title: 'WinZipper', icon: 'zip', text: 'This archive is empty. (It was probably a fake.)' }); return; }
   msgBox({ title: displayName(f), icon: 'error', text: `${f.name}\n\nThis program has performed an illegal operation and will be shut down.\n\nIf the problem persists, contact the program vendor.` , buttons: ['Close'] });
 }

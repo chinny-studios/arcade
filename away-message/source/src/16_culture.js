@@ -101,6 +101,7 @@ function buddyComment(kind, extra) {
       const fan = avail.find((x) => x.likes.includes(extra.genre)); if (fan) b = fan;
       line = b.likes.includes(extra.genre) ? pick([extra.artist + ' lyrics!!! i love that song', 'omg ur quoting ' + extra.title, 'that song is SO us']) : pick(['did u really put ' + extra.artist + ' in ur profile', 'lol ' + extra.artist + '?? really?', 'ur lyrics r kinda cheesy lol']);
     } else if (kind === 'deep') line = b.sn === 'xXDarkAngelXx' ? pick(['ur away message. it speaks to me.', 'finally someone who gets it.']) : pick(['ur away message is so deep lol', 'r u ok?? ur away msg is so sad', 'whoa deep away message']);
+    else if (kind === 'fader') line = b.sn === 'cousinTJ' ? 'nice fader lol. is that phantom?' : pick(['how did u make ur away message all rainbow??', 'r u using progz?? lol', 'ur away message is so l33t', 'my eyes. MY EYES. lol']);
     else line = pick(['nice profile lol', 'omg i love ur new profile', 'lol whats with ur profile']);
     buddySay(b.sn, line);
   });

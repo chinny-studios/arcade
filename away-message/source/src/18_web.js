@@ -130,12 +130,14 @@ site('www.gamezcheatz.com', () => pageShell('GameZ CheatZ 2001', `<div style="ba
   <p>ALL the codes for ALL the games!!! ${hitCounter(60613)}</p>
   <ul><li><b>Mine Finder:</b> type <b>xyzzy</b> then press Shift. (We're not sure what it does.)</li>
   <li><b>Solitaire:</b> hold Ctrl+Alt+Shift and click a card to pull any card.</li>
+  <li><b>BuddyChat progz:</b> punterz, faderz, IM bomberz at ${link('the PrOgZ PaLaCe', 'www.geopages.com/area51/progz/')}!!!</li>
   <li><b>The famous Blue Screen prank:</b> ${dlink('download bsod.exe', 'bsod')} and send it to your friends! LOL</li></ul>
   <p style="font-size:11px;color:#888">Site best viewed in Internet Exploder at 800x600. Sign my ${link('guestbook', 'www.geopages.com/area51/7734/')}!</p>`, { title: 'GameZ CheatZ', bg: '#600060' }));
 site('www.lyricz-dungeon.com', (w) => { after(0.2, () => { bongoAdPopup(); }); return pageShell('The Lyricz Dungeon', `<div style="background:#101030;color:#c0c0ff;padding:14px;margin:-14px;font-family:'Comic Sans MS',cursive"><h2 style="color:#ff40c0">~*~ The Lyricz Dungeon ~*~</h2><p>welcome 2 the dungeon!!! every lyric EVER!!!</p><marquee style="color:#ffd400">*** now playing a MIDI you cannot turn off ***</marquee><p>${['*NSYNK', 'Britnee Spearz', 'Blink-183', 'Creeed'].map((a) => link(a + ' lyrics', 'www.lyricz-dungeon.com/' + a) + '<br>').join('')}</p><p style="font-size:10px">this site has 14 pop-ups. sorry!!!</p></div>`, { raw: true }); });
 site('www.windozeupdate.com', () => pageShell('Windoze Update', `<p>Checking your computer for the latest updates...</p><p><b>Your copy of Windoze Millennium is up to date!</b></p><p>Recommended: a reboot. And another reboot. Then reboot.</p><p style="font-size:11px;color:#888">Critical update: do not install Bongo Buddy. (This warning arrived too late.)</p>`, { title: 'Windoze Update' }));
 
 // GeoPages personal sites + guestbooks
+const GEO_EXTRA = {}; // path → page fn, for GeoPages sites with their own content (the progz site)
 const GUESTBOOK = { 'area51/7734': { owner: 'xXDarkAngelXx', theme: 'dark', title: '~ angel\'s domain ~', tag: 'the rain that nobody sees', entries: [['dreamcatcher_99', 'luv ur poems!!!'], ['anonymous', 'ur so deep'], ['SkaterDude182', 'dude cheer up lol']] } };
 site('geopages.com', (w, host, url) => {
   const path = hostOf(url).replace(/^(www\.)?(geopages|angelfyre)\.com\/?/, '');
@@ -143,6 +145,7 @@ site('geopages.com', (w, host, url) => {
   const g = GUESTBOOK[path.replace(/\/$/, '')] || GUESTBOOK[path.replace(/\/.*$/, '/7734').replace(/\/$/, '')];
   if (/guestbook/i.test(path) || url.includes('#sign')) return guestbookPage(w, path.replace(/\/guestbook.*/, ''));
   const key = path.replace(/\/$/, '');
+  if (GEO_EXTRA[key]) return GEO_EXTRA[key](w);
   if (GUESTBOOK[key]) return geoPage(w, key, GUESTBOOK[key]);
   // generic under-construction page
   return pageShell(path, `<div style="text-align:center;font-family:'Comic Sans MS',cursive;padding:20px"><img src="${icon('gear', 32)}" style="width:48px"><h2>Under Construction!</h2><p>This page is coming soon! Check back later!</p><p>${hitCounter(irnd(12, 900))}</p></div>`, { title: 'GeoPages: ' + path, bg: '#5a4e94' });
