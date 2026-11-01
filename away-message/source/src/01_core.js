@@ -48,6 +48,9 @@ function after(sec, fn) { const id = ++_tid; _timers.push({ id, at: T.t + sec, f
 function every(sec, fn, jitter = 0) { const id = ++_tid; _timers.push({ id, at: T.t + sec + rnd(-jitter, jitter), fn, every: sec, jitter }); return id; }
 function cancel(id) { if (id) _timers = _timers.filter((t) => t.id !== id); }
 const sleep = (sec) => new Promise((r) => after(sec, r));
+// Real-time sleep, independent of game time. Used by the boot/ScanDisk/shutdown overlays, which run while the
+// game-time scheduler is paused (a full-screen #screen is up), so they can't wait on `sleep`.
+const rsleep = (sec) => new Promise((r) => setTimeout(r, Math.max(0, sec) * 1000));
 function onTick(fn) { _tickers.add(fn); return () => _tickers.delete(fn); }
 function stepWorld(dt) {
   T.t += dt;

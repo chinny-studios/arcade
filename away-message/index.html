@@ -287,6 +287,9 @@ function after(sec, fn) { const id = ++_tid; _timers.push({ id, at: T.t + sec, f
 function every(sec, fn, jitter = 0) { const id = ++_tid; _timers.push({ id, at: T.t + sec + rnd(-jitter, jitter), fn, every: sec, jitter }); return id; }
 function cancel(id) { if (id) _timers = _timers.filter((t) => t.id !== id); }
 const sleep = (sec) => new Promise((r) => after(sec, r));
+// Real-time sleep, independent of game time. Used by the boot/ScanDisk/shutdown overlays, which run while the
+// game-time scheduler is paused (a full-screen #screen is up), so they can't wait on `sleep`.
+const rsleep = (sec) => new Promise((r) => setTimeout(r, Math.max(0, sec) * 1000));
 function onTick(fn) { _tickers.add(fn); return () => _tickers.delete(fn); }
 function stepWorld(dt) {
   T.t += dt;
@@ -2044,7 +2047,7 @@ async function bootSequence(o = {}) {
   showScreen(b);
   const skipper = () => { BOOT.skip = true; unlockAudio(); };
   SCREEN().addEventListener('pointerdown', skipper); addEventListener('keydown', skipper);
-  const d = (s) => (BOOT.skip ? sleep(0.02) : sleep(s));
+  const d = (s) => (BOOT.skip ? rsleep(0.02) : rsleep(s));
   const line = (t) => { b.append(t + '\n'); };
   tone({ f: 1000, d: 0.18, v: 0.12, type: 'square', lp: 3000 });
   line('Chinny Modular BIOS v4.51PG, A Power Saving Ally\nCopyright (C) 1984-2000, Chinny Studios, Inc.\n\nPENTIUM-III CPU at 733MHz');
@@ -2062,7 +2065,7 @@ async function bootSequence(o = {}) {
   const sp = h('div', { class: 'splash' }, h('canvas', { width: 640, height: 400 }), h('div', { class: 'lg' }, h('div', null, h('img', { src: icon('logo', 32), style: 'width:72px;height:72px;vertical-align:-10px;margin-right:8px' }), h('span', { class: 'w', text: 'Windoze' }), h('span', { class: 'me', text: 'Me' })), h('div', { class: 'ed', text: 'MILLENNIUM EDITION' })), h('div', { class: 'run' }, h('i')));
   const cx = sp.firstChild.getContext('2d'); WALLS.clouds.gen(cx, 640, 400);
   showScreen(sp);
-  await sleep(BOOT.skip ? 0.6 : 2.6);
+  await rsleep(BOOT.skip ? 0.6 : 2.6);
   showScreen(null);
   S.cleanShutdown = false; S.boots++; saveNow();
   CLOCK.t0 = T.t;
@@ -2076,10 +2079,10 @@ async function runScandisk(manual) {
   const el = h('div', { class: 'scandisk' }, h('div', { class: 'ttl', text: 'Microsloth ScanDisk' }), manual ? 'ScanDisk is now checking the following areas of drive C:' : 'Because Windoze was not properly shut down, ScanDisk is now checking your drives for errors. To avoid seeing this message again, always shut down your computer by selecting Shut Down from the Start menu.\n\nScanDisk is now checking the following areas of drive C:', h('div', { style: 'margin:16px 0 0 20px' }, rows), h('div', { class: 'bx' }, 'Surface scan: ', pct, '% complete'), h('div', { style: 'position:absolute;left:0;right:0;bottom:0;background:#aaa;color:#000;padding:0 30px', text: '< Pause >  < More Info >  < Exit >' }));
   showScreen(el);
   let skip = false; const sk = () => (skip = true); SCREEN().addEventListener('pointerdown', sk);
-  for (let i = 0; i < steps.length; i++) { rows[i].firstChild.textContent = ' » '; await sleep(skip ? 0.05 : i === 5 ? 0.2 : 0.45); rows[i].firstChild.textContent = ' √ '; }
-  for (let p = 0; p <= 100; p += irnd(3, 9)) { pct.textContent = p; await sleep(skip ? 0.01 : 0.08); }
+  for (let i = 0; i < steps.length; i++) { rows[i].firstChild.textContent = ' » '; await rsleep(skip ? 0.05 : i === 5 ? 0.2 : 0.45); rows[i].firstChild.textContent = ' √ '; }
+  for (let p = 0; p <= 100; p += irnd(3, 9)) { pct.textContent = p; await rsleep(skip ? 0.01 : 0.08); }
   pct.textContent = '100';
-  await sleep(skip ? 0.1 : 0.6);
+  await rsleep(skip ? 0.1 : 0.6);
   SCREEN().removeEventListener('pointerdown', sk);
   if (!manual) unlock('scandisk'); else showScreen(null);
 }
@@ -2099,7 +2102,7 @@ async function shutDown() {
   WALLS.clouds.gen(sp.firstChild.getContext('2d'), 640, 400);
   showScreen(sp);
   S.cleanShutdown = true; saveNow(); unlock('shutdown'); saveNow();
-  await sleep(2.2);
+  await rsleep(2.2);
   const safe = h('div', { class: 'safe' }, h('div', null, 'It\'s now safe to turn off', h('br'), 'your computer.', h('small', { text: 'Click anywhere to turn it back on.' })));
   showScreen(safe);
   safe.addEventListener('click', () => location.reload());
