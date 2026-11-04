@@ -1,0 +1,208 @@
+<title>The Keeper's Errand</title>
+<meta name="description" content="A storm-swept island adventure. Switch between four moods, throw your grandmother's bouncing tide-pebble and take your lighthouse back from a pompous sky-baron.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #fff8ec; --dim: #d8ccb6; --gold: #f2c94a; --red: #e0563e; --sea: #2a5a72; --panel: rgba(28, 24, 36, .84); --line: rgba(242, 201, 74, .35);
+    --head: 'Fredoka', 'Trebuchet MS', system-ui, sans-serif; --body: 'Nunito', system-ui, sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1f28; color: var(--ink); font-family: var(--body); -webkit-user-select: none; user-select: none; touch-action: none; }
+  [hidden] { display: none !important; }
+  #app { position: fixed; inset: 0; }
+  #c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  button { font-family: var(--head); }
+  .hud { position: absolute; inset: 0; pointer-events: none; display: none; }
+  body[data-state="play"] .hud, body[data-state="dialog"] .hud, body[data-state="cutscene"] .hud { display: block; }
+  body[data-state="dialog"] #bossBar, body[data-state="cutscene"] #bossBar,
+  body[data-state="cutscene"] #topl, body[data-state="cutscene"] #modes, body[data-state="cutscene"] #goal, body[data-state="cutscene"] #touch { visibility: hidden; }
+  /* life, clams, items */
+  #topl { position: absolute; left: max(14px, env(safe-area-inset-left)); top: max(12px, env(safe-area-inset-top)); }
+  #life { display: flex; gap: 3px; }
+  .leaf { width: 20px; height: 24px; border-radius: 10px 10px 10px 2px; background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.35); transform: rotate(45deg) scale(.82); transition: background .2s; }
+  .leaf.on { background: linear-gradient(135deg, #ff7a6a, #d2302a); border-color: #ffd0c0; }
+  .leaf.half { background: linear-gradient(135deg, #ff7a6a 50%, rgba(0,0,0,.45) 50%); }
+  #life.hurt .leaf.on { animation: wob .3s 2; }
+  @keyframes wob { 50% { transform: rotate(45deg) scale(1); } }
+  #stats { display: flex; gap: 14px; margin-top: 6px; font: 700 18px var(--head); text-shadow: 0 2px 0 rgba(0,0,0,.5); align-items: center; }
+  #stats span { display: inline-flex; align-items: center; gap: 5px; }
+  .shell { width: 18px; height: 14px; border-radius: 9px 9px 4px 4px; background: repeating-linear-gradient(90deg, #f6e6d8 0 3px, #d8b8a0 3px 4px); display: inline-block; }
+  .bottle { width: 10px; height: 16px; border-radius: 3px 3px 4px 4px; background: #5ab05a; display: inline-block; box-shadow: inset 0 -5px 0 #3a8a3a; }
+  #items { display: flex; gap: 6px; margin-top: 8px; }
+  .it { width: 34px; height: 34px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); display: grid; place-items: center; font-size: 19px; position: relative; }
+  .it small { position: absolute; right: 2px; bottom: 0; font: 700 11px var(--head); }
+  /* modes */
+  #modes { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); display: flex; gap: 6px; pointer-events: auto; }
+  .md { position: relative; width: 56px; text-align: center; background: var(--panel); border: 2px solid transparent; border-radius: 12px; padding: 5px 0 4px; opacity: .6; cursor: pointer; transition: transform .15s, opacity .15s; }
+  .md .ic { font-size: 22px; line-height: 26px; }
+  .md .nm { font: 600 11px var(--head); letter-spacing: .02em; }
+  .md .k { position: absolute; left: 6px; top: 3px; font: 700 10px var(--head); color: var(--dim); }
+  .md.on { opacity: 1; border-color: var(--gold); transform: translateY(2px) scale(1.06); }
+  #modeTip { position: absolute; right: max(14px, env(safe-area-inset-right)); top: 78px; font-size: 13px; color: var(--dim); text-shadow: 0 1px 2px #000; text-align: right; max-width: 260px; }
+  #goal { position: absolute; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%); max-width: min(520px, 46vw); text-align: center; font-size: 14px; line-height: 1.4; background: rgba(20,18,28,.55); border-radius: 10px; padding: 6px 12px; text-shadow: 0 1px 2px #000; }
+  #goal b { color: var(--gold); font-family: var(--head); font-weight: 600; letter-spacing: .03em; }
+  #goal div + div { margin-top: 2px; }
+  #prompt { position: absolute; left: 50%; bottom: 13%; transform: translateX(-50%); font: 600 17px var(--head); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; white-space: nowrap; }
+  #prompt kbd { display: inline-block; min-width: 18px; padding: 0 6px; margin-right: 6px; border-radius: 6px; background: var(--gold); color: #2a1e14; font: 700 14px/22px var(--head); text-align: center; }
+  #toasts { position: absolute; left: 50%; bottom: 20%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; width: min(640px, 92vw); }
+  .toast { background: var(--panel); border-left: 3px solid var(--gold); border-radius: 8px; padding: 8px 14px; font-size: 15px; line-height: 1.4; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,.35); animation: tin .25s ease-out; transition: opacity .5s; }
+  @keyframes tin { from { opacity: 0; transform: translateY(8px); } }
+  #banner { position: absolute; left: 0; right: 0; top: 17%; text-align: center; font: 700 clamp(28px, 4.6vw, 54px) var(--head); letter-spacing: .03em; color: #fff4d8; text-shadow: 0 3px 0 rgba(60,30,10,.6), 0 0 26px rgba(0,0,0,.6); opacity: 0; transition: opacity .7s, transform .7s; transform: translateY(8px); padding: 0 16px; }
+  #banner.small { font-size: clamp(22px, 3vw, 36px); top: 20%; }
+  #banner.on { opacity: 1; transform: none; }
+  #bossBar { position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); width: min(520px, 70vw); text-align: center; }
+  #bossBar .nm { font: 700 18px var(--head); text-shadow: 0 2px 2px #000; margin-bottom: 4px; letter-spacing: .04em; }
+  #bossBar .bar { height: 12px; background: rgba(0,0,0,.6); border: 2px solid rgba(255,255,255,.3); border-radius: 8px; overflow: hidden; }
+  #bossBar .bar i { display: block; height: 100%; background: linear-gradient(#c890ff, #7a3ad0); transition: width .3s; }
+  #hurt { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(200,30,20,.5)); opacity: 0; transition: opacity .4s; pointer-events: none; }
+  .lb { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .5s; pointer-events: none; z-index: 4; }
+  #lbT { top: 0; } #lbB { bottom: 0; }
+  body.cine .lb { height: 9vh; }
+  #fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 20; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 21; transition: opacity 1.4s; }
+  /* dialog */
+  #dlg { position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(760px, 94vw); box-sizing: border-box; background: linear-gradient(180deg, rgba(36,30,48,.95), rgba(24,20,34,.95)); border: 2px solid var(--line); border-radius: 16px; padding: 14px 20px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.5); pointer-events: auto; z-index: 6; cursor: pointer; }
+  #dlgWho { position: absolute; top: -15px; left: 18px; font: 700 15px var(--head); background: var(--gold); color: #2a1e14; border-radius: 999px; padding: 3px 12px; letter-spacing: .03em; }
+  #dlgText { font-size: 18px; line-height: 1.5; min-height: 54px; white-space: pre-wrap; }
+  #dlgMore { position: absolute; right: 16px; bottom: 8px; color: var(--gold); animation: bob 1s infinite; }
+  @keyframes bob { 50% { transform: translateY(3px); } }
+  #dlgChoices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  #dlgChoices button { font-size: 16px; background: rgba(255,255,255,.07); color: var(--ink); border: 2px solid rgba(255,255,255,.15); border-radius: 10px; padding: 7px 14px; cursor: pointer; }
+  #dlgChoices button.on { border-color: var(--gold); color: var(--gold); background: rgba(242,201,74,.12); }
+  /* screens */
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 16px; box-sizing: border-box; overflow-y: auto; z-index: 10; }
+  #title { background: radial-gradient(ellipse at 50% 40%, rgba(20,24,36,0), rgba(14,16,24,.65) 80%); justify-content: flex-start; padding-top: max(8vh, 20px); }
+  #logo { margin: 0; font: 700 clamp(44px, 8vw, 96px)/0.95 var(--head); color: #fff2cc; letter-spacing: .01em; text-shadow: 0 5px 0 #8a4a22, 0 14px 40px rgba(0,0,0,.7); }
+  #logo small { display: block; font-size: .32em; letter-spacing: .3em; color: var(--gold); margin-bottom: 10px; text-shadow: 0 2px 0 #4a2a12; }
+  .tag { max-width: 560px; margin: 18px 0 24px; font-size: clamp(15px, 1.8vw, 18px); line-height: 1.55; text-shadow: 0 1px 4px #000; }
+  .menu { display: flex; flex-direction: column; gap: 10px; width: min(300px, 86vw); }
+  .menu button { font-size: 20px; font-weight: 600; background: rgba(28,24,36,.82); color: var(--ink); border: 2px solid rgba(255,255,255,.14); border-radius: 14px; padding: 10px 16px; cursor: pointer; transition: transform .1s; }
+  .menu button:hover, .menu button.sel { border-color: var(--gold); color: var(--gold); transform: scale(1.03); }
+  .menu button.main { background: linear-gradient(#f2c94a, #d8a22a); color: #2a1e14; border-color: #ffe7a0; }
+  .menu button.main:hover, .menu button.main.sel { color: #2a1e14; filter: brightness(1.08); }
+  .panel { background: rgba(28,24,36,.95); border: 2px solid var(--line); border-radius: 16px; padding: 18px 24px; width: min(600px, 92vw); text-align: left; box-sizing: border-box; }
+  .panel h2 { font: 700 26px var(--head); margin: 0 0 12px; color: var(--gold); }
+  .help { font-size: 15px; line-height: 1.75; }
+  .help kbd { display: inline-block; min-width: 20px; padding: 0 6px; border: 1px solid rgba(255,255,255,.3); border-bottom-width: 3px; border-radius: 6px; font: 700 13px/20px var(--head); text-align: center; }
+  .help b { color: var(--gold); font-family: var(--head); font-weight: 600; }
+  .row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+  .row label { width: 110px; color: var(--dim); }
+  input[type=range] { flex: 1; accent-color: var(--gold); }
+  #pause, #end { background: rgba(10,10,18,.72); }
+  #pause h2, #end h2 { font: 700 clamp(36px, 6vw, 60px) var(--head); margin: 0 0 18px; color: #fff2cc; text-shadow: 0 4px 0 #8a4a22; }
+  #end p { max-width: 560px; line-height: 1.6; font-size: 17px; }
+  #endStats { display: flex; gap: 22px; justify-content: center; margin: 4px 0 22px; font: 600 16px var(--head); color: var(--gold); }
+  #mapWin { background: rgba(10,14,22,.86); z-index: 11; }
+  #mapC { max-width: 92vw; max-height: 78vh; border-radius: 16px; border: 2px solid var(--line); box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+  .small { font-size: 13px; color: var(--dim); margin-top: 16px; }
+  #nogl { background: #1a1f28; font-size: 18px; }
+  /* touch */
+  #touch { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+  #joy { position: absolute; left: 0; bottom: 0; width: 45%; height: 60%; pointer-events: auto; }
+  #joyBase { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); background: rgba(0,0,0,.15); display: none; }
+  #joyKnob { position: absolute; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; background: rgba(255,255,255,.35); display: none; }
+  .tb { position: absolute; pointer-events: auto; border-radius: 50%; background: rgba(28,24,36,.6); border: 2px solid rgba(255,255,255,.3); color: var(--ink); font: 700 13px var(--head); display: grid; place-items: center; text-align: center; line-height: 1.1; }
+  .tb.down { background: rgba(242,201,74,.45); }
+  #tAct { right: max(24px, env(safe-area-inset-right)); bottom: max(30px, env(safe-area-inset-bottom)); width: 84px; height: 84px; font-size: 15px; }
+  #tThrow { right: max(124px, calc(env(safe-area-inset-right) + 100px)); bottom: max(40px, env(safe-area-inset-bottom)); width: 64px; height: 64px; }
+  #tUse { right: max(40px, env(safe-area-inset-right)); bottom: max(132px, calc(env(safe-area-inset-bottom) + 110px)); width: 60px; height: 60px; }
+  #tMode { right: max(124px, calc(env(safe-area-inset-right) + 100px)); bottom: max(124px, calc(env(safe-area-inset-bottom) + 104px)); width: 54px; height: 54px; }
+  #tTonic { right: max(196px, calc(env(safe-area-inset-right) + 172px)); bottom: max(30px, env(safe-area-inset-bottom)); width: 46px; height: 46px; }
+  #tPause { right: max(14px, env(safe-area-inset-right)); top: 76px; width: 40px; height: 40px; border-radius: 10px; font-size: 16px; }
+  #tMap { right: max(62px, calc(env(safe-area-inset-right) + 48px)); top: 76px; width: 40px; height: 40px; border-radius: 10px; font-size: 16px; }
+  body:not(.touch) #touch { display: none; }
+  body.touch #modeTip, body.touch .kbHint { display: none; }
+  @media (max-width: 720px) {
+    #goal { font-size: 12px; max-width: 48vw; top: 120px; left: 14px; transform: none; text-align: left; }
+    .md { width: 44px; } .md .nm { display: none; }
+    #dlgText { font-size: 16px; }
+    .leaf { width: 15px; height: 18px; }
+  }
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div class="hud">
+    <div id="topl">
+      <div id="life"></div>
+      <div id="stats"><span><i class="shell"></i><b id="clams">0</b></span><span id="tonicS"><i class="bottle"></i><b id="tonics">0</b></span></div>
+      <div id="items"></div>
+    </div>
+    <div id="modes"></div>
+    <div id="modeTip"></div>
+    <div id="goal"></div>
+    <div id="prompt" hidden></div>
+    <div id="toasts"></div>
+    <div id="banner"></div>
+    <div id="bossBar" hidden><div class="nm"></div><div class="bar"><i></i></div></div>
+    <div id="hurt"></div>
+    <div id="touch">
+      <div id="joy"><div id="joyBase"></div><div id="joyKnob"></div></div>
+      <div class="tb" id="tAct" data-b="action">ACT</div>
+      <div class="tb" id="tThrow" data-b="throw">THROW</div>
+      <div class="tb" id="tUse" data-b="use">TALK<br>USE</div>
+      <div class="tb" id="tMode" data-b="modeNext">MODE</div>
+      <div class="tb" id="tTonic" data-b="tonic">♥</div>
+      <div class="tb" id="tPause" data-b="pause">II</div>
+      <div class="tb" id="tMap" data-b="map">◎</div>
+    </div>
+  </div>
+  <div class="lb" id="lbT"></div><div class="lb" id="lbB"></div>
+  <div id="dlg" hidden><div id="dlgWho"></div><div id="dlgText"></div><div id="dlgChoices" hidden></div><div id="dlgMore">▼</div></div>
+
+  <div id="title" class="screen" hidden>
+    <h1 id="logo"><small>A BRINDLE ISLE ADVENTURE</small>The Keeper's<br>Errand</h1>
+    <p class="tag">Nine days of storm, and tonight the lighthouse went dark. A pompous sky-baron has "bought the weather". Take your grandmother's tide-pebble, mind your moods, and bring the light home.</p>
+    <div class="menu" id="titleMenu">
+      <button id="bContinue" class="main" hidden>Continue</button>
+      <button id="bNew">New Game</button>
+      <button id="bHelp">How to Play</button>
+      <button id="bOpts">Options</button>
+    </div>
+    <p class="small">Original game. Music and sound are synthesized in your browser.</p>
+  </div>
+  <div id="help" class="screen" hidden>
+    <div class="panel help">
+      <h2>How to Play</h2>
+      <div><b>Move</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows (left stick) &nbsp; <b>Talk / use</b> <kbd>E</kbd> (B)</div>
+      <div><b>Mode action</b> <kbd>Space</kbd> or right-click (A) &nbsp; <b>Throw pebble</b> <kbd>F</kbd> or left-click (X, RT)</div>
+      <div><b>Change mode</b> <kbd>1</kbd>–<kbd>4</kbd>, <kbd>Tab</kbd> or <kbd>Q</kbd> (Y, LB/RB) &nbsp; <b>Tonic</b> <kbd>H</kbd> (LT) &nbsp; <b>Map</b> <kbd>M</kbd> &nbsp; <b>Pause</b> <kbd>Esc</kbd></div>
+      <div style="margin-top:10px"><b>Normal</b>: talk, search, push crates, turn valves. Throws a medium arc.</div>
+      <div><b>Sporty</b>: run fast and <b>jump</b> with Space. Throws a high lob.</div>
+      <div><b>Aggressive</b>: punch, punch, kick with Space. Throws hard and flat. People won't talk to you like this.</div>
+      <div><b>Sneaky</b>: tiptoe silently; bailiffs only see you up close and in front. Throws a low skim.</div>
+      <div style="margin-top:10px">The pebble bounces off walls and always comes home. Fall in the sea or a pit and you lose a little life. Smash crates for clams; buy kelp tonic in Pottle Harbour.</div>
+      <div class="menu" style="margin:16px auto 0"><button class="back">Back</button></div>
+    </div>
+  </div>
+  <div id="opts" class="screen" hidden>
+    <div class="panel">
+      <h2>Options</h2>
+      <div class="row"><label>Music</label><input type="range" id="oMusic" min="0" max="1" step="0.05"></div>
+      <div class="row"><label>Sound</label><input type="range" id="oSfx" min="0" max="1" step="0.05"></div>
+      <div class="row"><label>Screen shake</label><input type="checkbox" id="oShake"></div>
+      <div class="menu" style="margin:16px auto 0"><button class="back">Back</button></div>
+    </div>
+  </div>
+  <div id="pause" class="screen" hidden>
+    <h2>Paused</h2>
+    <div class="menu" id="pauseMenu">
+      <button id="pResume" class="main">Resume</button>
+      <button id="pMap">Map</button>
+      <button id="pHelp">How to Play</button>
+      <button id="pOpts">Options</button>
+      <button id="pTitle">Save &amp; Quit to Title</button>
+    </div>
+  </div>
+  <div id="mapWin" class="screen" hidden>
+    <canvas id="mapC" width="720" height="620"></canvas>
+    <p class="small">M or Esc to close. Gold stars mark where to go next.</p>
+  </div>
+  <div id="end" class="screen" hidden>
+    <h2>The Light Returns</h2>
+    <p>The Storm Engine is scrap, the Baron has flown off in a huff, and for the first time in nine days the sun is shining on Brindle Isle. Wick's lamp turns again over the harbour.</p>
+    <div id="endStats"></div>
+    <p class="small">But somewhere above the clouds, a gilded airship is drafting a very large bill...</p>
+    <div class="menu"><button id="eCont" class="main">Keep exploring</button><button id="eTitle">Title screen</button></div>
+  </div>
+  <div id="nogl" class="screen" hidden><div class="panel"><h2>WebGL is needed</h2><p>This game needs WebGL to draw the island. Try another browser, or turn on hardware acceleration.</p></div></div>
+  <div id="fade"></div><div id="flash"></div>
+</div>
